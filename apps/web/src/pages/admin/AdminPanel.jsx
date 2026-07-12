@@ -550,6 +550,56 @@ const MASTER_DATA = [
   }
 ];
 
+// Collection lain yang mungkin punya field "subject" dan/atau "chapter" yang merujuk
+// ke mata kuliah/BAB (misalnya untuk mencatat progres belajar siswa). Nama field yang
+// tidak ada di suatu collection akan otomatis dilewati (bukan error).
+const EXTRA_LINKED_COLLECTIONS = ['materi_progress', 'cbt_attempts', 'soal_progress'];
+
+async function reassignByChapter(oldChapterId, newChapterId, canonicalSubjectId, log) {
+  for (const colName of EXTRA_LINKED_COLLECTIONS) {
+    let recs;
+    try {
+      recs = await pb.collection(colName).getFullList({ filter: `chapter = '${oldChapterId}'` });
+    } catch (e) {
+      continue; // field "chapter" tidak ada di collection ini, atau collection tidak ada
+    }
+    for (const r of recs) {
+      try {
+        await pb.collection(colName).update(r.id, { chapter: newChapterId, subject: canonicalSubjectId });
+      } catch (e) {
+        // kemungkinan bentrok unique constraint (misal 1 progres per siswa per BAB) -> hapus saja yang duplikat
+        try {
+          await pb.collection(colName).delete(r.id);
+        } catch (e2) {
+          log.push(`Gagal memindahkan/menghapus ${colName} (${r.id}): ${e2.message}`);
+        }
+      }
+    }
+  }
+}
+
+async function reassignBySubject(oldSubjectId, canonicalSubjectId, log) {
+  for (const colName of EXTRA_LINKED_COLLECTIONS) {
+    let recs;
+    try {
+      recs = await pb.collection(colName).getFullList({ filter: `subject = '${oldSubjectId}'` });
+    } catch (e) {
+      continue; // field "subject" tidak ada di collection ini, atau collection tidak ada
+    }
+    for (const r of recs) {
+      try {
+        await pb.collection(colName).update(r.id, { subject: canonicalSubjectId });
+      } catch (e) {
+        try {
+          await pb.collection(colName).delete(r.id);
+        } catch (e2) {
+          log.push(`Gagal memindahkan/menghapus ${colName} (${r.id}): ${e2.message}`);
+        }
+      }
+    }
+  }
+}
+
 // ==========================================
 // BERSIHKAN DUPLIKAT MATA KULIAH (aman, tidak menghapus soal)
 // ==========================================
@@ -623,6 +673,7 @@ function CleanupDuplicates() {
                   }
                 }
               }
+              await reassignByChapter(dc.id, targetChapterId, canonical.id, log);
               try {
                 await pb.collection('chapters').delete(dc.id);
               } catch (e) {
@@ -649,6 +700,7 @@ function CleanupDuplicates() {
                     log.push(`Gagal memperbarui mata kuliah pada PPT (${p.id}): ${e.message}`);
                   }
                 }
+                await reassignByChapter(dc.id, dc.id, canonical.id, log);
               } catch (e) {
                 log.push(`Gagal memindahkan BAB "${dc.title}": ${e.message}`);
               }
@@ -672,6 +724,7 @@ function CleanupDuplicates() {
               log.push(`Gagal memindahkan PPT (${p.id}): ${e.message}`);
             }
           }
+          await reassignBySubject(dup.id, canonical.id, log);
 
           // Perbaiki dulu semua pengajar yang masih merujuk ke mata kuliah duplikat ini,
           // supaya PocketBase tidak menolak penghapusan karena masih direferensikan (required relation).
