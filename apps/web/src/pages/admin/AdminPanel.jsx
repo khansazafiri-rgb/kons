@@ -600,7 +600,7 @@ function CleanupDuplicates() {
           for (const dc of dupChapters) {
             const dcTitle = dc.title.trim();
             if (chapterMap[dcTitle]) {
-              // BAB dengan judul sama sudah ada di mata kuliah asli -> pindahkan soalnya, lalu hapus BAB duplikat
+              // BAB dengan judul sama sudah ada di mata kuliah asli -> pindahkan soal & PPT-nya, lalu hapus BAB duplikat
               const targetChapterId = chapterMap[dcTitle];
               const dupQuestions = await pb.collection('questions').getFullList({ filter: `chapter = '${dc.id}'` });
               for (const q of dupQuestions) {
@@ -610,13 +610,26 @@ function CleanupDuplicates() {
                   log.push(`Gagal memindahkan soal (${q.id}): ${e.message}`);
                 }
               }
+              const dupPpt = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${dc.id}'` });
+              for (const p of dupPpt) {
+                try {
+                  await pb.collection('ppt_files').update(p.id, { chapter: targetChapterId, subject: canonical.id });
+                } catch (e) {
+                  // BAB tujuan mungkin sudah punya PPT sendiri -> hapus saja PPT duplikat ini
+                  try {
+                    await pb.collection('ppt_files').delete(p.id);
+                  } catch (e2) {
+                    log.push(`Gagal memindahkan/menghapus PPT duplikat (${p.id}): ${e2.message}`);
+                  }
+                }
+              }
               try {
                 await pb.collection('chapters').delete(dc.id);
               } catch (e) {
                 log.push(`Gagal menghapus BAB duplikat "${dc.title}": ${e.message}`);
               }
             } else {
-              // BAB ini belum ada di mata kuliah asli -> pindahkan saja BAB-nya (soal ikut karena tetap merujuk ke BAB yang sama)
+              // BAB ini belum ada di mata kuliah asli -> pindahkan saja BAB-nya (soal & PPT ikut karena tetap merujuk ke BAB yang sama)
               try {
                 await pb.collection('chapters').update(dc.id, { subject: canonical.id });
                 chapterMap[dcTitle] = dc.id;
@@ -628,19 +641,35 @@ function CleanupDuplicates() {
                     log.push(`Gagal memperbarui mata kuliah pada soal (${q.id}): ${e.message}`);
                   }
                 }
+                const dupPpt = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${dc.id}'` });
+                for (const p of dupPpt) {
+                  try {
+                    await pb.collection('ppt_files').update(p.id, { subject: canonical.id });
+                  } catch (e) {
+                    log.push(`Gagal memperbarui mata kuliah pada PPT (${p.id}): ${e.message}`);
+                  }
+                }
               } catch (e) {
                 log.push(`Gagal memindahkan BAB "${dc.title}": ${e.message}`);
               }
             }
           }
 
-          // Soal CBT nempel langsung ke mata kuliah tanpa BAB -> pindahkan juga sebelum menghapus mata kuliah duplikat
+          // Soal CBT dan PPT yang nempel langsung ke mata kuliah tanpa BAB -> pindahkan juga sebelum menghapus mata kuliah duplikat
           const directQuestions = await pb.collection('questions').getFullList({ filter: `subject = '${dup.id}'` });
           for (const q of directQuestions) {
             try {
               await pb.collection('questions').update(q.id, { subject: canonical.id });
             } catch (e) {
               log.push(`Gagal memindahkan soal CBT (${q.id}): ${e.message}`);
+            }
+          }
+          const directPpt = await pb.collection('ppt_files').getFullList({ filter: `subject = '${dup.id}'` });
+          for (const p of directPpt) {
+            try {
+              await pb.collection('ppt_files').update(p.id, { subject: canonical.id });
+            } catch (e) {
+              log.push(`Gagal memindahkan PPT (${p.id}): ${e.message}`);
             }
           }
 
