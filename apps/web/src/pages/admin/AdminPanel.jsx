@@ -572,24 +572,29 @@ function CleanupDuplicates() {
         groups[key].push(s);
       }
 
-      const idRemap = {}; // id mata kuliah duplikat -> id mata kuliah asli (kanonik)
+      const duplicateGroups = Object.values(groups).filter((g) => g.length > 1);
+      if (duplicateGroups.length === 0) {
+        setStatus('✅ Tidak ada mata kuliah duplikat yang ditemukan. Data sudah bersih.');
+        setLoading(false);
+        return;
+      }
+
+      setStatus('Memuat daftar pengajar...');
+      const teachers = await pb.collection('users').getFullList({ filter: "role = 'teacher'" });
+
       let mergedCount = 0;
 
-      for (const key of Object.keys(groups)) {
-        const group = groups[key];
-        if (group.length < 2) continue;
+      for (const group of duplicateGroups) {
         mergedCount++;
-
         const canonical = group[0];
         const duplicates = group.slice(1);
-        setStatus(`Menggabungkan "${key}" (${group.length} salinan)...`);
+        setStatus(`Menggabungkan "${canonical.name}" (${group.length} salinan)...`);
 
         const canonicalChapters = await pb.collection('chapters').getFullList({ filter: `subject = '${canonical.id}'` });
         const chapterMap = {};
         for (const c of canonicalChapters) chapterMap[c.title.trim()] = c.id;
 
         for (const dup of duplicates) {
-          idRemap[dup.id] = canonical.id;
           const dupChapters = await pb.collection('chapters').getFullList({ filter: `subject = '${dup.id}'` });
 
           for (const dc of dupChapters) {
@@ -629,34 +634,34 @@ function CleanupDuplicates() {
             }
           }
 
+          // Soal CBT nempel langsung ke mata kuliah tanpa BAB -> pindahkan juga sebelum menghapus mata kuliah duplikat
+          const directQuestions = await pb.collection('questions').getFullList({ filter: `subject = '${dup.id}'` });
+          for (const q of directQuestions) {
+            try {
+              await pb.collection('questions').update(q.id, { subject: canonical.id });
+            } catch (e) {
+              log.push(`Gagal memindahkan soal CBT (${q.id}): ${e.message}`);
+            }
+          }
+
+          // Perbaiki dulu semua pengajar yang masih merujuk ke mata kuliah duplikat ini,
+          // supaya PocketBase tidak menolak penghapusan karena masih direferensikan (required relation).
+          for (const t of teachers) {
+            const cur = t.teachingSubjects || [];
+            if (!cur.includes(dup.id)) continue;
+            const fixed = Array.from(new Set(cur.map((id) => (id === dup.id ? canonical.id : id))));
+            try {
+              await pb.collection('users').update(t.id, { teachingSubjects: fixed });
+              t.teachingSubjects = fixed;
+            } catch (e) {
+              log.push(`Gagal memperbarui pengajar "${t.name}": ${e.message}`);
+            }
+          }
+
           try {
             await pb.collection('subjects').delete(dup.id);
           } catch (e) {
             log.push(`Gagal menghapus mata kuliah duplikat "${dup.name}": ${e.message}`);
-          }
-        }
-      }
-
-      if (mergedCount === 0) {
-        setStatus('✅ Tidak ada mata kuliah duplikat yang ditemukan. Data sudah bersih.');
-        setLoading(false);
-        return;
-      }
-
-      // Perbaiki daftar mata kuliah yang diajar tiap pengajar, karena beberapa ID mata kuliah sudah berubah
-      if (Object.keys(idRemap).length > 0) {
-        setStatus('Memperbaiki daftar mata kuliah pengajar...');
-        const teachers = await pb.collection('users').getFullList({ filter: "role = 'teacher'" });
-        for (const t of teachers) {
-          const cur = t.teachingSubjects || [];
-          const fixed = Array.from(new Set(cur.map((id) => idRemap[id] || id)));
-          const changed = fixed.length !== cur.length || fixed.some((id, i) => id !== cur[i]);
-          if (changed) {
-            try {
-              await pb.collection('users').update(t.id, { teachingSubjects: fixed });
-            } catch (e) {
-              log.push(`Gagal memperbarui pengajar "${t.name}": ${e.message}`);
-            }
           }
         }
       }
