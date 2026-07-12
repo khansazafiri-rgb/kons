@@ -40,6 +40,7 @@ export default function AdminPanel() {
           {tab === 'Tambah Akun' && <TambahAkun />}
           {tab === 'Reset Kurikulum' && (
             <div className="space-y-6">
+              <RestoreMissingChapters />
               <CleanupDuplicates />
               <SeedData />
             </div>
@@ -598,6 +599,79 @@ async function reassignBySubject(oldSubjectId, canonicalSubjectId, log) {
       }
     }
   }
+}
+
+// ==========================================
+// PULIHKAN BAB YANG KOSONG (hanya menambah, tidak pernah menghapus/menimpa)
+// ==========================================
+function RestoreMissingChapters() {
+  const [status, setStatus] = useState('Menunggu aksi...');
+  const [loading, setLoading] = useState(false);
+
+  const handleRestore = async () => {
+    if (!confirm('Ini akan menambahkan BAB standar dari daftar kurikulum bawaan HANYA untuk mata kuliah yang saat ini belum punya BAB sama sekali. Mata kuliah yang sudah punya BAB tidak akan disentuh sama sekali. Lanjutkan?')) return;
+
+    setLoading(true);
+    const log = [];
+    let restoredCount = 0;
+    try {
+      const allSubjects = await pb.collection('subjects').getFullList({ sort: 'order' });
+
+      for (const master of MASTER_DATA) {
+        const subject = allSubjects.find((s) => s.name.trim() === master.subject.trim());
+        if (!subject) {
+          log.push(`Mata kuliah "${master.subject}" tidak ditemukan di database, dilewati.`);
+          continue;
+        }
+
+        const existingChapters = await pb.collection('chapters').getFullList({ filter: `subject = '${subject.id}'` });
+        if (existingChapters.length > 0) continue; // sudah ada BAB -> jangan disentuh sama sekali
+
+        setStatus(`Menambahkan BAB untuk "${master.subject}"...`);
+        let order = 1;
+        for (const title of master.chapters) {
+          try {
+            await pb.collection('chapters').create({ title, subject: subject.id, order: order++ });
+          } catch (e) {
+            log.push(`Gagal membuat BAB "${title}" untuk "${master.subject}": ${e.message}`);
+          }
+        }
+        restoredCount++;
+      }
+
+      if (restoredCount === 0 && log.length === 0) {
+        setStatus('✅ Semua mata kuliah sudah punya BAB. Tidak ada yang perlu dipulihkan.');
+      } else if (log.length === 0) {
+        setStatus(`✅ Selesai! BAB berhasil dipulihkan untuk ${restoredCount} mata kuliah yang tadinya kosong. Mata kuliah lain tidak diubah sama sekali.`);
+      } else {
+        setStatus(`⚠️ Selesai (${restoredCount} mata kuliah dipulihkan) dengan ${log.length} catatan:\n` + log.join('\n'));
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus('❌ Terjadi kesalahan: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm text-center">
+      <h2 className="text-lg font-bold text-emerald-600">🩹 Pulihkan BAB yang Kosong</h2>
+      <p className="text-sm text-slate-600">
+        Menambahkan BAB standar dari daftar kurikulum bawaan HANYA untuk mata kuliah yang saat ini belum punya BAB sama sekali (misalnya karena kehapus tidak sengaja). Mata kuliah yang sudah punya BAB/soal TIDAK akan disentuh atau dihapus sama sekali. Soal yang sudah hilang tetap perlu diinput ulang manual (bisa pakai fitur Import Massal di Edit Soal).
+      </p>
+      <button
+        onClick={handleRestore}
+        disabled={loading}
+        className={`px-4 py-2 rounded-lg text-white font-bold transition-colors ${loading ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+      >
+        {loading ? 'Sedang Memproses...' : 'Pulihkan BAB Kosong Sekarang'}
+      </button>
+      <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-left text-xs font-mono text-slate-700 whitespace-pre-wrap">
+        Status: <span className={loading ? 'text-blue-600 font-bold' : 'font-bold'}>{status}</span>
+      </div>
+    </div>
+  );
 }
 
 // ==========================================
