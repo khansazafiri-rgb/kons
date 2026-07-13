@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ClipboardList, History, Search } from 'lucide-react';
-import Header from '@/components/Header';
+import { ClipboardList, History, Lock, Search } from 'lucide-react';
+import Header, { bumpStreak } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 
 export default function CicilBelajar() {
- const { guest, user } = useAuth();
+ const { guest, user, role } = useAuth();
  const [params] = useSearchParams();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState(params.get('subject') || '');
@@ -17,10 +17,46 @@ export default function CicilBelajar() {
  const [priorProgress, setPriorProgress] = useState(null);
  const [resume, setResume] = useState(null);
  const [search, setSearch] = useState('');
+ const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
+ const [doneChapters, setDoneChapters] = useState(new Set());
+ const [refreshKey, setRefreshKey] = useState(0);
 
+ // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
+ const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const visibleSubjects = useMemo(
+   () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
+   [subjects, enrolled]
+ );
+
+ // Progress bar per mata kuliah: % BAB yang latihannya sudah dituntaskan (submit)
  useEffect(() => {
-   pb.collection('subjects').getFullList({ sort: 'order' }).then(setSubjects);
- }, []);
+   (async () => {
+     const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
+     setSubjects(subs);
+     try {
+       const allChapters = await pb.collection('chapters').getFullList({ fields: 'id,subject' });
+       let doneSet = new Set();
+       if (!guest && user?.id) {
+         const prog = await pb
+           .collection('soal_progress')
+           .getFullList({ filter: `owner = '${user.id}' && status = 'completed'`, fields: 'chapter' });
+         doneSet = new Set(prog.map((p) => p.chapter));
+         setDoneChapters(doneSet);
+       }
+       const map = {};
+       subs.forEach((s) => {
+         const chaptersOfS = allChapters.filter((c) => c.subject === s.id);
+         map[s.id] = {
+           done: chaptersOfS.filter((c) => doneSet.has(c.id)).length,
+           total: chaptersOfS.length,
+         };
+       });
+       setProgressMap(map);
+     } catch (e) {
+       setProgressMap({});
+     }
+   })();
+ }, [guest, user, refreshKey]);
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
@@ -42,6 +78,10 @@ export default function CicilBelajar() {
      sort: 'order',
      expand: 'chapter',
    });
+   if (qs.length === 0) {
+     alert('Belum ada soal untuk BAB ini. Silakan pilih BAB lain.');
+     return;
+   }
    setQuestions(qs);
 
    if (!guest && user) {
@@ -86,6 +126,7 @@ export default function CicilBelajar() {
    } else {
      await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score, status: 'completed' });
    }
+   await bumpStreak(pb, user); // streak belajar harian 🔥
  };
 
  // Layar Peringatan Resume Pengerjaan
@@ -140,6 +181,7 @@ export default function CicilBelajar() {
              setQuestions(null);
              setPriorProgress(null);
              setResume(null);
+             setRefreshKey((k) => k + 1); // refresh progress bar
            }}
            onSubmit={submit}
          />
@@ -160,17 +202,45 @@ export default function CicilBelajar() {
        <h1 className="font-display text-3xl font-semibold mb-2">Latihan Soal per BAB</h1>
        <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap.</p>
 
+       {enrolled && enrolled.length === 0 && (
+         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
+           <Lock size={16} className="text-gold-600 mt-0.5 shrink-0" />
+           <p>Akunmu belum dipilihkan mata kuliah oleh admin. Hubungi admin agar mata kuliahmu diaktifkan.</p>
+         </div>
+       )}
+
        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card space-y-6">
          <div>
-           <label className="block text-sm font-bold text-stone-700 mb-2">1. Pilih Mata Kuliah</label>
-           <select
-             value={subjectId}
-             onChange={(e) => setSubjectId(e.target.value)}
-             className="w-full rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-           >
-             <option value="">-- Silakan Pilih --</option>
-             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-           </select>
+           <label className="block text-sm font-bold text-stone-700 mb-3">1. Pilih Mata Kuliah</label>
+           <div className="grid sm:grid-cols-2 gap-2.5">
+             {visibleSubjects.map((s) => {
+               const prog = progressMap[s.id] || { done: 0, total: 0 };
+               const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
+               const active = subjectId === s.id;
+               return (
+                 <button
+                   key={s.id}
+                   onClick={() => setSubjectId(s.id)}
+                   className={`text-left rounded-xl border p-4 transition-all ${
+                     active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+                   }`}
+                 >
+                   <div className="flex items-center justify-between gap-2 mb-2">
+                     <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
+                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
+                   </div>
+                   {!guest && (
+                     <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
+                       <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                     </div>
+                   )}
+                 </button>
+               );
+             })}
+             {visibleSubjects.length === 0 && enrolled?.length !== 0 && (
+               <p className="text-sm text-stone-400 col-span-2">Belum ada mata kuliah tersedia.</p>
+             )}
+           </div>
          </div>
 
          {subjectId && (
@@ -192,13 +262,14 @@ export default function CicilBelajar() {
                  <button
                    key={c.id}
                    onClick={() => setChapterId(c.id)}
-                   className={`text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                   className={`flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                      chapterId === c.id
                        ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
                        : 'border-alba-200 text-stone-700 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
                  >
-                   {c.title}
+                   <span>{c.title}</span>
+                   {doneChapters.has(c.id) && <span className="text-[10px] font-bold text-green-800 bg-green-50 border border-green-200 rounded-full px-2.5 py-0.5 shrink-0">Selesai</span>}
                  </button>
                ))}
                {visibleChapters.length === 0 && (

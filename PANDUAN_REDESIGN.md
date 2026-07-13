@@ -1,20 +1,41 @@
-# 🎨 Panduan Redesign PCV Classroom — Copy-Paste Edition (Tanpa File Baru!)
+# 🎨 PCV Classroom — Panduan Revisi 2 (Copy-Paste Edition)
 
-Palet: **Alba** (ivory hangat `#FDFBF7`) + **Maroon `#8E0100`** + aksen emas.
-Tipografi: **Fraunces** (judul, serif akademik) + **DM Sans** (body).
+Palet **Alba** + **Maroon `#8E0100`**, logo asli PCV, plus semua revisi dari PRD "Revisi web PCV 1"
+dan semua fitur rekomendasi (streak, grafik nilai, ulangi soal salah, leaderboard, reset device, dark mode).
 
-✅ **Semua perubahan di panduan ini HANYA mengedit file yang SUDAH ADA** — tidak ada
-satu pun file baru yang perlu dibuat, jadi bisa dikerjakan di Horizons tanpa AI berbayar.
-(Komponen Logo yang tadinya file terpisah sudah dipindah ke dalam `Header.jsx`.)
+✅ **Semua HANYA mengedit file yang sudah ada** — tidak ada file baru. Bisa dikerjakan di Horizons tanpa AI berbayar.
 
-**Cara pakai:** buka file yang disebutkan → blok semua isinya (Ctrl+A) → hapus →
-paste code dari blok di bawahnya. Kerjakan dari bagian pertama (fondasi) supaya
-warna langsung berubah, lalu lanjut ke komponen dan halaman satu per satu.
+**Cara pakai:** buka file → blok semua (Ctrl+A) → hapus → paste code di bawahnya. Mulai dari 3 file fondasi.
 
-> `AuthContext.jsx`, `pocketbaseClient.js`, dan `vite.config.js` **TIDAK perlu disentuh** —
-> project-mu sudah punya semuanya (kalau web-nya sudah bisa jalan & login, berarti ada).
+---
 
-## Daftar Isi (15 file, semuanya GANTI SELURUH ISI)
+## ⚠️ WAJIB: buat/ubah field di database (PocketBase) dulu
+
+Sebagian fitur PRD2 butuh kolom baru di collection. Buka **Data → collection → New field**:
+
+**Collection `users`:**
+| Field | Tipe | Catatan |
+|---|---|---|
+| `enrolledSubjects` | Relation → subjects, **multiple** | Mata kuliah yang boleh diakses siswa (dipilihkan admin) |
+| `classType` | Text (atau Select: reguler/private) | Jenis kelas siswa |
+| `streak` | Number | Streak belajar harian (opsional, aman kalau tidak ada) |
+| `lastActive` | Text atau Date | Tanggal aktif terakhir (opsional) |
+
+**Collection `questions`:**
+| Field | Tipe | Catatan |
+|---|---|---|
+| `qtype` | Text (atau Select: mcq/mcq_img/isian/isian_img) | Tipe soal. Kosong = MCQ biasa |
+| `imageUrl` | Text | Link gambar soal (mis. googleusercontent) |
+| `subQuestions` | JSON | Sub-pertanyaan untuk tipe Isian |
+
+> Field `streak`, `lastActive`, `subQuestions`, `imageUrl`, `qtype` bila belum dibuat tidak akan bikin
+> web error — fiturnya cuma tidak aktif. Tapi `enrolledSubjects` & `classType` sebaiknya dibuat.
+
+**FIX "failed to create record" saat Tambah Akun:** biasanya API Rule. Buka collection `users` →
+tab **API Rules** → **Create rule** isi: `@request.auth.role = "admin"` lalu Save. Lakukan hal sama
+untuk collection `ppt_files` (Create/Update rule) kalau upload PDF juga gagal.
+
+## Daftar Isi (14 file — semua GANTI SELURUH ISI)
 
 - **Fondasi Design System — GANTI 3 FILE INI DULU**
   - `apps/web/tailwind.config.js`
@@ -43,7 +64,7 @@ warna langsung berubah, lalu lanjut ke komponen dan halaman satu per satu.
 
 ## 1. `apps/web/tailwind.config.js`
 
-**Apa ini:** Definisi palet warna alba/maroon/gold, font Fraunces, shadow & animasi.
+**Apa ini:** Palet warna alba/maroon/gold, font Fraunces, shadow & animasi.
 
 ```js
 /** @type {import('tailwindcss').Config} */
@@ -185,7 +206,7 @@ module.exports = {
 
 ## 2. `apps/web/src/index.css`
 
-**Apa ini:** Token warna global (shadcn) versi alba+maroon, tekstur maroon, scrollbar tipis.
+**Apa ini:** Token warna + MODE GELAP (remap .dark) + tekstur maroon + scrollbar.
 
 ```css
 /*
@@ -266,6 +287,42 @@ body {
  }
 }
 
+/* ===== MODE GELAP =====
+  Toggle-nya ada di Header (ikon bulan/matahari). Class .dark dipasang di <html>,
+  lalu blok di bawah me-remap warna-warna terang ke versi gelap yang hangat. */
+.dark { color-scheme: dark; }
+.dark body { background: #17120e; }
+.dark .bg-alba-50 { background-color: #17120e; }
+.dark .bg-alba-50\/90 { background-color: rgba(23, 18, 14, 0.9); }
+.dark .bg-alba-100, .dark .bg-alba-100\/60, .dark .bg-alba-100\/70 { background-color: #211a14; }
+.dark .bg-alba-200 { background-color: #2e251c; }
+.dark .hover\:bg-alba-100:hover { background-color: #241c15; }
+.dark .border-alba-200, .dark .border-alba-200\/60 { border-color: #322818; }
+.dark .border-alba-300 { border-color: #3d3020; }
+.dark .hover\:border-alba-400:hover { border-color: #4d3d28; }
+.dark .text-stone-800 { color: #ece3d4; }
+.dark .text-stone-700 { color: #ddd2be; }
+.dark .text-stone-600 { color: #c4b7a0; }
+.dark .text-stone-500 { color: #a4977f; }
+.dark .text-stone-400 { color: #857763; }
+.dark .bg-maroon-50, .dark .hover\:bg-maroon-50:hover { background-color: rgba(142, 1, 0, 0.22); }
+.dark .border-maroon-100 { border-color: #5c2521; }
+.dark .hover\:border-maroon-200:hover, .dark .hover\:border-maroon-300:hover { border-color: #7a3a34; }
+.dark .text-maroon-600, .dark .hover\:text-maroon-600:hover { color: #f0938b; }
+.dark .text-maroon-700 { color: #f4a8a1; }
+.dark .text-maroon-500 { color: #e58077; }
+.dark .text-maroon-400 { color: #d9736a; }
+.dark .bg-gold-100, .dark .bg-gold-100\/50, .dark .bg-gold-100\/60, .dark .bg-gold-100\/70 { background-color: #2b2310; }
+.dark .border-gold-200 { border-color: #4a3d16; }
+.dark .text-gold-600 { color: #dcbc4e; }
+.dark .bg-green-50 { background-color: #10251a; }
+.dark .border-green-200 { border-color: #1e4029; }
+.dark .text-green-900, .dark .text-green-800 { color: #a9dfba; }
+.dark .bg-red-50 { background-color: #2b1412; }
+.dark .border-red-200 { border-color: #542420; }
+.dark .text-red-600 { color: #f08c84; }
+.dark img[src^="https://docs.google.com"], .dark iframe { background: #ffffff; }
+
 @layer utilities {
  /* Judul serif khas PCV */
  .font-display {
@@ -295,14 +352,15 @@ body {
 
 ## 3. `apps/web/index.html`
 
-**Apa ini:** Judul tab, favicon P maroon, load font Google (Fraunces + DM Sans).
+**Apa ini:** Judul tab, favicon logo PCV asli, load font Google (Fraunces + DM Sans).
 
 ```html
 <!doctype html>
 <html lang="id">
  <head>
    <meta charset="UTF-8" />
-   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%238E0100'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%23FDFBF7' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E" />
+   <link rel="icon" href="https://lh3.googleusercontent.com/d/1lhXOXrxkfutAv0d13IBZoqYsJMmis5Ex" />
+   <link rel="alternate icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%238E0100'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%23FDFBF7' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E" />
    <meta name="generator" content="Hostinger Horizons" />
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <meta name="theme-color" content="#8E0100" />
@@ -325,30 +383,60 @@ body {
 
 ## 4. `apps/web/src/components/Header.jsx`
 
-**Apa ini:** Navigasi atas + komponen Logo (sengaja ditaruh di sini supaya TIDAK perlu membuat file baru). Menu aktif jadi pill maroon, chip profil, nav mobile.
+**Apa ini:** Navigasi + Logo asli PCV (dari Google, fallback monogram) + toggle DARK MODE + badge STREAK. Logo di-export dari sini (tidak perlu file baru).
 
 ```jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, UserRound } from 'lucide-react';
+import { Flame, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-// Logo PCV: monogram serif di kotak maroon + wordmark.
-// Ditaruh di sini (bukan file terpisah) supaya tidak perlu membuat file baru.
+// Logo asli PCV (di-host di Google). Kalau gagal dimuat (misal offline),
+// otomatis jatuh ke monogram "P" maroon.
+export const PCV_LOGO_URL = 'https://lh3.googleusercontent.com/d/1lhXOXrxkfutAv0d13IBZoqYsJMmis5Ex';
+
 // size: 'sm' (header) | 'md' (landing/login)
 export function Logo({ size = 'sm', light = false }) {
+ const [imgFailed, setImgFailed] = useState(false);
  const box = size === 'md' ? 'w-10 h-10 text-lg rounded-xl' : 'w-8 h-8 text-sm rounded-lg';
  const word = size === 'md' ? 'text-lg' : 'text-base';
  return (
    <span className="inline-flex items-center gap-2.5">
-     <span className={`${box} ${light ? 'bg-alba-50 text-maroon-600' : 'bg-maroon-600 text-alba-50'} flex items-center justify-center font-display font-bold shadow-sm`}>
-       P
-     </span>
+     {imgFailed ? (
+       <span className={`${box} ${light ? 'bg-alba-50 text-maroon-600' : 'bg-maroon-600 text-alba-50'} flex items-center justify-center font-display font-bold shadow-sm`}>
+         P
+       </span>
+     ) : (
+       <img
+         src={PCV_LOGO_URL}
+         alt="Logo PCV Classroom"
+         referrerPolicy="no-referrer"
+         onError={() => setImgFailed(true)}
+         className={`${box} object-cover shadow-sm ${light ? 'ring-1 ring-alba-50/40' : ''}`}
+       />
+     )}
      <span className={`${word} font-display font-semibold tracking-tight ${light ? 'text-alba-50' : 'text-maroon-600'}`}>
        PCV <span className={light ? 'text-alba-200' : 'text-stone-800'}>Classroom</span>
      </span>
    </span>
  );
+}
+
+// Update streak belajar harian. Dipanggil dari CicilBelajar & SimulasiCBT
+// setiap kali siswa menyelesaikan latihan/tryout. Aman dipanggil walau
+// field streak/lastActive belum ada di database (error ditelan diam-diam).
+export async function bumpStreak(pb, user) {
+ if (!user?.id) return;
+ try {
+   const today = new Date().toISOString().slice(0, 10);
+   const last = String(user.lastActive || '').slice(0, 10);
+   if (last === today) return;
+   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+   const streak = last === yesterday ? (user.streak || 0) + 1 : 1;
+   await pb.collection('users').update(user.id, { streak, lastActive: today });
+ } catch (e) {
+   /* field belum ada di schema — abaikan */
+ }
 }
 
 const navItems = [
@@ -361,6 +449,12 @@ const navItems = [
 export default function Header() {
  const { user, guest, role, logout } = useAuth();
  const navigate = useNavigate();
+ const [dark, setDark] = useState(() => localStorage.getItem('pcv_theme') === 'dark');
+
+ useEffect(() => {
+   document.documentElement.classList.toggle('dark', dark);
+   localStorage.setItem('pcv_theme', dark ? 'dark' : 'light');
+ }, [dark]);
 
  const doLogout = () => {
    logout();
@@ -391,7 +485,23 @@ export default function Header() {
            {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher Panel</NavLink>}
          </nav>
        </div>
-       <div className="flex items-center gap-2.5">
+       <div className="flex items-center gap-2">
+         {!guest && (user?.streak || 0) > 0 && (
+           <span
+             title={`Streak belajar ${user.streak} hari berturut-turut`}
+             className="hidden sm:inline-flex items-center gap-1 rounded-full bg-gold-100 border border-gold-200 text-gold-600 text-xs font-bold px-3 py-1.5"
+           >
+             <Flame size={13} />
+             {user.streak}
+           </span>
+         )}
+         <button
+           onClick={() => setDark((d) => !d)}
+           title={dark ? 'Mode terang' : 'Mode gelap'}
+           className="w-8 h-8 rounded-full border border-alba-300 text-stone-500 flex items-center justify-center hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
+         >
+           {dark ? <Sun size={14} /> : <Moon size={14} />}
+         </button>
          <button
            onClick={() => navigate('/profile')}
            className="flex items-center gap-2.5 rounded-full border border-alba-200 bg-alba-100/60 pl-1.5 pr-4 py-1.5 hover:border-maroon-200 hover:bg-maroon-50 transition-colors"
@@ -436,11 +546,49 @@ export default function Header() {
 
 ## 5. `apps/web/src/components/QuestionRunner.jsx`
 
-**Apa ini:** Mesin soal + FITUR BARU: navigator nomor soal, tombol ragu-ragu, shortcut keyboard, ring skor, konfirmasi submit.
+**Apa ini:** Mesin soal: 4 tipe (MCQ, MCQ gambar, Isian, Isian gambar), navigator soal, ragu-ragu, shortcut keyboard, ULANGI SOAL SALAH, ring skor.
 
 ```jsx
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Flag, Lightbulb, TimerReset, X } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Flag, Lightbulb, RotateCcw, TimerReset, X } from 'lucide-react';
+
+/*
+ QuestionRunner mendukung 4 tipe soal (field "qtype" di collection questions):
+ - mcq        : pilihan ganda biasa (default kalau qtype kosong)
+ - mcq_img    : pilihan ganda + gambar (field "imageUrl")
+ - isian      : isian singkat, daftar sub-pertanyaan di field "subQuestions" (JSON):
+                [{ "label": "A", "question": "...", "validAnswers": ["jawaban1 / jawaban2"] }]
+                Jawaban dianggap benar jika cocok dengan SALAH SATU varian yang
+                dipisahkan tanda "/" (tidak peka huruf besar/kecil).
+ - isian_img  : isian singkat + gambar
+*/
+
+const isIsian = (q) => String(q?.qtype || '').startsWith('isian') || (!(q?.options || []).length && (q?.subQuestions || []).length > 0);
+
+const normalize = (t) => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+// benar jika jawaban user cocok dengan salah satu varian (dipisah "/")
+export function isSubAnswerCorrect(sub, userText) {
+ const variants = (sub.validAnswers || []).flatMap((v) => String(v).split('/')).map(normalize).filter(Boolean);
+ return variants.includes(normalize(userText));
+}
+
+function isQuestionCorrect(q, ans) {
+ if (isIsian(q)) {
+   const subs = q.subQuestions || [];
+   if (!subs.length) return false;
+   return subs.every((sub) => isSubAnswerCorrect(sub, (ans || {})[sub.label]));
+ }
+ return ans !== undefined && (q.options || [])[ans]?.correct;
+}
+
+function isQuestionAnswered(q, ans) {
+ if (isIsian(q)) {
+   const subs = q.subQuestions || [];
+   return subs.length > 0 && subs.every((sub) => normalize((ans || {})[sub.label]) !== '');
+ }
+ return ans !== undefined;
+}
 
 export default function QuestionRunner({
  questions,
@@ -451,9 +599,12 @@ export default function QuestionRunner({
  initialAnswers = {},
  onAnswerChange,
 }) {
+ const [qs, setQs] = useState(questions);          // daftar soal aktif (bisa diganti subset saat "ulangi yang salah")
+ const [retryRound, setRetryRound] = useState(false);
  const [idx, setIdx] = useState(0);
  const [answers, setAnswers] = useState(initialAnswers);
  const [flagged, setFlagged] = useState(new Set()); // "ragu-ragu" ala CBT nasional
+ const [checked, setChecked] = useState(new Set()); // soal isian yang sudah dicek (mode learning)
  const [showHint, setShowHint] = useState(false);
  const [submitted, setSubmitted] = useState(false);
  const [secondsLeft, setSecondsLeft] = useState(timerSeconds);
@@ -461,9 +612,10 @@ export default function QuestionRunner({
  const [finalScore, setFinalScore] = useState(null);
  const [weakChapters, setWeakChapters] = useState([]);
  const [weakTopics, setWeakTopics] = useState([]);
+ const [wrongQuestions, setWrongQuestions] = useState([]);
 
  useEffect(() => {
-   if (timerSeconds == null || submitted) return;
+   if (secondsLeft == null || submitted || retryRound) return;
    const t = setInterval(() => {
      setSecondsLeft((s) => {
        if (s <= 1) {
@@ -476,22 +628,35 @@ export default function QuestionRunner({
    }, 1000);
    return () => clearInterval(t);
    // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [submitted]);
+ }, [submitted, retryRound]);
 
- const q = questions[idx];
+ const q = qs[idx];
  const selected = answers[q?.id];
- const revealAnswer = mode === 'learning' && selected !== undefined;
+ const qIsIsian = isIsian(q);
+ const revealAnswer = mode === 'learning' && (qIsIsian ? checked.has(q?.id) : selected !== undefined);
+ const showImage = q?.imageUrl && (String(q?.qtype || '').includes('img') || true);
 
  const choose = useCallback((optIdx) => {
-   if (submitted) return;
-   if (mode === 'learning' && answers[q?.id] !== undefined) return;
-   if (!q || optIdx >= (q.options || []).length) return;
+   if (submitted || !q || isIsian(q)) return;
+   if (mode === 'learning' && answers[q.id] !== undefined) return;
+   if (optIdx >= (q.options || []).length) return;
    setAnswers((a) => {
      const newAnswers = { ...a, [q.id]: optIdx };
-     if (onAnswerChange) onAnswerChange(newAnswers);
+     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
      return newAnswers;
    });
- }, [submitted, mode, answers, q, onAnswerChange]);
+ }, [submitted, mode, answers, q, onAnswerChange, retryRound]);
+
+ const typeIsian = (label, value) => {
+   if (submitted || !q) return;
+   if (mode === 'learning' && checked.has(q.id)) return;
+   setAnswers((a) => {
+     const cur = typeof a[q.id] === 'object' && a[q.id] !== null ? a[q.id] : {};
+     const newAnswers = { ...a, [q.id]: { ...cur, [label]: value } };
+     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
+     return newAnswers;
+   });
+ };
 
  const toggleFlag = useCallback(() => {
    if (!q || submitted) return;
@@ -503,38 +668,37 @@ export default function QuestionRunner({
    });
  }, [q, submitted]);
 
- // Shortcut keyboard: ← → pindah soal, A–E pilih jawaban, R tandai ragu-ragu
+ // Shortcut keyboard: ← → pindah soal, A–E pilih jawaban (MCQ), R tandai ragu-ragu
  useEffect(() => {
    const handler = (e) => {
      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-     if (e.key === 'ArrowRight') setIdx((i) => Math.min(questions.length - 1, i + 1));
+     if (e.key === 'ArrowRight') setIdx((i) => Math.min(qs.length - 1, i + 1));
      else if (e.key === 'ArrowLeft') setIdx((i) => Math.max(0, i - 1));
      else if (/^[a-eA-E]$/.test(e.key)) choose(e.key.toUpperCase().charCodeAt(0) - 65);
      else if (e.key === 'r' || e.key === 'R') toggleFlag();
    };
    window.addEventListener('keydown', handler);
    return () => window.removeEventListener('keydown', handler);
- }, [questions.length, choose, toggleFlag]);
+ }, [qs.length, choose, toggleFlag]);
 
  useEffect(() => { setShowHint(false); }, [idx]);
 
- const answeredCount = questions.filter((qq) => answers[qq.id] !== undefined).length;
+ const answeredCount = qs.filter((qq) => isQuestionAnswered(qq, answers[qq.id])).length;
 
  const finish = () => {
    setSubmitted(true);
-   const total = questions.length;
+   const total = qs.length;
    let correct = 0;
 
    const weakChapList = new Set();
    const weakTopicList = [];
+   const wrongList = [];
 
-   questions.forEach((qq, index) => {
-     const opts = qq.options || [];
-     const chosen = answers[qq.id];
-
-     if (chosen !== undefined && opts[chosen]?.correct) {
+   qs.forEach((qq, index) => {
+     if (isQuestionCorrect(qq, answers[qq.id])) {
        correct += 1;
      } else {
+       wrongList.push(qq);
        if (mode === 'simulasi') {
          if (qq.expand && qq.expand.chapter && qq.expand.chapter.title) {
            weakChapList.add(qq.expand.chapter.title);
@@ -551,17 +715,38 @@ export default function QuestionRunner({
 
    const score = total ? Math.round((correct / total) * 100) : 0;
    setFinalScore(score);
+   setWrongQuestions(wrongList);
 
    if (mode === 'simulasi') setWeakChapters(Array.from(weakChapList));
    else setWeakTopics(weakTopicList);
 
-   onSubmit?.({ answers, score });
+   // Ronde "ulangi yang salah" tidak menimpa nilai asli di database
+   if (!retryRound) onSubmit?.({ answers, score });
  };
 
  const confirmFinish = () => {
-   const left = questions.length - answeredCount;
+   const left = qs.length - answeredCount;
    if (left > 0 && !confirm(`Masih ada ${left} soal yang belum dijawab. Yakin ingin submit sekarang?`)) return;
    finish();
+ };
+
+ // FITUR: ulangi hanya soal yang salah — belajar 2x lebih efisien
+ const retryWrong = () => {
+   if (!wrongQuestions.length) return;
+   setQs(wrongQuestions);
+   setRetryRound(true);
+   setAnswers((a) => {
+     const cleaned = { ...a };
+     wrongQuestions.forEach((wq) => delete cleaned[wq.id]);
+     return cleaned;
+   });
+   setFlagged(new Set());
+   setChecked(new Set());
+   setSubmitted(false);
+   setFinalScore(null);
+   setWrongQuestions([]);
+   setSecondsLeft(null);
+   setIdx(0);
  };
 
  if (!q) {
@@ -569,16 +754,24 @@ export default function QuestionRunner({
  }
 
  const timerDanger = secondsLeft != null && secondsLeft < 60;
+ const showResult = submitted || revealAnswer;
 
  return (
    <div className="grid lg:grid-cols-[1fr_230px] gap-6 items-start">
      <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6 md:p-7">
        {/* Bar atas: nomor soal, timer, keluar */}
        <div className="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-alba-200">
-         <div className="bg-maroon-50 px-4 py-1.5 rounded-full border border-maroon-100">
-           <p className="text-sm font-bold text-maroon-700">
-             Soal {idx + 1} <span className="font-medium text-maroon-400">/ {questions.length}</span>
-           </p>
+         <div className="flex items-center gap-2">
+           <div className="bg-maroon-50 px-4 py-1.5 rounded-full border border-maroon-100">
+             <p className="text-sm font-bold text-maroon-700">
+               Soal {idx + 1} <span className="font-medium text-maroon-400">/ {qs.length}</span>
+             </p>
+           </div>
+           {retryRound && (
+             <span className="text-[10px] font-bold uppercase tracking-widest text-gold-600 bg-gold-100 border border-gold-200 rounded-full px-3 py-1">
+               Ulangi yang salah
+             </span>
+           )}
          </div>
          <div className="flex items-center gap-3">
            {secondsLeft != null && !submitted && (
@@ -603,61 +796,119 @@ export default function QuestionRunner({
        {!submitted && (
          <div className="mb-6">
            <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
-             <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+             <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${(answeredCount / qs.length) * 100}%` }} />
            </div>
-           <p className="text-[11px] font-semibold text-stone-400 mt-1.5">{answeredCount} dari {questions.length} soal terjawab</p>
+           <p className="text-[11px] font-semibold text-stone-400 mt-1.5">{answeredCount} dari {qs.length} soal terjawab</p>
          </div>
        )}
 
-       <p className="font-medium text-lg mb-6 leading-relaxed text-stone-800" dangerouslySetInnerHTML={{ __html: q.text || '' }} />
+       <p className="font-medium text-lg mb-4 leading-relaxed text-stone-800" dangerouslySetInnerHTML={{ __html: q.text || '' }} />
 
-       <div className="space-y-3 mb-6">
-         {(q.options || []).map((opt, i) => {
-           const isSelected = selected === i;
-           const show = submitted || revealAnswer;
-           let cls = 'border-alba-300 hover:bg-alba-100/60';
+       {/* SOAL BERGAMBAR: tampilkan gambar dari link (mis. googleusercontent) */}
+       {showImage && q.imageUrl && (
+         <div className="mb-6">
+           <img
+             src={q.imageUrl}
+             alt="Gambar soal"
+             referrerPolicy="no-referrer"
+             className="max-h-96 w-auto max-w-full rounded-xl border border-alba-200 shadow-sm mx-auto"
+           />
+         </div>
+       )}
 
-           if (show && opt.correct) cls = 'border-green-600 bg-green-50 shadow-sm';
-           else if (show && isSelected && !opt.correct) cls = 'border-maroon-500 bg-maroon-50';
-           else if (isSelected) cls = 'border-maroon-600 bg-maroon-50';
+       {/* ===== TIPE ISIAN ===== */}
+       {qIsIsian ? (
+         <div className="space-y-4 mb-6">
+           {(q.subQuestions || []).map((sub) => {
+             const userText = (typeof selected === 'object' && selected !== null ? selected : {})[sub.label] || '';
+             const correctNow = isSubAnswerCorrect(sub, userText);
+             return (
+               <div key={sub.label} className="rounded-xl border border-alba-200 p-4 bg-alba-100/60">
+                 <p className="text-sm font-bold text-stone-700 mb-2">
+                   <span className="inline-flex w-6 h-6 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sub.label}</span>
+                   {sub.question}
+                 </p>
+                 <input
+                   value={userText}
+                   onChange={(e) => typeIsian(sub.label, e.target.value)}
+                   disabled={submitted || (mode === 'learning' && checked.has(q.id))}
+                   placeholder="Ketik jawabanmu di sini..."
+                   className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-alba-50 focus:outline-none focus:ring-4 focus:ring-maroon-600/10 transition ${
+                     showResult
+                       ? correctNow
+                         ? 'border-green-600 bg-green-50'
+                         : 'border-maroon-500 bg-red-50'
+                       : 'border-alba-300 focus:border-maroon-400'
+                   }`}
+                 />
+                 {showResult && (
+                   <p className={`mt-2 text-xs font-semibold ${correctNow ? 'text-green-800' : 'text-red-600'}`}>
+                     {correctNow ? '✅ Benar!' : '❌ Kurang tepat.'}{' '}
+                     <span className="font-normal text-stone-600">
+                       Jawaban yang diterima: <span className="font-semibold">{(sub.validAnswers || []).join(' | ')}</span>
+                     </span>
+                   </p>
+                 )}
+               </div>
+             );
+           })}
+           {mode === 'learning' && !checked.has(q.id) && !submitted && (
+             <button
+               onClick={() => setChecked((c) => new Set(c).add(q.id))}
+               className="rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               Cek Jawaban
+             </button>
+           )}
+         </div>
+       ) : (
+         /* ===== TIPE MCQ ===== */
+         <div className="space-y-3 mb-6">
+           {(q.options || []).map((opt, i) => {
+             const isSelected = selected === i;
+             const show = showResult;
+             let cls = 'border-alba-300 hover:bg-alba-100/60';
 
-           return (
-             <div key={i} className="flex flex-col">
-               <button
-                 onClick={() => choose(i)}
-                 disabled={submitted || (mode === 'learning' && selected !== undefined)}
-                 className={`w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-all duration-200 ${cls} ${!show && !isSelected ? 'hover:border-maroon-300' : ''}`}
-               >
-                 <div className="flex gap-3 items-start">
-                   <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${
-                     show && opt.correct
-                       ? 'bg-green-600 border-green-600 text-white'
-                       : show && isSelected && !opt.correct
-                       ? 'bg-maroon-600 border-maroon-600 text-alba-50'
-                       : isSelected
-                       ? 'bg-maroon-600 border-maroon-600 text-alba-50'
-                       : 'border-alba-300 text-stone-500'
+             if (show && opt.correct) cls = 'border-green-600 bg-green-50 shadow-sm';
+             else if (show && isSelected && !opt.correct) cls = 'border-maroon-500 bg-maroon-50';
+             else if (isSelected) cls = 'border-maroon-600 bg-maroon-50';
+
+             return (
+               <div key={i} className="flex flex-col">
+                 <button
+                   onClick={() => choose(i)}
+                   disabled={submitted || (mode === 'learning' && selected !== undefined)}
+                   className={`w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-all duration-200 ${cls} ${!show && !isSelected ? 'hover:border-maroon-300' : ''}`}
+                 >
+                   <div className="flex gap-3 items-start">
+                     <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${
+                       show && opt.correct
+                         ? 'bg-green-600 border-green-600 text-white'
+                         : (show && isSelected && !opt.correct) || isSelected
+                         ? 'bg-maroon-600 border-maroon-600 text-alba-50'
+                         : 'border-alba-300 text-stone-500'
+                     }`}>
+                       {String.fromCharCode(65 + i)}
+                     </span>
+                     <span className="leading-relaxed font-medium text-stone-800 pt-0.5">{opt.text}</span>
+                   </div>
+                 </button>
+
+                 {show && opt.explanation && (
+                   <div className={`mt-1.5 mb-1 ml-9 text-sm px-4 py-3 rounded-xl border animate-fade-in ${
+                     opt.correct ? 'bg-green-50 border-green-200 text-green-900' : 'bg-alba-100/70 border-alba-200 text-stone-700'
                    }`}>
-                     {String.fromCharCode(65 + i)}
-                   </span>
-                   <span className="leading-relaxed font-medium text-stone-800 pt-0.5">{opt.text}</span>
-                 </div>
-               </button>
-
-               {show && opt.explanation && (
-                 <div className={`mt-1.5 mb-1 ml-9 text-sm px-4 py-3 rounded-xl border animate-fade-in ${
-                   opt.correct ? 'bg-green-50 border-green-200 text-green-900' : 'bg-alba-100/70 border-alba-200 text-stone-700'
-                 }`}>
-                   <span className="font-bold block mb-1">
-                     {opt.correct ? '✅ Alasan Benar:' : '❌ Mengapa Salah:'}
-                   </span>
-                   {opt.explanation}
-                 </div>
-               )}
-             </div>
-           );
-         })}
-       </div>
+                     <span className="font-bold block mb-1">
+                       {opt.correct ? '✅ Alasan Benar:' : '❌ Mengapa Salah:'}
+                     </span>
+                     {opt.explanation}
+                   </div>
+                 )}
+               </div>
+             );
+           })}
+         </div>
+       )}
 
        {showHint && (
          <div className="bg-gold-100/70 border border-gold-200 text-stone-800 p-4 rounded-xl mb-6 animate-fade-in">
@@ -702,7 +953,7 @@ export default function QuestionRunner({
              </button>
            )}
          </div>
-         {idx < questions.length - 1 ? (
+         {idx < qs.length - 1 ? (
            <button
              onClick={() => setIdx((i) => i + 1)}
              className="inline-flex items-center gap-1.5 rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
@@ -737,6 +988,17 @@ export default function QuestionRunner({
              </div>
              <ScoreRing score={finalScore} />
            </div>
+
+           {/* FITUR: ulangi soal yang salah saja */}
+           {wrongQuestions.length > 0 && (
+             <button
+               onClick={retryWrong}
+               className="mb-5 inline-flex items-center gap-2 rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               <RotateCcw size={14} />
+               Ulangi Soal yang Salah ({wrongQuestions.length})
+             </button>
+           )}
 
            <div className="space-y-3">
              <p className="font-bold text-sm text-stone-700">Rekomendasi Belajar Otomatis:</p>
@@ -780,8 +1042,8 @@ export default function QuestionRunner({
      <aside className="lg:sticky lg:top-24 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-5 order-first lg:order-none">
        <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">Navigasi Soal</p>
        <div className="grid grid-cols-8 lg:grid-cols-5 gap-1.5">
-         {questions.map((qq, i) => {
-           const isAnswered = answers[qq.id] !== undefined;
+         {qs.map((qq, i) => {
+           const isAnswered = isQuestionAnswered(qq, answers[qq.id]);
            const isFlagged = flagged.has(qq.id);
            const isCurrent = i === idx;
            let cls = 'border-alba-300 text-stone-500 hover:border-maroon-300';
@@ -838,7 +1100,7 @@ function ScoreRing({ score }) {
 
 ## 6. `apps/web/src/pages/LandingPage.jsx`
 
-**Apa ini:** Halaman depan publik: hero serif, statistik, kartu fitur, Olympiad emas, CTA.
+**Apa ini:** Halaman depan publik (hero serif, statistik, fitur, Olympiad, CTA).
 
 ```jsx
 import React from 'react';
@@ -1056,7 +1318,7 @@ function Stat({ value, label }) {
 
 ## 7. `apps/web/src/pages/LoginPage.jsx`
 
-**Apa ini:** Login split-panel: kiri branding maroon, kanan form berikon.
+**Apa ini:** Login split-panel maroon.
 
 ```jsx
 import React, { useState } from 'react';
@@ -1197,7 +1459,7 @@ export default function LoginPage() {
 
 ## 8. `apps/web/src/pages/LearningHome.jsx`
 
-**Apa ini:** Beranda siswa + FITUR BARU 'Lanjutkan Belajar'.
+**Apa ini:** Beranda siswa + 'Lanjutkan Belajar'.
 
 ```jsx
 import React, { useEffect, useState } from 'react';
@@ -1325,54 +1587,74 @@ export default function LearningHome() {
 
 ## 9. `apps/web/src/pages/PerdalamMateri.jsx`
 
-**Apa ini:** Pilih materi + FITUR BARU: pencarian BAB & centang BAB selesai dibaca.
+**Apa ini:** PROGRESS BAR per mata kuliah, pencarian BAB, centang BAB selesai, BATASI mata kuliah siswa (enrolledSubjects).
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpenText, CheckCircle2, Search } from 'lucide-react';
+import { BookOpenText, CheckCircle2, Lock, Search } from 'lucide-react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 export default function PerdalamMateri() {
- const { guest } = useAuth();
+ const { guest, user, role } = useAuth();
  const navigate = useNavigate();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState('');
  const [chapters, setChapters] = useState([]);
  const [chapterId, setChapterId] = useState('');
- const [progressMap, setProgressMap] = useState({});
+ const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [search, setSearch] = useState('');
 
+ // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin
+ // (field "enrolledSubjects" di collection users). Guest/teacher/admin bebas.
+ const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const visibleSubjects = useMemo(
+   () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
+   [subjects, enrolled]
+ );
+
+ // Progress bar per mata kuliah: % BAB yang sudah selesai dibaca
  useEffect(() => {
-   pb.collection('subjects').getFullList({ sort: 'order' }).then(setSubjects);
- }, []);
+   (async () => {
+     const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
+     setSubjects(subs);
+     try {
+       const allChapters = await pb.collection('chapters').getFullList({ fields: 'id,subject' });
+       const totals = {};
+       allChapters.forEach((c) => { totals[c.subject] = (totals[c.subject] || 0) + 1; });
+       let doneSet = new Set();
+       if (!guest && pb.authStore.record?.id) {
+         const prog = await pb
+           .collection('materi_progress')
+           .getFullList({ filter: `owner = '${pb.authStore.record.id}' && completed = true`, fields: 'chapter' });
+         doneSet = new Set(prog.map((p) => p.chapter));
+         setDoneChapters(doneSet);
+       }
+       const map = {};
+       subs.forEach((s) => {
+         const total = totals[s.id] || 0;
+         const done = allChapters.filter((c) => c.subject === s.id && doneSet.has(c.id)).length;
+         map[s.id] = { done, total };
+       });
+       setProgressMap(map);
+     } catch (e) {
+       setProgressMap({});
+     }
+   })();
+ }, [guest]);
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
    let filter = `subject = '${subjectId}'`;
    if (guest) filter += ' && guestAccessible = true';
-   pb.collection('chapters')
-     .getFullList({ sort: 'order', filter })
-     .then(async (chs) => {
-       setChapters(chs);
-       setChapterId('');
-       setSearch('');
-       if (!guest) {
-         const owner = pb.authStore.record?.id;
-         if (owner) {
-           const prog = await pb
-             .collection('materi_progress')
-             .getFullList({ filter: `owner = '${owner}' && completed = true` });
-           const doneIds = new Set(prog.map((p) => p.chapter));
-           setDoneChapters(doneIds);
-           const done = chs.filter((c) => doneIds.has(c.id)).length;
-           setProgressMap((m) => ({ ...m, [subjectId]: Math.round((done / (chs.length || 1)) * 100) }));
-         }
-       }
-     });
+   pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
+     setChapters(chs);
+     setChapterId('');
+     setSearch('');
+   });
  }, [subjectId, guest]);
 
  // Pencarian BAB — penting untuk mata kuliah dengan 30+ BAB seperti Anatomi
@@ -1398,30 +1680,45 @@ export default function PerdalamMateri() {
        <h1 className="font-display text-3xl font-semibold mb-2">Pilih Materi Belajarmu</h1>
        <p className="text-stone-600 mb-8">Pilih mata kuliah dan BAB yang ingin kamu pelajari.</p>
 
+       {enrolled && enrolled.length === 0 && (
+         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
+           <Lock size={16} className="text-gold-600 mt-0.5 shrink-0" />
+           <p>Akunmu belum dipilihkan mata kuliah oleh admin. Hubungi admin agar mata kuliahmu diaktifkan.</p>
+         </div>
+       )}
+
        <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-7 space-y-6">
          <div>
-           <label className="block text-sm font-bold text-stone-700 mb-2">1. Mata Kuliah</label>
-           <select
-             value={subjectId}
-             onChange={(e) => setSubjectId(e.target.value)}
-             className="w-full rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-           >
-             <option value="">Pilih mata kuliah...</option>
-             {subjects.map((s) => (
-               <option key={s.id} value={s.id}>{s.name}</option>
-             ))}
-           </select>
-           {subjectId && progressMap[subjectId] !== undefined && (
-             <div className="mt-4 rounded-xl bg-alba-100/70 border border-alba-200 px-4 py-3">
-               <div className="flex justify-between text-xs font-bold text-stone-600 mb-2">
-                 <span>Progres membaca</span>
-                 <span className="text-maroon-600">{progressMap[subjectId]}%</span>
-               </div>
-               <div className="h-2 rounded-full bg-alba-200 overflow-hidden">
-                 <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${progressMap[subjectId]}%` }} />
-               </div>
-             </div>
-           )}
+           <label className="block text-sm font-bold text-stone-700 mb-3">1. Mata Kuliah</label>
+           <div className="grid sm:grid-cols-2 gap-2.5">
+             {visibleSubjects.map((s) => {
+               const prog = progressMap[s.id] || { done: 0, total: 0 };
+               const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
+               const active = subjectId === s.id;
+               return (
+                 <button
+                   key={s.id}
+                   onClick={() => setSubjectId(s.id)}
+                   className={`text-left rounded-xl border p-4 transition-all ${
+                     active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+                   }`}
+                 >
+                   <div className="flex items-center justify-between gap-2 mb-2">
+                     <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
+                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
+                   </div>
+                   {!guest && (
+                     <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
+                       <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                     </div>
+                   )}
+                 </button>
+               );
+             })}
+             {visibleSubjects.length === 0 && enrolled?.length !== 0 && (
+               <p className="text-sm text-stone-400 col-span-2">Belum ada mata kuliah tersedia.</p>
+             )}
+           </div>
          </div>
 
          {subjectId && (
@@ -1482,19 +1779,19 @@ export default function PerdalamMateri() {
 
 ## 10. `apps/web/src/pages/CicilBelajar.jsx`
 
-**Apa ini:** Latihan per BAB + FITUR BARU pencarian BAB; layar resume didesain ulang.
+**Apa ini:** PROGRESS BAR per mata kuliah, pencarian BAB, batasi mata kuliah siswa, update streak saat submit.
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ClipboardList, History, Search } from 'lucide-react';
-import Header from '@/components/Header';
+import { ClipboardList, History, Lock, Search } from 'lucide-react';
+import Header, { bumpStreak } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 
 export default function CicilBelajar() {
- const { guest, user } = useAuth();
+ const { guest, user, role } = useAuth();
  const [params] = useSearchParams();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState(params.get('subject') || '');
@@ -1504,10 +1801,46 @@ export default function CicilBelajar() {
  const [priorProgress, setPriorProgress] = useState(null);
  const [resume, setResume] = useState(null);
  const [search, setSearch] = useState('');
+ const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
+ const [doneChapters, setDoneChapters] = useState(new Set());
+ const [refreshKey, setRefreshKey] = useState(0);
 
+ // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
+ const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const visibleSubjects = useMemo(
+   () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
+   [subjects, enrolled]
+ );
+
+ // Progress bar per mata kuliah: % BAB yang latihannya sudah dituntaskan (submit)
  useEffect(() => {
-   pb.collection('subjects').getFullList({ sort: 'order' }).then(setSubjects);
- }, []);
+   (async () => {
+     const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
+     setSubjects(subs);
+     try {
+       const allChapters = await pb.collection('chapters').getFullList({ fields: 'id,subject' });
+       let doneSet = new Set();
+       if (!guest && user?.id) {
+         const prog = await pb
+           .collection('soal_progress')
+           .getFullList({ filter: `owner = '${user.id}' && status = 'completed'`, fields: 'chapter' });
+         doneSet = new Set(prog.map((p) => p.chapter));
+         setDoneChapters(doneSet);
+       }
+       const map = {};
+       subs.forEach((s) => {
+         const chaptersOfS = allChapters.filter((c) => c.subject === s.id);
+         map[s.id] = {
+           done: chaptersOfS.filter((c) => doneSet.has(c.id)).length,
+           total: chaptersOfS.length,
+         };
+       });
+       setProgressMap(map);
+     } catch (e) {
+       setProgressMap({});
+     }
+   })();
+ }, [guest, user, refreshKey]);
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
@@ -1529,6 +1862,10 @@ export default function CicilBelajar() {
      sort: 'order',
      expand: 'chapter',
    });
+   if (qs.length === 0) {
+     alert('Belum ada soal untuk BAB ini. Silakan pilih BAB lain.');
+     return;
+   }
    setQuestions(qs);
 
    if (!guest && user) {
@@ -1573,6 +1910,7 @@ export default function CicilBelajar() {
    } else {
      await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score, status: 'completed' });
    }
+   await bumpStreak(pb, user); // streak belajar harian 🔥
  };
 
  // Layar Peringatan Resume Pengerjaan
@@ -1627,6 +1965,7 @@ export default function CicilBelajar() {
              setQuestions(null);
              setPriorProgress(null);
              setResume(null);
+             setRefreshKey((k) => k + 1); // refresh progress bar
            }}
            onSubmit={submit}
          />
@@ -1647,17 +1986,45 @@ export default function CicilBelajar() {
        <h1 className="font-display text-3xl font-semibold mb-2">Latihan Soal per BAB</h1>
        <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap.</p>
 
+       {enrolled && enrolled.length === 0 && (
+         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
+           <Lock size={16} className="text-gold-600 mt-0.5 shrink-0" />
+           <p>Akunmu belum dipilihkan mata kuliah oleh admin. Hubungi admin agar mata kuliahmu diaktifkan.</p>
+         </div>
+       )}
+
        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card space-y-6">
          <div>
-           <label className="block text-sm font-bold text-stone-700 mb-2">1. Pilih Mata Kuliah</label>
-           <select
-             value={subjectId}
-             onChange={(e) => setSubjectId(e.target.value)}
-             className="w-full rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-           >
-             <option value="">-- Silakan Pilih --</option>
-             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-           </select>
+           <label className="block text-sm font-bold text-stone-700 mb-3">1. Pilih Mata Kuliah</label>
+           <div className="grid sm:grid-cols-2 gap-2.5">
+             {visibleSubjects.map((s) => {
+               const prog = progressMap[s.id] || { done: 0, total: 0 };
+               const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
+               const active = subjectId === s.id;
+               return (
+                 <button
+                   key={s.id}
+                   onClick={() => setSubjectId(s.id)}
+                   className={`text-left rounded-xl border p-4 transition-all ${
+                     active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+                   }`}
+                 >
+                   <div className="flex items-center justify-between gap-2 mb-2">
+                     <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
+                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
+                   </div>
+                   {!guest && (
+                     <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
+                       <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                     </div>
+                   )}
+                 </button>
+               );
+             })}
+             {visibleSubjects.length === 0 && enrolled?.length !== 0 && (
+               <p className="text-sm text-stone-400 col-span-2">Belum ada mata kuliah tersedia.</p>
+             )}
+           </div>
          </div>
 
          {subjectId && (
@@ -1679,13 +2046,14 @@ export default function CicilBelajar() {
                  <button
                    key={c.id}
                    onClick={() => setChapterId(c.id)}
-                   className={`text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                   className={`flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                      chapterId === c.id
                        ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
                        : 'border-alba-200 text-stone-700 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
                  >
-                   {c.title}
+                   <span>{c.title}</span>
+                   {doneChapters.has(c.id) && <span className="text-[10px] font-bold text-green-800 bg-green-50 border border-green-200 rounded-full px-2.5 py-0.5 shrink-0">Selesai</span>}
                  </button>
                ))}
                {visibleChapters.length === 0 && (
@@ -1716,12 +2084,12 @@ export default function CicilBelajar() {
 
 ## 11. `apps/web/src/pages/SimulasiCBT.jsx`
 
-**Apa ini:** Tryout: tahun angkatan jadi grid tombol, mode ujian jadi kartu berikon.
+**Apa ini:** PROGRESS per mata kuliah (per tahun), tahun yang ada soalnya ditandai, LEADERBOARD anonim, batasi mata kuliah siswa.
 
 ```jsx
-import React, { useEffect, useState } from 'react';
-import { BookOpen, Timer } from 'lucide-react';
-import Header from '@/components/Header';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BookOpen, Lock, Timer, Trophy } from 'lucide-react';
+import Header, { bumpStreak } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
@@ -1729,17 +2097,72 @@ import QuestionRunner from '@/components/QuestionRunner';
 const years = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
 
 export default function SimulasiCBT() {
- const { guest, user } = useAuth();
+ const { guest, user, role } = useAuth();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState('');
  const [year, setYear] = useState('');
  const [mode, setMode] = useState('');
  const [questions, setQuestions] = useState(null);
  const [attemptId, setAttemptId] = useState(null);
+ const [availYears, setAvailYears] = useState({});   // { subjectId: Set(tahun yang ada soalnya) }
+ const [doneYears, setDoneYears] = useState({});     // { subjectId: Set(tahun yang sudah dikerjakan) }
+ const [leaderboard, setLeaderboard] = useState([]);
+ const [refreshKey, setRefreshKey] = useState(0);
 
+ // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
+ const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const visibleSubjects = useMemo(
+   () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
+   [subjects, enrolled]
+ );
+
+ // Progress per mata kuliah: berapa tahun angkatan yang sudah dituntaskan
+ // dari seluruh tahun yang tersedia soalnya.
  useEffect(() => {
-   pb.collection('subjects').getFullList({ sort: 'order' }).then(setSubjects);
- }, []);
+   (async () => {
+     const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
+     setSubjects(subs);
+     try {
+       const cbtQs = await pb.collection('questions').getFullList({ filter: "type = 'cbt'", fields: 'subject,year' });
+       const avail = {};
+       cbtQs.forEach((qq) => {
+         if (!qq.year) return;
+         if (!avail[qq.subject]) avail[qq.subject] = new Set();
+         avail[qq.subject].add(qq.year);
+       });
+       setAvailYears(avail);
+       if (!guest && user?.id) {
+         const attempts = await pb
+           .collection('cbt_attempts')
+           .getFullList({ filter: `owner = '${user.id}' && status = 'completed'`, fields: 'subject,year' });
+         const done = {};
+         attempts.forEach((a) => {
+           if (!done[a.subject]) done[a.subject] = new Set();
+           done[a.subject].add(a.year);
+         });
+         setDoneYears(done);
+       }
+     } catch (e) {
+       setAvailYears({});
+     }
+   })();
+ }, [guest, user, refreshKey]);
+
+ // FITUR: Leaderboard anonim per tryout (subject + tahun).
+ // Kalau API rule cbt_attempts tidak mengizinkan membaca milik orang lain,
+ // bagian ini otomatis disembunyikan (error ditelan).
+ useEffect(() => {
+   setLeaderboard([]);
+   if (!subjectId || !year) return;
+   pb.collection('cbt_attempts')
+     .getList(1, 10, {
+       filter: `subject = '${subjectId}' && year = ${year} && status = 'completed'`,
+       sort: '-score',
+       fields: 'id,owner,score',
+     })
+     .then((res) => setLeaderboard(res.items || []))
+     .catch(() => setLeaderboard([]));
+ }, [subjectId, year, refreshKey]);
 
  const start = async () => {
    if (!subjectId || !year || !mode) return;
@@ -1749,6 +2172,10 @@ export default function SimulasiCBT() {
      sort: 'order',
      expand: 'chapter',
    });
+   if (qs.length === 0) {
+     alert(`Belum ada soal CBT tahun ${year} untuk mata kuliah ini. Silakan pilih tahun lain.`);
+     return;
+   }
    setQuestions(qs);
 
    if (!guest && user) {
@@ -1779,11 +2206,13 @@ export default function SimulasiCBT() {
    if (attemptId) {
      await pb.collection('cbt_attempts').update(attemptId, { answers, score, status: 'completed' });
    }
+   await bumpStreak(pb, user); // streak belajar harian 🔥
  };
 
  const exit = async () => {
    setQuestions(null);
    setAttemptId(null);
+   setRefreshKey((k) => k + 1); // refresh progress & leaderboard
  };
 
  // Layar Pengerjaan Ujian
@@ -1805,6 +2234,9 @@ export default function SimulasiCBT() {
    );
  }
 
+ const availOfSubject = availYears[subjectId] || new Set();
+ const doneOfSubject = doneYears[subjectId] || new Set();
+
  // Layar Awal Pemilihan Parameter Ujian
  return (
    <div className="min-h-screen bg-alba-50">
@@ -1817,37 +2249,79 @@ export default function SimulasiCBT() {
        <h1 className="font-display text-3xl font-semibold mb-2">Tryout Soal Angkatan</h1>
        <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah, tahun angkatan, dan mode ujian untuk memulai tryout.</p>
 
+       {enrolled && enrolled.length === 0 && (
+         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
+           <Lock size={16} className="text-gold-600 mt-0.5 shrink-0" />
+           <p>Akunmu belum dipilihkan mata kuliah oleh admin. Hubungi admin agar mata kuliahmu diaktifkan.</p>
+         </div>
+       )}
+
        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card space-y-6">
          <div>
-           <label className="block text-sm font-bold text-stone-700 mb-2">1. Pilih Mata Kuliah</label>
-           <select
-             value={subjectId}
-             onChange={(e) => setSubjectId(e.target.value)}
-             className="w-full rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-           >
-             <option value="">-- Silakan Pilih --</option>
-             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-           </select>
-         </div>
-
-         <div>
-           <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih Tahun Angkatan</label>
-           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-             {years.map((y) => (
-               <button
-                 key={y}
-                 onClick={() => setYear(String(y))}
-                 className={`rounded-xl border px-2 py-2.5 text-sm font-bold transition-all ${
-                   year === String(y)
-                     ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
-                     : 'border-alba-200 text-stone-600 hover:border-maroon-200 hover:bg-alba-100/60'
-                 }`}
-               >
-                 {y}
-               </button>
-             ))}
+           <label className="block text-sm font-bold text-stone-700 mb-3">1. Pilih Mata Kuliah</label>
+           <div className="grid sm:grid-cols-2 gap-2.5">
+             {visibleSubjects.map((s) => {
+               const avail = availYears[s.id] ? availYears[s.id].size : 0;
+               const done = doneYears[s.id]
+                 ? [...doneYears[s.id]].filter((y) => (availYears[s.id] || new Set()).has(y)).length
+                 : 0;
+               const pct = avail ? Math.round((done / avail) * 100) : 0;
+               const active = subjectId === s.id;
+               return (
+                 <button
+                   key={s.id}
+                   onClick={() => { setSubjectId(s.id); setYear(''); }}
+                   className={`text-left rounded-xl border p-4 transition-all ${
+                     active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+                   }`}
+                 >
+                   <div className="flex items-center justify-between gap-2 mb-2">
+                     <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
+                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{done}/{avail} thn</span>}
+                   </div>
+                   {!guest && (
+                     <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
+                       <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                     </div>
+                   )}
+                 </button>
+               );
+             })}
+             {visibleSubjects.length === 0 && enrolled?.length !== 0 && (
+               <p className="text-sm text-stone-400 col-span-2">Belum ada mata kuliah tersedia.</p>
+             )}
            </div>
          </div>
+
+         {subjectId && (
+           <div className="animate-fade-in">
+             <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih Tahun Angkatan</label>
+             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+               {years.map((y) => {
+                 const has = availOfSubject.has(y);
+                 const done = doneOfSubject.has(y);
+                 return (
+                   <button
+                     key={y}
+                     onClick={() => setYear(String(y))}
+                     className={`relative rounded-xl border px-2 py-2.5 text-sm font-bold transition-all ${
+                       year === String(y)
+                         ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
+                         : has
+                         ? 'border-maroon-200 text-maroon-700 bg-maroon-50/50 hover:border-maroon-400'
+                         : 'border-alba-200 text-stone-400 hover:border-alba-300'
+                     }`}
+                     title={has ? (done ? 'Tersedia — sudah pernah kamu kerjakan' : 'Soal tersedia') : 'Belum ada soal tahun ini'}
+                   >
+                     {y}
+                     {done && <span className="absolute -top-1.5 -right-1.5 text-[10px]">✅</span>}
+                   </button>
+                 );
+               })}
+             </div>
+             <p className="text-[11px] text-stone-400 mt-2">Tahun dengan warna maroon muda = sudah ada soalnya · ✅ = pernah kamu tuntaskan</p>
+           </div>
+         )}
 
          <div>
            <label className="block text-sm font-bold text-stone-700 mb-2">3. Pilih Mode Ujian</label>
@@ -1893,6 +2367,37 @@ export default function SimulasiCBT() {
            </button>
          </div>
        </div>
+
+       {/* FITUR: Leaderboard anonim */}
+       {leaderboard.length > 0 && (
+         <div className="mt-8 bg-alba-50 rounded-2xl border border-gold-200 p-6 shadow-card animate-fade-in">
+           <p className="flex items-center gap-2 text-sm font-bold text-gold-600 mb-4">
+             <Trophy size={16} />
+             Top Skor Tryout Ini (anonim)
+           </p>
+           <div className="space-y-1.5">
+             {leaderboard.map((row, i) => {
+               const isMe = user?.id && row.owner === user.id;
+               return (
+                 <div
+                   key={row.id}
+                   className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-sm ${
+                     isMe ? 'bg-maroon-50 border border-maroon-100 font-bold text-maroon-700' : 'bg-alba-100/60 text-stone-700'
+                   }`}
+                 >
+                   <span className="flex items-center gap-3">
+                     <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                       i === 0 ? 'bg-gold-400 text-alba-50' : i < 3 ? 'bg-gold-100 text-gold-600 border border-gold-200' : 'bg-alba-200 text-stone-500'
+                     }`}>{i + 1}</span>
+                     {isMe ? 'Kamu 🎯' : `Peserta ${String(row.owner || row.id).slice(-4).toUpperCase()}`}
+                   </span>
+                   <span className="font-bold">{row.score ?? 0}</span>
+                 </div>
+               );
+             })}
+           </div>
+         </div>
+       )}
      </div>
    </div>
  );
@@ -1902,7 +2407,7 @@ export default function SimulasiCBT() {
 
 ## 12. `apps/web/src/pages/PembelajaranPPT.jsx`
 
-**Apa ini:** Pembaca PDF dengan chrome baru + tombol lanjut latihan.
+**Apa ini:** Pembaca PDF.
 
 ```jsx
 import React, { useEffect, useState } from 'react';
@@ -2031,16 +2536,58 @@ export default function PembelajaranPPT() {
 
 ## 13. `apps/web/src/pages/ProfilePage.jsx`
 
-**Apa ini:** Kartu profil dengan banner maroon + avatar.
+**Apa ini:** Biodata lengkap PRD2 (jenis kelas, mata kuliah diambil), tombol WhatsApp narahubung, GRAFIK riwayat nilai tryout.
 
 ```jsx
-import React from 'react';
-import { UserRound } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { MessageCircle, TrendingUp, UserRound } from 'lucide-react';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Header from '@/components/Header';
+import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
+
+const WA_NUMBER_DISPLAY = '+62 822-5723-8650';
+const WA_LINK = 'https://wa.me/6282257238650';
 
 export default function ProfilePage() {
  const { user, guest, role } = useAuth();
+ const [enrolledNames, setEnrolledNames] = useState([]);
+ const [attempts, setAttempts] = useState([]);
+ const [subjectNames, setSubjectNames] = useState({});
+
+ // Nama mata kuliah yang diambil siswa (field enrolledSubjects di users)
+ useEffect(() => {
+   if (guest || !user) return;
+   pb.collection('subjects')
+     .getFullList({ sort: 'order', fields: 'id,name' })
+     .then((subs) => {
+       const map = {};
+       subs.forEach((s) => { map[s.id] = s.name; });
+       setSubjectNames(map);
+       const ids = Array.isArray(user.enrolledSubjects) ? user.enrolledSubjects : [];
+       setEnrolledNames(ids.map((id) => map[id]).filter(Boolean));
+     })
+     .catch(() => {});
+ }, [user, guest]);
+
+ // FITUR: riwayat & grafik nilai tryout (data dari cbt_attempts)
+ useEffect(() => {
+   if (guest || !user?.id || role !== 'student') return;
+   pb.collection('cbt_attempts')
+     .getFullList({
+       filter: `owner = '${user.id}' && status = 'completed'`,
+       sort: 'created',
+       fields: 'id,subject,year,score,created',
+     })
+     .then(setAttempts)
+     .catch(() => setAttempts([]));
+ }, [user, guest, role]);
+
+ const chartData = attempts.map((a, i) => ({
+   name: `#${i + 1}`,
+   skor: a.score ?? 0,
+   label: `${subjectNames[a.subject] || 'Mata kuliah'} ${a.year || ''}`.trim(),
+ }));
 
  return (
    <div className="min-h-screen bg-alba-50">
@@ -2071,30 +2618,98 @@ export default function ProfilePage() {
                </p>
              </div>
            ) : (
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-               <Field label="Nama" value={user?.name} />
-               <Field label="Email" value={user?.email} />
-               <Field label="Role" value={role} className="capitalize" />
+             <>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                 <Field label="Nama" value={user?.name} />
+                 <Field label="Role" value={role} className="capitalize" />
+                 <Field label="Email" value={user?.email} />
+                 {role === 'student' && (
+                   <>
+                     <Field
+                       label="Akun aktif sampai"
+                       value={user?.activeUntil ? String(user.activeUntil).slice(0, 10) : '-'}
+                     />
+                     <Field label="Semester" value={user?.semester} />
+                     <Field label="Jenis kelas" value={user?.classType === 'private' ? 'Private' : user?.classType === 'reguler' ? 'Reguler' : '-'} />
+                   </>
+                 )}
+                 {role === 'teacher' && (
+                   <>
+                     <Field label="Asal Kuliah" value={user?.asalKuliah} />
+                     <Field label="Jumlah mata kuliah diajar" value={(user?.teachingSubjects || []).length} />
+                   </>
+                 )}
+               </div>
+
                {role === 'student' && (
-                 <>
-                   <Field label="Semester" value={user?.semester} />
-                   <Field label="Asal Kuliah" value={user?.asalKuliah} />
-                   <Field
-                     label="Akun aktif sampai"
-                     value={user?.activeUntil ? String(user.activeUntil).slice(0, 10) : '-'}
-                   />
-                 </>
+                 <div className="mt-6 rounded-xl bg-alba-100/60 border border-alba-200 px-4 py-3">
+                   <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-2">Mata kuliah yang diambil</p>
+                   {enrolledNames.length > 0 ? (
+                     <div className="flex flex-wrap gap-2">
+                       {enrolledNames.map((n) => (
+                         <span key={n} className="rounded-full bg-maroon-50 border border-maroon-100 text-maroon-700 text-xs font-bold px-3.5 py-1.5">
+                           {n}
+                         </span>
+                       ))}
+                     </div>
+                   ) : (
+                     <p className="text-sm font-medium text-stone-500">Belum dipilihkan oleh admin.</p>
+                   )}
+                 </div>
                )}
-               {role === 'teacher' && (
-                 <>
-                   <Field label="Asal Kuliah" value={user?.asalKuliah} />
-                   <Field label="Jumlah mata kuliah diajar" value={(user?.teachingSubjects || []).length} />
-                 </>
-               )}
-             </div>
+
+               {/* Tombol WhatsApp narahubung */}
+               <a
+                 href={WA_LINK}
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="mt-6 w-full inline-flex items-center justify-center gap-2.5 rounded-xl bg-green-700 text-white font-bold px-6 py-3.5 hover:bg-green-800 transition-colors shadow-card"
+               >
+                 <MessageCircle size={17} />
+                 Hubungi {WA_NUMBER_DISPLAY} untuk mengganti password atau hal lainnya
+               </a>
+             </>
            )}
          </div>
        </div>
+
+       {/* FITUR: Riwayat & grafik nilai tryout */}
+       {!guest && role === 'student' && attempts.length > 0 && (
+         <div className="mt-8 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-7 animate-fade-in">
+           <p className="flex items-center gap-2 text-sm font-bold text-maroon-600 mb-5">
+             <TrendingUp size={16} />
+             Riwayat Nilai Simulasi CBT ({attempts.length} tryout selesai)
+           </p>
+           <div className="h-56">
+             <ResponsiveContainer width="100%" height="100%">
+               <LineChart data={chartData} margin={{ top: 6, right: 12, bottom: 0, left: -18 }}>
+                 <CartesianGrid strokeDasharray="3 3" stroke="#EFE7D9" />
+                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#a4977f' }} tickLine={false} axisLine={{ stroke: '#EFE7D9' }} />
+                 <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#a4977f' }} tickLine={false} axisLine={{ stroke: '#EFE7D9' }} />
+                 <Tooltip
+                   formatter={(v) => [`${v}`, 'Skor']}
+                   labelFormatter={(l, payload) => payload?.[0]?.payload?.label || l}
+                   contentStyle={{ borderRadius: 12, border: '1px solid #EFE7D9', fontSize: 12 }}
+                 />
+                 <Line type="monotone" dataKey="skor" stroke="#8E0100" strokeWidth={2.5} dot={{ r: 4, fill: '#8E0100' }} activeDot={{ r: 6 }} />
+               </LineChart>
+             </ResponsiveContainer>
+           </div>
+           <div className="mt-4 max-h-44 overflow-y-auto scrollbar-thin space-y-1.5 pr-1">
+             {[...attempts].reverse().map((a) => (
+               <div key={a.id} className="flex items-center justify-between rounded-xl bg-alba-100/60 px-4 py-2.5 text-sm">
+                 <span className="text-stone-700 font-medium">
+                   {(subjectNames[a.subject] || 'Mata kuliah')} — {a.year || '-'}
+                   <span className="text-stone-400 text-xs ml-2">{String(a.created).slice(0, 10)}</span>
+                 </span>
+                 <span className={`font-bold ${a.score >= 80 ? 'text-green-800' : a.score >= 60 ? 'text-gold-600' : 'text-maroon-600'}`}>
+                   {a.score ?? 0}
+                 </span>
+               </div>
+             ))}
+           </div>
+         </div>
+       )}
      </div>
    </div>
  );
@@ -2113,10 +2728,10 @@ function Field({ label, value, className = '' }) {
 
 ## 14. `apps/web/src/pages/admin/AdminPanel.jsx`
 
-**Apa ini:** Dashboard admin — hanya warna & sidebar yang berubah, semua logika tetap.
+**Apa ini:** Edit Soal 2 cabang (Cicil/CBT), 4 tipe soal + prompt Gemini per tipe, KARTU SISWA dengan progress & detail, batasi mata kuliah siswa, FIX 'failed to create record', reset device.
 
 ```jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -2154,8 +2769,8 @@ export default function AdminPanel() {
         </nav>
         <div>
           {tab === 'Pengajar' && <Pengajar />}
-          {tab === 'Siswa' && <Siswa />}
-          {tab === 'Edit Soal' && <EditSoal />}
+          {tab === 'Siswa' && <StudentCards adminMode />}
+          {tab === 'Edit Soal' && <EditSoalHub />}
           {tab === 'Tambah Akun' && <TambahAkun />}
           {tab === 'Reset Kurikulum' && (
             <div className="space-y-6">
@@ -2163,13 +2778,15 @@ export default function AdminPanel() {
               <SeedData />
             </div>
           )}
-          {tab === 'Edit Simulasi' && <EditSimulasi />}
         </div>
       </div>
     </div>
   );
 }
 
+// ==========================================
+// TAB PENGAJAR
+// ==========================================
 function Pengajar() {
   const [teachers, setTeachers] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -2219,6 +2836,17 @@ function Pengajar() {
       load();
     }
   };
+  // FITUR: reset device — mengosongkan daftar device agar user bisa login di HP/laptop baru
+  const resetDevice = async (t) => {
+    if (!t?.id) return;
+    if (!confirm(`Reset device untuk ${t.name}? Ia akan bisa login lagi di device baru.`)) return;
+    try {
+      await pb.collection('users').update(t.id, { deviceIds: [] });
+      load();
+    } catch (err) {
+      setError('Gagal mereset device: ' + (err?.message || ''));
+    }
+  };
 
   return (
     <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
@@ -2228,9 +2856,10 @@ function Pengajar() {
       )}
       {teachers.map((t) => (
         <div key={t.id} className="border border-alba-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <p className="font-semibold">{t.name} <span className="text-xs text-stone-400">({t.email})</span></p>
             <div className="flex gap-2">
+              <button onClick={() => resetDevice(t)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1 hover:bg-gold-100">Reset Device</button>
               <button onClick={() => disable(t)} className="text-xs font-semibold rounded-full border px-3 py-1">{t.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
               <button onClick={() => remove(t)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1">Hapus</button>
             </div>
@@ -2249,62 +2878,508 @@ function Pengajar() {
   );
 }
 
-function Siswa() {
+// ==========================================
+// TAB SISWA — kartu siswa dengan progres & detail (dipakai admin & teacher)
+// adminMode=true  : semua siswa, bisa pilih mata kuliah, nonaktif/hapus/reset device
+// subjectScope    : (teacher) hanya siswa yang mengambil mata kuliah ajar & progres
+//                   dihitung dari mata kuliah ajar itu saja
+// ==========================================
+export function StudentCards({ adminMode = false, subjectScope = null }) {
   const [students, setStudents] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [progressRows, setProgressRows] = useState([]);
+  const [openId, setOpenId] = useState(null);
   const [error, setError] = useState('');
-  const load = () => {
+
+  const load = async () => {
     setError('');
-    pb.collection('users')
-      .getFullList({ filter: "role = 'student'" })
-      .then(setStudents)
-      .catch((err) => setError('Gagal memuat daftar siswa: ' + (err?.message || 'terjadi kesalahan.')));
+    try {
+      const [st, subs, chs, prog] = await Promise.all([
+        pb.collection('users').getFullList({ filter: "role = 'student'" }),
+        pb.collection('subjects').getFullList({ sort: 'order', fields: 'id,name' }),
+        pb.collection('chapters').getFullList({ fields: 'id,subject,title' }),
+        pb.collection('soal_progress').getFullList({ filter: "status = 'completed'", fields: 'owner,chapter,updated' }).catch(() => []),
+      ]);
+      setStudents(st);
+      setSubjects(subs);
+      setChapters(chs);
+      setProgressRows(prog);
+    } catch (err) {
+      setError('Gagal memuat data siswa: ' + (err?.message || ''));
+    }
   };
   useEffect(() => { load(); }, []);
-  const disable = async (s) => {
-    if (!s?.id) return;
+
+  const subjectName = useMemo(() => {
+    const m = {};
+    subjects.forEach((s) => { m[s.id] = s.name; });
+    return m;
+  }, [subjects]);
+
+  // Mata kuliah yang relevan untuk progres tiap siswa
+  const relevantSubjectsOf = (s) => {
+    const enrolled = Array.isArray(s.enrolledSubjects) ? s.enrolledSubjects : [];
+    if (subjectScope) return enrolled.filter((id) => subjectScope.includes(id));
+    return enrolled;
+  };
+
+  const statsOf = (s) => {
+    const rel = relevantSubjectsOf(s);
+    const relChapters = chapters.filter((c) => rel.includes(c.subject));
+    const doneRows = progressRows.filter((p) => p.owner === s.id);
+    const doneIds = new Set(doneRows.map((p) => p.chapter));
+    const doneChapters = relChapters.filter((c) => doneIds.has(c.id));
+    const lastDate = {};
+    doneRows.forEach((p) => { lastDate[p.chapter] = String(p.updated || '').slice(0, 10); });
+    return {
+      rel,
+      total: relChapters.length,
+      done: doneChapters.length,
+      doneList: doneChapters.map((c) => ({ ...c, date: lastDate[c.id] || '-' })),
+      pendingList: relChapters.filter((c) => !doneIds.has(c.id)),
+    };
+  };
+
+  // Siswa yang tampil: teacher hanya melihat siswa yang mengambil mata kuliah ajarnya
+  const visibleStudents = subjectScope
+    ? students.filter((s) => relevantSubjectsOf(s).length > 0)
+    : students;
+
+  const toggleEnroll = async (s, subId) => {
+    const cur = Array.isArray(s.enrolledSubjects) ? s.enrolledSubjects : [];
+    const next = cur.includes(subId) ? cur.filter((x) => x !== subId) : [...cur, subId];
     try {
-      await pb.collection('users').update(s.id, { disabled: !s.disabled });
+      await pb.collection('users').update(s.id, { enrolledSubjects: next });
       load();
     } catch (err) {
-      setError(err?.status === 404 ? 'Akun siswa ini tidak ditemukan atau sudah dihapus.' : 'Gagal memperbarui status akun: ' + (err?.message || ''));
-      load();
+      setError('Gagal memperbarui mata kuliah siswa: ' + (err?.message || '') + ' — pastikan field "enrolledSubjects" (relation ke subjects, multiple) sudah dibuat di collection users.');
     }
+  };
+  const disable = async (s) => {
+    try { await pb.collection('users').update(s.id, { disabled: !s.disabled }); load(); }
+    catch (err) { setError('Gagal memperbarui status akun: ' + (err?.message || '')); }
   };
   const remove = async (s) => {
-    if (!s?.id) return;
     if (!confirm('Hapus akun siswa ini?')) return;
-    try {
-      await pb.collection('users').delete(s.id);
-      load();
-    } catch (err) {
-      setError(err?.status === 404 ? 'Akun siswa ini sudah tidak ada.' : 'Gagal menghapus akun: ' + (err?.message || ''));
-      load();
-    }
+    try { await pb.collection('users').delete(s.id); load(); }
+    catch (err) { setError('Gagal menghapus akun: ' + (err?.message || '')); }
   };
+  const resetDevice = async (s) => {
+    if (!confirm(`Reset device untuk ${s.name}? Ia akan bisa login lagi di device baru.`)) return;
+    try { await pb.collection('users').update(s.id, { deviceIds: [] }); load(); }
+    catch (err) { setError('Gagal mereset device: ' + (err?.message || '')); }
+  };
+
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3">
-      <h2 className="font-display text-lg font-semibold mb-2">Daftar Siswa</h2>
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-display text-lg font-semibold">Daftar Siswa</h2>
+        <span className="rounded-full bg-maroon-50 border border-maroon-100 text-maroon-700 text-sm font-bold px-4 py-1.5">
+          Total Siswa: {visibleStudents.length}
+        </span>
+      </div>
       {error && (
         <div className="text-sm bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-2">{error}</div>
       )}
-      {students.map((s) => (
-        <div key={s.id} className="flex items-center justify-between border border-alba-200 rounded-lg p-3.5">
-          <div>
-            <p className="font-semibold text-sm">{s.name}</p>
-            <p className="text-xs text-stone-400">{s.email} · Semester {s.semester || '-'} · {s.asalKuliah || '-'}</p>
+
+      {visibleStudents.map((s) => {
+        const st = statsOf(s);
+        const pct = st.total ? Math.round((st.done / st.total) * 100) : 0;
+        const open = openId === s.id;
+        return (
+          <div key={s.id} className={`border rounded-xl transition-all ${open ? 'border-maroon-200 shadow-card' : 'border-alba-200'}`}>
+            {/* Kartu ringkas — klik untuk membuka detail */}
+            <button onClick={() => setOpenId(open ? null : s.id)} className="w-full text-left p-4">
+              <div className="flex items-center justify-between gap-3 flex-wrap mb-1.5">
+                <p className="font-bold text-sm text-stone-800">
+                  {s.name}
+                  {s.disabled && <span className="ml-2 text-[10px] font-bold uppercase text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">Nonaktif</span>}
+                </p>
+                <span className={`text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 border ${s.classType === 'private' ? 'bg-gold-100 border-gold-200 text-gold-600' : 'bg-alba-100 border-alba-200 text-stone-500'}`}>
+                  {s.classType === 'private' ? 'Private' : 'Reguler'}
+                </span>
+              </div>
+              <p className="text-xs text-stone-400 mb-2">
+                {s.asalKuliah || 'Asal kuliah -'} · {st.rel.length ? st.rel.map((id) => subjectName[id]).filter(Boolean).join(', ') : 'Belum ada mata kuliah'}
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 rounded-full bg-alba-200 overflow-hidden">
+                  <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                <span className="text-xs font-bold text-maroon-600 shrink-0">{st.done}/{st.total} BAB</span>
+              </div>
+            </button>
+
+            {/* Detail siswa */}
+            {open && (
+              <div className="border-t border-alba-200 p-4 space-y-4 animate-fade-in">
+                {adminMode && (
+                  <div>
+                    <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Mata kuliah yang bisa diakses (pilih di sini)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {subjects.map((sub) => (
+                        <button key={sub.id} onClick={() => toggleEnroll(s, sub.id)} className={`text-xs rounded-full px-3 py-1 border ${(s.enrolledSubjects || []).includes(sub.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300'}`}>
+                          {sub.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <MiniField label="Email" value={s.email} />
+                  <MiniField label="Semester" value={s.semester} />
+                  <MiniField label="Aktif sampai" value={s.activeUntil ? String(s.activeUntil).slice(0, 10) : '-'} />
+                  <MiniField label="Jenis kelas" value={s.classType === 'private' ? 'Private' : 'Reguler'} />
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-green-800 uppercase tracking-wider mb-2">✅ BAB sudah dikerjakan ({st.doneList.length})</p>
+                  <div className="max-h-40 overflow-y-auto scrollbar-thin space-y-1 pr-1">
+                    {st.doneList.map((c) => (
+                      <p key={c.id} className="text-xs text-stone-600 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 flex justify-between gap-2">
+                        <span>{c.title} <span className="text-stone-400">({subjectName[c.subject]})</span></span>
+                        <span className="text-stone-400 shrink-0">{c.date}</span>
+                      </p>
+                    ))}
+                    {st.doneList.length === 0 && <p className="text-xs text-stone-400">Belum ada BAB yang dituntaskan.</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-maroon-600 uppercase tracking-wider mb-2">📌 Tanggungan BAB belum dikerjakan ({st.pendingList.length})</p>
+                  <div className="max-h-40 overflow-y-auto scrollbar-thin space-y-1 pr-1">
+                    {st.pendingList.map((c) => (
+                      <p key={c.id} className="text-xs text-stone-600 bg-alba-100/70 border border-alba-200 rounded-lg px-3 py-1.5">
+                        {c.title} <span className="text-stone-400">({subjectName[c.subject]})</span>
+                      </p>
+                    ))}
+                    {st.pendingList.length === 0 && <p className="text-xs text-stone-400">Tidak ada tanggungan 🎉</p>}
+                  </div>
+                </div>
+
+                {adminMode && (
+                  <div className="flex gap-2 pt-2 border-t border-alba-200 flex-wrap">
+                    <button onClick={() => resetDevice(s)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Reset Device</button>
+                    <button onClick={() => disable(s)} className="text-xs font-semibold rounded-full border px-3 py-1.5">{s.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
+                    <button onClick={() => remove(s)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5">Hapus</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => disable(s)} className="text-xs font-semibold rounded-full border px-3 py-1">{s.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
-            <button onClick={() => remove(s)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1">Hapus</button>
-          </div>
-        </div>
-      ))}
-      {students.length === 0 && <p className="text-sm text-stone-400">Belum ada siswa.</p>}
+        );
+      })}
+      {visibleStudents.length === 0 && <p className="text-sm text-stone-400">Belum ada siswa{subjectScope ? ' yang mengambil mata kuliah ajarmu' : ''}.</p>}
     </div>
   );
 }
 
-export function EditSoal() {
+function MiniField({ label, value }) {
+  return (
+    <div className="rounded-lg bg-alba-100/60 border border-alba-200 px-3 py-2">
+      <p className="text-[9px] uppercase tracking-widest font-bold text-stone-400 mb-0.5">{label}</p>
+      <p className="text-xs font-semibold text-stone-700 truncate">{value || '-'}</p>
+    </div>
+  );
+}
+
+// ==========================================
+// EDIT SOAL — HUB: pilih dulu mau edit Cicil Belajar atau Simulasi CBT
+// (workflow sesuai PRD: CBT tidak lewat BAB, langsung mata kuliah → tahun)
+// ==========================================
+export function EditSoalHub({ allowedSubjectIds = null }) {
+  const [mode, setMode] = useState(null);
+
+  if (!mode) {
+    return (
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card">
+        <h2 className="font-display text-lg font-semibold mb-1">Edit Soal</h2>
+        <p className="text-sm text-stone-500 mb-6">Pilih jenis bank soal yang ingin kamu kelola.</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <button onClick={() => setMode('cicil')} className="rounded-xl border-2 border-alba-200 hover:border-maroon-400 hover:bg-maroon-50 p-6 text-left transition-all">
+            <p className="text-2xl mb-2">📚</p>
+            <p className="font-bold text-stone-800 mb-1">Soal Cicil Belajar</p>
+            <p className="text-xs text-stone-500 leading-relaxed">Latihan per BAB. Alur: pilih mata kuliah → pilih BAB → edit soal.</p>
+          </button>
+          <button onClick={() => setMode('cbt')} className="rounded-xl border-2 border-alba-200 hover:border-maroon-400 hover:bg-maroon-50 p-6 text-left transition-all">
+            <p className="text-2xl mb-2">⏱️</p>
+            <p className="font-bold text-stone-800 mb-1">Soal Simulasi CBT</p>
+            <p className="text-xs text-stone-500 leading-relaxed">Soal UTB/UAB per tahun. Alur: pilih mata kuliah → pilih tahun → edit soal (tanpa BAB).</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <button onClick={() => setMode(null)} className="text-sm font-bold text-stone-500 hover:text-maroon-600 transition-colors">
+        ← Kembali ke pilihan jenis soal
+      </button>
+      {mode === 'cicil' ? <EditSoal allowedSubjectIds={allowedSubjectIds} /> : <EditSimulasi allowedSubjectIds={allowedSubjectIds} />}
+    </div>
+  );
+}
+
+// ---------- util bersama untuk form soal ----------
+const EMPTY_FORM = {
+  qtype: 'mcq',
+  year: '',
+  text: '',
+  hint: '',
+  imageUrl: '',
+  options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }],
+  subQuestions: [{ label: 'A', question: '', validAnswers: '' }],
+};
+
+const isIsianType = (t) => String(t || '').startsWith('isian');
+const hasImageType = (t) => String(t || '').includes('img');
+
+function formFromQuestion(q) {
+  return {
+    qtype: q.qtype || 'mcq',
+    year: q.year || '',
+    text: q.text || '',
+    hint: q.hint || '',
+    imageUrl: q.imageUrl || '',
+    options: (q.options && q.options.length) ? q.options : EMPTY_FORM.options,
+    subQuestions: (q.subQuestions && q.subQuestions.length)
+      ? q.subQuestions.map((sq) => ({ label: sq.label || 'A', question: sq.question || '', validAnswers: (sq.validAnswers || []).join(' / ') }))
+      : EMPTY_FORM.subQuestions,
+  };
+}
+
+function payloadFromForm(form) {
+  const isian = isIsianType(form.qtype);
+  return {
+    qtype: form.qtype,
+    text: form.text,
+    hint: form.hint,
+    imageUrl: hasImageType(form.qtype) ? form.imageUrl : '',
+    options: isian ? [] : form.options,
+    subQuestions: isian
+      ? form.subQuestions
+          .filter((sq) => sq.question.trim())
+          .map((sq) => ({ label: sq.label, question: sq.question, validAnswers: [sq.validAnswers] }))
+      : [],
+  };
+}
+
+// Form soal bersama (dipakai EditSoal & EditSimulasi) — mendukung 4 tipe:
+// MCQ Biasa, MCQ Bergambar, Isian, Isian Bergambar
+function QuestionForm({ form, setForm }) {
+  const isian = isIsianType(form.qtype);
+  const withImg = hasImageType(form.qtype);
+
+  const updateOption = (i, key, val) => {
+    setForm((f) => ({ ...f, options: f.options.map((o, idx) => (idx === i ? { ...o, [key]: val } : key === 'correct' ? { ...o, correct: false } : o)) }));
+  };
+  const updateSub = (i, key, val) => {
+    setForm((f) => ({ ...f, subQuestions: f.subQuestions.map((sq, idx) => (idx === i ? { ...sq, [key]: val } : sq)) }));
+  };
+
+  return (
+    <>
+      <div className="flex gap-3 flex-wrap">
+        <select value={form.qtype} onChange={(e) => setForm((f) => ({ ...f, qtype: e.target.value }))} className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50">
+          <option value="mcq">MCQ Biasa</option>
+          <option value="mcq_img">MCQ Bergambar</option>
+          <option value="isian">Isian</option>
+          <option value="isian_img">Isian Bergambar</option>
+        </select>
+      </div>
+
+      {withImg && (
+        <div className="space-y-2">
+          <input
+            value={form.imageUrl}
+            onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
+            placeholder="Link gambar, contoh: https://lh3.googleusercontent.com/d/xxxxx"
+            className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+          />
+          {form.imageUrl && (
+            <img src={form.imageUrl} alt="Preview gambar soal" referrerPolicy="no-referrer" className="max-h-56 rounded-xl border border-alba-200" onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = ''; }} />
+          )}
+        </div>
+      )}
+
+      <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan..." className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" rows={3} />
+      <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+
+      {isian ? (
+        <>
+          {form.subQuestions.map((sq, i) => (
+            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
+              <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
+              <div className="flex-1 space-y-2">
+                <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                <input value={sq.validAnswers} onChange={(e) => updateSub(i, 'validAnswers', e.target.value)} placeholder='Jawaban benar — pisahkan alternatif dengan "/" (mis. Striated duct / Duktus striata)' className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50" />
+              </div>
+              {form.subQuestions.length > 1 && (
+                <button onClick={() => setForm((f) => ({ ...f, subQuestions: f.subQuestions.filter((_, idx) => idx !== i) }))} className="text-red-600 text-xs font-bold px-1 mt-2">✕</button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() => setForm((f) => ({ ...f, subQuestions: [...f.subQuestions, { label: String.fromCharCode(65 + f.subQuestions.length), question: '', validAnswers: '' }] }))}
+            className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100"
+          >
+            + Tambah Sub-Pertanyaan
+          </button>
+        </>
+      ) : (
+        <>
+          {form.options.map((o, i) => (
+            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
+              <input type="radio" checked={o.correct} onChange={() => updateOption(i, 'correct', true)} className="mt-2.5 w-4 h-4 cursor-pointer" />
+              <div className="flex-1 space-y-2">
+                <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan opsi ini..." className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50" rows={2} />
+              </div>
+            </div>
+          ))}
+          <button onClick={() => setForm((f) => ({ ...f, options: [...f.options, { text: '', correct: false, explanation: '' }] }))} className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100">+ Tambah Opsi</button>
+        </>
+      )}
+    </>
+  );
+}
+
+// ---------- prompt Gemini untuk import massal tiap tipe soal ----------
+const GEMINI_PROMPTS = {
+  'MCQ Biasa': `Ubah soal-soal berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
+[
+  {
+    text: "Pertanyaan lengkap di sini",
+    hint: "Petunjuk singkat (boleh string kosong)",
+    options: [
+      { text: "Opsi A", correct: false, explanation: "Kenapa salah" },
+      { text: "Opsi B", correct: true, explanation: "Kenapa benar" }
+    ]
+  }
+]
+Aturan: tepat SATU opsi dengan correct: true per soal; semua opsi wajib punya explanation; output HANYA array JavaScript.
+
+Berikut soal-soalnya:
+(tempel soal di sini)`,
+  'MCQ Bergambar': `Ubah soal-soal bergambar berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
+[
+  {
+    text: "Perhatikan gambar berikut. Pertanyaan di sini",
+    imageUrl: "https://lh3.googleusercontent.com/d/xxxxx",
+    hint: "Petunjuk singkat (boleh string kosong)",
+    options: [
+      { text: "Opsi A", correct: false, explanation: "Kenapa salah" },
+      { text: "Opsi B", correct: true, explanation: "Kenapa benar" }
+    ]
+  }
+]
+Aturan: field imageUrl WAJIB berisi link gambar (format https://lh3.googleusercontent.com/d/FILE_ID); tepat SATU opsi correct: true; output HANYA array JavaScript.
+
+Berikut soal-soal dan link gambarnya:
+(tempel soal di sini)`,
+  'Isian Biasa': `Ubah soal-soal isian berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
+[
+  {
+    text: "Instruksi atau konteks soal",
+    hint: "Petunjuk singkat (boleh string kosong)",
+    subQuestions: [
+      { label: "A", question: "Pertanyaan A", validAnswers: ["jawaban benar / alternatif jawaban lain"] },
+      { label: "B", question: "Pertanyaan B", validAnswers: ["jawaban benar"] }
+    ]
+  }
+]
+Aturan: validAnswers berisi SATU string; jika ada beberapa jawaban yang diterima, pisahkan dengan " / "; output HANYA array JavaScript.
+
+Berikut soal-soalnya:
+(tempel soal di sini)`,
+  'Isian Bergambar': `Ubah soal-soal isian bergambar berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
+[
+  {
+    text: "Perhatikan Gambar Berikut",
+    imageUrl: "https://lh3.googleusercontent.com/d/xxxxx",
+    hint: "Petunjuk singkat (boleh string kosong)",
+    subQuestions: [
+      { label: "A", question: "Bentukan yang ditunjuk nomor 1 adalah", validAnswers: ["Striated duct / Duktus striata"] }
+    ]
+  }
+]
+Aturan: field imageUrl WAJIB berisi link gambar (format https://lh3.googleusercontent.com/d/FILE_ID); validAnswers berisi SATU string dengan alternatif dipisah " / "; output HANYA array JavaScript.
+
+Berikut soal-soal dan link gambarnya:
+(tempel soal di sini)`,
+};
+
+function BulkImport({ onImport, status }) {
+  const [bulkText, setBulkText] = useState('');
+  const [copied, setCopied] = useState('');
+
+  const copyPrompt = (name) => {
+    navigator.clipboard.writeText(GEMINI_PROMPTS[name]).then(() => {
+      setCopied(name);
+      setTimeout(() => setCopied(''), 2000);
+    });
+  };
+
+  return (
+    <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
+      <h4 className="font-semibold text-sm text-stone-600">📋 Import Banyak Soal Sekaligus (Paste dari Gemini)</h4>
+      <div className="flex flex-wrap gap-2">
+        {Object.keys(GEMINI_PROMPTS).map((name) => (
+          <button key={name} onClick={() => copyPrompt(name)} className={`text-xs font-semibold rounded-full border px-3.5 py-1.5 transition-colors ${copied === name ? 'bg-green-50 border-green-200 text-green-800' : 'border-alba-300 text-stone-600 hover:border-maroon-300 hover:text-maroon-600'}`}>
+            {copied === name ? '✅ Tersalin!' : `Salin Prompt ${name}`}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-stone-400">Salin prompt sesuai tipe soal → tempel di Gemini bersama soalmu → salin hasilnya → tempel di kotak bawah. Tipe soal terdeteksi otomatis dari isinya.</p>
+      <textarea
+        value={bulkText}
+        onChange={(e) => setBulkText(e.target.value)}
+        placeholder="Tempel array JavaScript hasil dari Gemini di sini..."
+        className="w-full rounded-lg border border-alba-300 px-3 py-2 text-xs font-mono bg-alba-50"
+        rows={8}
+      />
+      <button onClick={() => { onImport(bulkText, () => setBulkText('')); }} className="rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-6 py-2">
+        Import Semua Soal
+      </button>
+      {status && <p className="text-sm font-medium text-stone-700 whitespace-pre-wrap">{status}</p>}
+    </div>
+  );
+}
+
+// parser bersama untuk import massal — mendukung 4 tipe soal sekaligus
+function parseBulkItems(bulkText) {
+  // eslint-disable-next-line no-new-func
+  const parsed = Function('return (' + bulkText + ')')();
+  if (!Array.isArray(parsed)) throw new Error('Data harus berupa list [ ... ].');
+  return parsed.map((item) => {
+    const hasSubs = Array.isArray(item.subQuestions) && item.subQuestions.length > 0;
+    const hasImg = !!item.imageUrl;
+    const qtype = item.qtype || (hasSubs ? (hasImg ? 'isian_img' : 'isian') : (hasImg ? 'mcq_img' : 'mcq'));
+    return {
+      qtype,
+      text: item.text || '',
+      hint: item.hint || '',
+      imageUrl: item.imageUrl || '',
+      options: hasSubs ? [] : (item.options || []),
+      subQuestions: hasSubs
+        ? item.subQuestions.map((sq) => ({
+            label: sq.label || 'A',
+            question: sq.question || '',
+            validAnswers: Array.isArray(sq.validAnswers) ? sq.validAnswers : [String(sq.validAnswers || '')],
+          }))
+        : [],
+    };
+  });
+}
+
+// ==========================================
+// EDIT SOAL CICIL BELAJAR (mata kuliah → BAB → soal)
+// allowedSubjectIds: teacher hanya melihat mata kuliah ajarnya
+// ==========================================
+export function EditSoal({ allowedSubjectIds = null }) {
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [chapters, setChapters] = useState([]);
@@ -2313,17 +3388,14 @@ export function EditSoal() {
   const [newSubjectName, setNewSubjectName] = useState('');
   const [questions, setQuestions] = useState([]);
 
-  // State baru untuk Edit dan Preview
   const [editingId, setEditingId] = useState(null);
   const [previewData, setPreviewData] = useState(null);
-
-  const [form, setForm] = useState({ type: 'latihan', year: '', text: '', hint: '', options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }] });
-
-  // State untuk fitur Import Massal (paste banyak soal sekaligus)
-  const [bulkText, setBulkText] = useState('');
+  const [form, setForm] = useState(EMPTY_FORM);
   const [bulkStatus, setBulkStatus] = useState('');
 
-  const loadSubjects = () => pb.collection('subjects').getFullList({ sort: 'order' }).then(setSubjects);
+  const loadSubjects = () => pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
+    setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
+  });
   const loadChapters = (sid) => pb.collection('chapters').getFullList({ sort: 'order', filter: `subject = '${sid}'` }).then(setChapters);
   const loadQuestions = (cid) => pb.collection('questions').getFullList({ filter: `chapter = '${cid}'`, sort: '-created' }).then(setQuestions);
 
@@ -2345,53 +3417,37 @@ export function EditSoal() {
     loadChapters(subjectId);
   };
 
-  const updateOption = (i, key, val) => {
-    setForm((f) => ({ ...f, options: f.options.map((o, idx) => (idx === i ? { ...o, [key]: val } : key === 'correct' ? { ...o, correct: false } : o)) }));
-  };
-
-  // Fungsi diganti menjadi saveQuestion agar bisa untuk Tambah (Create) dan Edit (Update)
   const saveQuestion = async () => {
     if (!form.text.trim() || !chapterId) return;
 
     const payload = {
       subject: subjectId,
       chapter: chapterId,
-      type: form.type,
-      year: form.type === 'cbt' ? Number(form.year) : null,
-      text: form.text,
-      hint: form.hint,
-      options: form.options,
+      type: 'latihan',
+      year: null,
+      ...payloadFromForm(form),
     };
 
     if (editingId) {
-      // Jika mode Edit, update data ke database
       await pb.collection('questions').update(editingId, payload);
     } else {
-      // Jika mode Tambah Baru
       payload.order = questions.length + 1;
       await pb.collection('questions').create(payload);
     }
 
-    setForm({ type: 'latihan', year: '', text: '', hint: '', options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }] });
+    setForm(EMPTY_FORM);
     setEditingId(null);
     loadChapters(subjectId);
     loadQuestions(chapterId);
   };
 
-  // Fungsi untuk memuat data ke form edit
   const startEdit = (q) => {
-    setForm({
-      type: q.type || 'latihan',
-      year: q.year || '',
-      text: q.text,
-      hint: q.hint || '',
-      options: q.options || [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }]
-    });
+    setForm(formFromQuestion(q));
     setEditingId(q.id);
   };
 
   const cancelEdit = () => {
-    setForm({ type: 'latihan', year: '', text: '', hint: '', options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }] });
+    setForm(EMPTY_FORM);
     setEditingId(null);
   };
 
@@ -2401,35 +3457,30 @@ export function EditSoal() {
     loadQuestions(chapterId);
   };
 
-  // Fungsi untuk Import Massal: membaca array JavaScript lalu membuat banyak soal sekaligus
-  const importBulk = async () => {
+  const importBulk = async (bulkText, onDone) => {
     if (!chapterId) { setBulkStatus('⚠️ Pilih BAB dulu.'); return; }
-    let parsed;
+    let items;
     try {
-      // eslint-disable-next-line no-new-func
-      parsed = Function('return (' + bulkText + ')')();
+      items = parseBulkItems(bulkText);
     } catch (e) {
       setBulkStatus('❌ Format salah: ' + e.message);
       return;
     }
-    if (!Array.isArray(parsed)) { setBulkStatus('❌ Data harus berupa list [ ... ].'); return; }
-    setBulkStatus('⏳ Mengunggah ' + parsed.length + ' soal...');
+    setBulkStatus('⏳ Mengunggah ' + items.length + ' soal...');
     let n = questions.length;
     try {
-      for (const item of parsed) {
+      for (const item of items) {
         await pb.collection('questions').create({
           subject: subjectId,
           chapter: chapterId,
           type: 'latihan',
           year: null,
-          text: item.text || '',
-          hint: item.hint || '',
-          options: item.options || [],
+          ...item,
           order: ++n,
         });
       }
-      setBulkText('');
-      setBulkStatus('✅ Selesai! ' + parsed.length + ' soal berhasil ditambahkan.');
+      onDone?.();
+      setBulkStatus('✅ Selesai! ' + items.length + ' soal berhasil ditambahkan.');
       loadQuestions(chapterId);
     } catch (e) {
       setBulkStatus('❌ Gagal di tengah jalan: ' + e.message);
@@ -2440,22 +3491,24 @@ export function EditSoal() {
   return (
     <div className="space-y-6">
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold">Edit Soal</h2>
-        <div className="flex gap-2">
-          <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="Tambah mata kuliah baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm" />
-          <button onClick={addSubject} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
-        </div>
-        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm">
+        <h2 className="font-display text-lg font-semibold">Edit Soal Cicil Belajar</h2>
+        {!allowedSubjectIds && (
+          <div className="flex gap-2">
+            <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="Tambah mata kuliah baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+            <button onClick={addSubject} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
+          </div>
+        )}
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
           <option value="">Pilih mata kuliah...</option>
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         {subjectId && (
           <>
             <div className="flex gap-2">
-              <input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Tambah BAB baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm" />
+              <input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Tambah BAB baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
               <button onClick={addChapter} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
             </div>
-            <div className="grid gap-2 max-h-48 overflow-y-auto">
+            <div className="grid gap-2 max-h-48 overflow-y-auto scrollbar-thin">
               {chapters.map((c) => (
                 <button key={c.id} onClick={() => setChapterId(c.id)} className={`text-left rounded-lg border px-3 py-2 text-sm ${chapterId === c.id ? 'border-maroon-600 bg-maroon-50 font-semibold' : 'border-alba-200'}`}>
                   {c.title} <span className="text-xs text-stone-400">· update {String(c.updated).slice(0, 10)}</span>
@@ -2467,32 +3520,11 @@ export function EditSoal() {
       </div>
 
       {chapterId && (
-        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm">
+        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
           <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Terpilih' : 'Tambah Soal Baru'}</h3>
-          <div className="flex gap-3">
-            <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className="rounded-lg border border-alba-300 px-3 py-2 text-sm">
-              <option value="latihan">Latihan (Cicil Belajar)</option>
-              <option value="cbt">CBT (Simulasi Test)</option>
-            </select>
-            {form.type === 'cbt' && (
-              <input value={form.year} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))} placeholder="Tahun angkatan" className="rounded-lg border border-alba-300 px-3 py-2 text-sm w-40" />
-            )}
-          </div>
-          <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan..." className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" rows={3} />
-          <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
-
-          {form.options.map((o, i) => (
-            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
-              <input type="radio" checked={o.correct} onChange={() => updateOption(i, 'correct', true)} className="mt-2.5 w-4 h-4 cursor-pointer" />
-              <div className="flex-1 space-y-2">
-                <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm" />
-                <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan opsi ini..." className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs" rows={2} />
-              </div>
-            </div>
-          ))}
+          <QuestionForm form={form} setForm={setForm} />
 
           <div className="flex gap-2 pt-2">
-            <button onClick={() => setForm((f) => ({ ...f, options: [...f.options, { text: '', correct: false, explanation: '' }] }))} className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100">+ Tambah Opsi</button>
             {editingId && (
               <button onClick={cancelEdit} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal Edit</button>
             )}
@@ -2501,26 +3533,16 @@ export function EditSoal() {
             </button>
           </div>
 
-          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
-            <h4 className="font-semibold text-sm text-stone-600">📋 Import Banyak Soal Sekaligus (Paste dari Gemini)</h4>
-            <textarea
-              value={bulkText}
-              onChange={(e) => setBulkText(e.target.value)}
-              placeholder="Tempel array JavaScript hasil dari Gemini di sini..."
-              className="w-full rounded-lg border border-alba-300 px-3 py-2 text-xs font-mono"
-              rows={8}
-            />
-            <button onClick={importBulk} className="rounded-lg bg-green-600 hover:bg-green-700 text-alba-50 text-sm font-semibold px-6 py-2">
-              Import Semua Soal ke BAB Ini
-            </button>
-            {bulkStatus && <p className="text-sm font-medium text-stone-700">{bulkStatus}</p>}
-          </div>
+          <BulkImport onImport={importBulk} status={bulkStatus} />
 
           <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
             <h4 className="font-semibold text-sm text-stone-600">Daftar Soal di Bab Ini</h4>
             {questions.map((q) => (
               <div key={q.id} className="flex items-center justify-between text-sm border border-alba-200 rounded-lg px-4 py-3 bg-alba-50 hover:bg-alba-100">
-                <span className="truncate pr-4 flex-1 font-medium">{q.text}</span>
+                <span className="truncate pr-4 flex-1 font-medium">
+                  <QtypeBadge qtype={q.qtype} />
+                  {q.text}
+                </span>
                 <div className="flex gap-3 shrink-0">
                   <button onClick={() => setPreviewData(q)} className="text-xs text-maroon-600 hover:underline font-semibold">Preview</button>
                   <button onClick={() => startEdit(q)} className="text-xs text-gold-600 hover:underline font-semibold">Edit</button>
@@ -2533,88 +3555,304 @@ export function EditSoal() {
         </div>
       )}
 
-      {/* MODAL PREVIEW */}
-      {previewData && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-alba-50 rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
-            <div className="flex justify-between items-center border-b border-alba-200 pb-3">
-              <h3 className="font-bold text-xl text-maroon-600">Preview Tampilan Mahasiswa</h3>
-              <button onClick={() => setPreviewData(null)} className="text-stone-400 hover:text-stone-800 text-lg font-bold px-2">✕</button>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-base font-semibold leading-relaxed">{previewData.text}</p>
-
-              {previewData.hint && (
-                <div className="bg-gold-100/70 border border-gold-200 text-stone-700 px-4 py-3 rounded-lg text-sm">
-                  <span className="font-bold">Hint:</span> {previewData.hint}
-                </div>
-              )}
-
-              <div className="space-y-3 mt-4">
-                {previewData.options?.map((o, i) => (
-                  <div key={i} className={`p-4 rounded-xl border-2 ${o.correct ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-200'}`}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-alba-50 ${o.correct ? 'bg-green-500' : 'bg-red-400'}`}>
-                        {String.fromCharCode(65 + i)}
-                      </div>
-                      <p className="font-semibold text-sm">{o.text}</p>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-alba-200/60">
-                      <p className="text-xs font-bold text-stone-500 mb-1">Pembahasan:</p>
-                      <p className="text-sm text-stone-700">{o.explanation || <span className="italic text-stone-400">Penjelasan belum diisi oleh pengajar.</span>}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-alba-200 text-right">
-              <button onClick={() => setPreviewData(null)} className="px-5 py-2 bg-alba-200 hover:bg-alba-300 rounded-lg text-sm font-semibold">Tutup Preview</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PreviewModal previewData={previewData} onClose={() => setPreviewData(null)} />
     </div>
   );
 }
 
+function QtypeBadge({ qtype }) {
+  const label = { mcq: 'MCQ', mcq_img: 'MCQ 🖼', isian: 'Isian', isian_img: 'Isian 🖼' }[qtype || 'mcq'] || 'MCQ';
+  return <span className="inline-block mr-2 text-[10px] font-bold uppercase bg-alba-200 text-stone-600 rounded px-1.5 py-0.5">{label}</span>;
+}
+
+function PreviewModal({ previewData, onClose }) {
+  if (!previewData) return null;
+  const isian = isIsianType(previewData.qtype) || (previewData.subQuestions || []).length > 0;
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-alba-50 rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
+        <div className="flex justify-between items-center border-b border-alba-200 pb-3">
+          <h3 className="font-bold text-xl text-maroon-600">Preview Tampilan Mahasiswa</h3>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-800 text-lg font-bold px-2">✕</button>
+        </div>
+
+        <div className="space-y-4">
+          <p className="text-base font-semibold leading-relaxed">{previewData.text}</p>
+
+          {previewData.imageUrl && (
+            <img src={previewData.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" className="max-h-72 rounded-xl border border-alba-200 mx-auto" />
+          )}
+
+          {previewData.hint && (
+            <div className="bg-gold-100/70 border border-gold-200 text-stone-700 px-4 py-3 rounded-lg text-sm">
+              <span className="font-bold">Hint:</span> {previewData.hint}
+            </div>
+          )}
+
+          {isian ? (
+            <div className="space-y-3 mt-4">
+              {(previewData.subQuestions || []).map((sq, i) => (
+                <div key={i} className="p-4 rounded-xl border-2 border-alba-200 bg-alba-100/60">
+                  <p className="font-semibold text-sm mb-1">
+                    <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sq.label}</span>
+                    {sq.question}
+                  </p>
+                  <p className="text-xs text-stone-500">Jawaban diterima: <span className="font-semibold text-green-800">{(sq.validAnswers || []).join(' | ')}</span></p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3 mt-4">
+              {previewData.options?.map((o, i) => (
+                <div key={i} className={`p-4 rounded-xl border-2 ${o.correct ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-200'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-alba-50 ${o.correct ? 'bg-green-500' : 'bg-red-400'}`}>
+                      {String.fromCharCode(65 + i)}
+                    </div>
+                    <p className="font-semibold text-sm">{o.text}</p>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-alba-200/60">
+                    <p className="text-xs font-bold text-stone-500 mb-1">Pembahasan:</p>
+                    <p className="text-sm text-stone-700">{o.explanation || <span className="italic text-stone-400">Penjelasan belum diisi oleh pengajar.</span>}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="pt-4 border-t border-alba-200 text-right">
+          <button onClick={onClose} className="px-5 py-2 bg-alba-200 hover:bg-alba-300 rounded-lg text-sm font-semibold">Tutup Preview</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// EDIT SOAL SIMULASI CBT (mata kuliah → tahun, TANPA BAB — sesuai PRD)
+// ==========================================
+export function EditSimulasi({ allowedSubjectIds = null }) {
+  const [subjects, setSubjects] = useState([]);
+  const [subjectId, setSubjectId] = useState('');
+  const [year, setYear] = useState('');
+  const [questions, setQuestions] = useState([]);
+
+  const [editingId, setEditingId] = useState(null);
+  const [previewData, setPreviewData] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [bulkStatus, setBulkStatus] = useState('');
+  const years = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
+
+  useEffect(() => {
+    pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
+      setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
+    });
+  }, []);
+
+  const loadQuestions = () => {
+    if (subjectId && year) {
+      pb.collection('questions').getFullList({ filter: `subject = '${subjectId}' && type = 'cbt' && year = ${year}`, sort: '-created' }).then(setQuestions);
+    }
+  };
+
+  useEffect(() => { loadQuestions(); }, [subjectId, year]);
+
+  const saveQuestion = async () => {
+    if (!form.text.trim() || !subjectId || !year) return;
+    const payload = {
+      subject: subjectId,
+      chapter: '',
+      type: 'cbt',
+      year: Number(year),
+      ...payloadFromForm(form),
+    };
+
+    if (editingId) {
+      await pb.collection('questions').update(editingId, payload);
+    } else {
+      payload.order = questions.length + 1;
+      await pb.collection('questions').create(payload);
+    }
+
+    setForm(EMPTY_FORM);
+    setEditingId(null);
+    loadQuestions();
+  };
+
+  const startEdit = (q) => {
+    setForm(formFromQuestion(q));
+    setEditingId(q.id);
+  };
+
+  const deleteQuestion = async (id) => {
+    if (!confirm('Yakin hapus soal CBT ini?')) return;
+    await pb.collection('questions').delete(id);
+    loadQuestions();
+  };
+
+  const importBulk = async (bulkText, onDone) => {
+    if (!subjectId || !year) { setBulkStatus('⚠️ Pilih mata kuliah dan tahun dulu.'); return; }
+    let items;
+    try {
+      items = parseBulkItems(bulkText);
+    } catch (e) {
+      setBulkStatus('❌ Format salah: ' + e.message);
+      return;
+    }
+    setBulkStatus('⏳ Mengunggah ' + items.length + ' soal...');
+    let n = questions.length;
+    try {
+      for (const item of items) {
+        await pb.collection('questions').create({
+          subject: subjectId,
+          chapter: '',
+          type: 'cbt',
+          year: Number(year),
+          ...item,
+          order: ++n,
+        });
+      }
+      onDone?.();
+      setBulkStatus('✅ Selesai! ' + items.length + ' soal berhasil ditambahkan.');
+      loadQuestions();
+    } catch (e) {
+      setBulkStatus('❌ Gagal di tengah jalan: ' + e.message);
+      loadQuestions();
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
+        <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT (UTB/UAB per Tahun)</h2>
+        <div className="flex gap-4 flex-col sm:flex-row">
+          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
+            <option value="">Pilih mata kuliah...</option>
+            {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={year} onChange={(e) => setYear(e.target.value)} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
+            <option value="">Pilih tahun angkatan...</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {subjectId && year && (
+        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
+          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : `Tambah Soal Simulasi (${year})`}</h3>
+          <QuestionForm form={form} setForm={setForm} />
+
+          <div className="flex gap-2 pt-2">
+            <button onClick={saveQuestion} className={`rounded-lg text-alba-50 text-sm font-semibold px-6 py-2 ml-auto ${editingId ? 'bg-gold-400 hover:bg-gold-600' : 'bg-maroon-600 hover:bg-maroon-700'}`}>
+              {editingId ? 'Update Soal' : 'Simpan Soal'}
+            </button>
+          </div>
+
+          <BulkImport onImport={importBulk} status={bulkStatus} />
+
+          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
+            <h4 className="font-semibold text-sm text-stone-600">Daftar Soal CBT {year}</h4>
+            {questions.map((q) => (
+              <div key={q.id} className="flex justify-between text-sm border border-alba-200 rounded-lg px-4 py-3 bg-alba-50 hover:bg-alba-100">
+                <span className="truncate pr-4 flex-1 font-medium">
+                  <QtypeBadge qtype={q.qtype} />
+                  {q.text}
+                </span>
+                <div className="flex gap-3 shrink-0">
+                  <button onClick={() => setPreviewData(q)} className="text-xs text-maroon-600 font-semibold">Preview</button>
+                  <button onClick={() => startEdit(q)} className="text-xs text-gold-600 font-semibold">Edit</button>
+                  <button onClick={() => deleteQuestion(q.id)} className="text-xs text-red-600 font-semibold">Hapus</button>
+                </div>
+              </div>
+            ))}
+            {questions.length === 0 && <p className="text-xs text-stone-400">Belum ada soal tersimpan.</p>}
+          </div>
+        </div>
+      )}
+
+      <PreviewModal previewData={previewData} onClose={() => setPreviewData(null)} />
+    </div>
+  );
+}
+
+// ==========================================
+// TAB TAMBAH AKUN
+// ==========================================
 function TambahAkun() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student', classType: 'reguler' });
   const [msg, setMsg] = useState('');
+  const [msgOk, setMsgOk] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
+    setMsg('');
+    if (form.password.length < 8) {
+      setMsg('Password minimal 8 karakter (aturan bawaan database).');
+      setMsgOk(false);
+      return;
+    }
     try {
       await pb.collection('users').create({
         name: form.name,
         email: form.email,
+        emailVisibility: true,
         password: form.password,
         passwordConfirm: form.password,
         role: form.role,
         verified: true,
         deviceIds: [],
+        // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya
+        enrolledSubjects: [],
+        teachingSubjects: [],
+        classType: form.role === 'student' ? form.classType : '',
       });
-      setMsg('Akun berhasil dibuat.');
-      setForm({ name: '', email: '', password: '', role: 'student' });
+      setMsg(`Akun ${form.role} berhasil dibuat. Buka tab ${form.role === 'student' ? 'Siswa' : 'Pengajar'} untuk memilihkan mata kuliahnya.`);
+      setMsgOk(true);
+      setForm({ name: '', email: '', password: '', role: 'student', classType: 'reguler' });
     } catch (err) {
-      setMsg(err?.message || 'Gagal membuat akun.');
+      // tampilkan detail error per field supaya ketahuan persis salahnya di mana
+      let detail = '';
+      if (err?.response?.data && Object.keys(err.response.data).length > 0) {
+        detail = Object.entries(err.response.data)
+          .map(([field, info]) => `${field}: ${info?.message || 'tidak valid'}`)
+          .join(' | ');
+      }
+      setMsg(
+        (detail ? `Gagal: ${detail}` : `Gagal membuat akun: ${err?.message || ''}`) +
+        (detail ? '' : '\n\nKalau pesannya hanya "Failed to create record", biasanya API Rule collection users yang memblokir. Buka pengaturan collection users → API Rules → isi Create rule dengan: @request.auth.role = "admin"')
+      );
+      setMsgOk(false);
     }
   };
   return (
     <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 max-w-md">
       <h2 className="font-display text-lg font-semibold mb-4">Tambah Akun</h2>
       <form onSubmit={submit} className="space-y-3">
-        <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
-        <input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
-        <input required type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Password" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
-        <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm">
+        <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+        <input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+        <div>
+          <input required type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Password" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+          <p className="text-[11px] text-stone-400 mt-1">Minimal 8 karakter.</p>
+        </div>
+        <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50">
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
         </select>
+        {form.role === 'student' && (
+          <select value={form.classType} onChange={(e) => setForm((f) => ({ ...f, classType: e.target.value }))} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50">
+            <option value="reguler">Kelas Reguler</option>
+            <option value="private">Kelas Private</option>
+          </select>
+        )}
         <button type="submit" className="w-full rounded-lg bg-maroon-600 text-alba-50 font-semibold py-2.5">Buat Akun</button>
-        {msg && <p className="text-sm text-stone-600">{msg}</p>}
+        {msg && (
+          <p className={`text-sm whitespace-pre-wrap rounded-lg px-3 py-2 ${msgOk ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-600'}`}>{msg}</p>
+        )}
       </form>
+      <p className="text-[11px] text-stone-400 mt-4 leading-relaxed">
+        Akun baru dibuat "bersih" tanpa mata kuliah. Setelah akun jadi, buka tab <b>Siswa</b> (atau <b>Pengajar</b>) lalu pilihkan mata kuliah yang boleh ia akses.
+      </p>
     </div>
   );
 }
@@ -2994,137 +4232,27 @@ function SeedData() {
     </div>
   );
 }
-
-// ==========================================
-// KODE UNTUK TAB EDIT SIMULASI CBT
-// ==========================================
-export function EditSimulasi() {
-  const [subjects, setSubjects] = useState([]);
-  const [subjectId, setSubjectId] = useState('');
-  const [year, setYear] = useState('');
-  const [questions, setQuestions] = useState([]);
-
-  const [editingId, setEditingId] = useState(null);
-  const [previewData, setPreviewData] = useState(null);
-
-  const [form, setForm] = useState({ type: 'cbt', year: '', text: '', hint: '', options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }] });
-  const years = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
-
-  useEffect(() => { pb.collection('subjects').getFullList({ sort: 'order' }).then(setSubjects); }, []);
-
-  const loadQuestions = () => {
-    if (subjectId && year) {
-      pb.collection('questions').getFullList({ filter: `subject = '${subjectId}' && type = 'cbt' && year = ${year}`, sort: '-created' }).then(setQuestions);
-    }
-  };
-
-  useEffect(() => { loadQuestions(); }, [subjectId, year]);
-
-  const updateOption = (i, key, val) => {
-    setForm((f) => ({ ...f, options: f.options.map((o, idx) => (idx === i ? { ...o, [key]: val } : key === 'correct' ? { ...o, correct: false } : o)) }));
-  };
-
-  const saveQuestion = async () => {
-    if (!form.text.trim() || !subjectId || !year) return;
-    const payload = { subject: subjectId, chapter: '', type: 'cbt', year: Number(year), text: form.text, hint: form.hint, options: form.options };
-
-    if (editingId) {
-      await pb.collection('questions').update(editingId, payload);
-    } else {
-      payload.order = questions.length + 1;
-      await pb.collection('questions').create(payload);
-    }
-
-    setForm({ type: 'cbt', year: year, text: '', hint: '', options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }] });
-    setEditingId(null);
-    loadQuestions();
-  };
-
-  const startEdit = (q) => {
-    setForm({ type: 'cbt', year: q.year, text: q.text, hint: q.hint || '', options: q.options || [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }] });
-    setEditingId(q.id);
-  };
-
-  const deleteQuestion = async (id) => {
-    if (!confirm('Yakin hapus soal CBT ini?')) return;
-    await pb.collection('questions').delete(id);
-    loadQuestions();
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold">Pilih Kategori Simulasi</h2>
-        <div className="flex gap-4">
-          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm">
-            <option value="">Pilih mata kuliah...</option>
-            {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <select value={year} onChange={(e) => { setYear(e.target.value); setForm(f => ({ ...f, year: e.target.value })); }} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm">
-            <option value="">Pilih tahun angkatan...</option>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {subjectId && year && (
-        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm">
-          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : `Tambah Soal Simulasi (${year})`}</h3>
-          <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan CBT..." className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" rows={3} />
-          <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
-
-          {form.options.map((o, i) => (
-            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
-              <input type="radio" checked={o.correct} onChange={() => updateOption(i, 'correct', true)} className="mt-2.5 w-4 h-4" />
-              <div className="flex-1 space-y-2">
-                <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm" />
-                <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan mengapa opsi ini benar/salah..." className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs" rows={2} />
-              </div>
-            </div>
-          ))}
-
-          <div className="flex gap-2 pt-2">
-            <button onClick={() => setForm((f) => ({ ...f, options: [...f.options, { text: '', correct: false, explanation: '' }] }))} className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100">+ Tambah Opsi</button>
-            <button onClick={saveQuestion} className={`rounded-lg text-alba-50 text-sm font-semibold px-6 py-2 ml-auto ${editingId ? 'bg-gold-400 hover:bg-gold-600' : 'bg-maroon-600 hover:bg-maroon-700'}`}>
-              {editingId ? 'Update Soal' : 'Simpan Soal'}
-            </button>
-          </div>
-
-          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
-            <h4 className="font-semibold text-sm text-stone-600">Daftar Soal CBT {year}</h4>
-            {questions.map((q) => (
-              <div key={q.id} className="flex justify-between text-sm border border-alba-200 rounded-lg px-4 py-3 bg-alba-50 hover:bg-alba-100">
-                <span className="truncate pr-4 flex-1 font-medium">{q.text}</span>
-                <div className="flex gap-3 shrink-0">
-                  <button onClick={() => startEdit(q)} className="text-xs text-gold-600 font-semibold">Edit</button>
-                  <button onClick={() => deleteQuestion(q.id)} className="text-xs text-red-600 font-semibold">Hapus</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 ```
 
 
 ## 15. `apps/web/src/pages/teacher/TeacherPanel.jsx`
 
-**Apa ini:** Dashboard pengajar — sama, hanya visual.
+**Apa ini:** Tab 'Siswa' (hanya siswa mata kuliah ajarnya, progress dari mata kuliah ajar), Edit Soal & PPT dibatasi mata kuliah ajar.
 
 ```jsx
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
-import { EditSoal } from '@/pages/admin/AdminPanel';
+import { EditSoalHub, StudentCards } from '@/pages/admin/AdminPanel';
 
-const TABS = ['Profil Pengajar', 'Beranda', 'Edit Soal', 'PPT Mata Kuliah'];
+const TABS = ['Profil Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah'];
 
 export default function TeacherPanel() {
   const [tab, setTab] = useState('Profil Pengajar');
+  const { user } = useAuth();
+  const teachingSubjects = Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : [];
+
   return (
     <div className="min-h-screen bg-alba-50">
       <Header />
@@ -3139,8 +4267,10 @@ export default function TeacherPanel() {
         </nav>
         <div>
           {tab === 'Profil Pengajar' && <ProfilPengajar />}
-          {tab === 'Beranda' && <BerandaTeacher />}
-          {tab === 'Edit Soal' && <EditSoal />}
+          {/* Siswa: hanya yang mengambil mata kuliah ajar teacher ini; progres dihitung dari mata kuliah ajarnya saja */}
+          {tab === 'Siswa' && <StudentCards subjectScope={teachingSubjects} />}
+          {/* Edit Soal: dibatasi ke mata kuliah ajar (allowedSubjectIds) */}
+          {tab === 'Edit Soal' && <EditSoalHub allowedSubjectIds={teachingSubjects} />}
           {tab === 'PPT Mata Kuliah' && <PPTUpload />}
         </div>
       </div>
@@ -3157,50 +4287,35 @@ function ProfilPengajar() {
     }
   }, [user]);
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3 shadow-card">
       <h2 className="font-display text-lg font-semibold">Profil Pengajar</h2>
-      <p className="text-sm"><span className="text-stone-400">Nama:</span> {user?.name}</p>
-      <p className="text-sm"><span className="text-stone-400">Mata kuliah diajar:</span> {subjects.map((s) => s.name).join(', ') || '-'}</p>
-      <p className="text-sm"><span className="text-stone-400">Asal kuliah:</span> {user?.asalKuliah || '-'}</p>
-    </div>
-  );
-}
-
-function BerandaTeacher() {
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: [] });
-  useEffect(() => {
-    (async () => {
-      const students = await pb.collection('users').getFullList({ filter: "role = 'student'" });
-      const active = [];
-      const inactive = [];
-      for (const s of students) {
-        const recent = await pb.collection('materi_progress').getFullList({ filter: `owner = '${s.id}'`, sort: '-updated' });
-        if (recent.length) active.push(s); else inactive.push(s);
-      }
-      setStats({ total: students.length, active: active.length, inactive });
-    })();
-  }, []);
-  return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-      <h2 className="font-display text-lg font-semibold">Beranda</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <Stat label="Jumlah Siswa" value={stats.total} />
-        <Stat label="Siswa Aktif" value={stats.active} />
+      <div className="grid sm:grid-cols-2 gap-4 pt-2">
+        <ProfField label="Nama" value={user?.name} />
+        <ProfField label="Email" value={user?.email} />
+        <ProfField label="Asal kuliah" value={user?.asalKuliah} />
+        <ProfField label="Jumlah mata kuliah ajar" value={subjects.length} />
       </div>
-      <div>
-        <p className="font-semibold text-sm mb-2">Siswa jarang aktif</p>
-        {stats.inactive.map((s) => <p key={s.id} className="text-sm text-stone-500">{s.name} ({s.email})</p>)}
-        {stats.inactive.length === 0 && <p className="text-sm text-stone-400">Semua siswa aktif.</p>}
+      <div className="rounded-xl bg-alba-100/60 border border-alba-200 px-4 py-3">
+        <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-2">Mata kuliah yang diajar</p>
+        {subjects.length ? (
+          <div className="flex flex-wrap gap-2">
+            {subjects.map((s) => (
+              <span key={s.id} className="rounded-full bg-maroon-50 border border-maroon-100 text-maroon-700 text-xs font-bold px-3.5 py-1.5">{s.name}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm font-medium text-stone-500">Belum dipilihkan oleh admin.</p>
+        )}
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }) {
+function ProfField({ label, value }) {
   return (
-    <div className="rounded-xl bg-maroon-50 p-4">
-      <p className="text-2xl font-bold text-maroon-600">{value}</p>
-      <p className="text-xs text-stone-500">{label}</p>
+    <div className="rounded-xl bg-alba-100/60 border border-alba-200 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-1">{label}</p>
+      <p className="font-semibold text-stone-800">{value || '-'}</p>
     </div>
   );
 }
@@ -3242,7 +4357,6 @@ function PPTUpload() {
     }
   }, [subjectId]);
 
-  // Check if a PDF already exists for the selected chapter (so we know whether we'll create or replace).
   useEffect(() => {
     setExistingFile(null);
     if (!chapterId) return;
@@ -3315,7 +4429,6 @@ function PPTUpload() {
       }
       setMsgType('success');
       setFile(null);
-      // refresh the "existing file" status for this chapter
       const refreshed = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${chapterId}'` });
       setExistingFile(refreshed[0] || null);
     } catch (err) {
@@ -3338,13 +4451,13 @@ function PPTUpload() {
   };
 
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-md">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-md shadow-card">
       <h2 className="font-display text-lg font-semibold">PPT Mata Kuliah (PDF)</h2>
       <select
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}
         disabled={uploading}
-        className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60"
+        className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60 bg-alba-50"
       >
         <option value="">Pilih mata kuliah...</option>
         {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -3354,14 +4467,14 @@ function PPTUpload() {
           value={chapterId}
           onChange={(e) => setChapterId(e.target.value)}
           disabled={uploading}
-          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60"
+          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60 bg-alba-50"
         >
           <option value="">Pilih BAB...</option>
           {chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
       )}
       {chapterId && existingFile && (
-        <p className="text-xs text-gold-600 bg-gold-100/70 rounded-lg px-3 py-2">
+        <p className="text-xs text-gold-600 bg-gold-100/70 border border-gold-200 rounded-lg px-3 py-2">
           BAB ini sudah memiliki PDF. Mengupload file baru akan menggantikannya.
         </p>
       )}
@@ -3389,9 +4502,9 @@ function PPTUpload() {
         <p
           className={`text-sm rounded-lg px-3 py-2 ${
             msgType === 'success'
-              ? 'bg-emerald-50 text-emerald-700'
+              ? 'bg-green-50 text-green-800 border border-green-200'
               : msgType === 'error'
-              ? 'bg-red-50 text-red-700'
+              ? 'bg-red-50 text-red-600 border border-red-200'
               : 'text-stone-600'
           }`}
         >
@@ -3408,9 +4521,84 @@ function PPTUpload() {
 
 # Lampiran (TIDAK untuk di-copy ke Horizons)
 
-Dua file di bawah ini **sudah ada** di project-mu (mungkin tersembunyi di file explorer
-Horizons — buktinya web-mu bisa login & memuat data). Disertakan di sini hanya sebagai
-referensi kalau suatu saat kamu memindahkan project keluar dari Horizons.
+Tiga file ini **sudah ada** di project-mu (web-mu bisa login = file ini ada). Referensi saja.
+
+
+### `apps/web/src/context/AuthContext.jsx` — Login/guest + batas 2 device (versi asli project-mu).
+
+```jsx
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import pb from '@/lib/pocketbaseClient';
+import { getDeviceId } from '@/lib/deviceId';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(pb.authStore.record);
+  const [guest, setGuest] = useState(false);
+
+  useEffect(() => {
+    const unsub = pb.authStore.onChange((_t, record) => setUser(record));
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    // Validate the persisted session on load: if the token is stale or the
+    // underlying user record no longer exists, clear it instead of letting
+    // later PB calls fail with confusing 404s.
+    if (pb.authStore.isValid) {
+      pb.collection('users')
+        .authRefresh()
+        .catch(() => {
+          pb.authStore.clear();
+        });
+    }
+  }, []);
+
+  const login = async (email, password) => {
+    await pb.collection('users').authWithPassword(email, password);
+    const record = pb.authStore.record;
+    if (record.disabled) {
+      pb.authStore.clear();
+      throw new Error('Akun ini telah dinonaktifkan. Silakan hubungi admin.');
+    }
+    const deviceId = getDeviceId();
+    const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
+    if (!devices.includes(deviceId)) {
+      if (devices.length >= 2) {
+        pb.authStore.clear();
+        throw new Error(
+          'Akun ini sudah login di 2 device lain. Hubungi admin untuk reset device.',
+        );
+      }
+      const updated = [...devices, deviceId];
+      await pb.collection('users').update(record.id, { deviceIds: updated });
+    }
+    setGuest(false);
+    return record;
+  };
+
+  const enterGuest = () => setGuest(true);
+
+  const logout = () => {
+    pb.authStore.clear();
+    setGuest(false);
+  };
+
+  const isAuthed = pb.authStore.isValid;
+  const role = guest ? 'guest' : user?.role;
+
+  return (
+    <AuthContext.Provider value={{ user, guest, role, isAuthed, login, logout, enterGuest }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
+```
 
 
 ### `apps/web/src/lib/pocketbaseClient.js` — Koneksi PocketBase.
@@ -3448,17 +4636,3 @@ export default defineConfig({
  },
 });
 ```
-
-
----
-
-# Rekomendasi Fitur Berikutnya (belum diimplementasi)
-
-| Fitur | Kenapa berguna | Di mana mengubahnya |
-|---|---|---|
-| **Streak belajar harian** 🔥 | Gamifikasi ringan; mahasiswa terdorong buka tiap hari | Kolom `lastActive`+`streak` di collection `users`; update saat submit di `CicilBelajar.jsx`; tampilkan badge di `Header.jsx` |
-| **Riwayat & grafik nilai tryout** | Siswa melihat tren skornya per mata kuliah | Data sudah ada di `cbt_attempts`! Bisa ditaruh di `ProfilePage.jsx` (tanpa file baru) pakai `recharts` yang sudah ter-install |
-| **Mode ulangi soal yang salah saja** | Belajar 2× lebih efisien | Simpan indeks jawaban salah saat `finish()` di `QuestionRunner.jsx`, tambah tombol "Ulangi yang salah" di layar evaluasi |
-| **Leaderboard anonim per tryout** | Kompetisi sehat antar peserta | Query `cbt_attempts` per `subject+year`, urutkan skor — bisa ditaruh di `SimulasiCBT.jsx` |
-| **Reset device dari dashboard admin** | Admin sering ditanya "ganti HP gimana?" | Di `AdminPanel.jsx` tab Siswa, tambah tombol yang mengosongkan `deviceIds` |
-| **Dark mode** | Belajar malam lebih nyaman | Token `.dark` di `src/index.css` sudah disiapkan — tinggal toggle `document.documentElement.classList.toggle('dark')` di `Header.jsx` |

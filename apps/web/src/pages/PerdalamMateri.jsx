@@ -1,48 +1,68 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpenText, CheckCircle2, Search } from 'lucide-react';
+import { BookOpenText, CheckCircle2, Lock, Search } from 'lucide-react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 export default function PerdalamMateri() {
- const { guest } = useAuth();
+ const { guest, user, role } = useAuth();
  const navigate = useNavigate();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState('');
  const [chapters, setChapters] = useState([]);
  const [chapterId, setChapterId] = useState('');
- const [progressMap, setProgressMap] = useState({});
+ const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [search, setSearch] = useState('');
 
+ // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin
+ // (field "enrolledSubjects" di collection users). Guest/teacher/admin bebas.
+ const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const visibleSubjects = useMemo(
+   () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
+   [subjects, enrolled]
+ );
+
+ // Progress bar per mata kuliah: % BAB yang sudah selesai dibaca
  useEffect(() => {
-   pb.collection('subjects').getFullList({ sort: 'order' }).then(setSubjects);
- }, []);
+   (async () => {
+     const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
+     setSubjects(subs);
+     try {
+       const allChapters = await pb.collection('chapters').getFullList({ fields: 'id,subject' });
+       const totals = {};
+       allChapters.forEach((c) => { totals[c.subject] = (totals[c.subject] || 0) + 1; });
+       let doneSet = new Set();
+       if (!guest && pb.authStore.record?.id) {
+         const prog = await pb
+           .collection('materi_progress')
+           .getFullList({ filter: `owner = '${pb.authStore.record.id}' && completed = true`, fields: 'chapter' });
+         doneSet = new Set(prog.map((p) => p.chapter));
+         setDoneChapters(doneSet);
+       }
+       const map = {};
+       subs.forEach((s) => {
+         const total = totals[s.id] || 0;
+         const done = allChapters.filter((c) => c.subject === s.id && doneSet.has(c.id)).length;
+         map[s.id] = { done, total };
+       });
+       setProgressMap(map);
+     } catch (e) {
+       setProgressMap({});
+     }
+   })();
+ }, [guest]);
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
    let filter = `subject = '${subjectId}'`;
    if (guest) filter += ' && guestAccessible = true';
-   pb.collection('chapters')
-     .getFullList({ sort: 'order', filter })
-     .then(async (chs) => {
-       setChapters(chs);
-       setChapterId('');
-       setSearch('');
-       if (!guest) {
-         const owner = pb.authStore.record?.id;
-         if (owner) {
-           const prog = await pb
-             .collection('materi_progress')
-             .getFullList({ filter: `owner = '${owner}' && completed = true` });
-           const doneIds = new Set(prog.map((p) => p.chapter));
-           setDoneChapters(doneIds);
-           const done = chs.filter((c) => doneIds.has(c.id)).length;
-           setProgressMap((m) => ({ ...m, [subjectId]: Math.round((done / (chs.length || 1)) * 100) }));
-         }
-       }
-     });
+   pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
+     setChapters(chs);
+     setChapterId('');
+     setSearch('');
+   });
  }, [subjectId, guest]);
 
  // Pencarian BAB — penting untuk mata kuliah dengan 30+ BAB seperti Anatomi
@@ -68,30 +88,45 @@ export default function PerdalamMateri() {
        <h1 className="font-display text-3xl font-semibold mb-2">Pilih Materi Belajarmu</h1>
        <p className="text-stone-600 mb-8">Pilih mata kuliah dan BAB yang ingin kamu pelajari.</p>
 
+       {enrolled && enrolled.length === 0 && (
+         <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
+           <Lock size={16} className="text-gold-600 mt-0.5 shrink-0" />
+           <p>Akunmu belum dipilihkan mata kuliah oleh admin. Hubungi admin agar mata kuliahmu diaktifkan.</p>
+         </div>
+       )}
+
        <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-7 space-y-6">
          <div>
-           <label className="block text-sm font-bold text-stone-700 mb-2">1. Mata Kuliah</label>
-           <select
-             value={subjectId}
-             onChange={(e) => setSubjectId(e.target.value)}
-             className="w-full rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-           >
-             <option value="">Pilih mata kuliah...</option>
-             {subjects.map((s) => (
-               <option key={s.id} value={s.id}>{s.name}</option>
-             ))}
-           </select>
-           {subjectId && progressMap[subjectId] !== undefined && (
-             <div className="mt-4 rounded-xl bg-alba-100/70 border border-alba-200 px-4 py-3">
-               <div className="flex justify-between text-xs font-bold text-stone-600 mb-2">
-                 <span>Progres membaca</span>
-                 <span className="text-maroon-600">{progressMap[subjectId]}%</span>
-               </div>
-               <div className="h-2 rounded-full bg-alba-200 overflow-hidden">
-                 <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${progressMap[subjectId]}%` }} />
-               </div>
-             </div>
-           )}
+           <label className="block text-sm font-bold text-stone-700 mb-3">1. Mata Kuliah</label>
+           <div className="grid sm:grid-cols-2 gap-2.5">
+             {visibleSubjects.map((s) => {
+               const prog = progressMap[s.id] || { done: 0, total: 0 };
+               const pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
+               const active = subjectId === s.id;
+               return (
+                 <button
+                   key={s.id}
+                   onClick={() => setSubjectId(s.id)}
+                   className={`text-left rounded-xl border p-4 transition-all ${
+                     active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+                   }`}
+                 >
+                   <div className="flex items-center justify-between gap-2 mb-2">
+                     <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
+                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
+                   </div>
+                   {!guest && (
+                     <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
+                       <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                     </div>
+                   )}
+                 </button>
+               );
+             })}
+             {visibleSubjects.length === 0 && enrolled?.length !== 0 && (
+               <p className="text-sm text-stone-400 col-span-2">Belum ada mata kuliah tersedia.</p>
+             )}
+           </div>
          </div>
 
          {subjectId && (

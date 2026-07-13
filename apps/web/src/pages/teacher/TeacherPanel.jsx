@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
-import { EditSoal } from '@/pages/admin/AdminPanel';
+import { EditSoalHub, StudentCards } from '@/pages/admin/AdminPanel';
 
-const TABS = ['Profil Pengajar', 'Beranda', 'Edit Soal', 'PPT Mata Kuliah'];
+const TABS = ['Profil Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah'];
 
 export default function TeacherPanel() {
   const [tab, setTab] = useState('Profil Pengajar');
+  const { user } = useAuth();
+  const teachingSubjects = Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : [];
+
   return (
     <div className="min-h-screen bg-alba-50">
       <Header />
@@ -22,8 +25,10 @@ export default function TeacherPanel() {
         </nav>
         <div>
           {tab === 'Profil Pengajar' && <ProfilPengajar />}
-          {tab === 'Beranda' && <BerandaTeacher />}
-          {tab === 'Edit Soal' && <EditSoal />}
+          {/* Siswa: hanya yang mengambil mata kuliah ajar teacher ini; progres dihitung dari mata kuliah ajarnya saja */}
+          {tab === 'Siswa' && <StudentCards subjectScope={teachingSubjects} />}
+          {/* Edit Soal: dibatasi ke mata kuliah ajar (allowedSubjectIds) */}
+          {tab === 'Edit Soal' && <EditSoalHub allowedSubjectIds={teachingSubjects} />}
           {tab === 'PPT Mata Kuliah' && <PPTUpload />}
         </div>
       </div>
@@ -40,50 +45,35 @@ function ProfilPengajar() {
     }
   }, [user]);
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3 shadow-card">
       <h2 className="font-display text-lg font-semibold">Profil Pengajar</h2>
-      <p className="text-sm"><span className="text-stone-400">Nama:</span> {user?.name}</p>
-      <p className="text-sm"><span className="text-stone-400">Mata kuliah diajar:</span> {subjects.map((s) => s.name).join(', ') || '-'}</p>
-      <p className="text-sm"><span className="text-stone-400">Asal kuliah:</span> {user?.asalKuliah || '-'}</p>
-    </div>
-  );
-}
-
-function BerandaTeacher() {
-  const [stats, setStats] = useState({ total: 0, active: 0, inactive: [] });
-  useEffect(() => {
-    (async () => {
-      const students = await pb.collection('users').getFullList({ filter: "role = 'student'" });
-      const active = [];
-      const inactive = [];
-      for (const s of students) {
-        const recent = await pb.collection('materi_progress').getFullList({ filter: `owner = '${s.id}'`, sort: '-updated' });
-        if (recent.length) active.push(s); else inactive.push(s);
-      }
-      setStats({ total: students.length, active: active.length, inactive });
-    })();
-  }, []);
-  return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-      <h2 className="font-display text-lg font-semibold">Beranda</h2>
-      <div className="grid grid-cols-2 gap-4">
-        <Stat label="Jumlah Siswa" value={stats.total} />
-        <Stat label="Siswa Aktif" value={stats.active} />
+      <div className="grid sm:grid-cols-2 gap-4 pt-2">
+        <ProfField label="Nama" value={user?.name} />
+        <ProfField label="Email" value={user?.email} />
+        <ProfField label="Asal kuliah" value={user?.asalKuliah} />
+        <ProfField label="Jumlah mata kuliah ajar" value={subjects.length} />
       </div>
-      <div>
-        <p className="font-semibold text-sm mb-2">Siswa jarang aktif</p>
-        {stats.inactive.map((s) => <p key={s.id} className="text-sm text-stone-500">{s.name} ({s.email})</p>)}
-        {stats.inactive.length === 0 && <p className="text-sm text-stone-400">Semua siswa aktif.</p>}
+      <div className="rounded-xl bg-alba-100/60 border border-alba-200 px-4 py-3">
+        <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-2">Mata kuliah yang diajar</p>
+        {subjects.length ? (
+          <div className="flex flex-wrap gap-2">
+            {subjects.map((s) => (
+              <span key={s.id} className="rounded-full bg-maroon-50 border border-maroon-100 text-maroon-700 text-xs font-bold px-3.5 py-1.5">{s.name}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm font-medium text-stone-500">Belum dipilihkan oleh admin.</p>
+        )}
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }) {
+function ProfField({ label, value }) {
   return (
-    <div className="rounded-xl bg-maroon-50 p-4">
-      <p className="text-2xl font-bold text-maroon-600">{value}</p>
-      <p className="text-xs text-stone-500">{label}</p>
+    <div className="rounded-xl bg-alba-100/60 border border-alba-200 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-1">{label}</p>
+      <p className="font-semibold text-stone-800">{value || '-'}</p>
     </div>
   );
 }
@@ -125,7 +115,6 @@ function PPTUpload() {
     }
   }, [subjectId]);
 
-  // Check if a PDF already exists for the selected chapter (so we know whether we'll create or replace).
   useEffect(() => {
     setExistingFile(null);
     if (!chapterId) return;
@@ -198,7 +187,6 @@ function PPTUpload() {
       }
       setMsgType('success');
       setFile(null);
-      // refresh the "existing file" status for this chapter
       const refreshed = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${chapterId}'` });
       setExistingFile(refreshed[0] || null);
     } catch (err) {
@@ -221,13 +209,13 @@ function PPTUpload() {
   };
 
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-md">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-md shadow-card">
       <h2 className="font-display text-lg font-semibold">PPT Mata Kuliah (PDF)</h2>
       <select
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}
         disabled={uploading}
-        className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60"
+        className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60 bg-alba-50"
       >
         <option value="">Pilih mata kuliah...</option>
         {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -237,14 +225,14 @@ function PPTUpload() {
           value={chapterId}
           onChange={(e) => setChapterId(e.target.value)}
           disabled={uploading}
-          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60"
+          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60 bg-alba-50"
         >
           <option value="">Pilih BAB...</option>
           {chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
       )}
       {chapterId && existingFile && (
-        <p className="text-xs text-gold-600 bg-gold-100/70 rounded-lg px-3 py-2">
+        <p className="text-xs text-gold-600 bg-gold-100/70 border border-gold-200 rounded-lg px-3 py-2">
           BAB ini sudah memiliki PDF. Mengupload file baru akan menggantikannya.
         </p>
       )}
@@ -272,9 +260,9 @@ function PPTUpload() {
         <p
           className={`text-sm rounded-lg px-3 py-2 ${
             msgType === 'success'
-              ? 'bg-emerald-50 text-emerald-700'
+              ? 'bg-green-50 text-green-800 border border-green-200'
               : msgType === 'error'
-              ? 'bg-red-50 text-red-700'
+              ? 'bg-red-50 text-red-600 border border-red-200'
               : 'text-stone-600'
           }`}
         >

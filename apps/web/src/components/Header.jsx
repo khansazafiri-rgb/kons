@@ -1,24 +1,54 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, UserRound } from 'lucide-react';
+import { Flame, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-// Logo PCV: monogram serif di kotak maroon + wordmark.
-// Ditaruh di sini (bukan file terpisah) supaya tidak perlu membuat file baru.
+// Logo asli PCV (di-host di Google). Kalau gagal dimuat (misal offline),
+// otomatis jatuh ke monogram "P" maroon.
+export const PCV_LOGO_URL = 'https://lh3.googleusercontent.com/d/1lhXOXrxkfutAv0d13IBZoqYsJMmis5Ex';
+
 // size: 'sm' (header) | 'md' (landing/login)
 export function Logo({ size = 'sm', light = false }) {
+ const [imgFailed, setImgFailed] = useState(false);
  const box = size === 'md' ? 'w-10 h-10 text-lg rounded-xl' : 'w-8 h-8 text-sm rounded-lg';
  const word = size === 'md' ? 'text-lg' : 'text-base';
  return (
    <span className="inline-flex items-center gap-2.5">
-     <span className={`${box} ${light ? 'bg-alba-50 text-maroon-600' : 'bg-maroon-600 text-alba-50'} flex items-center justify-center font-display font-bold shadow-sm`}>
-       P
-     </span>
+     {imgFailed ? (
+       <span className={`${box} ${light ? 'bg-alba-50 text-maroon-600' : 'bg-maroon-600 text-alba-50'} flex items-center justify-center font-display font-bold shadow-sm`}>
+         P
+       </span>
+     ) : (
+       <img
+         src={PCV_LOGO_URL}
+         alt="Logo PCV Classroom"
+         referrerPolicy="no-referrer"
+         onError={() => setImgFailed(true)}
+         className={`${box} object-cover shadow-sm ${light ? 'ring-1 ring-alba-50/40' : ''}`}
+       />
+     )}
      <span className={`${word} font-display font-semibold tracking-tight ${light ? 'text-alba-50' : 'text-maroon-600'}`}>
        PCV <span className={light ? 'text-alba-200' : 'text-stone-800'}>Classroom</span>
      </span>
    </span>
  );
+}
+
+// Update streak belajar harian. Dipanggil dari CicilBelajar & SimulasiCBT
+// setiap kali siswa menyelesaikan latihan/tryout. Aman dipanggil walau
+// field streak/lastActive belum ada di database (error ditelan diam-diam).
+export async function bumpStreak(pb, user) {
+ if (!user?.id) return;
+ try {
+   const today = new Date().toISOString().slice(0, 10);
+   const last = String(user.lastActive || '').slice(0, 10);
+   if (last === today) return;
+   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+   const streak = last === yesterday ? (user.streak || 0) + 1 : 1;
+   await pb.collection('users').update(user.id, { streak, lastActive: today });
+ } catch (e) {
+   /* field belum ada di schema — abaikan */
+ }
 }
 
 const navItems = [
@@ -31,6 +61,12 @@ const navItems = [
 export default function Header() {
  const { user, guest, role, logout } = useAuth();
  const navigate = useNavigate();
+ const [dark, setDark] = useState(() => localStorage.getItem('pcv_theme') === 'dark');
+
+ useEffect(() => {
+   document.documentElement.classList.toggle('dark', dark);
+   localStorage.setItem('pcv_theme', dark ? 'dark' : 'light');
+ }, [dark]);
 
  const doLogout = () => {
    logout();
@@ -61,7 +97,23 @@ export default function Header() {
            {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher Panel</NavLink>}
          </nav>
        </div>
-       <div className="flex items-center gap-2.5">
+       <div className="flex items-center gap-2">
+         {!guest && (user?.streak || 0) > 0 && (
+           <span
+             title={`Streak belajar ${user.streak} hari berturut-turut`}
+             className="hidden sm:inline-flex items-center gap-1 rounded-full bg-gold-100 border border-gold-200 text-gold-600 text-xs font-bold px-3 py-1.5"
+           >
+             <Flame size={13} />
+             {user.streak}
+           </span>
+         )}
+         <button
+           onClick={() => setDark((d) => !d)}
+           title={dark ? 'Mode terang' : 'Mode gelap'}
+           className="w-8 h-8 rounded-full border border-alba-300 text-stone-500 flex items-center justify-center hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
+         >
+           {dark ? <Sun size={14} /> : <Moon size={14} />}
+         </button>
          <button
            onClick={() => navigate('/profile')}
            className="flex items-center gap-2.5 rounded-full border border-alba-200 bg-alba-100/60 pl-1.5 pr-4 py-1.5 hover:border-maroon-200 hover:bg-maroon-50 transition-colors"

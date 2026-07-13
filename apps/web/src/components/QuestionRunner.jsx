@@ -1,5 +1,43 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Flag, Lightbulb, TimerReset, X } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Flag, Lightbulb, RotateCcw, TimerReset, X } from 'lucide-react';
+
+/*
+ QuestionRunner mendukung 4 tipe soal (field "qtype" di collection questions):
+ - mcq        : pilihan ganda biasa (default kalau qtype kosong)
+ - mcq_img    : pilihan ganda + gambar (field "imageUrl")
+ - isian      : isian singkat, daftar sub-pertanyaan di field "subQuestions" (JSON):
+                [{ "label": "A", "question": "...", "validAnswers": ["jawaban1 / jawaban2"] }]
+                Jawaban dianggap benar jika cocok dengan SALAH SATU varian yang
+                dipisahkan tanda "/" (tidak peka huruf besar/kecil).
+ - isian_img  : isian singkat + gambar
+*/
+
+const isIsian = (q) => String(q?.qtype || '').startsWith('isian') || (!(q?.options || []).length && (q?.subQuestions || []).length > 0);
+
+const normalize = (t) => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+// benar jika jawaban user cocok dengan salah satu varian (dipisah "/")
+export function isSubAnswerCorrect(sub, userText) {
+ const variants = (sub.validAnswers || []).flatMap((v) => String(v).split('/')).map(normalize).filter(Boolean);
+ return variants.includes(normalize(userText));
+}
+
+function isQuestionCorrect(q, ans) {
+ if (isIsian(q)) {
+   const subs = q.subQuestions || [];
+   if (!subs.length) return false;
+   return subs.every((sub) => isSubAnswerCorrect(sub, (ans || {})[sub.label]));
+ }
+ return ans !== undefined && (q.options || [])[ans]?.correct;
+}
+
+function isQuestionAnswered(q, ans) {
+ if (isIsian(q)) {
+   const subs = q.subQuestions || [];
+   return subs.length > 0 && subs.every((sub) => normalize((ans || {})[sub.label]) !== '');
+ }
+ return ans !== undefined;
+}
 
 export default function QuestionRunner({
  questions,
@@ -10,9 +48,12 @@ export default function QuestionRunner({
  initialAnswers = {},
  onAnswerChange,
 }) {
+ const [qs, setQs] = useState(questions);          // daftar soal aktif (bisa diganti subset saat "ulangi yang salah")
+ const [retryRound, setRetryRound] = useState(false);
  const [idx, setIdx] = useState(0);
  const [answers, setAnswers] = useState(initialAnswers);
  const [flagged, setFlagged] = useState(new Set()); // "ragu-ragu" ala CBT nasional
+ const [checked, setChecked] = useState(new Set()); // soal isian yang sudah dicek (mode learning)
  const [showHint, setShowHint] = useState(false);
  const [submitted, setSubmitted] = useState(false);
  const [secondsLeft, setSecondsLeft] = useState(timerSeconds);
@@ -20,9 +61,10 @@ export default function QuestionRunner({
  const [finalScore, setFinalScore] = useState(null);
  const [weakChapters, setWeakChapters] = useState([]);
  const [weakTopics, setWeakTopics] = useState([]);
+ const [wrongQuestions, setWrongQuestions] = useState([]);
 
  useEffect(() => {
-   if (timerSeconds == null || submitted) return;
+   if (secondsLeft == null || submitted || retryRound) return;
    const t = setInterval(() => {
      setSecondsLeft((s) => {
        if (s <= 1) {
@@ -35,22 +77,35 @@ export default function QuestionRunner({
    }, 1000);
    return () => clearInterval(t);
    // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [submitted]);
+ }, [submitted, retryRound]);
 
- const q = questions[idx];
+ const q = qs[idx];
  const selected = answers[q?.id];
- const revealAnswer = mode === 'learning' && selected !== undefined;
+ const qIsIsian = isIsian(q);
+ const revealAnswer = mode === 'learning' && (qIsIsian ? checked.has(q?.id) : selected !== undefined);
+ const showImage = q?.imageUrl && (String(q?.qtype || '').includes('img') || true);
 
  const choose = useCallback((optIdx) => {
-   if (submitted) return;
-   if (mode === 'learning' && answers[q?.id] !== undefined) return;
-   if (!q || optIdx >= (q.options || []).length) return;
+   if (submitted || !q || isIsian(q)) return;
+   if (mode === 'learning' && answers[q.id] !== undefined) return;
+   if (optIdx >= (q.options || []).length) return;
    setAnswers((a) => {
      const newAnswers = { ...a, [q.id]: optIdx };
-     if (onAnswerChange) onAnswerChange(newAnswers);
+     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
      return newAnswers;
    });
- }, [submitted, mode, answers, q, onAnswerChange]);
+ }, [submitted, mode, answers, q, onAnswerChange, retryRound]);
+
+ const typeIsian = (label, value) => {
+   if (submitted || !q) return;
+   if (mode === 'learning' && checked.has(q.id)) return;
+   setAnswers((a) => {
+     const cur = typeof a[q.id] === 'object' && a[q.id] !== null ? a[q.id] : {};
+     const newAnswers = { ...a, [q.id]: { ...cur, [label]: value } };
+     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
+     return newAnswers;
+   });
+ };
 
  const toggleFlag = useCallback(() => {
    if (!q || submitted) return;
@@ -62,38 +117,37 @@ export default function QuestionRunner({
    });
  }, [q, submitted]);
 
- // Shortcut keyboard: ← → pindah soal, A–E pilih jawaban, R tandai ragu-ragu
+ // Shortcut keyboard: ← → pindah soal, A–E pilih jawaban (MCQ), R tandai ragu-ragu
  useEffect(() => {
    const handler = (e) => {
      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-     if (e.key === 'ArrowRight') setIdx((i) => Math.min(questions.length - 1, i + 1));
+     if (e.key === 'ArrowRight') setIdx((i) => Math.min(qs.length - 1, i + 1));
      else if (e.key === 'ArrowLeft') setIdx((i) => Math.max(0, i - 1));
      else if (/^[a-eA-E]$/.test(e.key)) choose(e.key.toUpperCase().charCodeAt(0) - 65);
      else if (e.key === 'r' || e.key === 'R') toggleFlag();
    };
    window.addEventListener('keydown', handler);
    return () => window.removeEventListener('keydown', handler);
- }, [questions.length, choose, toggleFlag]);
+ }, [qs.length, choose, toggleFlag]);
 
  useEffect(() => { setShowHint(false); }, [idx]);
 
- const answeredCount = questions.filter((qq) => answers[qq.id] !== undefined).length;
+ const answeredCount = qs.filter((qq) => isQuestionAnswered(qq, answers[qq.id])).length;
 
  const finish = () => {
    setSubmitted(true);
-   const total = questions.length;
+   const total = qs.length;
    let correct = 0;
 
    const weakChapList = new Set();
    const weakTopicList = [];
+   const wrongList = [];
 
-   questions.forEach((qq, index) => {
-     const opts = qq.options || [];
-     const chosen = answers[qq.id];
-
-     if (chosen !== undefined && opts[chosen]?.correct) {
+   qs.forEach((qq, index) => {
+     if (isQuestionCorrect(qq, answers[qq.id])) {
        correct += 1;
      } else {
+       wrongList.push(qq);
        if (mode === 'simulasi') {
          if (qq.expand && qq.expand.chapter && qq.expand.chapter.title) {
            weakChapList.add(qq.expand.chapter.title);
@@ -110,17 +164,38 @@ export default function QuestionRunner({
 
    const score = total ? Math.round((correct / total) * 100) : 0;
    setFinalScore(score);
+   setWrongQuestions(wrongList);
 
    if (mode === 'simulasi') setWeakChapters(Array.from(weakChapList));
    else setWeakTopics(weakTopicList);
 
-   onSubmit?.({ answers, score });
+   // Ronde "ulangi yang salah" tidak menimpa nilai asli di database
+   if (!retryRound) onSubmit?.({ answers, score });
  };
 
  const confirmFinish = () => {
-   const left = questions.length - answeredCount;
+   const left = qs.length - answeredCount;
    if (left > 0 && !confirm(`Masih ada ${left} soal yang belum dijawab. Yakin ingin submit sekarang?`)) return;
    finish();
+ };
+
+ // FITUR: ulangi hanya soal yang salah — belajar 2x lebih efisien
+ const retryWrong = () => {
+   if (!wrongQuestions.length) return;
+   setQs(wrongQuestions);
+   setRetryRound(true);
+   setAnswers((a) => {
+     const cleaned = { ...a };
+     wrongQuestions.forEach((wq) => delete cleaned[wq.id]);
+     return cleaned;
+   });
+   setFlagged(new Set());
+   setChecked(new Set());
+   setSubmitted(false);
+   setFinalScore(null);
+   setWrongQuestions([]);
+   setSecondsLeft(null);
+   setIdx(0);
  };
 
  if (!q) {
@@ -128,16 +203,24 @@ export default function QuestionRunner({
  }
 
  const timerDanger = secondsLeft != null && secondsLeft < 60;
+ const showResult = submitted || revealAnswer;
 
  return (
    <div className="grid lg:grid-cols-[1fr_230px] gap-6 items-start">
      <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6 md:p-7">
        {/* Bar atas: nomor soal, timer, keluar */}
        <div className="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-alba-200">
-         <div className="bg-maroon-50 px-4 py-1.5 rounded-full border border-maroon-100">
-           <p className="text-sm font-bold text-maroon-700">
-             Soal {idx + 1} <span className="font-medium text-maroon-400">/ {questions.length}</span>
-           </p>
+         <div className="flex items-center gap-2">
+           <div className="bg-maroon-50 px-4 py-1.5 rounded-full border border-maroon-100">
+             <p className="text-sm font-bold text-maroon-700">
+               Soal {idx + 1} <span className="font-medium text-maroon-400">/ {qs.length}</span>
+             </p>
+           </div>
+           {retryRound && (
+             <span className="text-[10px] font-bold uppercase tracking-widest text-gold-600 bg-gold-100 border border-gold-200 rounded-full px-3 py-1">
+               Ulangi yang salah
+             </span>
+           )}
          </div>
          <div className="flex items-center gap-3">
            {secondsLeft != null && !submitted && (
@@ -162,61 +245,119 @@ export default function QuestionRunner({
        {!submitted && (
          <div className="mb-6">
            <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
-             <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+             <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${(answeredCount / qs.length) * 100}%` }} />
            </div>
-           <p className="text-[11px] font-semibold text-stone-400 mt-1.5">{answeredCount} dari {questions.length} soal terjawab</p>
+           <p className="text-[11px] font-semibold text-stone-400 mt-1.5">{answeredCount} dari {qs.length} soal terjawab</p>
          </div>
        )}
 
-       <p className="font-medium text-lg mb-6 leading-relaxed text-stone-800" dangerouslySetInnerHTML={{ __html: q.text || '' }} />
+       <p className="font-medium text-lg mb-4 leading-relaxed text-stone-800" dangerouslySetInnerHTML={{ __html: q.text || '' }} />
 
-       <div className="space-y-3 mb-6">
-         {(q.options || []).map((opt, i) => {
-           const isSelected = selected === i;
-           const show = submitted || revealAnswer;
-           let cls = 'border-alba-300 hover:bg-alba-100/60';
+       {/* SOAL BERGAMBAR: tampilkan gambar dari link (mis. googleusercontent) */}
+       {showImage && q.imageUrl && (
+         <div className="mb-6">
+           <img
+             src={q.imageUrl}
+             alt="Gambar soal"
+             referrerPolicy="no-referrer"
+             className="max-h-96 w-auto max-w-full rounded-xl border border-alba-200 shadow-sm mx-auto"
+           />
+         </div>
+       )}
 
-           if (show && opt.correct) cls = 'border-green-600 bg-green-50 shadow-sm';
-           else if (show && isSelected && !opt.correct) cls = 'border-maroon-500 bg-maroon-50';
-           else if (isSelected) cls = 'border-maroon-600 bg-maroon-50';
+       {/* ===== TIPE ISIAN ===== */}
+       {qIsIsian ? (
+         <div className="space-y-4 mb-6">
+           {(q.subQuestions || []).map((sub) => {
+             const userText = (typeof selected === 'object' && selected !== null ? selected : {})[sub.label] || '';
+             const correctNow = isSubAnswerCorrect(sub, userText);
+             return (
+               <div key={sub.label} className="rounded-xl border border-alba-200 p-4 bg-alba-100/60">
+                 <p className="text-sm font-bold text-stone-700 mb-2">
+                   <span className="inline-flex w-6 h-6 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sub.label}</span>
+                   {sub.question}
+                 </p>
+                 <input
+                   value={userText}
+                   onChange={(e) => typeIsian(sub.label, e.target.value)}
+                   disabled={submitted || (mode === 'learning' && checked.has(q.id))}
+                   placeholder="Ketik jawabanmu di sini..."
+                   className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-alba-50 focus:outline-none focus:ring-4 focus:ring-maroon-600/10 transition ${
+                     showResult
+                       ? correctNow
+                         ? 'border-green-600 bg-green-50'
+                         : 'border-maroon-500 bg-red-50'
+                       : 'border-alba-300 focus:border-maroon-400'
+                   }`}
+                 />
+                 {showResult && (
+                   <p className={`mt-2 text-xs font-semibold ${correctNow ? 'text-green-800' : 'text-red-600'}`}>
+                     {correctNow ? '✅ Benar!' : '❌ Kurang tepat.'}{' '}
+                     <span className="font-normal text-stone-600">
+                       Jawaban yang diterima: <span className="font-semibold">{(sub.validAnswers || []).join(' | ')}</span>
+                     </span>
+                   </p>
+                 )}
+               </div>
+             );
+           })}
+           {mode === 'learning' && !checked.has(q.id) && !submitted && (
+             <button
+               onClick={() => setChecked((c) => new Set(c).add(q.id))}
+               className="rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               Cek Jawaban
+             </button>
+           )}
+         </div>
+       ) : (
+         /* ===== TIPE MCQ ===== */
+         <div className="space-y-3 mb-6">
+           {(q.options || []).map((opt, i) => {
+             const isSelected = selected === i;
+             const show = showResult;
+             let cls = 'border-alba-300 hover:bg-alba-100/60';
 
-           return (
-             <div key={i} className="flex flex-col">
-               <button
-                 onClick={() => choose(i)}
-                 disabled={submitted || (mode === 'learning' && selected !== undefined)}
-                 className={`w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-all duration-200 ${cls} ${!show && !isSelected ? 'hover:border-maroon-300' : ''}`}
-               >
-                 <div className="flex gap-3 items-start">
-                   <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${
-                     show && opt.correct
-                       ? 'bg-green-600 border-green-600 text-white'
-                       : show && isSelected && !opt.correct
-                       ? 'bg-maroon-600 border-maroon-600 text-alba-50'
-                       : isSelected
-                       ? 'bg-maroon-600 border-maroon-600 text-alba-50'
-                       : 'border-alba-300 text-stone-500'
+             if (show && opt.correct) cls = 'border-green-600 bg-green-50 shadow-sm';
+             else if (show && isSelected && !opt.correct) cls = 'border-maroon-500 bg-maroon-50';
+             else if (isSelected) cls = 'border-maroon-600 bg-maroon-50';
+
+             return (
+               <div key={i} className="flex flex-col">
+                 <button
+                   onClick={() => choose(i)}
+                   disabled={submitted || (mode === 'learning' && selected !== undefined)}
+                   className={`w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-all duration-200 ${cls} ${!show && !isSelected ? 'hover:border-maroon-300' : ''}`}
+                 >
+                   <div className="flex gap-3 items-start">
+                     <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${
+                       show && opt.correct
+                         ? 'bg-green-600 border-green-600 text-white'
+                         : (show && isSelected && !opt.correct) || isSelected
+                         ? 'bg-maroon-600 border-maroon-600 text-alba-50'
+                         : 'border-alba-300 text-stone-500'
+                     }`}>
+                       {String.fromCharCode(65 + i)}
+                     </span>
+                     <span className="leading-relaxed font-medium text-stone-800 pt-0.5">{opt.text}</span>
+                   </div>
+                 </button>
+
+                 {show && opt.explanation && (
+                   <div className={`mt-1.5 mb-1 ml-9 text-sm px-4 py-3 rounded-xl border animate-fade-in ${
+                     opt.correct ? 'bg-green-50 border-green-200 text-green-900' : 'bg-alba-100/70 border-alba-200 text-stone-700'
                    }`}>
-                     {String.fromCharCode(65 + i)}
-                   </span>
-                   <span className="leading-relaxed font-medium text-stone-800 pt-0.5">{opt.text}</span>
-                 </div>
-               </button>
-
-               {show && opt.explanation && (
-                 <div className={`mt-1.5 mb-1 ml-9 text-sm px-4 py-3 rounded-xl border animate-fade-in ${
-                   opt.correct ? 'bg-green-50 border-green-200 text-green-900' : 'bg-alba-100/70 border-alba-200 text-stone-700'
-                 }`}>
-                   <span className="font-bold block mb-1">
-                     {opt.correct ? '✅ Alasan Benar:' : '❌ Mengapa Salah:'}
-                   </span>
-                   {opt.explanation}
-                 </div>
-               )}
-             </div>
-           );
-         })}
-       </div>
+                     <span className="font-bold block mb-1">
+                       {opt.correct ? '✅ Alasan Benar:' : '❌ Mengapa Salah:'}
+                     </span>
+                     {opt.explanation}
+                   </div>
+                 )}
+               </div>
+             );
+           })}
+         </div>
+       )}
 
        {showHint && (
          <div className="bg-gold-100/70 border border-gold-200 text-stone-800 p-4 rounded-xl mb-6 animate-fade-in">
@@ -261,7 +402,7 @@ export default function QuestionRunner({
              </button>
            )}
          </div>
-         {idx < questions.length - 1 ? (
+         {idx < qs.length - 1 ? (
            <button
              onClick={() => setIdx((i) => i + 1)}
              className="inline-flex items-center gap-1.5 rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
@@ -296,6 +437,17 @@ export default function QuestionRunner({
              </div>
              <ScoreRing score={finalScore} />
            </div>
+
+           {/* FITUR: ulangi soal yang salah saja */}
+           {wrongQuestions.length > 0 && (
+             <button
+               onClick={retryWrong}
+               className="mb-5 inline-flex items-center gap-2 rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               <RotateCcw size={14} />
+               Ulangi Soal yang Salah ({wrongQuestions.length})
+             </button>
+           )}
 
            <div className="space-y-3">
              <p className="font-bold text-sm text-stone-700">Rekomendasi Belajar Otomatis:</p>
@@ -339,8 +491,8 @@ export default function QuestionRunner({
      <aside className="lg:sticky lg:top-24 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-5 order-first lg:order-none">
        <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">Navigasi Soal</p>
        <div className="grid grid-cols-8 lg:grid-cols-5 gap-1.5">
-         {questions.map((qq, i) => {
-           const isAnswered = answers[qq.id] !== undefined;
+         {qs.map((qq, i) => {
+           const isAnswered = isQuestionAnswered(qq, answers[qq.id]);
            const isFlagged = flagged.has(qq.id);
            const isCurrent = i === idx;
            let cls = 'border-alba-300 text-stone-500 hover:border-maroon-300';

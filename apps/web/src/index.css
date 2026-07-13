@@ -76,6 +76,42 @@ body {
  }
 }
 
+/* ===== MODE GELAP =====
+  Toggle-nya ada di Header (ikon bulan/matahari). Class .dark dipasang di <html>,
+  lalu blok di bawah me-remap warna-warna terang ke versi gelap yang hangat. */
+.dark { color-scheme: dark; }
+.dark body { background: #17120e; }
+.dark .bg-alba-50 { background-color: #17120e; }
+.dark .bg-alba-50\/90 { background-color: rgba(23, 18, 14, 0.9); }
+.dark .bg-alba-100, .dark .bg-alba-100\/60, .dark .bg-alba-100\/70 { background-color: #211a14; }
+.dark .bg-alba-200 { background-color: #2e251c; }
+.dark .hover\:bg-alba-100:hover { background-color: #241c15; }
+.dark .border-alba-200, .dark .border-alba-200\/60 { border-color: #322818; }
+.dark .border-alba-300 { border-color: #3d3020; }
+.dark .hover\:border-alba-400:hover { border-color: #4d3d28; }
+.dark .text-stone-800 { color: #ece3d4; }
+.dark .text-stone-700 { color: #ddd2be; }
+.dark .text-stone-600 { color: #c4b7a0; }
+.dark .text-stone-500 { color: #a4977f; }
+.dark .text-stone-400 { color: #857763; }
+.dark .bg-maroon-50, .dark .hover\:bg-maroon-50:hover { background-color: rgba(142, 1, 0, 0.22); }
+.dark .border-maroon-100 { border-color: #5c2521; }
+.dark .hover\:border-maroon-200:hover, .dark .hover\:border-maroon-300:hover { border-color: #7a3a34; }
+.dark .text-maroon-600, .dark .hover\:text-maroon-600:hover { color: #f0938b; }
+.dark .text-maroon-700 { color: #f4a8a1; }
+.dark .text-maroon-500 { color: #e58077; }
+.dark .text-maroon-400 { color: #d9736a; }
+.dark .bg-gold-100, .dark .bg-gold-100\/50, .dark .bg-gold-100\/60, .dark .bg-gold-100\/70 { background-color: #2b2310; }
+.dark .border-gold-200 { border-color: #4a3d16; }
+.dark .text-gold-600 { color: #dcbc4e; }
+.dark .bg-green-50 { background-color: #10251a; }
+.dark .border-green-200 { border-color: #1e4029; }
+.dark .text-green-900, .dark .text-green-800 { color: #a9dfba; }
+.dark .bg-red-50 { background-color: #2b1412; }
+.dark .border-red-200 { border-color: #542420; }
+.dark .text-red-600 { color: #f08c84; }
+.dark img[src^="https://docs.google.com"], .dark iframe { background: #ffffff; }
+
 @layer utilities {
  /* Judul serif khas PCV */
  .font-display {
