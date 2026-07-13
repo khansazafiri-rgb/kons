@@ -213,14 +213,23 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     ? students.filter((s) => relevantSubjectsOf(s).length > 0)
     : students;
 
+  const [enrollError, setEnrollError] = useState('');
   const toggleEnroll = async (s, subId) => {
+    setEnrollError('');
     const cur = Array.isArray(s.enrolledSubjects) ? s.enrolledSubjects : [];
     const next = cur.includes(subId) ? cur.filter((x) => x !== subId) : [...cur, subId];
+    // Optimistic update: chip langsung berubah saat diklik, tanpa menunggu server
+    setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: next } : u)));
     try {
       await pb.collection('users').update(s.id, { enrolledSubjects: next });
-      load();
     } catch (err) {
-      setError('Gagal memperbarui mata kuliah siswa: ' + (err?.message || '') + ' — pastikan field "enrolledSubjects" (relation ke subjects, multiple) sudah dibuat di collection users.');
+      // gagal disimpan -> kembalikan tampilan & jelaskan penyebab umumnya
+      setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: cur } : u)));
+      setEnrollError(
+        'Gagal menyimpan: ' + (err?.message || 'terjadi kesalahan.') +
+        '\nCek 2 hal di database: (1) field "enrolledSubjects" harus ada di collection users, tipe Relation ke subjects dengan Max select KOSONG/lebih dari 1; ' +
+        '(2) API Rule "Update" collection users harus mengizinkan admin, isi dengan: @request.auth.role = "admin" || id = @request.auth.id'
+      );
     }
   };
   const disable = async (s) => {
@@ -286,11 +295,14 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                     <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Mata kuliah yang bisa diakses (pilih di sini)</p>
                     <div className="flex flex-wrap gap-2">
                       {subjects.map((sub) => (
-                        <button key={sub.id} onClick={() => toggleEnroll(s, sub.id)} className={`text-xs rounded-full px-3 py-1 border ${(s.enrolledSubjects || []).includes(sub.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300'}`}>
+                        <button key={sub.id} onClick={() => toggleEnroll(s, sub.id)} className={`text-xs rounded-full px-3 py-1 border transition-colors ${(s.enrolledSubjects || []).includes(sub.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'}`}>
                           {sub.name}
                         </button>
                       ))}
                     </div>
+                    {enrollError && (
+                      <p className="mt-2 text-xs whitespace-pre-wrap bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">{enrollError}</p>
+                    )}
                   </div>
                 )}
 
@@ -579,28 +591,48 @@ Berikut soal-soal dan link gambarnya:
 (tempel soal di sini)`,
 };
 
+const TYPE_LABEL = { mcq: 'MCQ Biasa', mcq_img: 'MCQ Bergambar', isian: 'Isian Biasa', isian_img: 'Isian Bergambar' };
+
 function BulkImport({ onImport, status }) {
   const [bulkText, setBulkText] = useState('');
-  const [copied, setCopied] = useState('');
+  const [qtype, setQtype] = useState('mcq'); // tipe soal yang akan di-import (menentukan cara membaca datanya)
+  const [copied, setCopied] = useState(false);
 
-  const copyPrompt = (name) => {
-    navigator.clipboard.writeText(GEMINI_PROMPTS[name]).then(() => {
-      setCopied(name);
-      setTimeout(() => setCopied(''), 2000);
+  const copyPrompt = () => {
+    navigator.clipboard.writeText(GEMINI_PROMPTS[TYPE_LABEL[qtype]]).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     });
   };
 
   return (
     <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
       <h4 className="font-semibold text-sm text-stone-600">📋 Import Banyak Soal Sekaligus (Paste dari Gemini)</h4>
+
+      <p className="text-xs font-bold text-stone-500">Langkah 1 — Pilih tipe soal yang mau kamu import:</p>
       <div className="flex flex-wrap gap-2">
-        {Object.keys(GEMINI_PROMPTS).map((name) => (
-          <button key={name} onClick={() => copyPrompt(name)} className={`text-xs font-semibold rounded-full border px-3.5 py-1.5 transition-colors ${copied === name ? 'bg-green-50 border-green-200 text-green-800' : 'border-alba-300 text-stone-600 hover:border-maroon-300 hover:text-maroon-600'}`}>
-            {copied === name ? '✅ Tersalin!' : `Salin Prompt ${name}`}
+        {Object.entries(TYPE_LABEL).map(([key, name]) => (
+          <button
+            key={key}
+            onClick={() => setQtype(key)}
+            className={`text-xs font-semibold rounded-full border px-3.5 py-1.5 transition-colors ${
+              qtype === key
+                ? 'bg-maroon-600 text-alba-50 border-maroon-600 shadow-sm'
+                : 'border-alba-300 text-stone-600 hover:border-maroon-300 hover:text-maroon-600'
+            }`}
+          >
+            {name}
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-stone-400">Salin prompt sesuai tipe soal → tempel di Gemini bersama soalmu → salin hasilnya → tempel di kotak bawah. Tipe soal terdeteksi otomatis dari isinya.</p>
+
+      <p className="text-xs font-bold text-stone-500 pt-1">Langkah 2 — Buat datanya dengan Gemini:</p>
+      <button onClick={copyPrompt} className={`text-xs font-semibold rounded-lg border px-4 py-2 transition-colors ${copied ? 'bg-green-50 border-green-200 text-green-800' : 'border-gold-200 bg-gold-100/50 text-gold-600 hover:bg-gold-100'}`}>
+        {copied ? '✅ Prompt tersalin — tempel di Gemini!' : `📄 Salin prompt Gemini untuk ${TYPE_LABEL[qtype]}`}
+      </button>
+      <p className="text-[11px] text-stone-400">Tempel prompt itu di Gemini bersama soal-soalmu → salin array hasilnya → tempel di kotak bawah.</p>
+
+      <p className="text-xs font-bold text-stone-500 pt-1">Langkah 3 — Tempel hasilnya lalu import (akan dicek sesuai tipe <span className="text-maroon-600">{TYPE_LABEL[qtype]}</span>):</p>
       <textarea
         value={bulkText}
         onChange={(e) => setBulkText(e.target.value)}
@@ -608,30 +640,37 @@ function BulkImport({ onImport, status }) {
         className="w-full rounded-lg border border-alba-300 px-3 py-2 text-xs font-mono bg-alba-50"
         rows={8}
       />
-      <button onClick={() => { onImport(bulkText, () => setBulkText('')); }} className="rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-6 py-2">
-        Import Semua Soal
+      <button onClick={() => { onImport(bulkText, qtype, () => setBulkText('')); }} className="rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-6 py-2">
+        Import Semua Soal ({TYPE_LABEL[qtype]})
       </button>
       {status && <p className="text-sm font-medium text-stone-700 whitespace-pre-wrap">{status}</p>}
     </div>
   );
 }
 
-// parser bersama untuk import massal — mendukung 4 tipe soal sekaligus
-function parseBulkItems(bulkText) {
+// parser untuk import massal — tipe soal DITENTUKAN oleh pilihan user (qtype),
+// lalu isi datanya divalidasi agar sesuai dengan tipe tersebut.
+function parseBulkItems(bulkText, qtype) {
   // eslint-disable-next-line no-new-func
   const parsed = Function('return (' + bulkText + ')')();
   if (!Array.isArray(parsed)) throw new Error('Data harus berupa list [ ... ].');
-  return parsed.map((item) => {
+  const isian = isIsianType(qtype);
+  const withImg = hasImageType(qtype);
+  return parsed.map((item, i) => {
+    const no = i + 1;
     const hasSubs = Array.isArray(item.subQuestions) && item.subQuestions.length > 0;
-    const hasImg = !!item.imageUrl;
-    const qtype = item.qtype || (hasSubs ? (hasImg ? 'isian_img' : 'isian') : (hasImg ? 'mcq_img' : 'mcq'));
+    const hasOpts = Array.isArray(item.options) && item.options.length > 0;
+    if (isian && !hasSubs) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "subQuestions". Pakai prompt Isian, atau ganti tipe ke MCQ.`);
+    if (!isian && !hasOpts) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "options". Pakai prompt MCQ, atau ganti tipe ke Isian.`);
+    if (!isian && hasSubs) throw new Error(`Soal #${no}: berisi "subQuestions" (format Isian) padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Ganti tipe ke Isian.`);
+    if (withImg && !item.imageUrl) throw new Error(`Soal #${no}: tipe bergambar tapi tidak ada "imageUrl". Tambahkan link gambarnya.`);
     return {
       qtype,
       text: item.text || '',
       hint: item.hint || '',
-      imageUrl: item.imageUrl || '',
-      options: hasSubs ? [] : (item.options || []),
-      subQuestions: hasSubs
+      imageUrl: withImg ? (item.imageUrl || '') : (item.imageUrl || ''),
+      options: isian ? [] : item.options,
+      subQuestions: isian
         ? item.subQuestions.map((sq) => ({
             label: sq.label || 'A',
             question: sq.question || '',
@@ -724,11 +763,11 @@ export function EditSoal({ allowedSubjectIds = null }) {
     loadQuestions(chapterId);
   };
 
-  const importBulk = async (bulkText, onDone) => {
+  const importBulk = async (bulkText, qtype, onDone) => {
     if (!chapterId) { setBulkStatus('⚠️ Pilih BAB dulu.'); return; }
     let items;
     try {
-      items = parseBulkItems(bulkText);
+      items = parseBulkItems(bulkText, qtype);
     } catch (e) {
       setBulkStatus('❌ Format salah: ' + e.message);
       return;
@@ -959,11 +998,11 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
     loadQuestions();
   };
 
-  const importBulk = async (bulkText, onDone) => {
+  const importBulk = async (bulkText, qtype, onDone) => {
     if (!subjectId || !year) { setBulkStatus('⚠️ Pilih mata kuliah dan tahun dulu.'); return; }
     let items;
     try {
-      items = parseBulkItems(bulkText);
+      items = parseBulkItems(bulkText, qtype);
     } catch (e) {
       setBulkStatus('❌ Format salah: ' + e.message);
       return;
@@ -1067,7 +1106,8 @@ function TambahAkun() {
         password: form.password,
         passwordConfirm: form.password,
         role: form.role,
-        verified: true,
+        // CATATAN: "verified" sengaja TIDAK dikirim — PocketBase menolak akun
+        // non-superuser men-set verified (error "Values don't match").
         deviceIds: [],
         // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya
         enrolledSubjects: [],
