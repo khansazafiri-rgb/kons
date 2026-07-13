@@ -10,11 +10,11 @@ export default function AdminPanel() {
 
   if (!isAuthed || !user?.id) {
     return (
-      <div className="min-h-screen bg-[#f7f9fc]">
+      <div className="min-h-screen bg-alba-50">
         <Header />
         <div className="max-w-md mx-auto px-6 py-24 text-center">
-          <p className="text-slate-600 font-medium">Sesi Anda tidak valid atau telah berakhir.</p>
-          <a href="/login" className="inline-block mt-4 rounded-lg bg-[#0f4c81] text-white text-sm font-semibold px-6 py-2.5">
+          <p className="text-stone-600 font-medium">Sesi Anda tidak valid atau telah berakhir.</p>
+          <a href="/login" className="inline-block mt-4 rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-6 py-2.5">
             Login Kembali
           </a>
         </div>
@@ -23,12 +23,13 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc]">
+    <div className="min-h-screen bg-alba-50">
       <Header />
-      <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-[220px_1fr] gap-8">
-        <nav className="space-y-1">
+      <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-8 items-start">
+        <nav className="md:sticky md:top-24 rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-3 space-y-1">
+          <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-maroon-500">Dashboard Admin</p>
           {TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`w-full text-left rounded-lg px-3.5 py-2.5 text-sm font-semibold ${tab === t ? 'bg-[#0f4c81] text-white' : 'hover:bg-white text-slate-600'}`}>
+            <button key={t} onClick={() => setTab(t)} className={`w-full text-left rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors ${tab === t ? 'bg-maroon-600 text-alba-50 shadow-sm' : 'hover:bg-maroon-50 hover:text-maroon-600 text-stone-600'}`}>
               {t}
             </button>
           ))}
@@ -102,15 +103,15 @@ function Pengajar() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-      <h2 className="text-lg font-bold">Daftar Pengajar</h2>
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
+      <h2 className="font-display text-lg font-semibold">Daftar Pengajar</h2>
       {error && (
         <div className="text-sm bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-2">{error}</div>
       )}
       {teachers.map((t) => (
-        <div key={t.id} className="border border-slate-200 rounded-lg p-4">
+        <div key={t.id} className="border border-alba-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="font-semibold">{t.name} <span className="text-xs text-slate-400">({t.email})</span></p>
+            <p className="font-semibold">{t.name} <span className="text-xs text-stone-400">({t.email})</span></p>
             <div className="flex gap-2">
               <button onClick={() => disable(t)} className="text-xs font-semibold rounded-full border px-3 py-1">{t.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
               <button onClick={() => remove(t)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1">Hapus</button>
@@ -118,14 +119,14 @@ function Pengajar() {
           </div>
           <div className="flex flex-wrap gap-2">
             {subjects.map((s) => (
-              <button key={s.id} onClick={() => toggleSubject(t, s.id)} className={`text-xs rounded-full px-3 py-1 border ${(t.teachingSubjects || []).includes(s.id) ? 'bg-[#0f4c81] text-white border-[#0f4c81]' : 'border-slate-300'}`}>
+              <button key={s.id} onClick={() => toggleSubject(t, s.id)} className={`text-xs rounded-full px-3 py-1 border ${(t.teachingSubjects || []).includes(s.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300'}`}>
                 {s.name}
               </button>
             ))}
           </div>
         </div>
       ))}
-      {teachers.length === 0 && <p className="text-sm text-slate-400">Belum ada pengajar.</p>}
+      {teachers.length === 0 && <p className="text-sm text-stone-400">Belum ada pengajar.</p>}
     </div>
   );
 }
@@ -163,16 +164,16 @@ function Siswa() {
     }
   };
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
-      <h2 className="text-lg font-bold mb-2">Daftar Siswa</h2>
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3">
+      <h2 className="font-display text-lg font-semibold mb-2">Daftar Siswa</h2>
       {error && (
         <div className="text-sm bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-2">{error}</div>
       )}
       {students.map((s) => (
-        <div key={s.id} className="flex items-center justify-between border border-slate-200 rounded-lg p-3.5">
+        <div key={s.id} className="flex items-center justify-between border border-alba-200 rounded-lg p-3.5">
           <div>
             <p className="font-semibold text-sm">{s.name}</p>
-            <p className="text-xs text-slate-400">{s.email} · Semester {s.semester || '-'} · {s.asalKuliah || '-'}</p>
+            <p className="text-xs text-stone-400">{s.email} · Semester {s.semester || '-'} · {s.asalKuliah || '-'}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => disable(s)} className="text-xs font-semibold rounded-full border px-3 py-1">{s.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
@@ -180,7 +181,7 @@ function Siswa() {
           </div>
         </div>
       ))}
-      {students.length === 0 && <p className="text-sm text-slate-400">Belum ada siswa.</p>}
+      {students.length === 0 && <p className="text-sm text-stone-400">Belum ada siswa.</p>}
     </div>
   );
 }
@@ -320,26 +321,26 @@ export function EditSoal() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-        <h2 className="text-lg font-bold">Edit Soal</h2>
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
+        <h2 className="font-display text-lg font-semibold">Edit Soal</h2>
         <div className="flex gap-2">
-          <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="Tambah mata kuliah baru" className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-          <button onClick={addSubject} className="rounded-lg bg-[#0f4c81] text-white text-sm font-semibold px-4">Tambah</button>
+          <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="Tambah mata kuliah baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm" />
+          <button onClick={addSubject} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
         </div>
-        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+        <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm">
           <option value="">Pilih mata kuliah...</option>
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         {subjectId && (
           <>
             <div className="flex gap-2">
-              <input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Tambah BAB baru" className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              <button onClick={addChapter} className="rounded-lg bg-[#0f4c81] text-white text-sm font-semibold px-4">Tambah</button>
+              <input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Tambah BAB baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm" />
+              <button onClick={addChapter} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
             </div>
             <div className="grid gap-2 max-h-48 overflow-y-auto">
               {chapters.map((c) => (
-                <button key={c.id} onClick={() => setChapterId(c.id)} className={`text-left rounded-lg border px-3 py-2 text-sm ${chapterId === c.id ? 'border-[#0f4c81] bg-[#0f4c81]/5 font-semibold' : 'border-slate-200'}`}>
-                  {c.title} <span className="text-xs text-slate-400">· update {String(c.updated).slice(0, 10)}</span>
+                <button key={c.id} onClick={() => setChapterId(c.id)} className={`text-left rounded-lg border px-3 py-2 text-sm ${chapterId === c.id ? 'border-maroon-600 bg-maroon-50 font-semibold' : 'border-alba-200'}`}>
+                  {c.title} <span className="text-xs text-stone-400">· update {String(c.updated).slice(0, 10)}</span>
                 </button>
               ))}
             </div>
@@ -348,68 +349,68 @@ export function EditSoal() {
       </div>
 
       {chapterId && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
-          <h3 className="font-bold text-[#0f4c81]">{editingId ? 'Edit Soal Terpilih' : 'Tambah Soal Baru'}</h3>
+        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm">
+          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Terpilih' : 'Tambah Soal Baru'}</h3>
           <div className="flex gap-3">
-            <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className="rounded-lg border border-alba-300 px-3 py-2 text-sm">
               <option value="latihan">Latihan (Cicil Belajar)</option>
               <option value="cbt">CBT (Simulasi Test)</option>
             </select>
             {form.type === 'cbt' && (
-              <input value={form.year} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))} placeholder="Tahun angkatan" className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-40" />
+              <input value={form.year} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))} placeholder="Tahun angkatan" className="rounded-lg border border-alba-300 px-3 py-2 text-sm w-40" />
             )}
           </div>
-          <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan..." className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" rows={3} />
-          <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan..." className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" rows={3} />
+          <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
 
           {form.options.map((o, i) => (
-            <div key={i} className="flex items-start gap-2 border border-slate-200 rounded-lg p-3 bg-slate-50">
+            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
               <input type="radio" checked={o.correct} onChange={() => updateOption(i, 'correct', true)} className="mt-2.5 w-4 h-4 cursor-pointer" />
               <div className="flex-1 space-y-2">
-                <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-                <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan opsi ini..." className="w-full rounded-md border border-slate-200 px-3 py-2 text-xs" rows={2} />
+                <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm" />
+                <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan opsi ini..." className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs" rows={2} />
               </div>
             </div>
           ))}
 
           <div className="flex gap-2 pt-2">
-            <button onClick={() => setForm((f) => ({ ...f, options: [...f.options, { text: '', correct: false, explanation: '' }] }))} className="text-xs font-semibold rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-100">+ Tambah Opsi</button>
+            <button onClick={() => setForm((f) => ({ ...f, options: [...f.options, { text: '', correct: false, explanation: '' }] }))} className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100">+ Tambah Opsi</button>
             {editingId && (
-              <button onClick={cancelEdit} className="rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold px-4 py-2 ml-auto">Batal Edit</button>
+              <button onClick={cancelEdit} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal Edit</button>
             )}
-            <button onClick={saveQuestion} className={`rounded-lg text-white text-sm font-semibold px-6 py-2 ${editingId ? 'bg-orange-500 hover:bg-orange-600' : 'bg-[#0f4c81] hover:bg-blue-800'} ${!editingId && 'ml-auto'}`}>
+            <button onClick={saveQuestion} className={`rounded-lg text-alba-50 text-sm font-semibold px-6 py-2 ${editingId ? 'bg-gold-400 hover:bg-gold-600' : 'bg-maroon-600 hover:bg-maroon-700'} ${!editingId && 'ml-auto'}`}>
               {editingId ? 'Update Soal' : 'Simpan Soal'}
             </button>
           </div>
 
-          <div className="pt-6 mt-4 border-t border-slate-200 space-y-3">
-            <h4 className="font-semibold text-sm text-slate-600">📋 Import Banyak Soal Sekaligus (Paste dari Gemini)</h4>
+          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
+            <h4 className="font-semibold text-sm text-stone-600">📋 Import Banyak Soal Sekaligus (Paste dari Gemini)</h4>
             <textarea
               value={bulkText}
               onChange={(e) => setBulkText(e.target.value)}
               placeholder="Tempel array JavaScript hasil dari Gemini di sini..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
+              className="w-full rounded-lg border border-alba-300 px-3 py-2 text-xs font-mono"
               rows={8}
             />
-            <button onClick={importBulk} className="rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-6 py-2">
+            <button onClick={importBulk} className="rounded-lg bg-green-600 hover:bg-green-700 text-alba-50 text-sm font-semibold px-6 py-2">
               Import Semua Soal ke BAB Ini
             </button>
-            {bulkStatus && <p className="text-sm font-medium text-slate-700">{bulkStatus}</p>}
+            {bulkStatus && <p className="text-sm font-medium text-stone-700">{bulkStatus}</p>}
           </div>
 
-          <div className="pt-6 mt-4 border-t border-slate-200 space-y-3">
-            <h4 className="font-semibold text-sm text-slate-600">Daftar Soal di Bab Ini</h4>
+          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
+            <h4 className="font-semibold text-sm text-stone-600">Daftar Soal di Bab Ini</h4>
             {questions.map((q) => (
-              <div key={q.id} className="flex items-center justify-between text-sm border border-slate-200 rounded-lg px-4 py-3 bg-white hover:bg-slate-50">
+              <div key={q.id} className="flex items-center justify-between text-sm border border-alba-200 rounded-lg px-4 py-3 bg-alba-50 hover:bg-alba-100">
                 <span className="truncate pr-4 flex-1 font-medium">{q.text}</span>
                 <div className="flex gap-3 shrink-0">
-                  <button onClick={() => setPreviewData(q)} className="text-xs text-[#0f4c81] hover:underline font-semibold">Preview</button>
-                  <button onClick={() => startEdit(q)} className="text-xs text-orange-500 hover:underline font-semibold">Edit</button>
+                  <button onClick={() => setPreviewData(q)} className="text-xs text-maroon-600 hover:underline font-semibold">Preview</button>
+                  <button onClick={() => startEdit(q)} className="text-xs text-gold-600 hover:underline font-semibold">Edit</button>
                   <button onClick={() => deleteQuestion(q.id)} className="text-xs text-red-600 hover:underline font-semibold">Hapus</button>
                 </div>
               </div>
             ))}
-            {questions.length === 0 && <p className="text-xs text-slate-400">Belum ada soal tersimpan.</p>}
+            {questions.length === 0 && <p className="text-xs text-stone-400">Belum ada soal tersimpan.</p>}
           </div>
         </div>
       )}
@@ -417,17 +418,17 @@ export function EditSoal() {
       {/* MODAL PREVIEW */}
       {previewData && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
-            <div className="flex justify-between items-center border-b border-slate-200 pb-3">
-              <h3 className="font-bold text-xl text-[#0f4c81]">Preview Tampilan Mahasiswa</h3>
-              <button onClick={() => setPreviewData(null)} className="text-slate-400 hover:text-slate-800 text-lg font-bold px-2">✕</button>
+          <div className="bg-alba-50 rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
+            <div className="flex justify-between items-center border-b border-alba-200 pb-3">
+              <h3 className="font-bold text-xl text-maroon-600">Preview Tampilan Mahasiswa</h3>
+              <button onClick={() => setPreviewData(null)} className="text-stone-400 hover:text-stone-800 text-lg font-bold px-2">✕</button>
             </div>
 
             <div className="space-y-4">
               <p className="text-base font-semibold leading-relaxed">{previewData.text}</p>
 
               {previewData.hint && (
-                <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
+                <div className="bg-gold-100/70 border border-gold-200 text-stone-700 px-4 py-3 rounded-lg text-sm">
                   <span className="font-bold">Hint:</span> {previewData.hint}
                 </div>
               )}
@@ -436,23 +437,23 @@ export function EditSoal() {
                 {previewData.options?.map((o, i) => (
                   <div key={i} className={`p-4 rounded-xl border-2 ${o.correct ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-200'}`}>
                     <div className="flex items-center gap-2">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white ${o.correct ? 'bg-green-500' : 'bg-red-400'}`}>
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-alba-50 ${o.correct ? 'bg-green-500' : 'bg-red-400'}`}>
                         {String.fromCharCode(65 + i)}
                       </div>
                       <p className="font-semibold text-sm">{o.text}</p>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-slate-200/60">
-                      <p className="text-xs font-bold text-slate-500 mb-1">Pembahasan:</p>
-                      <p className="text-sm text-slate-700">{o.explanation || <span className="italic text-slate-400">Penjelasan belum diisi oleh pengajar.</span>}</p>
+                    <div className="mt-3 pt-3 border-t border-alba-200/60">
+                      <p className="text-xs font-bold text-stone-500 mb-1">Pembahasan:</p>
+                      <p className="text-sm text-stone-700">{o.explanation || <span className="italic text-stone-400">Penjelasan belum diisi oleh pengajar.</span>}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200 text-right">
-              <button onClick={() => setPreviewData(null)} className="px-5 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-semibold">Tutup Preview</button>
+            <div className="pt-4 border-t border-alba-200 text-right">
+              <button onClick={() => setPreviewData(null)} className="px-5 py-2 bg-alba-200 hover:bg-alba-300 rounded-lg text-sm font-semibold">Tutup Preview</button>
             </div>
           </div>
         </div>
@@ -483,18 +484,18 @@ function TambahAkun() {
     }
   };
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 max-w-md">
-      <h2 className="text-lg font-bold mb-4">Tambah Akun</h2>
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 max-w-md">
+      <h2 className="font-display text-lg font-semibold mb-4">Tambah Akun</h2>
       <form onSubmit={submit} className="space-y-3">
-        <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-        <input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-        <input required type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Password" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-        <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+        <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
+        <input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
+        <input required type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Password" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
+        <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm">
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
         </select>
-        <button type="submit" className="w-full rounded-lg bg-[#0f4c81] text-white font-semibold py-2.5">Buat Akun</button>
-        {msg && <p className="text-sm text-slate-600">{msg}</p>}
+        <button type="submit" className="w-full rounded-lg bg-maroon-600 text-alba-50 font-semibold py-2.5">Buat Akun</button>
+        {msg && <p className="text-sm text-stone-600">{msg}</p>}
       </form>
     </div>
   );
@@ -762,20 +763,20 @@ function CleanupDuplicates() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm text-center">
-      <h2 className="text-lg font-bold text-amber-600">🧹 Bersihkan Duplikat Mata Kuliah</h2>
-      <p className="text-sm text-slate-600">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm text-center">
+      <h2 className="font-display text-lg font-semibold text-gold-600">🧹 Bersihkan Duplikat Mata Kuliah</h2>
+      <p className="text-sm text-stone-600">
         Menggabungkan mata kuliah yang namanya sama (misal dua "Anatomi") menjadi satu. BAB dan soal yang sudah ada dipindahkan, bukan dihapus. Aman dijalankan kapan saja, termasuk berkali-kali.
       </p>
       <button
         onClick={handleCleanup}
         disabled={loading}
-        className={`px-4 py-2 rounded-lg text-white font-bold transition-colors ${loading ? 'bg-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700'}`}
+        className={`px-4 py-2 rounded-lg text-alba-50 font-bold transition-colors ${loading ? 'bg-stone-400 cursor-not-allowed' : 'bg-gold-400 hover:bg-gold-600'}`}
       >
         {loading ? 'Sedang Memproses...' : 'Gabungkan Duplikat Sekarang'}
       </button>
-      <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-left text-xs font-mono text-slate-700 whitespace-pre-wrap">
-        Status: <span className={loading ? 'text-blue-600 font-bold' : 'font-bold'}>{status}</span>
+      <div className="mt-4 p-3 bg-alba-100 border border-alba-200 rounded-lg text-left text-xs font-mono text-stone-700 whitespace-pre-wrap">
+        Status: <span className={loading ? 'text-maroon-500 font-bold' : 'font-bold'}>{status}</span>
       </div>
     </div>
   );
@@ -851,26 +852,26 @@ function SeedData() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm text-center">
-      <h2 className="text-lg font-bold text-red-600">⚠️ Factory Reset Kurikulum</h2>
-      <p className="text-sm text-slate-600">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm text-center">
+      <h2 className="font-display text-lg font-semibold text-red-600">⚠️ Factory Reset Kurikulum</h2>
+      <p className="text-sm text-stone-600">
         Tombol ini akan MENGHAPUS TOTAL semua Mata Kuliah, BAB, dan Soal (termasuk soal yang sudah dibuat pengajar), lalu menatanya ulang dengan daftar lengkap yang benar. Gunakan hanya kalau "Bersihkan Duplikat" di atas tidak cukup.
       </p>
       <input
         value={konfirmasi}
         onChange={(e) => setKonfirmasi(e.target.value)}
         placeholder="Ketik RESET untuk mengaktifkan"
-        className="w-full max-w-xs mx-auto block rounded-lg border border-slate-300 px-3 py-2 text-sm text-center"
+        className="w-full max-w-xs mx-auto block rounded-lg border border-alba-300 px-3 py-2 text-sm text-center"
       />
       <button
         onClick={handleReset}
         disabled={loading || konfirmasi !== 'RESET'}
-        className={`px-4 py-2 rounded-lg text-white font-bold transition-colors ${loading || konfirmasi !== 'RESET' ? 'bg-slate-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
+        className={`px-4 py-2 rounded-lg text-alba-50 font-bold transition-colors ${loading || konfirmasi !== 'RESET' ? 'bg-stone-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
       >
         {loading ? 'Sedang Memproses...' : 'Reset & Tata Ulang Kurikulum'}
       </button>
-      <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-left text-xs font-mono text-slate-700 whitespace-pre-wrap">
-        Status: <span className={loading ? 'text-blue-600 font-bold' : 'font-bold'}>{status}</span>
+      <div className="mt-4 p-3 bg-alba-100 border border-alba-200 rounded-lg text-left text-xs font-mono text-stone-700 whitespace-pre-wrap">
+        Status: <span className={loading ? 'text-maroon-500 font-bold' : 'font-bold'}>{status}</span>
       </div>
     </div>
   );
@@ -934,14 +935,14 @@ export function EditSimulasi() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-        <h2 className="text-lg font-bold">Pilih Kategori Simulasi</h2>
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
+        <h2 className="font-display text-lg font-semibold">Pilih Kategori Simulasi</h2>
         <div className="flex gap-4">
-          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm">
             <option value="">Pilih mata kuliah...</option>
             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={year} onChange={(e) => { setYear(e.target.value); setForm(f => ({ ...f, year: e.target.value })); }} className="flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm">
+          <select value={year} onChange={(e) => { setYear(e.target.value); setForm(f => ({ ...f, year: e.target.value })); }} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm">
             <option value="">Pilih tahun angkatan...</option>
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -949,35 +950,35 @@ export function EditSimulasi() {
       </div>
 
       {subjectId && year && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm">
-          <h3 className="font-bold text-[#0f4c81]">{editingId ? 'Edit Soal Simulasi' : `Tambah Soal Simulasi (${year})`}</h3>
-          <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan CBT..." className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" rows={3} />
-          <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+        <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm">
+          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : `Tambah Soal Simulasi (${year})`}</h3>
+          <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan CBT..." className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" rows={3} />
+          <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm" />
 
           {form.options.map((o, i) => (
-            <div key={i} className="flex items-start gap-2 border border-slate-200 rounded-lg p-3 bg-slate-50">
+            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
               <input type="radio" checked={o.correct} onChange={() => updateOption(i, 'correct', true)} className="mt-2.5 w-4 h-4" />
               <div className="flex-1 space-y-2">
-                <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
-                <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan mengapa opsi ini benar/salah..." className="w-full rounded-md border border-slate-200 px-3 py-2 text-xs" rows={2} />
+                <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm" />
+                <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan mengapa opsi ini benar/salah..." className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs" rows={2} />
               </div>
             </div>
           ))}
 
           <div className="flex gap-2 pt-2">
-            <button onClick={() => setForm((f) => ({ ...f, options: [...f.options, { text: '', correct: false, explanation: '' }] }))} className="text-xs font-semibold rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-100">+ Tambah Opsi</button>
-            <button onClick={saveQuestion} className={`rounded-lg text-white text-sm font-semibold px-6 py-2 ml-auto ${editingId ? 'bg-orange-500 hover:bg-orange-600' : 'bg-[#0f4c81] hover:bg-blue-800'}`}>
+            <button onClick={() => setForm((f) => ({ ...f, options: [...f.options, { text: '', correct: false, explanation: '' }] }))} className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100">+ Tambah Opsi</button>
+            <button onClick={saveQuestion} className={`rounded-lg text-alba-50 text-sm font-semibold px-6 py-2 ml-auto ${editingId ? 'bg-gold-400 hover:bg-gold-600' : 'bg-maroon-600 hover:bg-maroon-700'}`}>
               {editingId ? 'Update Soal' : 'Simpan Soal'}
             </button>
           </div>
 
-          <div className="pt-6 mt-4 border-t border-slate-200 space-y-3">
-            <h4 className="font-semibold text-sm text-slate-600">Daftar Soal CBT {year}</h4>
+          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
+            <h4 className="font-semibold text-sm text-stone-600">Daftar Soal CBT {year}</h4>
             {questions.map((q) => (
-              <div key={q.id} className="flex justify-between text-sm border border-slate-200 rounded-lg px-4 py-3 bg-white hover:bg-slate-50">
+              <div key={q.id} className="flex justify-between text-sm border border-alba-200 rounded-lg px-4 py-3 bg-alba-50 hover:bg-alba-100">
                 <span className="truncate pr-4 flex-1 font-medium">{q.text}</span>
                 <div className="flex gap-3 shrink-0">
-                  <button onClick={() => startEdit(q)} className="text-xs text-orange-500 font-semibold">Edit</button>
+                  <button onClick={() => startEdit(q)} className="text-xs text-gold-600 font-semibold">Edit</button>
                   <button onClick={() => deleteQuestion(q.id)} className="text-xs text-red-600 font-semibold">Hapus</button>
                 </div>
               </div>

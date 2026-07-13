@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import Logo from '@/components/Logo';
 
 export default function LoginPage() {
  const { login, enterGuest } = useAuth();
@@ -30,64 +32,101 @@ export default function LoginPage() {
  };
 
  return (
-   <div className="min-h-screen bg-[#f7f9fc] flex items-center justify-center px-6">
-     <div className="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-8">
-       <Link to="/" className="flex items-center gap-2 mb-8">
-         <div className="w-9 h-9 rounded-lg bg-[#0f4c81] text-white flex items-center justify-center font-bold">PCV</div>
-         <span className="font-semibold text-lg tracking-tight">PCV CLASSROOM</span>
-       </Link>
-       <h1 className="text-xl font-bold mb-1">Masuk ke Web Siswa</h1>
-       <p className="text-sm text-slate-500 mb-6">Gunakan akun Student, Teacher, atau Admin.</p>
-
-       <form onSubmit={submit} className="space-y-4">
-         <div>
-           <label className="block text-sm font-medium mb-1.5">Email</label>
-           <input
-             type="email"
-             required
-             value={email}
-             onChange={(e) => setEmail(e.target.value)}
-             className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f4c81]/40"
-             placeholder="nama@email.com"
-           />
-         </div>
-         <div>
-           <label className="block text-sm font-medium mb-1.5">Password</label>
-           <input
-             type="password"
-             required
-             value={password}
-             onChange={(e) => setPassword(e.target.value)}
-             className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0f4c81]/40"
-             placeholder="••••••••"
-           />
-         </div>
-         {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-         <button
-           type="submit"
-           disabled={loading}
-           className="w-full rounded-lg bg-[#0f4c81] text-white font-semibold py-2.5 hover:bg-[#0d3d68] transition disabled:opacity-60"
-         >
-           {loading ? 'Memproses...' : 'Masuk'}
-         </button>
-       </form>
-
-       <div className="my-5 flex items-center gap-3 text-xs text-slate-400">
-         <div className="flex-1 h-px bg-slate-200" />
-         atau
-         <div className="flex-1 h-px bg-slate-200" />
+   <div className="min-h-screen bg-alba-50 grid lg:grid-cols-[1.1fr_1fr]">
+     {/* Panel kiri — brand maroon (disembunyikan di layar kecil) */}
+     <div className="hidden lg:flex flex-col justify-between bg-maroon-texture text-alba-50 p-12">
+       <Logo size="md" light />
+       <div>
+         <h2 className="font-display text-4xl font-semibold leading-snug mb-5 max-w-md">
+           Satu pintu menuju semua materi &amp; bank soal preklinikmu.
+         </h2>
+         <ul className="space-y-3 text-alba-200 text-sm max-w-sm">
+           {[
+             'Ringkasan PPT per BAB dari 11 mata kuliah',
+             'Latihan soal dengan pembahasan tiap opsi',
+             'Simulasi CBT angkatan 2016–2026',
+           ].map((t) => (
+             <li key={t} className="flex gap-3">
+               <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0" />
+               {t}
+             </li>
+           ))}
+         </ul>
        </div>
-       <button
-         onClick={asGuest}
-         className="w-full rounded-lg border border-slate-300 font-semibold py-2.5 text-sm hover:bg-slate-50 transition"
-       >
-         Masuk sebagai Guest (akses BAB 1 tiap mata kuliah)
-       </button>
+       <p className="text-xs text-alba-200/70">© {new Date().getFullYear()} PCV Classroom — Bimbel FK UNAIR</p>
+     </div>
 
-       <p className="text-xs text-slate-500 mt-6 leading-relaxed">
-         Setiap akun hanya bisa aktif di maksimal 2 device. Kesulitan login? Hubungi
-         narahubung admin di <span className="font-medium">khansazafiri@gmail.com</span>.
-       </p>
+     {/* Panel kanan — form login */}
+     <div className="flex items-center justify-center px-6 py-12">
+       <div className="w-full max-w-md">
+         <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-maroon-600 mb-8 transition-colors">
+           <ArrowLeft size={13} />
+           Kembali ke halaman utama
+         </Link>
+
+         <div className="lg:hidden mb-8"><Logo size="md" /></div>
+
+         <h1 className="font-display text-2xl font-semibold mb-1.5">Masuk ke Web Siswa</h1>
+         <p className="text-sm text-stone-500 mb-8">Gunakan akun Student, Teacher, atau Admin yang diberikan oleh admin.</p>
+
+         <form onSubmit={submit} className="space-y-5">
+           <div>
+             <label className="block text-sm font-semibold mb-1.5 text-stone-700">Email</label>
+             <div className="relative">
+               <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+               <input
+                 type="email"
+                 required
+                 value={email}
+                 onChange={(e) => setEmail(e.target.value)}
+                 className="w-full rounded-xl border border-alba-300 bg-alba-50 pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
+                 placeholder="nama@email.com"
+               />
+             </div>
+           </div>
+           <div>
+             <label className="block text-sm font-semibold mb-1.5 text-stone-700">Password</label>
+             <div className="relative">
+               <KeyRound size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+               <input
+                 type="password"
+                 required
+                 value={password}
+                 onChange={(e) => setPassword(e.target.value)}
+                 className="w-full rounded-xl border border-alba-300 bg-alba-50 pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
+                 placeholder="••••••••"
+               />
+             </div>
+           </div>
+           {error && (
+             <p className="text-sm text-maroon-600 bg-maroon-50 border border-maroon-100 rounded-xl px-4 py-3 animate-fade-in">{error}</p>
+           )}
+           <button
+             type="submit"
+             disabled={loading}
+             className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3 hover:bg-maroon-700 transition-colors disabled:opacity-60 shadow-card"
+           >
+             {loading ? 'Memproses...' : 'Masuk'}
+           </button>
+         </form>
+
+         <div className="my-6 flex items-center gap-3 text-xs text-stone-400">
+           <div className="flex-1 h-px bg-alba-200" />
+           atau
+           <div className="flex-1 h-px bg-alba-200" />
+         </div>
+         <button
+           onClick={asGuest}
+           className="w-full rounded-xl border border-alba-300 font-semibold py-3 text-sm text-stone-700 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
+         >
+           Masuk sebagai Guest <span className="font-normal text-stone-500">(akses BAB 1 tiap mata kuliah)</span>
+         </button>
+
+         <p className="text-xs text-stone-500 mt-8 leading-relaxed bg-alba-100/70 border border-alba-200 rounded-xl px-4 py-3">
+           Setiap akun hanya bisa aktif di maksimal <span className="font-semibold">2 device</span>. Kesulitan login?
+           Hubungi narahubung admin di <span className="font-semibold text-maroon-600">khansazafiri@gmail.com</span>.
+         </p>
+       </div>
      </div>
    </div>
  );

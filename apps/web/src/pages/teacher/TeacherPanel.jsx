@@ -9,12 +9,13 @@ const TABS = ['Profil Pengajar', 'Beranda', 'Edit Soal', 'PPT Mata Kuliah'];
 export default function TeacherPanel() {
   const [tab, setTab] = useState('Profil Pengajar');
   return (
-    <div className="min-h-screen bg-[#f7f9fc]">
+    <div className="min-h-screen bg-alba-50">
       <Header />
-      <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-[220px_1fr] gap-8">
-        <nav className="space-y-1">
+      <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-8 items-start">
+        <nav className="md:sticky md:top-24 rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-3 space-y-1">
+          <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-maroon-500">Dashboard Pengajar</p>
           {TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`w-full text-left rounded-lg px-3.5 py-2.5 text-sm font-semibold ${tab === t ? 'bg-[#0f4c81] text-white' : 'hover:bg-white text-slate-600'}`}>
+            <button key={t} onClick={() => setTab(t)} className={`w-full text-left rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors ${tab === t ? 'bg-maroon-600 text-alba-50 shadow-sm' : 'hover:bg-maroon-50 hover:text-maroon-600 text-stone-600'}`}>
               {t}
             </button>
           ))}
@@ -39,11 +40,11 @@ function ProfilPengajar() {
     }
   }, [user]);
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
-      <h2 className="text-lg font-bold">Profil Pengajar</h2>
-      <p className="text-sm"><span className="text-slate-400">Nama:</span> {user?.name}</p>
-      <p className="text-sm"><span className="text-slate-400">Mata kuliah diajar:</span> {subjects.map((s) => s.name).join(', ') || '-'}</p>
-      <p className="text-sm"><span className="text-slate-400">Asal kuliah:</span> {user?.asalKuliah || '-'}</p>
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3">
+      <h2 className="font-display text-lg font-semibold">Profil Pengajar</h2>
+      <p className="text-sm"><span className="text-stone-400">Nama:</span> {user?.name}</p>
+      <p className="text-sm"><span className="text-stone-400">Mata kuliah diajar:</span> {subjects.map((s) => s.name).join(', ') || '-'}</p>
+      <p className="text-sm"><span className="text-stone-400">Asal kuliah:</span> {user?.asalKuliah || '-'}</p>
     </div>
   );
 }
@@ -63,16 +64,16 @@ function BerandaTeacher() {
     })();
   }, []);
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-      <h2 className="text-lg font-bold">Beranda</h2>
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
+      <h2 className="font-display text-lg font-semibold">Beranda</h2>
       <div className="grid grid-cols-2 gap-4">
         <Stat label="Jumlah Siswa" value={stats.total} />
         <Stat label="Siswa Aktif" value={stats.active} />
       </div>
       <div>
         <p className="font-semibold text-sm mb-2">Siswa jarang aktif</p>
-        {stats.inactive.map((s) => <p key={s.id} className="text-sm text-slate-500">{s.name} ({s.email})</p>)}
-        {stats.inactive.length === 0 && <p className="text-sm text-slate-400">Semua siswa aktif.</p>}
+        {stats.inactive.map((s) => <p key={s.id} className="text-sm text-stone-500">{s.name} ({s.email})</p>)}
+        {stats.inactive.length === 0 && <p className="text-sm text-stone-400">Semua siswa aktif.</p>}
       </div>
     </div>
   );
@@ -80,9 +81,9 @@ function BerandaTeacher() {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl bg-[#0f4c81]/5 p-4">
-      <p className="text-2xl font-bold text-[#0f4c81]">{value}</p>
-      <p className="text-xs text-slate-500">{label}</p>
+    <div className="rounded-xl bg-maroon-50 p-4">
+      <p className="text-2xl font-bold text-maroon-600">{value}</p>
+      <p className="text-xs text-stone-500">{label}</p>
     </div>
   );
 }
@@ -220,13 +221,13 @@ function PPTUpload() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 max-w-md">
-      <h2 className="text-lg font-bold">PPT Mata Kuliah (PDF)</h2>
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-md">
+      <h2 className="font-display text-lg font-semibold">PPT Mata Kuliah (PDF)</h2>
       <select
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}
         disabled={uploading}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+        className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60"
       >
         <option value="">Pilih mata kuliah...</option>
         {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -236,14 +237,14 @@ function PPTUpload() {
           value={chapterId}
           onChange={(e) => setChapterId(e.target.value)}
           disabled={uploading}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-60"
+          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60"
         >
           <option value="">Pilih BAB...</option>
           {chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
       )}
       {chapterId && existingFile && (
-        <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+        <p className="text-xs text-gold-600 bg-gold-100/70 rounded-lg px-3 py-2">
           BAB ini sudah memiliki PDF. Mengupload file baru akan menggantikannya.
         </p>
       )}
@@ -260,7 +261,7 @@ function PPTUpload() {
       <button
         onClick={upload}
         disabled={uploading || !file || !chapterId || !subjectId}
-        className="rounded-lg bg-[#0f4c81] text-white font-semibold px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+        className="rounded-lg bg-maroon-600 text-alba-50 font-semibold px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
       >
         {uploading && (
           <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
@@ -274,7 +275,7 @@ function PPTUpload() {
               ? 'bg-emerald-50 text-emerald-700'
               : msgType === 'error'
               ? 'bg-red-50 text-red-700'
-              : 'text-slate-600'
+              : 'text-stone-600'
           }`}
         >
           {msg}
