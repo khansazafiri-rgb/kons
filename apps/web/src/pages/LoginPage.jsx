@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import Logo from '@/components/Logo';
+import { Logo } from '@/components/Header';
 
 export default function LoginPage() {
  const { login, enterGuest } = useAuth();

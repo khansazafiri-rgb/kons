@@ -1,38 +1,39 @@
-# 🎨 Panduan Redesign PCV Classroom — Copy-Paste Edition
+# 🎨 Panduan Redesign PCV Classroom — Copy-Paste Edition (Tanpa File Baru!)
 
 Palet: **Alba** (ivory hangat `#FDFBF7`) + **Maroon `#8E0100`** + aksen emas.
 Tipografi: **Fraunces** (judul, serif akademik) + **DM Sans** (body).
 
-**Cara pakai:** buka file yang disebutkan di project Horizons-mu → hapus seluruh isinya →
-paste code dari blok di bawahnya. Untuk yang berlabel **FILE BARU**, buat dulu file kosong
-di path tersebut, lalu paste. Kerjakan dari bagian pertama (fondasi) supaya warna langsung berubah.
+✅ **Semua perubahan di panduan ini HANYA mengedit file yang SUDAH ADA** — tidak ada
+satu pun file baru yang perlu dibuat, jadi bisa dikerjakan di Horizons tanpa AI berbayar.
+(Komponen Logo yang tadinya file terpisah sudah dipindah ke dalam `Header.jsx`.)
 
-> `AuthContext.jsx` TIDAK perlu kamu ubah — repo ini sudah memakai versi asli dari project-mu.
+**Cara pakai:** buka file yang disebutkan → blok semua isinya (Ctrl+A) → hapus →
+paste code dari blok di bawahnya. Kerjakan dari bagian pertama (fondasi) supaya
+warna langsung berubah, lalu lanjut ke komponen dan halaman satu per satu.
 
-## Daftar Isi
+> `AuthContext.jsx`, `pocketbaseClient.js`, dan `vite.config.js` **TIDAK perlu disentuh** —
+> project-mu sudah punya semuanya (kalau web-nya sudah bisa jalan & login, berarti ada).
+
+## Daftar Isi (15 file, semuanya GANTI SELURUH ISI)
 
 - **Fondasi Design System — GANTI 3 FILE INI DULU**
-  - `apps/web/tailwind.config.js` — GANTI SELURUH ISI
-  - `apps/web/src/index.css` — GANTI SELURUH ISI
-  - `apps/web/index.html` — GANTI SELURUH ISI
+  - `apps/web/tailwind.config.js`
+  - `apps/web/src/index.css`
+  - `apps/web/index.html`
 - **Komponen Bersama**
-  - `apps/web/src/components/Logo.jsx` — FILE BARU — buat file baru lalu paste
-  - `apps/web/src/components/Header.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/components/QuestionRunner.jsx` — GANTI SELURUH ISI
+  - `apps/web/src/components/Header.jsx`
+  - `apps/web/src/components/QuestionRunner.jsx`
 - **Halaman**
-  - `apps/web/src/pages/LandingPage.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/LoginPage.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/LearningHome.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/PerdalamMateri.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/CicilBelajar.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/SimulasiCBT.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/PembelajaranPPT.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/ProfilePage.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/admin/AdminPanel.jsx` — GANTI SELURUH ISI
-  - `apps/web/src/pages/teacher/TeacherPanel.jsx` — GANTI SELURUH ISI
-- **File Pendukung (buat hanya kalau di project-mu benar-benar tidak ada)**
-  - `apps/web/src/lib/pocketbaseClient.js` — BUAT KALAU TIDAK ADA
-  - `apps/web/vite.config.js` — BUAT KALAU TIDAK ADA
+  - `apps/web/src/pages/LandingPage.jsx`
+  - `apps/web/src/pages/LoginPage.jsx`
+  - `apps/web/src/pages/LearningHome.jsx`
+  - `apps/web/src/pages/PerdalamMateri.jsx`
+  - `apps/web/src/pages/CicilBelajar.jsx`
+  - `apps/web/src/pages/SimulasiCBT.jsx`
+  - `apps/web/src/pages/PembelajaranPPT.jsx`
+  - `apps/web/src/pages/ProfilePage.jsx`
+  - `apps/web/src/pages/admin/AdminPanel.jsx`
+  - `apps/web/src/pages/teacher/TeacherPanel.jsx`
 
 ---
 
@@ -42,7 +43,6 @@ di path tersebut, lalu paste. Kerjakan dari bagian pertama (fondasi) supaya warn
 
 ## 1. `apps/web/tailwind.config.js`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Definisi palet warna alba/maroon/gold, font Fraunces, shadow & animasi.
 
 ```js
@@ -185,7 +185,6 @@ module.exports = {
 
 ## 2. `apps/web/src/index.css`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Token warna global (shadcn) versi alba+maroon, tekstur maroon, scrollbar tipis.
 
 ```css
@@ -296,7 +295,6 @@ body {
 
 ## 3. `apps/web/index.html`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Judul tab, favicon P maroon, load font Google (Fraunces + DM Sans).
 
 ```html
@@ -325,17 +323,20 @@ body {
 # Komponen Bersama
 
 
-## 4. `apps/web/src/components/Logo.jsx`
+## 4. `apps/web/src/components/Header.jsx`
 
-**Status:** FILE BARU — buat file baru lalu paste  
-**Apa ini:** Logo monogram P + wordmark. Dipakai Header, Landing, Login.
+**Apa ini:** Navigasi atas + komponen Logo (sengaja ditaruh di sini supaya TIDAK perlu membuat file baru). Menu aktif jadi pill maroon, chip profil, nav mobile.
 
 ```jsx
 import React from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { LogOut, UserRound } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Logo PCV: monogram serif di kotak maroon + wordmark.
+// Ditaruh di sini (bukan file terpisah) supaya tidak perlu membuat file baru.
 // size: 'sm' (header) | 'md' (landing/login)
-export default function Logo({ size = 'sm', light = false }) {
+export function Logo({ size = 'sm', light = false }) {
  const box = size === 'md' ? 'w-10 h-10 text-lg rounded-xl' : 'w-8 h-8 text-sm rounded-lg';
  const word = size === 'md' ? 'text-lg' : 'text-base';
  return (
@@ -349,20 +350,6 @@ export default function Logo({ size = 'sm', light = false }) {
    </span>
  );
 }
-```
-
-
-## 5. `apps/web/src/components/Header.jsx`
-
-**Status:** GANTI SELURUH ISI  
-**Apa ini:** Navigasi atas: menu aktif jadi pill maroon, chip profil, nav mobile.
-
-```jsx
-import React from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, UserRound } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import Logo from '@/components/Logo';
 
 const navItems = [
  { to: '/beranda', label: 'Beranda' },
@@ -447,9 +434,8 @@ export default function Header() {
 ```
 
 
-## 6. `apps/web/src/components/QuestionRunner.jsx`
+## 5. `apps/web/src/components/QuestionRunner.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Mesin soal + FITUR BARU: navigator nomor soal, tombol ragu-ragu, shortcut keyboard, ring skor, konfirmasi submit.
 
 ```jsx
@@ -850,9 +836,8 @@ function ScoreRing({ score }) {
 # Halaman
 
 
-## 7. `apps/web/src/pages/LandingPage.jsx`
+## 6. `apps/web/src/pages/LandingPage.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Halaman depan publik: hero serif, statistik, kartu fitur, Olympiad emas, CTA.
 
 ```jsx
@@ -860,7 +845,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, BookOpenText, ClipboardList, GraduationCap, Stethoscope, Timer, Trophy } from 'lucide-react';
-import Logo from '@/components/Logo';
+import { Logo } from '@/components/Header';
 
 const features = [
  {
@@ -1069,9 +1054,8 @@ function Stat({ value, label }) {
 ```
 
 
-## 8. `apps/web/src/pages/LoginPage.jsx`
+## 7. `apps/web/src/pages/LoginPage.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Login split-panel: kiri branding maroon, kanan form berikon.
 
 ```jsx
@@ -1079,7 +1063,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import Logo from '@/components/Logo';
+import { Logo } from '@/components/Header';
 
 export default function LoginPage() {
  const { login, enterGuest } = useAuth();
@@ -1211,9 +1195,8 @@ export default function LoginPage() {
 ```
 
 
-## 9. `apps/web/src/pages/LearningHome.jsx`
+## 8. `apps/web/src/pages/LearningHome.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Beranda siswa + FITUR BARU 'Lanjutkan Belajar'.
 
 ```jsx
@@ -1340,9 +1323,8 @@ export default function LearningHome() {
 ```
 
 
-## 10. `apps/web/src/pages/PerdalamMateri.jsx`
+## 9. `apps/web/src/pages/PerdalamMateri.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Pilih materi + FITUR BARU: pencarian BAB & centang BAB selesai dibaca.
 
 ```jsx
@@ -1498,9 +1480,8 @@ export default function PerdalamMateri() {
 ```
 
 
-## 11. `apps/web/src/pages/CicilBelajar.jsx`
+## 10. `apps/web/src/pages/CicilBelajar.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Latihan per BAB + FITUR BARU pencarian BAB; layar resume didesain ulang.
 
 ```jsx
@@ -1733,9 +1714,8 @@ export default function CicilBelajar() {
 ```
 
 
-## 12. `apps/web/src/pages/SimulasiCBT.jsx`
+## 11. `apps/web/src/pages/SimulasiCBT.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Tryout: tahun angkatan jadi grid tombol, mode ujian jadi kartu berikon.
 
 ```jsx
@@ -1920,9 +1900,8 @@ export default function SimulasiCBT() {
 ```
 
 
-## 13. `apps/web/src/pages/PembelajaranPPT.jsx`
+## 12. `apps/web/src/pages/PembelajaranPPT.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Pembaca PDF dengan chrome baru + tombol lanjut latihan.
 
 ```jsx
@@ -2050,9 +2029,8 @@ export default function PembelajaranPPT() {
 ```
 
 
-## 14. `apps/web/src/pages/ProfilePage.jsx`
+## 13. `apps/web/src/pages/ProfilePage.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Kartu profil dengan banner maroon + avatar.
 
 ```jsx
@@ -2133,9 +2111,8 @@ function Field({ label, value, className = '' }) {
 ```
 
 
-## 15. `apps/web/src/pages/admin/AdminPanel.jsx`
+## 14. `apps/web/src/pages/admin/AdminPanel.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Dashboard admin — hanya warna & sidebar yang berubah, semua logika tetap.
 
 ```jsx
@@ -3133,9 +3110,8 @@ export function EditSimulasi() {
 ```
 
 
-## 16. `apps/web/src/pages/teacher/TeacherPanel.jsx`
+## 15. `apps/web/src/pages/teacher/TeacherPanel.jsx`
 
-**Status:** GANTI SELURUH ISI  
 **Apa ini:** Dashboard pengajar — sama, hanya visual.
 
 ```jsx
@@ -3428,13 +3404,16 @@ function PPTUpload() {
 ```
 
 
-# File Pendukung (buat hanya kalau di project-mu benar-benar tidak ada)
+---
+
+# Lampiran (TIDAK untuk di-copy ke Horizons)
+
+Dua file di bawah ini **sudah ada** di project-mu (mungkin tersembunyi di file explorer
+Horizons — buktinya web-mu bisa login & memuat data). Disertakan di sini hanya sebagai
+referensi kalau suatu saat kamu memindahkan project keluar dari Horizons.
 
 
-## 17. `apps/web/src/lib/pocketbaseClient.js`
-
-**Status:** BUAT KALAU TIDAK ADA  
-**Apa ini:** Koneksi PocketBase. Kalau web-mu sudah bisa login, file serupa pasti sudah ada (mungkin tersembunyi) — jangan dobel.
+### `apps/web/src/lib/pocketbaseClient.js` — Koneksi PocketBase.
 
 ```js
 // Koneksi ke database PocketBase. Semua halaman mengimport "pb" dari file ini.
@@ -3450,10 +3429,7 @@ export default pb;
 ```
 
 
-## 18. `apps/web/vite.config.js`
-
-**Status:** BUAT KALAU TIDAK ADA  
-**Apa ini:** Config Vite (alias @ ke src). Kalau project-mu sudah jalan, berarti sudah ada — jangan dobel.
+### `apps/web/vite.config.js` — Config Vite (alias @ ke src).
 
 ```js
 // CATATAN: vite.config.js tidak ikut ter-export di dokumen code — file ini
@@ -3481,8 +3457,8 @@ export default defineConfig({
 | Fitur | Kenapa berguna | Di mana mengubahnya |
 |---|---|---|
 | **Streak belajar harian** 🔥 | Gamifikasi ringan; mahasiswa terdorong buka tiap hari | Kolom `lastActive`+`streak` di collection `users`; update saat submit di `CicilBelajar.jsx`; tampilkan badge di `Header.jsx` |
-| **Riwayat & grafik nilai tryout** | Siswa melihat tren skornya per mata kuliah | Data sudah ada di `cbt_attempts`! Buat `src/pages/RiwayatNilai.jsx` pakai `recharts` (sudah ter-install), tambah route di `App.jsx` |
+| **Riwayat & grafik nilai tryout** | Siswa melihat tren skornya per mata kuliah | Data sudah ada di `cbt_attempts`! Bisa ditaruh di `ProfilePage.jsx` (tanpa file baru) pakai `recharts` yang sudah ter-install |
 | **Mode ulangi soal yang salah saja** | Belajar 2× lebih efisien | Simpan indeks jawaban salah saat `finish()` di `QuestionRunner.jsx`, tambah tombol "Ulangi yang salah" di layar evaluasi |
-| **Leaderboard anonim per tryout** | Kompetisi sehat antar peserta | Query `cbt_attempts` per `subject+year`, urutkan skor |
+| **Leaderboard anonim per tryout** | Kompetisi sehat antar peserta | Query `cbt_attempts` per `subject+year`, urutkan skor — bisa ditaruh di `SimulasiCBT.jsx` |
 | **Reset device dari dashboard admin** | Admin sering ditanya "ganti HP gimana?" | Di `AdminPanel.jsx` tab Siswa, tambah tombol yang mengosongkan `deviceIds` |
 | **Dark mode** | Belajar malam lebih nyaman | Token `.dark` di `src/index.css` sudah disiapkan — tinggal toggle `document.documentElement.classList.toggle('dark')` di `Header.jsx` |
