@@ -1,38 +1,39 @@
-# 🎨 PCV Classroom — Panduan Revisi 2.1 (Copy-Paste Edition)
+# 🎨 PCV Classroom — Panduan Revisi 2.2 (Copy-Paste Edition)
 
-Palet **Alba** + **Maroon `#8E0100`**, logo asli PCV, semua revisi PRD "Revisi web PCV 1",
-semua fitur rekomendasi, plus perbaikan: fix "verified: Values don't match" di Tambah Akun,
-chip mata kuliah siswa langsung merespons saat diklik, dan import massal dengan pemilih tipe soal.
+Palet **Alba** + **Maroon `#8E0100`**, logo asli PCV, semua revisi PRD + fitur rekomendasi.
+Perbaikan terbaru: pilihan mata kuliah siswa kini DIVERIFIKASI benar-benar tersimpan
+(kalau field-nya belum ada di database, muncul peringatan jelas alih-alih diam-diam hilang).
 
 ✅ **Semua HANYA mengedit file yang sudah ada** — tidak ada file baru.
 
-**Cara pakai:** buka file → blok semua (Ctrl+A) → hapus → paste code di bawahnya. Mulai dari 3 file fondasi.
-
 ---
 
-## ⚠️ WAJIB: siapkan database (PocketBase) dulu
+## ⚠️ WAJIB: siapkan database (PocketBase) — INI PENYEBAB PILIHAN MATA KULIAH TIDAK TERSIMPAN
 
-**1. Field baru di collection `users`:**
-| Field | Tipe | Catatan |
+Kalau mata kuliah yang kamu pilih untuk siswa hilang saat pindah halaman, artinya field-nya
+belum ada. PocketBase menerima permintaan simpan (200 OK) TAPI mengabaikan field yang tak ada
+di schema — jadi terlihat tersimpan padahal tidak. **Buat field ini dulu:**
+
+**Collection `users` → New field:**
+| Field | Tipe | Catatan PENTING |
 |---|---|---|
-| `enrolledSubjects` | Relation → subjects, **Max select dikosongkan** (multiple) | Mata kuliah yang boleh diakses siswa |
+| `enrolledSubjects` | **Relation → subjects** | **"Max select" DIKOSONGKAN** biar bisa banyak mata kuliah |
 | `classType` | Text (atau Select: reguler/private) | Jenis kelas siswa |
 | `streak` | Number | Streak harian (opsional) |
 | `lastActive` | Text atau Date | Aktif terakhir (opsional) |
 
-**2. Field baru di collection `questions`:**
-| Field | Tipe | Catatan |
-|---|---|---|
-| `qtype` | Text (atau Select: mcq/mcq_img/isian/isian_img) | Tipe soal, kosong = MCQ |
-| `imageUrl` | Text | Link gambar soal |
-| `subQuestions` | JSON | Sub-pertanyaan tipe Isian |
+**Collection `questions` → New field:**
+| Field | Tipe |
+|---|---|
+| `qtype` | Text (mcq/mcq_img/isian/isian_img), kosong = MCQ |
+| `imageUrl` | Text (link gambar soal) |
+| `subQuestions` | JSON |
 
-**3. API Rules collection `users`** (ini penyebab umum "Failed to create record" & chip tidak tersimpan):
-- **Create rule**: `@request.auth.role = "admin"`
-- **Update rule**: `@request.auth.role = "admin" || id = @request.auth.id`
+**API Rules collection `users`:**
+- **Create**: `@request.auth.role = "admin"`
+- **Update**: `@request.auth.role = "admin" || id = @request.auth.id`
 
-**4. Setting login:** di collection `users` pastikan opsi "Only verified users can log in" **TIDAK dicentang**
-(akun buatan admin sengaja tidak di-set verified karena PocketBase melarangnya).
+**Setting login:** pastikan "Only verified users can log in" **TIDAK dicentang**.
 
 ## Daftar Isi (15 file — semua GANTI SELURUH ISI)
 
@@ -205,7 +206,7 @@ module.exports = {
 
 ## 2. `apps/web/src/index.css`
 
-**Apa ini:** Token warna + MODE GELAP (remap .dark) + tekstur maroon + scrollbar.
+**Apa ini:** Token warna + MODE GELAP + tekstur maroon + scrollbar.
 
 ```css
 /*
@@ -351,7 +352,7 @@ body {
 
 ## 3. `apps/web/index.html`
 
-**Apa ini:** Judul tab, favicon logo PCV asli, load font Google (Fraunces + DM Sans).
+**Apa ini:** Judul tab, favicon logo PCV asli, load font Google.
 
 ```html
 <!doctype html>
@@ -382,7 +383,7 @@ body {
 
 ## 4. `apps/web/src/components/Header.jsx`
 
-**Apa ini:** Navigasi + Logo asli PCV (dari Google, fallback monogram) + toggle DARK MODE + badge STREAK. Logo di-export dari sini (tidak perlu file baru).
+**Apa ini:** Navigasi + Logo asli PCV + toggle DARK MODE + badge STREAK.
 
 ```jsx
 import React, { useEffect, useState } from 'react';
@@ -545,7 +546,7 @@ export default function Header() {
 
 ## 5. `apps/web/src/components/QuestionRunner.jsx`
 
-**Apa ini:** Mesin soal: 4 tipe (MCQ, MCQ gambar, Isian, Isian gambar), navigator soal, ragu-ragu, shortcut keyboard, ULANGI SOAL SALAH, ring skor.
+**Apa ini:** Mesin soal 4 tipe, navigator, ragu-ragu, shortcut, ulangi salah, ring skor.
 
 ```jsx
 import React, { useCallback, useEffect, useState } from 'react';
@@ -1099,7 +1100,7 @@ function ScoreRing({ score }) {
 
 ## 6. `apps/web/src/pages/LandingPage.jsx`
 
-**Apa ini:** Halaman depan publik (hero serif, statistik, fitur, Olympiad, CTA).
+**Apa ini:** Halaman depan publik.
 
 ```jsx
 import React from 'react';
@@ -1586,7 +1587,7 @@ export default function LearningHome() {
 
 ## 9. `apps/web/src/pages/PerdalamMateri.jsx`
 
-**Apa ini:** PROGRESS BAR per mata kuliah, pencarian BAB, centang BAB selesai, BATASI mata kuliah siswa (enrolledSubjects).
+**Apa ini:** Progress bar per mata kuliah, pencarian BAB, batasi mata kuliah siswa.
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
@@ -1778,7 +1779,7 @@ export default function PerdalamMateri() {
 
 ## 10. `apps/web/src/pages/CicilBelajar.jsx`
 
-**Apa ini:** PROGRESS BAR per mata kuliah, pencarian BAB, batasi mata kuliah siswa, update streak saat submit.
+**Apa ini:** Progress bar per mata kuliah, pencarian BAB, batasi mata kuliah, streak.
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
@@ -2083,7 +2084,7 @@ export default function CicilBelajar() {
 
 ## 11. `apps/web/src/pages/SimulasiCBT.jsx`
 
-**Apa ini:** PROGRESS per mata kuliah (per tahun), tahun yang ada soalnya ditandai, LEADERBOARD anonim, batasi mata kuliah siswa.
+**Apa ini:** Progress per tahun, leaderboard anonim, batasi mata kuliah.
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
@@ -2535,7 +2536,7 @@ export default function PembelajaranPPT() {
 
 ## 13. `apps/web/src/pages/ProfilePage.jsx`
 
-**Apa ini:** Biodata lengkap PRD2 (jenis kelas, mata kuliah diambil), tombol WhatsApp narahubung, GRAFIK riwayat nilai tryout.
+**Apa ini:** Biodata lengkap PRD2, tombol WhatsApp, grafik riwayat nilai.
 
 ```jsx
 import React, { useEffect, useState } from 'react';
@@ -2727,7 +2728,7 @@ function Field({ label, value, className = '' }) {
 
 ## 14. `apps/web/src/pages/admin/AdminPanel.jsx`
 
-**Apa ini:** Edit Soal 2 cabang (Cicil/CBT), import massal dengan PEMILIH TIPE soal + prompt Gemini, KARTU SISWA dengan progress & pemilihan mata kuliah, Tambah Akun (fix verified), reset device.
+**Apa ini:** Edit Soal 2 cabang, import massal pemilih tipe, kartu siswa + pilih mata kuliah (dengan VERIFIKASI tersimpan), Tambah Akun, reset device.
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
@@ -2952,15 +2953,40 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     const next = cur.includes(subId) ? cur.filter((x) => x !== subId) : [...cur, subId];
     // Optimistic update: chip langsung berubah saat diklik, tanpa menunggu server
     setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: next } : u)));
+
+    const revert = () => setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: cur } : u)));
+
     try {
-      await pb.collection('users').update(s.id, { enrolledSubjects: next });
+      const updated = await pb.collection('users').update(s.id, { enrolledSubjects: next });
+
+      // VERIFIKASI: PocketBase menerima update (200 OK) TAPI diam-diam mengabaikan
+      // field yang tidak ada di schema. Jadi kita bandingkan nilai yang benar-benar
+      // dikembalikan server. Kalau tidak cocok -> field belum ada/salah tipe.
+      const saved = Array.isArray(updated.enrolledSubjects)
+        ? updated.enrolledSubjects
+        : (updated.enrolledSubjects ? [updated.enrolledSubjects] : []);
+      const savedOk = saved.length === next.length && next.every((id) => saved.includes(id));
+
+      if (!savedOk) {
+        revert();
+        setEnrollError(
+          'Pilihan TIDAK tersimpan di database (server menerima permintaan tapi mengabaikan field "enrolledSubjects").\n' +
+          'Penyebabnya hampir pasti field-nya belum ada / salah tipe. Perbaiki di dashboard PocketBase:\n' +
+          '1) Buka collection "users" → New field → nama persis: enrolledSubjects\n' +
+          '2) Tipe: Relation → pilih collection "subjects"\n' +
+          '3) PENTING: "Max select" DIKOSONGKAN (biar bisa banyak mata kuliah), lalu Save.\n' +
+          'Setelah field dibuat, ulangi memilih mata kuliah — pasti tersimpan.'
+        );
+      } else {
+        // sinkronkan state lokal dengan record dari server (sumber kebenaran)
+        setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, ...updated } : u)));
+      }
     } catch (err) {
-      // gagal disimpan -> kembalikan tampilan & jelaskan penyebab umumnya
-      setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: cur } : u)));
+      revert();
       setEnrollError(
-        'Gagal menyimpan: ' + (err?.message || 'terjadi kesalahan.') +
-        '\nCek 2 hal di database: (1) field "enrolledSubjects" harus ada di collection users, tipe Relation ke subjects dengan Max select KOSONG/lebih dari 1; ' +
-        '(2) API Rule "Update" collection users harus mengizinkan admin, isi dengan: @request.auth.role = "admin" || id = @request.auth.id'
+        'Gagal menyimpan: ' + (err?.message || 'terjadi kesalahan.') + '\n' +
+        'Biasanya API Rule "Update" collection users memblokir admin. Buka collection users → API Rules → Update rule, isi:\n' +
+        '@request.auth.role = "admin" || id = @request.auth.id'
       );
     }
   };
@@ -4276,7 +4302,7 @@ function SeedData() {
 
 ## 15. `apps/web/src/pages/teacher/TeacherPanel.jsx`
 
-**Apa ini:** Tab 'Siswa' (hanya siswa mata kuliah ajarnya), Edit Soal & PPT dibatasi mata kuliah ajar.
+**Apa ini:** Tab Siswa ter-scope, Edit Soal & PPT dibatasi mata kuliah ajar.
 
 ```jsx
 import React, { useEffect, useState } from 'react';
@@ -4560,7 +4586,7 @@ function PPTUpload() {
 
 # Lampiran (TIDAK untuk di-copy ke Horizons)
 
-Tiga file ini **sudah ada** di project-mu. Referensi saja.
+Tiga file ini sudah ada di project-mu. Referensi saja.
 
 
 ### `apps/web/src/context/AuthContext.jsx` — Login/guest + batas 2 device (versi asli project-mu).

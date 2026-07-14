@@ -220,15 +220,40 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     const next = cur.includes(subId) ? cur.filter((x) => x !== subId) : [...cur, subId];
     // Optimistic update: chip langsung berubah saat diklik, tanpa menunggu server
     setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: next } : u)));
+
+    const revert = () => setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: cur } : u)));
+
     try {
-      await pb.collection('users').update(s.id, { enrolledSubjects: next });
+      const updated = await pb.collection('users').update(s.id, { enrolledSubjects: next });
+
+      // VERIFIKASI: PocketBase menerima update (200 OK) TAPI diam-diam mengabaikan
+      // field yang tidak ada di schema. Jadi kita bandingkan nilai yang benar-benar
+      // dikembalikan server. Kalau tidak cocok -> field belum ada/salah tipe.
+      const saved = Array.isArray(updated.enrolledSubjects)
+        ? updated.enrolledSubjects
+        : (updated.enrolledSubjects ? [updated.enrolledSubjects] : []);
+      const savedOk = saved.length === next.length && next.every((id) => saved.includes(id));
+
+      if (!savedOk) {
+        revert();
+        setEnrollError(
+          'Pilihan TIDAK tersimpan di database (server menerima permintaan tapi mengabaikan field "enrolledSubjects").\n' +
+          'Penyebabnya hampir pasti field-nya belum ada / salah tipe. Perbaiki di dashboard PocketBase:\n' +
+          '1) Buka collection "users" → New field → nama persis: enrolledSubjects\n' +
+          '2) Tipe: Relation → pilih collection "subjects"\n' +
+          '3) PENTING: "Max select" DIKOSONGKAN (biar bisa banyak mata kuliah), lalu Save.\n' +
+          'Setelah field dibuat, ulangi memilih mata kuliah — pasti tersimpan.'
+        );
+      } else {
+        // sinkronkan state lokal dengan record dari server (sumber kebenaran)
+        setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, ...updated } : u)));
+      }
     } catch (err) {
-      // gagal disimpan -> kembalikan tampilan & jelaskan penyebab umumnya
-      setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: cur } : u)));
+      revert();
       setEnrollError(
-        'Gagal menyimpan: ' + (err?.message || 'terjadi kesalahan.') +
-        '\nCek 2 hal di database: (1) field "enrolledSubjects" harus ada di collection users, tipe Relation ke subjects dengan Max select KOSONG/lebih dari 1; ' +
-        '(2) API Rule "Update" collection users harus mengizinkan admin, isi dengan: @request.auth.role = "admin" || id = @request.auth.id'
+        'Gagal menyimpan: ' + (err?.message || 'terjadi kesalahan.') + '\n' +
+        'Biasanya API Rule "Update" collection users memblokir admin. Buka collection users → API Rules → Update rule, isi:\n' +
+        '@request.auth.role = "admin" || id = @request.auth.id'
       );
     }
   };
