@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClipboardList, History, Lock, Search } from 'lucide-react';
-import Header, { bumpStreak } from '@/components/Header';
+import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
@@ -20,9 +20,23 @@ export default function CicilBelajar() {
  const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [refreshKey, setRefreshKey] = useState(0);
+ const [enrolled, setEnrolled] = useState(null);
 
- // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
- const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
+ // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
+ useEffect(() => {
+   let alive = true;
+   fetchEnrolledSubjectIds(pb, user, role).then((ids) => { if (alive) setEnrolled(ids); });
+   return () => { alive = false; };
+ }, [user, role]);
+
+ // Kalau subject dari URL tidak diizinkan, kosongkan (blokir akses lewat link langsung)
+ useEffect(() => {
+   if (enrolled && subjectId && !enrolled.includes(subjectId)) {
+     setSubjectId('');
+     setChapterId('');
+   }
+ }, [enrolled, subjectId]);
+
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]
@@ -73,6 +87,10 @@ export default function CicilBelajar() {
 
  const openChapter = async () => {
    if (!chapterId) return;
+   if (enrolled && subjectId && !enrolled.includes(subjectId)) {
+     alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
+     return;
+   }
    const qs = await pb.collection('questions').getFullList({
      filter: `chapter = '${chapterId}' && type = 'latihan'`,
      sort: 'order',

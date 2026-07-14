@@ -51,6 +51,23 @@ export async function bumpStreak(pb, user) {
  }
 }
 
+// Ambil daftar id mata kuliah yang BOLEH diakses siswa (dipilihkan admin, disimpan
+// di teachingSubjects). Diambil FRESH dari server supaya perubahan assign oleh admin
+// langsung berlaku tanpa harus login ulang.
+// Mengembalikan:
+//   null        -> tidak ada pembatasan (guest/teacher/admin, atau bukan siswa)
+//   []          -> siswa belum dipilihkan mata kuliah apa pun (tidak boleh buka apa-apa)
+//   [id, id...] -> daftar mata kuliah yang boleh diakses
+export async function fetchEnrolledSubjectIds(pb, user, role) {
+ if (role !== 'student' || !user?.id) return null;
+ try {
+   const rec = await pb.collection('users').getOne(user.id);
+   return Array.isArray(rec.teachingSubjects) ? rec.teachingSubjects : [];
+ } catch (e) {
+   return Array.isArray(user.teachingSubjects) ? user.teachingSubjects : [];
+ }
+}
+
 const navItems = [
  { to: '/beranda', label: 'Beranda' },
  { to: '/perdalam-materi', label: 'Perdalam Materi' },

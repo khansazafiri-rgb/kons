@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Lock, Timer, Trophy } from 'lucide-react';
-import Header, { bumpStreak } from '@/components/Header';
+import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
@@ -19,9 +19,15 @@ export default function SimulasiCBT() {
  const [doneYears, setDoneYears] = useState({});     // { subjectId: Set(tahun yang sudah dikerjakan) }
  const [leaderboard, setLeaderboard] = useState([]);
  const [refreshKey, setRefreshKey] = useState(0);
+ const [enrolled, setEnrolled] = useState(null);
 
- // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
- const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
+ // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
+ useEffect(() => {
+   let alive = true;
+   fetchEnrolledSubjectIds(pb, user, role).then((ids) => { if (alive) setEnrolled(ids); });
+   return () => { alive = false; };
+ }, [user, role]);
+
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]
@@ -77,6 +83,10 @@ export default function SimulasiCBT() {
 
  const start = async () => {
    if (!subjectId || !year || !mode) return;
+   if (enrolled && !enrolled.includes(subjectId)) {
+     alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
+     return;
+   }
 
    const qs = await pb.collection('questions').getFullList({
      filter: `subject = '${subjectId}' && type = 'cbt' && year = ${year}`,

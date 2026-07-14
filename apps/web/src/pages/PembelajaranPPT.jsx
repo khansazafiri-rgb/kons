@@ -1,22 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FileText } from 'lucide-react';
-import Header from '@/components/Header';
+import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FileText, Lock } from 'lucide-react';
+import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 export default function PembelajaranPPT() {
  const [params] = useSearchParams();
  const navigate = useNavigate();
- const { guest, user } = useAuth();
+ const { guest, user, role } = useAuth();
  const subjectId = params.get('subject');
  const chapterId = params.get('chapter');
  const [chapter, setChapter] = useState(null);
  const [fileUrl, setFileUrl] = useState('');
  const [done, setDone] = useState(false);
+ const [denied, setDenied] = useState(false); // akses ditolak (mata kuliah di luar jatah siswa)
+
+ // Kunci akses langsung lewat URL: siswa hanya boleh membuka mata kuliah miliknya
+ useEffect(() => {
+   let alive = true;
+   (async () => {
+     const enrolled = await fetchEnrolledSubjectIds(pb, user, role);
+     if (!alive) return;
+     if (enrolled && subjectId && !enrolled.includes(subjectId)) setDenied(true);
+   })();
+   return () => { alive = false; };
+ }, [user, role, subjectId]);
 
  useEffect(() => {
-   if (!chapterId) return;
+   if (!chapterId || denied) return;
    pb.collection('chapters').getOne(chapterId).then(setChapter);
    pb.collection('ppt_files')
      .getFirstListItem(`chapter = '${chapterId}'`)
@@ -25,7 +37,7 @@ export default function PembelajaranPPT() {
        setFileUrl(url);
      })
      .catch(() => setFileUrl(''));
- }, [chapterId]);
+ }, [chapterId, denied]);
 
  const finish = async () => {
    setDone(true);
@@ -40,6 +52,24 @@ export default function PembelajaranPPT() {
      }
    }
  };
+
+ if (denied) {
+   return (
+     <div className="min-h-screen bg-alba-50">
+       <Header />
+       <div className="max-w-md mx-auto px-6 py-24 text-center">
+         <div className="w-16 h-16 bg-maroon-50 text-maroon-600 rounded-full flex items-center justify-center mx-auto mb-5 border border-maroon-100">
+           <Lock size={26} />
+         </div>
+         <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Akses Ditolak</h2>
+         <p className="text-sm text-stone-600 mb-8">Akun Anda tidak memiliki akses ke mata kuliah ini. Hubungi admin bila ini keliru.</p>
+         <button onClick={() => navigate('/perdalam-materi')} className="rounded-xl bg-maroon-600 text-alba-50 font-bold px-6 py-3 hover:bg-maroon-700 transition-colors">
+           Kembali ke Daftar Materi
+         </button>
+       </div>
+     </div>
+   );
+ }
 
  return (
    <div className="min-h-screen bg-alba-50">

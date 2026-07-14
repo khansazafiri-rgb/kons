@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpenText, CheckCircle2, Lock, Search } from 'lucide-react';
-import Header from '@/components/Header';
+import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -15,10 +15,16 @@ export default function PerdalamMateri() {
  const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [search, setSearch] = useState('');
+ const [enrolled, setEnrolled] = useState(null); // null=tanpa batasan, []=belum dipilihkan, [..]=boleh
 
- // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin
- // (field "teachingSubjects" di collection users). Guest/teacher/admin bebas.
- const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
+ // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin.
+ // Diambil FRESH dari server (bukan dari sesi login yang bisa basi).
+ useEffect(() => {
+   let alive = true;
+   fetchEnrolledSubjectIds(pb, user, role).then((ids) => { if (alive) setEnrolled(ids); });
+   return () => { alive = false; };
+ }, [user, role]);
+
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]
@@ -74,6 +80,10 @@ export default function PerdalamMateri() {
 
  const start = () => {
    if (!subjectId || !chapterId) return;
+   if (enrolled && !enrolled.includes(subjectId)) {
+     alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
+     return;
+   }
    navigate(`/pembelajaran-ppt?subject=${subjectId}&chapter=${chapterId}`);
  };
 
