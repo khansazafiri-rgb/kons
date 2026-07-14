@@ -583,69 +583,88 @@ function QuestionForm({ form, setForm }) {
   );
 }
 
-// ---------- prompt Gemini untuk import massal tiap tipe soal ----------
+// ---------- prompt Gemini/Claude untuk import massal tiap tipe soal ----------
+const OUTPUT_RULES = `ATURAN OUTPUT (WAJIB):
+- Keluarkan HANYA array-nya, dimulai "[" dan diakhiri "]".
+- DILARANG menulis "const", "let", "var", titik koma penutup, komentar, kalimat pembuka/penutup, atau membungkus dengan blok kode tiga-backtick.
+- Gunakan tanda kutip dobel ". Escape " di dalam teks menjadi \\".`;
+
 const GEMINI_PROMPTS = {
-  'MCQ Biasa': `Ubah soal-soal berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
-[
-  {
-    text: "Pertanyaan lengkap di sini",
-    hint: "Petunjuk singkat (boleh string kosong)",
-    options: [
-      { text: "Opsi A", correct: false, explanation: "Kenapa salah" },
-      { text: "Opsi B", correct: true, explanation: "Kenapa benar" }
-    ]
-  }
-]
-Aturan: tepat SATU opsi dengan correct: true per soal; semua opsi wajib punya explanation; output HANYA array JavaScript.
+  'MCQ Biasa': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda berikut menjadi SATU array JavaScript.
 
-Berikut soal-soalnya:
-(tempel soal di sini)`,
-  'MCQ Bergambar': `Ubah soal-soal bergambar berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
-[
-  {
-    text: "Perhatikan gambar berikut. Pertanyaan di sini",
-    imageUrl: "https://lh3.googleusercontent.com/d/xxxxx",
-    hint: "Petunjuk singkat (boleh string kosong)",
-    options: [
-      { text: "Opsi A", correct: false, explanation: "Kenapa salah" },
-      { text: "Opsi B", correct: true, explanation: "Kenapa benar" }
-    ]
-  }
-]
-Aturan: field imageUrl WAJIB berisi link gambar (format https://lh3.googleusercontent.com/d/FILE_ID); tepat SATU opsi correct: true; output HANYA array JavaScript.
+${OUTPUT_RULES}
 
-Berikut soal-soal dan link gambarnya:
-(tempel soal di sini)`,
-  'Isian Biasa': `Ubah soal-soal isian berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
-[
-  {
-    text: "Instruksi atau konteks soal",
-    hint: "Petunjuk singkat (boleh string kosong)",
-    subQuestions: [
-      { label: "A", question: "Pertanyaan A", validAnswers: ["jawaban benar / alternatif jawaban lain"] },
-      { label: "B", question: "Pertanyaan B", validAnswers: ["jawaban benar"] }
-    ]
-  }
-]
-Aturan: validAnswers berisi SATU string; jika ada beberapa jawaban yang diterima, pisahkan dengan " / "; output HANYA array JavaScript.
+FORMAT TIAP SOAL:
+{
+  "text": "Pertanyaan lengkap",
+  "hint": "Petunjuk singkat, boleh \\"\\"",
+  "options": [
+    { "text": "Opsi A", "correct": false, "explanation": "Kenapa salah" },
+    { "text": "Opsi B", "correct": true,  "explanation": "Kenapa benar" }
+  ]
+}
+ATURAN ISI: setiap soal wajib "options" (min 2); TEPAT SATU "correct": true; SETIAP opsi wajib "explanation"; jangan pakai "imageUrl"/"subQuestions".
 
-Berikut soal-soalnya:
-(tempel soal di sini)`,
-  'Isian Bergambar': `Ubah soal-soal isian bergambar berikut menjadi array JavaScript PERSIS dengan format ini (tanpa penjelasan lain):
-[
-  {
-    text: "Perhatikan Gambar Berikut",
-    imageUrl: "https://lh3.googleusercontent.com/d/xxxxx",
-    hint: "Petunjuk singkat (boleh string kosong)",
-    subQuestions: [
-      { label: "A", question: "Bentukan yang ditunjuk nomor 1 adalah", validAnswers: ["Striated duct / Duktus striata"] }
-    ]
-  }
-]
-Aturan: field imageUrl WAJIB berisi link gambar (format https://lh3.googleusercontent.com/d/FILE_ID); validAnswers berisi SATU string dengan alternatif dipisah " / "; output HANYA array JavaScript.
+Konversi soal-soal berikut (dengan kunci jawaban & pembahasan):
+<<< TEMPEL SOAL DI SINI >>>`,
 
-Berikut soal-soal dan link gambarnya:
-(tempel soal di sini)`,
+  'MCQ Bergambar': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda BERGAMBAR berikut menjadi SATU array JavaScript.
+
+${OUTPUT_RULES}
+- "imageUrl" WAJIB ada, format https://lh3.googleusercontent.com/d/FILE_ID (pakai ID gambar yang saya beri per soal).
+
+FORMAT TIAP SOAL:
+{
+  "text": "Perhatikan gambar berikut. Pertanyaan di sini",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID",
+  "hint": "boleh \\"\\"",
+  "options": [
+    { "text": "Opsi A", "correct": false, "explanation": "Kenapa salah" },
+    { "text": "Opsi B", "correct": true,  "explanation": "Kenapa benar" }
+  ]
+}
+ATURAN ISI: TEPAT SATU "correct": true; SETIAP opsi wajib "explanation"; jangan pakai "subQuestions"; pasangkan tiap soal dengan link gambarnya masing-masing.
+
+Konversi soal-soal bergambar berikut (sertakan link gambar tiap soal + kunci jawaban):
+<<< TEMPEL SOAL + LINK GAMBAR DI SINI >>>`,
+
+  'Isian Biasa': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal ISIAN SINGKAT (esai pendek) berikut menjadi SATU array JavaScript.
+
+${OUTPUT_RULES}
+
+FORMAT TIAP SOAL:
+{
+  "text": "Instruksi/konteks soal",
+  "hint": "boleh \\"\\"",
+  "subQuestions": [
+    { "label": "A", "question": "Pertanyaan A", "validAnswers": ["jawaban / alternatif jawaban"] },
+    { "label": "B", "question": "Pertanyaan B", "validAnswers": ["jawaban"] }
+  ]
+}
+ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string; jika ada beberapa jawaban benar (sinonim/istilah ID-EN), gabungkan pisah " / "; penilaian tidak peka huruf besar/kecil & spasi.
+
+Konversi soal-soal isian berikut (sertakan semua jawaban yang diterima):
+<<< TEMPEL SOAL DI SINI >>>`,
+
+  'Isian Bergambar': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal ISIAN SINGKAT BERGAMBAR berikut menjadi SATU array JavaScript.
+
+${OUTPUT_RULES}
+- "imageUrl" WAJIB ada, format https://lh3.googleusercontent.com/d/FILE_ID (pakai ID gambar yang saya beri per soal).
+
+FORMAT TIAP SOAL:
+{
+  "text": "Perhatikan Gambar Berikut",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID",
+  "hint": "boleh \\"\\"",
+  "subQuestions": [
+    { "label": "A", "question": "Bentukan yang ditunjuk nomor 1 adalah", "validAnswers": ["Striated duct / Duktus striata"] },
+    { "label": "B", "question": "Bentukan yang ditunjuk nomor 2 adalah", "validAnswers": ["Intercalated duct"] }
+  ]
+}
+ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string, alternatif dipisah " / "; pasangkan tiap soal dengan link gambarnya.
+
+Konversi soal-soal isian bergambar berikut (sertakan link gambar + semua jawaban yang diterima):
+<<< TEMPEL SOAL + LINK GAMBAR DI SINI >>>`,
 };
 
 const TYPE_LABEL = { mcq: 'MCQ Biasa', mcq_img: 'MCQ Bergambar', isian: 'Isian Biasa', isian_img: 'Isian Bergambar' };
