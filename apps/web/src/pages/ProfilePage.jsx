@@ -14,7 +14,7 @@ export default function ProfilePage() {
  const [attempts, setAttempts] = useState([]);
  const [subjectNames, setSubjectNames] = useState({});
 
- // Nama mata kuliah yang diambil siswa (field enrolledSubjects di users)
+ // Nama mata kuliah yang diambil siswa (field teachingSubjects di users)
  useEffect(() => {
    if (guest || !user) return;
    pb.collection('subjects')
@@ -23,7 +23,7 @@ export default function ProfilePage() {
        const map = {};
        subs.forEach((s) => { map[s.id] = s.name; });
        setSubjectNames(map);
-       const ids = Array.isArray(user.enrolledSubjects) ? user.enrolledSubjects : [];
+       const ids = Array.isArray(user.teachingSubjects) ? user.teachingSubjects : [];
        setEnrolledNames(ids.map((id) => map[id]).filter(Boolean));
      })
      .catch(() => {});

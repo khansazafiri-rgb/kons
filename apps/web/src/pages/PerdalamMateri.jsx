@@ -17,8 +17,8 @@ export default function PerdalamMateri() {
  const [search, setSearch] = useState('');
 
  // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin
- // (field "enrolledSubjects" di collection users). Guest/teacher/admin bebas.
- const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ // (field "teachingSubjects" di collection users). Guest/teacher/admin bebas.
+ const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]

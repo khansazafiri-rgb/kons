@@ -21,7 +21,7 @@ export default function SimulasiCBT() {
  const [refreshKey, setRefreshKey] = useState(0);
 
  // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
- const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]

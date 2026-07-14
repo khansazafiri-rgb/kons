@@ -186,7 +186,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
 
   // Mata kuliah yang relevan untuk progres tiap siswa
   const relevantSubjectsOf = (s) => {
-    const enrolled = Array.isArray(s.enrolledSubjects) ? s.enrolledSubjects : [];
+    const enrolled = Array.isArray(s.teachingSubjects) ? s.teachingSubjects : [];
     if (subjectScope) return enrolled.filter((id) => subjectScope.includes(id));
     return enrolled;
   };
@@ -216,36 +216,32 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
   const [enrollError, setEnrollError] = useState('');
   const toggleEnroll = async (s, subId) => {
     setEnrollError('');
-    const cur = Array.isArray(s.enrolledSubjects) ? s.enrolledSubjects : [];
+    // Mata kuliah siswa DISIMPAN di field "teachingSubjects" yang sudah ada
+    // (dipakai ulang: untuk siswa = mata kuliah yang boleh diakses; untuk guru =
+    // mata kuliah yang diajar). Satu akun tidak mungkin dua peran, jadi aman.
+    const cur = Array.isArray(s.teachingSubjects) ? s.teachingSubjects : [];
     const next = cur.includes(subId) ? cur.filter((x) => x !== subId) : [...cur, subId];
     // Optimistic update: chip langsung berubah saat diklik, tanpa menunggu server
-    setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: next } : u)));
+    setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, teachingSubjects: next } : u)));
 
-    const revert = () => setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: cur } : u)));
+    const revert = () => setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, teachingSubjects: cur } : u)));
 
     try {
-      const updated = await pb.collection('users').update(s.id, { enrolledSubjects: next });
+      const updated = await pb.collection('users').update(s.id, { teachingSubjects: next });
 
-      // VERIFIKASI: PocketBase menerima update (200 OK) TAPI diam-diam mengabaikan
-      // field yang tidak ada di schema. Jadi kita bandingkan nilai yang benar-benar
-      // dikembalikan server. Kalau tidak cocok -> field belum ada/salah tipe.
-      const saved = Array.isArray(updated.enrolledSubjects)
-        ? updated.enrolledSubjects
-        : (updated.enrolledSubjects ? [updated.enrolledSubjects] : []);
+      // VERIFIKASI: pastikan server benar-benar menyimpannya
+      const saved = Array.isArray(updated.teachingSubjects)
+        ? updated.teachingSubjects
+        : (updated.teachingSubjects ? [updated.teachingSubjects] : []);
       const savedOk = saved.length === next.length && next.every((id) => saved.includes(id));
 
       if (!savedOk) {
         revert();
         setEnrollError(
-          'Pilihan TIDAK tersimpan di database (server menerima permintaan tapi mengabaikan field "enrolledSubjects").\n' +
-          'Penyebabnya hampir pasti field-nya belum ada / salah tipe. Perbaiki di dashboard PocketBase:\n' +
-          '1) Buka collection "users" → New field → nama persis: enrolledSubjects\n' +
-          '2) Tipe: Relation → pilih collection "subjects"\n' +
-          '3) PENTING: "Max select" DIKOSONGKAN (biar bisa banyak mata kuliah), lalu Save.\n' +
-          'Setelah field dibuat, ulangi memilih mata kuliah — pasti tersimpan.'
+          'Pilihan TIDAK tersimpan. Cek API Rule "Update" collection users → izinkan admin:\n' +
+          '@request.auth.role = "admin" || id = @request.auth.id'
         );
       } else {
-        // sinkronkan state lokal dengan record dari server (sumber kebenaran)
         setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, ...updated } : u)));
       }
     } catch (err) {
@@ -320,7 +316,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                     <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Mata kuliah yang bisa diakses (pilih di sini)</p>
                     <div className="flex flex-wrap gap-2">
                       {subjects.map((sub) => (
-                        <button key={sub.id} onClick={() => toggleEnroll(s, sub.id)} className={`text-xs rounded-full px-3 py-1 border transition-colors ${(s.enrolledSubjects || []).includes(sub.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'}`}>
+                        <button key={sub.id} onClick={() => toggleEnroll(s, sub.id)} className={`text-xs rounded-full px-3 py-1 border transition-colors ${(s.teachingSubjects || []).includes(sub.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'}`}>
                           {sub.name}
                         </button>
                       ))}
@@ -1134,8 +1130,8 @@ function TambahAkun() {
         // CATATAN: "verified" sengaja TIDAK dikirim — PocketBase menolak akun
         // non-superuser men-set verified (error "Values don't match").
         deviceIds: [],
-        // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya
-        enrolledSubjects: [],
+        // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya.
+        // Mata kuliah siswa & guru sama-sama disimpan di teachingSubjects (field yang sudah ada).
         teachingSubjects: [],
         classType: form.role === 'student' ? form.classType : '',
       });

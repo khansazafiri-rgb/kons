@@ -1,39 +1,21 @@
-# 🎨 PCV Classroom — Panduan Revisi 2.2 (Copy-Paste Edition)
+# 🎨 PCV Classroom — Panduan Revisi 2.3 (Copy-Paste Edition)
 
-Palet **Alba** + **Maroon `#8E0100`**, logo asli PCV, semua revisi PRD + fitur rekomendasi.
-Perbaikan terbaru: pilihan mata kuliah siswa kini DIVERIFIKASI benar-benar tersimpan
-(kalau field-nya belum ada di database, muncul peringatan jelas alih-alih diam-diam hilang).
+Perbaikan penting: mata kuliah siswa kini disimpan di field **`teachingSubjects`** yang SUDAH ADA
+di database-mu — jadi TIDAK perlu membuat field baru apa pun untuk fitur ini. Satu akun tidak
+mungkin jadi guru sekaligus murid, jadi field itu aman dipakai bergantian
+(guru = mata kuliah yang diajar; murid = mata kuliah yang boleh diakses).
 
-✅ **Semua HANYA mengedit file yang sudah ada** — tidak ada file baru.
+✅ Semua HANYA mengedit file yang sudah ada. Tidak perlu bikin file code baru, tidak perlu bikin field database baru untuk fitur mata kuliah siswa.
 
 ---
 
-## ⚠️ WAJIB: siapkan database (PocketBase) — INI PENYEBAB PILIHAN MATA KULIAH TIDAK TERSIMPAN
-
-Kalau mata kuliah yang kamu pilih untuk siswa hilang saat pindah halaman, artinya field-nya
-belum ada. PocketBase menerima permintaan simpan (200 OK) TAPI mengabaikan field yang tak ada
-di schema — jadi terlihat tersimpan padahal tidak. **Buat field ini dulu:**
-
-**Collection `users` → New field:**
-| Field | Tipe | Catatan PENTING |
-|---|---|---|
-| `enrolledSubjects` | **Relation → subjects** | **"Max select" DIKOSONGKAN** biar bisa banyak mata kuliah |
-| `classType` | Text (atau Select: reguler/private) | Jenis kelas siswa |
-| `streak` | Number | Streak harian (opsional) |
-| `lastActive` | Text atau Date | Aktif terakhir (opsional) |
-
-**Collection `questions` → New field:**
-| Field | Tipe |
-|---|---|
-| `qtype` | Text (mcq/mcq_img/isian/isian_img), kosong = MCQ |
-| `imageUrl` | Text (link gambar soal) |
-| `subQuestions` | JSON |
-
-**API Rules collection `users`:**
-- **Create**: `@request.auth.role = "admin"`
-- **Update**: `@request.auth.role = "admin" || id = @request.auth.id`
-
-**Setting login:** pastikan "Only verified users can log in" **TIDAK dicentang**.
+## Catatan field database
+- **Mata kuliah siswa**: dipakai field `teachingSubjects` (sudah ada) — langsung jalan.
+- **API Rule `users` → Update** sebaiknya: `@request.auth.role = "admin" || id = @request.auth.id`
+  (kalau memilih mata kuliah siswa masih gagal, ini penyebabnya).
+- Fitur yang butuh field yang MUNGKIN belum ada (opsional, aman kalau tidak ada — fiturnya
+  cuma nonaktif, web tetap jalan): `streak`,`lastActive` (users) dan `qtype`,`imageUrl`,`subQuestions` (questions).
+  Kalau kamu tidak bisa membuat field ini, MCQ biasa tetap berfungsi penuh.
 
 ## Daftar Isi (15 file — semua GANTI SELURUH ISI)
 
@@ -1587,7 +1569,7 @@ export default function LearningHome() {
 
 ## 9. `apps/web/src/pages/PerdalamMateri.jsx`
 
-**Apa ini:** Progress bar per mata kuliah, pencarian BAB, batasi mata kuliah siswa.
+**Apa ini:** Progress bar per mata kuliah, pencarian BAB, batasi mata kuliah siswa (pakai teachingSubjects).
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
@@ -1609,8 +1591,8 @@ export default function PerdalamMateri() {
  const [search, setSearch] = useState('');
 
  // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin
- // (field "enrolledSubjects" di collection users). Guest/teacher/admin bebas.
- const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ // (field "teachingSubjects" di collection users). Guest/teacher/admin bebas.
+ const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]
@@ -1806,7 +1788,7 @@ export default function CicilBelajar() {
  const [refreshKey, setRefreshKey] = useState(0);
 
  // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
- const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]
@@ -2110,7 +2092,7 @@ export default function SimulasiCBT() {
  const [refreshKey, setRefreshKey] = useState(0);
 
  // Pembatasan akses mata kuliah untuk siswa (dipilihkan admin)
- const enrolled = role === 'student' && Array.isArray(user?.enrolledSubjects) ? user.enrolledSubjects : null;
+ const enrolled = role === 'student' && Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : null;
  const visibleSubjects = useMemo(
    () => (enrolled ? subjects.filter((s) => enrolled.includes(s.id)) : subjects),
    [subjects, enrolled]
@@ -2555,7 +2537,7 @@ export default function ProfilePage() {
  const [attempts, setAttempts] = useState([]);
  const [subjectNames, setSubjectNames] = useState({});
 
- // Nama mata kuliah yang diambil siswa (field enrolledSubjects di users)
+ // Nama mata kuliah yang diambil siswa (field teachingSubjects di users)
  useEffect(() => {
    if (guest || !user) return;
    pb.collection('subjects')
@@ -2564,7 +2546,7 @@ export default function ProfilePage() {
        const map = {};
        subs.forEach((s) => { map[s.id] = s.name; });
        setSubjectNames(map);
-       const ids = Array.isArray(user.enrolledSubjects) ? user.enrolledSubjects : [];
+       const ids = Array.isArray(user.teachingSubjects) ? user.teachingSubjects : [];
        setEnrolledNames(ids.map((id) => map[id]).filter(Boolean));
      })
      .catch(() => {});
@@ -2728,7 +2710,7 @@ function Field({ label, value, className = '' }) {
 
 ## 14. `apps/web/src/pages/admin/AdminPanel.jsx`
 
-**Apa ini:** Edit Soal 2 cabang, import massal pemilih tipe, kartu siswa + pilih mata kuliah (dengan VERIFIKASI tersimpan), Tambah Akun, reset device.
+**Apa ini:** Edit Soal 2 cabang, import pemilih tipe, kartu siswa + pilih mata kuliah (disimpan di teachingSubjects yang sudah ada), Tambah Akun, reset device.
 
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
@@ -2919,7 +2901,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
 
   // Mata kuliah yang relevan untuk progres tiap siswa
   const relevantSubjectsOf = (s) => {
-    const enrolled = Array.isArray(s.enrolledSubjects) ? s.enrolledSubjects : [];
+    const enrolled = Array.isArray(s.teachingSubjects) ? s.teachingSubjects : [];
     if (subjectScope) return enrolled.filter((id) => subjectScope.includes(id));
     return enrolled;
   };
@@ -2949,36 +2931,32 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
   const [enrollError, setEnrollError] = useState('');
   const toggleEnroll = async (s, subId) => {
     setEnrollError('');
-    const cur = Array.isArray(s.enrolledSubjects) ? s.enrolledSubjects : [];
+    // Mata kuliah siswa DISIMPAN di field "teachingSubjects" yang sudah ada
+    // (dipakai ulang: untuk siswa = mata kuliah yang boleh diakses; untuk guru =
+    // mata kuliah yang diajar). Satu akun tidak mungkin dua peran, jadi aman.
+    const cur = Array.isArray(s.teachingSubjects) ? s.teachingSubjects : [];
     const next = cur.includes(subId) ? cur.filter((x) => x !== subId) : [...cur, subId];
     // Optimistic update: chip langsung berubah saat diklik, tanpa menunggu server
-    setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: next } : u)));
+    setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, teachingSubjects: next } : u)));
 
-    const revert = () => setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, enrolledSubjects: cur } : u)));
+    const revert = () => setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, teachingSubjects: cur } : u)));
 
     try {
-      const updated = await pb.collection('users').update(s.id, { enrolledSubjects: next });
+      const updated = await pb.collection('users').update(s.id, { teachingSubjects: next });
 
-      // VERIFIKASI: PocketBase menerima update (200 OK) TAPI diam-diam mengabaikan
-      // field yang tidak ada di schema. Jadi kita bandingkan nilai yang benar-benar
-      // dikembalikan server. Kalau tidak cocok -> field belum ada/salah tipe.
-      const saved = Array.isArray(updated.enrolledSubjects)
-        ? updated.enrolledSubjects
-        : (updated.enrolledSubjects ? [updated.enrolledSubjects] : []);
+      // VERIFIKASI: pastikan server benar-benar menyimpannya
+      const saved = Array.isArray(updated.teachingSubjects)
+        ? updated.teachingSubjects
+        : (updated.teachingSubjects ? [updated.teachingSubjects] : []);
       const savedOk = saved.length === next.length && next.every((id) => saved.includes(id));
 
       if (!savedOk) {
         revert();
         setEnrollError(
-          'Pilihan TIDAK tersimpan di database (server menerima permintaan tapi mengabaikan field "enrolledSubjects").\n' +
-          'Penyebabnya hampir pasti field-nya belum ada / salah tipe. Perbaiki di dashboard PocketBase:\n' +
-          '1) Buka collection "users" → New field → nama persis: enrolledSubjects\n' +
-          '2) Tipe: Relation → pilih collection "subjects"\n' +
-          '3) PENTING: "Max select" DIKOSONGKAN (biar bisa banyak mata kuliah), lalu Save.\n' +
-          'Setelah field dibuat, ulangi memilih mata kuliah — pasti tersimpan.'
+          'Pilihan TIDAK tersimpan. Cek API Rule "Update" collection users → izinkan admin:\n' +
+          '@request.auth.role = "admin" || id = @request.auth.id'
         );
       } else {
-        // sinkronkan state lokal dengan record dari server (sumber kebenaran)
         setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, ...updated } : u)));
       }
     } catch (err) {
@@ -3053,7 +3031,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                     <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Mata kuliah yang bisa diakses (pilih di sini)</p>
                     <div className="flex flex-wrap gap-2">
                       {subjects.map((sub) => (
-                        <button key={sub.id} onClick={() => toggleEnroll(s, sub.id)} className={`text-xs rounded-full px-3 py-1 border transition-colors ${(s.enrolledSubjects || []).includes(sub.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'}`}>
+                        <button key={sub.id} onClick={() => toggleEnroll(s, sub.id)} className={`text-xs rounded-full px-3 py-1 border transition-colors ${(s.teachingSubjects || []).includes(sub.id) ? 'bg-maroon-600 text-alba-50 border-maroon-600' : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'}`}>
                           {sub.name}
                         </button>
                       ))}
@@ -3867,8 +3845,8 @@ function TambahAkun() {
         // CATATAN: "verified" sengaja TIDAK dikirim — PocketBase menolak akun
         // non-superuser men-set verified (error "Values don't match").
         deviceIds: [],
-        // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya
-        enrolledSubjects: [],
+        // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya.
+        // Mata kuliah siswa & guru sama-sama disimpan di teachingSubjects (field yang sudah ada).
         teachingSubjects: [],
         classType: form.role === 'student' ? form.classType : '',
       });
@@ -4586,11 +4564,10 @@ function PPTUpload() {
 
 # Lampiran (TIDAK untuk di-copy ke Horizons)
 
-Tiga file ini sudah ada di project-mu. Referensi saja.
+Tiga file ini sudah ada di project-mu.
 
 
 ### `apps/web/src/context/AuthContext.jsx` — Login/guest + batas 2 device (versi asli project-mu).
-
 ```jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
@@ -4667,7 +4644,6 @@ export function useAuth() {
 
 
 ### `apps/web/src/lib/pocketbaseClient.js` — Koneksi PocketBase.
-
 ```js
 // Koneksi ke database PocketBase. Semua halaman mengimport "pb" dari file ini.
 // Kalau web-mu di Horizons sudah bisa login/memuat data, berarti file serupa
@@ -4683,7 +4659,6 @@ export default pb;
 
 
 ### `apps/web/vite.config.js` — Config Vite (alias @ ke src).
-
 ```js
 // CATATAN: vite.config.js tidak ikut ter-export di dokumen code — file ini
 // dibuat ulang seperlunya (plugin React + alias "@" ke src). Kalau projectmu
