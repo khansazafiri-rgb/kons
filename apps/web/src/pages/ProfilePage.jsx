@@ -89,7 +89,6 @@ export default function ProfilePage() {
                        value={user?.activeUntil ? String(user.activeUntil).slice(0, 10) : '-'}
                      />
                      <Field label="Semester" value={user?.semester} />
-                     <Field label="Jenis kelas" value={user?.classType === 'private' ? 'Private' : user?.classType === 'reguler' ? 'Reguler' : '-'} />
                    </>
                  )}
                  {role === 'teacher' && (

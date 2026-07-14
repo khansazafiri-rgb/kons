@@ -2,15 +2,36 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ChevronLeft, ChevronRight, Flag, Lightbulb, RotateCcw, TimerReset, X } from 'lucide-react';
 
 /*
- QuestionRunner mendukung 4 tipe soal (field "qtype" di collection questions):
- - mcq        : pilihan ganda biasa (default kalau qtype kosong)
- - mcq_img    : pilihan ganda + gambar (field "imageUrl")
- - isian      : isian singkat, daftar sub-pertanyaan di field "subQuestions" (JSON):
-                [{ "label": "A", "question": "...", "validAnswers": ["jawaban1 / jawaban2"] }]
-                Jawaban dianggap benar jika cocok dengan SALAH SATU varian yang
-                dipisahkan tanda "/" (tidak peka huruf besar/kecil).
- - isian_img  : isian singkat + gambar
+ QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
+ baru, semua data tipe soal (qtype, imageUrl, subQuestions) DISIMPAN di dalam field
+ "options" (JSON) yang sudah ada, dalam bentuk objek amplop:
+   { qtype, imageUrl, choices: [...], subQuestions: [...] }
+ Soal MCQ lama yang options-nya masih array biasa tetap didukung (dianggap 'mcq').
+
+ Tipe: mcq | mcq_img | isian | isian_img
 */
+
+// Baca record soal apa adanya -> bentuk seragam { qtype, imageUrl, options(choices), subQuestions }
+export function normalizeQuestion(q) {
+ const opt = q?.options;
+ if (opt && !Array.isArray(opt) && typeof opt === 'object') {
+   return {
+     ...q,
+     qtype: opt.qtype || 'mcq',
+     imageUrl: opt.imageUrl || '',
+     options: Array.isArray(opt.choices) ? opt.choices : [],
+     subQuestions: Array.isArray(opt.subQuestions) ? opt.subQuestions : [],
+   };
+ }
+ // legacy: options berupa array = MCQ biasa
+ return {
+   ...q,
+   qtype: q?.qtype || 'mcq',
+   imageUrl: q?.imageUrl || '',
+   options: Array.isArray(opt) ? opt : [],
+   subQuestions: Array.isArray(q?.subQuestions) ? q.subQuestions : [],
+ };
+}
 
 const isIsian = (q) => String(q?.qtype || '').startsWith('isian') || (!(q?.options || []).length && (q?.subQuestions || []).length > 0);
 
@@ -48,7 +69,7 @@ export default function QuestionRunner({
  initialAnswers = {},
  onAnswerChange,
 }) {
- const [qs, setQs] = useState(questions);          // daftar soal aktif (bisa diganti subset saat "ulangi yang salah")
+ const [qs, setQs] = useState(() => (questions || []).map(normalizeQuestion)); // daftar soal aktif (sudah dinormalkan; bisa diganti subset saat "ulangi yang salah")
  const [retryRound, setRetryRound] = useState(false);
  const [idx, setIdx] = useState(0);
  const [answers, setAnswers] = useState(initialAnswers);

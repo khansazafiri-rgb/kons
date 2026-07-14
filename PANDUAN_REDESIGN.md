@@ -1,21 +1,22 @@
-# 🎨 PCV Classroom — Panduan Revisi 2.3 (Copy-Paste Edition)
+# 🎨 PCV Classroom — Panduan Revisi 2.4 (Copy-Paste Edition)
 
-Perbaikan penting: mata kuliah siswa kini disimpan di field **`teachingSubjects`** yang SUDAH ADA
-di database-mu — jadi TIDAK perlu membuat field baru apa pun untuk fitur ini. Satu akun tidak
-mungkin jadi guru sekaligus murid, jadi field itu aman dipakai bergantian
-(guru = mata kuliah yang diajar; murid = mata kuliah yang boleh diakses).
+Perubahan di versi ini:
+- **Reguler/Private DIHAPUS** (field-nya tidak ada di database, jadi ditiadakan dulu).
+- **Soal 4 tipe (MCQ, MCQ gambar, Isian, Isian gambar) JALAN TANPA field database baru** —
+  data tipe soal (qtype, imageUrl, subQuestions) disimpan di dalam field `options` (JSON)
+  yang sudah ada. Soal MCQ lama tetap kompatibel.
+- Mata kuliah siswa tetap disimpan di field `teachingSubjects` yang sudah ada.
 
-✅ Semua HANYA mengedit file yang sudah ada. Tidak perlu bikin file code baru, tidak perlu bikin field database baru untuk fitur mata kuliah siswa.
+✅ TIDAK perlu membuat file code baru. TIDAK perlu membuat field database baru.
 
 ---
 
-## Catatan field database
-- **Mata kuliah siswa**: dipakai field `teachingSubjects` (sudah ada) — langsung jalan.
-- **API Rule `users` → Update** sebaiknya: `@request.auth.role = "admin" || id = @request.auth.id`
-  (kalau memilih mata kuliah siswa masih gagal, ini penyebabnya).
-- Fitur yang butuh field yang MUNGKIN belum ada (opsional, aman kalau tidak ada — fiturnya
-  cuma nonaktif, web tetap jalan): `streak`,`lastActive` (users) dan `qtype`,`imageUrl`,`subQuestions` (questions).
-  Kalau kamu tidak bisa membuat field ini, MCQ biasa tetap berfungsi penuh.
+## Yang perlu disiapkan di database (kalau belum)
+- **API Rule `users` → Update**: `@request.auth.role = "admin" || id = @request.auth.id`
+  (biar admin bisa menyimpan pilihan mata kuliah siswa).
+- **API Rule `users` → Create**: `@request.auth.role = "admin"` (biar Tambah Akun jalan).
+- Tidak ada field baru yang wajib dibuat. Field opsional `streak`/`lastActive` (users) hanya
+  untuk fitur streak — kalau tidak ada, streak nonaktif tapi web tetap normal.
 
 ## Daftar Isi (15 file — semua GANTI SELURUH ISI)
 
@@ -47,7 +48,6 @@ mungkin jadi guru sekaligus murid, jadi field itu aman dipakai bergantian
 ## 1. `apps/web/tailwind.config.js`
 
 **Apa ini:** Palet warna alba/maroon/gold, font Fraunces, shadow & animasi.
-
 ```js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -189,7 +189,6 @@ module.exports = {
 ## 2. `apps/web/src/index.css`
 
 **Apa ini:** Token warna + MODE GELAP + tekstur maroon + scrollbar.
-
 ```css
 /*
  PCV CLASSROOM — Design tokens
@@ -335,7 +334,6 @@ body {
 ## 3. `apps/web/index.html`
 
 **Apa ini:** Judul tab, favicon logo PCV asli, load font Google.
-
 ```html
 <!doctype html>
 <html lang="id">
@@ -366,7 +364,6 @@ body {
 ## 4. `apps/web/src/components/Header.jsx`
 
 **Apa ini:** Navigasi + Logo asli PCV + toggle DARK MODE + badge STREAK.
-
 ```jsx
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
@@ -528,22 +525,42 @@ export default function Header() {
 
 ## 5. `apps/web/src/components/QuestionRunner.jsx`
 
-**Apa ini:** Mesin soal 4 tipe, navigator, ragu-ragu, shortcut, ulangi salah, ring skor.
-
+**Apa ini:** Mesin soal 4 tipe (baca data tipe soal dari field options). Navigator, ragu-ragu, shortcut, ulangi salah, ring skor.
 ```jsx
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ChevronLeft, ChevronRight, Flag, Lightbulb, RotateCcw, TimerReset, X } from 'lucide-react';
 
 /*
- QuestionRunner mendukung 4 tipe soal (field "qtype" di collection questions):
- - mcq        : pilihan ganda biasa (default kalau qtype kosong)
- - mcq_img    : pilihan ganda + gambar (field "imageUrl")
- - isian      : isian singkat, daftar sub-pertanyaan di field "subQuestions" (JSON):
-                [{ "label": "A", "question": "...", "validAnswers": ["jawaban1 / jawaban2"] }]
-                Jawaban dianggap benar jika cocok dengan SALAH SATU varian yang
-                dipisahkan tanda "/" (tidak peka huruf besar/kecil).
- - isian_img  : isian singkat + gambar
+ QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
+ baru, semua data tipe soal (qtype, imageUrl, subQuestions) DISIMPAN di dalam field
+ "options" (JSON) yang sudah ada, dalam bentuk objek amplop:
+   { qtype, imageUrl, choices: [...], subQuestions: [...] }
+ Soal MCQ lama yang options-nya masih array biasa tetap didukung (dianggap 'mcq').
+
+ Tipe: mcq | mcq_img | isian | isian_img
 */
+
+// Baca record soal apa adanya -> bentuk seragam { qtype, imageUrl, options(choices), subQuestions }
+export function normalizeQuestion(q) {
+ const opt = q?.options;
+ if (opt && !Array.isArray(opt) && typeof opt === 'object') {
+   return {
+     ...q,
+     qtype: opt.qtype || 'mcq',
+     imageUrl: opt.imageUrl || '',
+     options: Array.isArray(opt.choices) ? opt.choices : [],
+     subQuestions: Array.isArray(opt.subQuestions) ? opt.subQuestions : [],
+   };
+ }
+ // legacy: options berupa array = MCQ biasa
+ return {
+   ...q,
+   qtype: q?.qtype || 'mcq',
+   imageUrl: q?.imageUrl || '',
+   options: Array.isArray(opt) ? opt : [],
+   subQuestions: Array.isArray(q?.subQuestions) ? q.subQuestions : [],
+ };
+}
 
 const isIsian = (q) => String(q?.qtype || '').startsWith('isian') || (!(q?.options || []).length && (q?.subQuestions || []).length > 0);
 
@@ -581,7 +598,7 @@ export default function QuestionRunner({
  initialAnswers = {},
  onAnswerChange,
 }) {
- const [qs, setQs] = useState(questions);          // daftar soal aktif (bisa diganti subset saat "ulangi yang salah")
+ const [qs, setQs] = useState(() => (questions || []).map(normalizeQuestion)); // daftar soal aktif (sudah dinormalkan; bisa diganti subset saat "ulangi yang salah")
  const [retryRound, setRetryRound] = useState(false);
  const [idx, setIdx] = useState(0);
  const [answers, setAnswers] = useState(initialAnswers);
@@ -1083,7 +1100,6 @@ function ScoreRing({ score }) {
 ## 6. `apps/web/src/pages/LandingPage.jsx`
 
 **Apa ini:** Halaman depan publik.
-
 ```jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -1301,7 +1317,6 @@ function Stat({ value, label }) {
 ## 7. `apps/web/src/pages/LoginPage.jsx`
 
 **Apa ini:** Login split-panel maroon.
-
 ```jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -1442,7 +1457,6 @@ export default function LoginPage() {
 ## 8. `apps/web/src/pages/LearningHome.jsx`
 
 **Apa ini:** Beranda siswa + 'Lanjutkan Belajar'.
-
 ```jsx
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -1569,8 +1583,7 @@ export default function LearningHome() {
 
 ## 9. `apps/web/src/pages/PerdalamMateri.jsx`
 
-**Apa ini:** Progress bar per mata kuliah, pencarian BAB, batasi mata kuliah siswa (pakai teachingSubjects).
-
+**Apa ini:** Progress per mata kuliah, pencarian BAB, batasi mata kuliah siswa (teachingSubjects).
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -1761,8 +1774,7 @@ export default function PerdalamMateri() {
 
 ## 10. `apps/web/src/pages/CicilBelajar.jsx`
 
-**Apa ini:** Progress bar per mata kuliah, pencarian BAB, batasi mata kuliah, streak.
-
+**Apa ini:** Progress per mata kuliah, pencarian BAB, batasi mata kuliah, streak.
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -2067,7 +2079,6 @@ export default function CicilBelajar() {
 ## 11. `apps/web/src/pages/SimulasiCBT.jsx`
 
 **Apa ini:** Progress per tahun, leaderboard anonim, batasi mata kuliah.
-
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Lock, Timer, Trophy } from 'lucide-react';
@@ -2390,7 +2401,6 @@ export default function SimulasiCBT() {
 ## 12. `apps/web/src/pages/PembelajaranPPT.jsx`
 
 **Apa ini:** Pembaca PDF.
-
 ```jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -2518,8 +2528,7 @@ export default function PembelajaranPPT() {
 
 ## 13. `apps/web/src/pages/ProfilePage.jsx`
 
-**Apa ini:** Biodata lengkap PRD2, tombol WhatsApp, grafik riwayat nilai.
-
+**Apa ini:** Biodata (tanpa jenis kelas), tombol WhatsApp, grafik riwayat nilai.
 ```jsx
 import React, { useEffect, useState } from 'react';
 import { MessageCircle, TrendingUp, UserRound } from 'lucide-react';
@@ -2612,7 +2621,6 @@ export default function ProfilePage() {
                        value={user?.activeUntil ? String(user.activeUntil).slice(0, 10) : '-'}
                      />
                      <Field label="Semester" value={user?.semester} />
-                     <Field label="Jenis kelas" value={user?.classType === 'private' ? 'Private' : user?.classType === 'reguler' ? 'Reguler' : '-'} />
                    </>
                  )}
                  {role === 'teacher' && (
@@ -2710,8 +2718,7 @@ function Field({ label, value, className = '' }) {
 
 ## 14. `apps/web/src/pages/admin/AdminPanel.jsx`
 
-**Apa ini:** Edit Soal 2 cabang, import pemilih tipe, kartu siswa + pilih mata kuliah (disimpan di teachingSubjects yang sudah ada), Tambah Akun, reset device.
-
+**Apa ini:** Edit Soal 2 cabang + 4 tipe soal (disimpan di field options), import pemilih tipe, kartu siswa + pilih mata kuliah (teachingSubjects), Tambah Akun.
 ```jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import Header from '@/components/Header';
@@ -3008,9 +3015,6 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                   {s.name}
                   {s.disabled && <span className="ml-2 text-[10px] font-bold uppercase text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">Nonaktif</span>}
                 </p>
-                <span className={`text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-1 border ${s.classType === 'private' ? 'bg-gold-100 border-gold-200 text-gold-600' : 'bg-alba-100 border-alba-200 text-stone-500'}`}>
-                  {s.classType === 'private' ? 'Private' : 'Reguler'}
-                </span>
               </div>
               <p className="text-xs text-stone-400 mb-2">
                 {s.asalKuliah || 'Asal kuliah -'} · {st.rel.length ? st.rel.map((id) => subjectName[id]).filter(Boolean).join(', ') : 'Belum ada mata kuliah'}
@@ -3042,11 +3046,10 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                   <MiniField label="Email" value={s.email} />
                   <MiniField label="Semester" value={s.semester} />
                   <MiniField label="Aktif sampai" value={s.activeUntil ? String(s.activeUntil).slice(0, 10) : '-'} />
-                  <MiniField label="Jenis kelas" value={s.classType === 'private' ? 'Private' : 'Reguler'} />
                 </div>
 
                 <div>
@@ -3152,7 +3155,43 @@ const EMPTY_FORM = {
 const isIsianType = (t) => String(t || '').startsWith('isian');
 const hasImageType = (t) => String(t || '').includes('img');
 
-function formFromQuestion(q) {
+// Database TIDAK bisa ditambah field baru, jadi qtype/imageUrl/subQuestions
+// disimpan di dalam field "options" (JSON) yang sudah ada, sebagai objek amplop.
+
+// Baca record apa adanya -> bentuk seragam { qtype, imageUrl, options(choices), subQuestions }
+function normalizeQuestion(q) {
+  const opt = q?.options;
+  if (opt && !Array.isArray(opt) && typeof opt === 'object') {
+    return {
+      ...q,
+      qtype: opt.qtype || 'mcq',
+      imageUrl: opt.imageUrl || '',
+      options: Array.isArray(opt.choices) ? opt.choices : [],
+      subQuestions: Array.isArray(opt.subQuestions) ? opt.subQuestions : [],
+    };
+  }
+  return {
+    ...q,
+    qtype: q?.qtype || 'mcq',
+    imageUrl: q?.imageUrl || '',
+    options: Array.isArray(opt) ? opt : [],
+    subQuestions: Array.isArray(q?.subQuestions) ? q.subQuestions : [],
+  };
+}
+
+// Bungkus data ke amplop yang disimpan di field "options"
+function packOptions(n) {
+  const isian = isIsianType(n.qtype);
+  return {
+    qtype: n.qtype || 'mcq',
+    imageUrl: hasImageType(n.qtype) ? (n.imageUrl || '') : '',
+    choices: isian ? [] : (n.options || []),
+    subQuestions: isian ? (n.subQuestions || []) : [],
+  };
+}
+
+function formFromQuestion(raw) {
+  const q = normalizeQuestion(raw);
   return {
     qtype: q.qtype || 'mcq',
     year: q.year || '',
@@ -3166,19 +3205,23 @@ function formFromQuestion(q) {
   };
 }
 
+// Hanya menulis ke field yang SUDAH ADA: text, hint, options (amplop JSON).
+// subject/chapter/type/year/order ditambahkan oleh pemanggil.
 function payloadFromForm(form) {
   const isian = isIsianType(form.qtype);
   return {
-    qtype: form.qtype,
     text: form.text,
     hint: form.hint,
-    imageUrl: hasImageType(form.qtype) ? form.imageUrl : '',
-    options: isian ? [] : form.options,
-    subQuestions: isian
-      ? form.subQuestions
-          .filter((sq) => sq.question.trim())
-          .map((sq) => ({ label: sq.label, question: sq.question, validAnswers: [sq.validAnswers] }))
-      : [],
+    options: packOptions({
+      qtype: form.qtype,
+      imageUrl: form.imageUrl,
+      options: isian ? [] : form.options,
+      subQuestions: isian
+        ? form.subQuestions
+            .filter((sq) => sq.question.trim())
+            .map((sq) => ({ label: sq.label, question: sq.question, validAnswers: [sq.validAnswers] }))
+        : [],
+    }),
   };
 }
 
@@ -3439,7 +3482,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
     setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
   });
   const loadChapters = (sid) => pb.collection('chapters').getFullList({ sort: 'order', filter: `subject = '${sid}'` }).then(setChapters);
-  const loadQuestions = (cid) => pb.collection('questions').getFullList({ filter: `chapter = '${cid}'`, sort: '-created' }).then(setQuestions);
+  const loadQuestions = (cid) => pb.collection('questions').getFullList({ filter: `chapter = '${cid}'`, sort: '-created' }).then((list) => setQuestions(list.map(normalizeQuestion)));
 
   useEffect(() => { loadSubjects(); }, []);
   useEffect(() => { if (subjectId) loadChapters(subjectId); }, [subjectId]);
@@ -3517,7 +3560,9 @@ export function EditSoal({ allowedSubjectIds = null }) {
           chapter: chapterId,
           type: 'latihan',
           year: null,
-          ...item,
+          text: item.text,
+          hint: item.hint,
+          options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
           order: ++n,
         });
       }
@@ -3695,7 +3740,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
   const loadQuestions = () => {
     if (subjectId && year) {
-      pb.collection('questions').getFullList({ filter: `subject = '${subjectId}' && type = 'cbt' && year = ${year}`, sort: '-created' }).then(setQuestions);
+      pb.collection('questions').getFullList({ filter: `subject = '${subjectId}' && type = 'cbt' && year = ${year}`, sort: '-created' }).then((list) => setQuestions(list.map(normalizeQuestion)));
     }
   };
 
@@ -3752,7 +3797,9 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
           chapter: '',
           type: 'cbt',
           year: Number(year),
-          ...item,
+          text: item.text,
+          hint: item.hint,
+          options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
           order: ++n,
         });
       }
@@ -3823,7 +3870,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 // TAB TAMBAH AKUN
 // ==========================================
 function TambahAkun() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student', classType: 'reguler' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student' });
   const [msg, setMsg] = useState('');
   const [msgOk, setMsgOk] = useState(false);
   const submit = async (e) => {
@@ -3848,11 +3895,10 @@ function TambahAkun() {
         // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya.
         // Mata kuliah siswa & guru sama-sama disimpan di teachingSubjects (field yang sudah ada).
         teachingSubjects: [],
-        classType: form.role === 'student' ? form.classType : '',
       });
       setMsg(`Akun ${form.role} berhasil dibuat. Buka tab ${form.role === 'student' ? 'Siswa' : 'Pengajar'} untuk memilihkan mata kuliahnya.`);
       setMsgOk(true);
-      setForm({ name: '', email: '', password: '', role: 'student', classType: 'reguler' });
+      setForm({ name: '', email: '', password: '', role: 'student' });
     } catch (err) {
       // tampilkan detail error per field supaya ketahuan persis salahnya di mana
       let detail = '';
@@ -3882,12 +3928,6 @@ function TambahAkun() {
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
         </select>
-        {form.role === 'student' && (
-          <select value={form.classType} onChange={(e) => setForm((f) => ({ ...f, classType: e.target.value }))} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50">
-            <option value="reguler">Kelas Reguler</option>
-            <option value="private">Kelas Private</option>
-          </select>
-        )}
         <button type="submit" className="w-full rounded-lg bg-maroon-600 text-alba-50 font-semibold py-2.5">Buat Akun</button>
         {msg && (
           <p className={`text-sm whitespace-pre-wrap rounded-lg px-3 py-2 ${msgOk ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-600'}`}>{msg}</p>
@@ -4281,7 +4321,6 @@ function SeedData() {
 ## 15. `apps/web/src/pages/teacher/TeacherPanel.jsx`
 
 **Apa ini:** Tab Siswa ter-scope, Edit Soal & PPT dibatasi mata kuliah ajar.
-
 ```jsx
 import React, { useEffect, useState } from 'react';
 import Header from '@/components/Header';
@@ -4562,7 +4601,7 @@ function PPTUpload() {
 
 ---
 
-# Lampiran (TIDAK untuk di-copy ke Horizons)
+# Lampiran (TIDAK untuk di-copy)
 
 Tiga file ini sudah ada di project-mu.
 
