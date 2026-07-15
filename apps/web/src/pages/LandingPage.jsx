@@ -1,8 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, BookOpenText, ClipboardList, GraduationCap, Stethoscope, Timer, Trophy } from 'lucide-react';
+import { ArrowRight, Award, BookOpenText, ClipboardList, GraduationCap, Instagram, MapPin, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
+
+/* ============================================================================
+   TIM PENGAJAR — edit daftar di bawah ini untuk menamb/mengubah pengajar.
+   Tidak perlu database. Foto pakai link googleusercontent (sama seperti logo):
+   dari Google Drive https://drive.google.com/file/d/FILE_ID/view  →  ambil FILE_ID,
+   lalu tulis: https://lh3.googleusercontent.com/d/FILE_ID
+   (pastikan foto di-set "Anyone with the link").
+   Rekomendasi foto: POTRET 3:4, minimal 900x1200 px, wajah di tengah, background rapi.
+   achievements: tulis MAKSIMAL 3 prestasi paling bergengsi.
+============================================================================ */
+const TEACHERS = [
+ {
+   name: 'dr. Contoh Pengajar 1',
+   photo: 'https://lh3.googleusercontent.com/d/FILE_ID_1', // ganti FILE_ID_1
+   specialty: 'Anatomi',
+   university: 'Fakultas Kedokteran UNAIR',
+   tagline: 'Belajar anatomi itu soal memahami cerita tubuh, bukan menghafal.',
+   achievements: [
+     'Juara 1 — Regional Medical Olympiad Anatomy (2023)',
+     'Finalis — IMO Nasional cabang Anatomi (2022)',
+   ],
+   instagram: '', // opsional, mis. 'https://instagram.com/username'
+ },
+ {
+   name: 'dr. Contoh Pengajar 2',
+   photo: 'https://lh3.googleusercontent.com/d/FILE_ID_2',
+   specialty: 'Fisiologi',
+   university: 'Fakultas Kedokteran UNAIR',
+   tagline: 'Fisiologi adalah logika — sekali paham alurnya, semuanya nyambung.',
+   achievements: [
+     'Juara 2 — International Physiology Quiz (2023)',
+     'Juara 1 — Olimpiade Fisiologi Nasional (2021)',
+   ],
+   instagram: '',
+ },
+];
 
 const features = [
  {
@@ -47,6 +83,7 @@ export default function LandingPage() {
            <a href="#home" className="hover:text-maroon-600 transition-colors">Home</a>
            <a href="#student-program" className="hover:text-maroon-600 transition-colors">Student Program</a>
            <a href="#olympiad-program" className="hover:text-maroon-600 transition-colors">Olympiad Program</a>
+           <a href="#teachers" className="hover:text-maroon-600 transition-colors">Pengajar</a>
            <Link to="/login" className="hover:text-maroon-600 transition-colors">Student Web</Link>
          </nav>
          <Link
@@ -173,6 +210,26 @@ export default function LandingPage() {
        </motion.div>
      </section>
 
+     {/* TIM PENGAJAR */}
+     <section id="teachers" className="bg-alba-100/70 border-y border-alba-200">
+       <div className="max-w-6xl mx-auto px-6 py-20">
+         <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-12">
+           <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM PENGAJAR</p>
+           <h2 className="font-display text-3xl font-semibold mb-3">Diajar Langsung oleh Para Juara</h2>
+           <p className="text-stone-600 leading-relaxed">
+             Pengajar PCV adalah peraih medali olimpiade kedokteran — mereka tahu persis
+             cara belajar yang efektif untuk menembus kompetisi dan ujian.
+           </p>
+         </motion.div>
+
+         <motion.div {...fadeUp} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+           {TEACHERS.map((t) => (
+             <TeacherCard key={t.name} t={t} />
+           ))}
+         </motion.div>
+       </div>
+     </section>
+
      {/* CTA */}
      <section className="bg-maroon-texture">
        <div className="max-w-6xl mx-auto px-6 py-16 text-center text-alba-50">
@@ -205,6 +262,77 @@ function Stat({ value, label }) {
    <div className="rounded-xl border border-alba-200 bg-alba-100/60 px-3 py-3 text-center">
      <p className="font-display text-xl font-bold text-maroon-600">{value}</p>
      <p className="text-[11px] font-semibold text-stone-500 mt-0.5">{label}</p>
+   </div>
+ );
+}
+
+function TeacherCard({ t }) {
+ const [imgFail, setImgFail] = useState(false);
+ const validPhoto = t.photo && !t.photo.includes('FILE_ID') && !imgFail;
+ return (
+   <div className="group rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
+     {/* Foto potret 3:4 — di-crop otomatis biar seragam */}
+     <div className="relative aspect-[3/4] bg-alba-200 overflow-hidden">
+       {validPhoto ? (
+         <img
+           src={t.photo}
+           alt={t.name}
+           referrerPolicy="no-referrer"
+           onError={() => setImgFail(true)}
+           className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+         />
+       ) : (
+         <div className="w-full h-full flex flex-col items-center justify-center text-alba-400 gap-2">
+           <UserRound size={44} />
+           <span className="text-[11px] font-semibold">Foto belum diisi</span>
+         </div>
+       )}
+       {t.specialty && (
+         <span className="absolute top-3 left-3 rounded-full bg-maroon-600 text-alba-50 text-[11px] font-bold px-3 py-1 shadow-sm">
+           {t.specialty}
+         </span>
+       )}
+     </div>
+
+     <div className="p-6 flex flex-col flex-1">
+       <h3 className="font-display text-lg font-semibold text-stone-800">{t.name}</h3>
+       {t.university && (
+         <p className="flex items-center gap-1.5 text-xs text-stone-500 mt-1">
+           <MapPin size={12} className="text-maroon-400 shrink-0" />
+           {t.university}
+         </p>
+       )}
+       {t.tagline && (
+         <p className="text-sm text-stone-600 italic leading-relaxed mt-3">"{t.tagline}"</p>
+       )}
+
+       {Array.isArray(t.achievements) && t.achievements.length > 0 && (
+         <div className="mt-4 pt-4 border-t border-alba-200 space-y-2">
+           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold-600">
+             <Award size={13} /> Prestasi
+           </p>
+           <ul className="space-y-1.5">
+             {t.achievements.slice(0, 3).map((a, i) => (
+               <li key={i} className="flex gap-2 text-xs text-stone-600 leading-relaxed">
+                 <Trophy size={13} className="text-gold-400 shrink-0 mt-0.5" />
+                 <span>{a}</span>
+               </li>
+             ))}
+           </ul>
+         </div>
+       )}
+
+       {t.instagram && (
+         <a
+           href={t.instagram}
+           target="_blank"
+           rel="noopener noreferrer"
+           className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-maroon-600 hover:text-maroon-700"
+         >
+           <Instagram size={14} /> Instagram
+         </a>
+       )}
+     </div>
    </div>
  );
 }
