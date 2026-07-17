@@ -1,0 +1,29 @@
+# Systemd unit untuk PocketBase — PCV Classroom
+# Pasang: sudo cp deploy/pocketbase.service /etc/systemd/system/pocketbase.service
+# Lalu:   sudo systemctl daemon-reload && sudo systemctl enable --now pocketbase
+[Unit]
+Description=PocketBase (PCV Classroom)
+After=network.target
+
+[Service]
+Type=simple
+User=pcv
+Group=pcv
+WorkingDirectory=/opt/pcv/kons/apps/pocketbase
+EnvironmentFile=/opt/pcv/pocketbase.env
+ExecStart=/opt/pcv/kons/apps/pocketbase/pocketbase serve \
+  --http=127.0.0.1:8090 \
+  --dir=/opt/pcv/pb_data \
+  --migrationsDir=/opt/pcv/kons/apps/pocketbase/pb_migrations \
+  --hooksDir=/opt/pcv/kons/apps/pocketbase/pb_hooks \
+  --hooksWatch=false
+Restart=on-failure
+RestartSec=5
+# Keamanan dasar
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/opt/pcv/pb_data
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target

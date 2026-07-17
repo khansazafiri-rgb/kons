@@ -2,14 +2,16 @@
 migrate((app) => {
     let settings = app.settings()
 
-    settings.meta.appName = "8d993d87-1e89-422f-8177-553ece426b10.app-preview.com"
-    settings.meta.appURL = "https://8d993d87-1e89-422f-8177-553ece426b10.app-preview.com/hcgi/platform"
-    settings.meta.hideControls = true
+    settings.meta.appName = "PCV Classroom"
+    // APP_URL diisi lewat environment (mis. https://pcvclassroom.id).
+    // Dipakai PocketBase untuk link di email (reset password, dll).
+    settings.meta.appURL = $os.getenv("APP_URL") || "http://localhost:8090"
+    settings.meta.hideControls = false
 
     settings.logs.maxDays = 7
     settings.logs.minLevel = 8
     settings.logs.logIP = true
-    
+
     settings.trustedProxy.headers = [
         "X-Real-IP",
         "X-Forwarded-For",
