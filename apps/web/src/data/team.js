@@ -4,6 +4,27 @@
 
 export const TEACHERS = [
   {
+    name: "dr. Muhammad Yasir Syafa'atulloh",
+    photo: "https://lh3.googleusercontent.com/d/15Uce3u8_0Ku-BQjGcjaojFwJ8fn83P5W",
+    bidang: "Olimpiade Bidang Infeksi Tropis, All Basic Medical Science, All Clinical Medicine",
+    achievements: ["Gold Medalist (Highest Score) and 2nd Runner Up of 9th Chiang-Mai University International Medical Challenge (CMU-IMC) 2024 : Basic to Clinical Infectious Diseases, Chiang Mai, Thailand", "Gold Medalist and 1st Runner Up of 12th Siriraj International Medical Microbiology, Parasitology, and Immunology Competition (SIMPIC) 2023 and 2 Individual Medals (2 Silver Medals) of the 11th and 13th SIMPIC, Bangkok, Thailand", "1st Winner RMO Tropical Infection Branch 2022, Indonesia"],
+    instagram: "https://instagram.com/yasirsyafa",
+  },
+  {
+    name: "dr. Achmad Rifai",
+    photo: "https://lh3.googleusercontent.com/d/1gQR7cfW321IDSNp3OEMeUrZZ1N9iVHAH",
+    bidang: "Olimpiade Bidang Infeksi Tropis, All Basic Medical Science, All Clinical Medicine",
+    achievements: ["2nd Winner and Bronze Individual Medalist of the 14th Siriraj International Medical Microbiology, Parasitology, and Microbiology Competition (SIMPIC) 2025 in Mahidol, Thailand", "3rd Runner Up Chiang-Mai University International Medical Challenge (CMU-IMC) 2024 : Basic to Clinical Infectious Diseases, Chiang Mai, Thailand", "2 Medal Winner (2 Gold Medals) RMO-IMO Tropical Infection Branch 2023, Indonesia"],
+    instagram: "https://instagram.com/ach.rifai16",
+  },
+  {
+    name: "Deva Fitra Firdausa Anwar S.Ked",
+    photo: "https://lh3.googleusercontent.com/d/1l-jKjbXHTmdjFXpRkNbFfrLSiH0WBP0Z",
+    bidang: "Olimpiade Bidang Muskuloskeletal, Olimpiade Bidang Faal, Olimpiade Bidang Anatomi, All Basic Medical Science, All Clinical Medicine",
+    achievements: ["3 Medal Winner (2 Gold & 1 Silver Medals) RMO-IMO Musculoskeletal Branch 2024-2025, Indonesia", "2nd Winner Chiang-Mai University International Medical Challenge (CMU-IMC) 2023 : Basic to Clinical Anatomy, Chiang Mai, Thailand", "1st Winner & Top 5 Individuals Indonesian Medical Physiology Olympiad (IMPhO) 2023, Surabaya, Indonesia"],
+    instagram: "https://instagram.com/deva_fitra",
+  },
+  {
     name: "dr. Marselia Sihotang",
     photo: "",
     bidang: "Olimpiade Bidang Neuropsikiatri, Olimpiade SIMPIC, All Basic Medical Science, All Clinical Medicine",
@@ -16,13 +37,6 @@ export const TEACHERS = [
     bidang: "All Basic Medical Science, All Clinical Medicine",
     achievements: [],
     instagram: "",
-  },
-  {
-    name: "dr. Muhammad Yasir Syafa'atulloh",
-    photo: "https://lh3.googleusercontent.com/d/13qdjl8BxViyI0OBYPL3UVPzzcXa5R5hq",
-    bidang: "Olimpiade Bidang Infeksi Tropis, All Basic Medical Science, All Clinical Medicine",
-    achievements: ["Gold Medalist (Highest Score) and 2nd Runner Up of 9th Chiang-Mai University International Medical Challenge (CMU-IMC) 2024 : Basic to Clinical Infectious Diseases, Chiang Mai, Thailand", "Gold Medalist and 1st Runner Up of 12th Siriraj International Medical Microbiology, Parasitology, and Immunology Competition (SIMPIC) 2023 and 2 Individual Medals (2 Silver Medals) of the 11th and 13th SIMPIC, Bangkok, Thailand", "1st Winner RMO Tropical Infection Branch 2022, Indonesia"],
-    instagram: "https://instagram.com/yasirsyafa",
   },
   {
     name: "dr. Garuda Nusantara Putra Utomo",
@@ -46,13 +60,6 @@ export const TEACHERS = [
     instagram: "https://instagram.com/sofiazzahra_",
   },
   {
-    name: "Dimas Aryq Ijlal Wafi S.Ked",
-    photo: "",
-    bidang: "All Basic Medical Science, All Clinical Medicine",
-    achievements: [],
-    instagram: "https://instagram.com/dimaswafi",
-  },
-  {
     name: "dr. Nurlinah Amalia",
     photo: "",
     bidang: "All Ilmiah",
@@ -65,13 +72,6 @@ export const TEACHERS = [
     bidang: "All Ilmiah",
     achievements: ["Certified Member of Cochrane Collaboration, UK + Research Assistant Rheumatology Division Internal Medicine Department RSCM-RSUI", "+20 National and International awards and honors", "5 Scopus-indexed publications (Q1-Q3) + Invited peer reviewer for Q1 journal Frontiers Open + Judge for 5+ Scientific Competitions"],
     instagram: "https://instagram.com/yosiyohanes",
-  },
-  {
-    name: "dr. Achmad Rifai",
-    photo: "https://lh3.googleusercontent.com/d/1gQR7cfW321IDSNp3OEMeUrZZ1N9iVHAH",
-    bidang: "Olimpiade Bidang Infeksi Tropis, All Basic Medical Science, All Clinical Medicine",
-    achievements: ["2nd Winner and Bronze Individual Medalist of the 14th Siriraj International Medical Microbiology, Parasitology, and Microbiology Competition (SIMPIC) 2025 in Mahidol, Thailand", "3rd Runner Up Chiang-Mai University International Medical Challenge (CMU-IMC) 2024 : Basic to Clinical Infectious Diseases, Chiang Mai, Thailand", "2 Medal Winner (2 Gold Medals) RMO-IMO Tropical Infection Branch 2023, Indonesia"],
-    instagram: "https://instagram.com/ach.rifai16",
   },
   {
     name: "dr. Jeremi Christianto Jalil Tanggulungan",
@@ -177,13 +177,6 @@ export const TEACHERS = [
     bidang: "Olimpiade Bidang Infeksi Tropis, Olimpiade Bidang Faal, All Basic Medical Science, All Clinical Medicine",
     achievements: ["2 Medal Winner (1 Silver & 1 Bronze Medal) RMO-IMO Tropical Infection Branch 2025, Indonesia", "1st Winner Minerfa National Physiology and Anatomy Olympiad 2024, Padang, Indonesia", "1st Winner Indonesian Medical Physiology Olympiad (IMPhO) 2023, Surabaya, Indonesia"],
     instagram: "https://instagram.com/nabiel.f",
-  },
-  {
-    name: "Deva Fitra Firdausa Anwar S.Ked",
-    photo: "https://lh3.googleusercontent.com/d/1l-jKjbXHTmdjFXpRkNbFfrLSiH0WBP0Z",
-    bidang: "Olimpiade Bidang Muskuloskeletal, Olimpiade Bidang Faal, Olimpiade Bidang Anatomi, All Basic Medical Science, All Clinical Medicine",
-    achievements: ["3 Medal Winner (2 Gold & 1 Silver Medals) RMO-IMO Musculoskeletal Branch 2024-2025, Indonesia", "2nd Winner Chiang-Mai University International Medical Challenge (CMU-IMC) 2023 : Basic to Clinical Anatomy, Chiang Mai, Thailand", "1st Winner & Top 5 Individuals Indonesian Medical Physiology Olympiad (IMPhO) 2023, Surabaya, Indonesia"],
-    instagram: "https://instagram.com/deva_fitra",
   },
   {
     name: "Nathaniel Suyanto S.Ked",
@@ -480,7 +473,7 @@ export const MANAGER_CATEGORIES = ["Executive Board", "HRD & Project Division", 
 export const MANAGERS = [
   {
     name: "dr. Muhammad Yasir Syafa'atulloh",
-    photo: "https://lh3.googleusercontent.com/d/13qdjl8BxViyI0OBYPL3UVPzzcXa5R5hq",
+    photo: "https://lh3.googleusercontent.com/d/1gYAGVYu88IzrcA93zEn_o111aRd_SQlf",
     category: "Executive Board",
     quote: "",
     instagram: "https://instagram.com/yasirsyafa",

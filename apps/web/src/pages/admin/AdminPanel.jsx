@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
+import PPTUpload from '@/components/PPTUpload';
 
-const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'Tambah Akun', 'Jadwal Ujian'];
+const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian'];
 export default function AdminPanel() {
   const [tab, setTab] = useState('Pengajar');
   const { user, isAuthed } = useAuth();
@@ -38,6 +39,8 @@ export default function AdminPanel() {
           {tab === 'Pengajar' && <Pengajar />}
           {tab === 'Siswa' && <StudentCards adminMode />}
           {tab === 'Edit Soal' && <EditSoalHub />}
+          {/* Admin bisa upload PPT untuk SEMUA mata kuliah (allowedSubjectIds=null) */}
+          {tab === 'PPT Mata Kuliah' && <PPTUpload allowedSubjectIds={null} />}
           {tab === 'Tambah Akun' && <TambahAkun />}
           {tab === 'Jadwal Ujian' && <JadwalUjian />}
         </div>

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Award, BookOpenText, Briefcase, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
+import { ArrowRight, Award, BookOpenText, Briefcase, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, MessageCircle, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
 import { TEACHERS, MANAGERS, MANAGER_CATEGORIES } from '@/data/team';
 
@@ -15,7 +15,7 @@ const features = [
  {
    icon: BookOpenText,
    title: 'Perdalam Materi',
-   desc: 'Ringkasan PPT hasil simplifikasi materi dosen, tersusun rapi per mata kuliah dan BAB.',
+   desc: 'PPT High Yield membantu kamu paham materi Kedokteran.',
  },
  {
    icon: ClipboardList,
@@ -25,19 +25,13 @@ const features = [
  {
    icon: Timer,
    title: 'Simulasi CBT',
-   desc: 'Soal-soal ujian angkatan 2016–2026 dengan mode timer, persis seperti suasana ujian sungguhan.',
+   desc: 'Challenge pemahamanmu dengan simulasi CBT mode Timer persis seperti suasana Exam.',
  },
 ];
 
 const subjects = [
- 'Anatomi', 'Fisiologi', 'Histologi', 'Biologi Kedokteran', 'Farmakologi', 'Biokimia',
- 'Mikrobiologi', 'Parasitologi', 'Patologi Anatomi', 'Patologi Klinik', 'Kardiorespi',
- 'Muskuloskeletal', 'Endokrin', 'Gastrohepatoenterologi', 'Growth and Development',
- 'Hematologi & Imunologi', 'Neuropsikiatri', 'Sistem Indra', 'Sistem Ginjal',
- 'Sistem Reproduksi', 'GELS 1', 'Tramed 3', 'IPD', 'IKA', 'Neuropsiki-rehab',
- 'Kedokteran Tropis', 'Tramed 4', 'GELS 2', 'IKM-KP 2', 'Forensik dan medikolegal',
- 'Ilmu Bedah', 'Obgyn', 'Ilmu Penunjang Klinik', 'CCS (tramed)', 'Ilmu Penyakit Indera',
- 'Penelitian 1', 'Penelitian 2',
+ 'Anatomi', 'Fisiologi', 'Histologi', 'Biologi Kedokteran', 'Farmakologi',
+ 'Biokimia', 'Mikrobiologi', 'Parasitologi', 'Patologi Anatomi', 'Patologi Klinis',
 ];
 
 const fadeUp = {
@@ -79,7 +73,7 @@ export default function LandingPage() {
        <motion.div {...fadeUp}>
          <p className="inline-flex items-center gap-2 text-maroon-600 font-bold tracking-[0.2em] text-xs mb-5 bg-maroon-50 border border-maroon-100 rounded-full px-4 py-1.5">
            <Stethoscope size={13} />
-           BIMBEL FAKULTAS KEDOKTERAN UNAIR
+           BIMBEL KEDOKTERAN TER-WORTH IT
          </p>
          <h1 className="font-display text-4xl md:text-[3.4rem] font-semibold leading-[1.1] mb-6">
            Belajar Terarah,{' '}
@@ -87,8 +81,8 @@ export default function LandingPage() {
            Percaya Diri
          </h1>
          <p className="text-stone-600 text-lg mb-9 max-w-md leading-relaxed">
-           PCV Classroom menghadirkan ringkasan materi, latihan CBT per bab, dan simulasi
-           ujian angkatan sebelumnya untuk mahasiswa Fakultas Kedokteran UNAIR.
+           PCV Classroom menghadirkan Ringkasan Materi, Latihan Soal Per BAB dan
+           Simulasi Latihan Soal berupa CBT.
          </p>
          <div className="flex flex-wrap items-center gap-4">
            <Link
@@ -115,10 +109,10 @@ export default function LandingPage() {
            <p className="text-xs uppercase tracking-[0.25em] text-alba-200 mb-5">Fokus Utama</p>
            <ul className="space-y-4 text-[15px] leading-relaxed">
              {[
-               'Kumpulan soal tahun-tahun sebelumnya per mata kuliah & bab',
+               'Drill Kumpulan Soal per Bab dan Mata Kuliah',
                'Latihan CBT per bab, terpisah otomatis',
-               'Ringkasan PPT hasil simplifikasi materi dosen',
-               'Simulasi CBT angkatan 2016–2026 dengan mode timer',
+               'PPT Materi High Yield Memudahkan Kamu Belajar!',
+               'Challenge Pemahamanmu Dengan Simulasi CBT Bertimer',
              ].map((t) => (
                <li key={t} className="flex gap-3">
                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0" />
@@ -158,7 +152,7 @@ export default function LandingPage() {
          <h2 className="font-display text-3xl font-semibold mb-3">Pendampingan Preklinik Terstruktur</h2>
          <p className="text-stone-600 max-w-2xl mb-10 leading-relaxed">
            Program pendampingan intensif untuk mahasiswa preklinik FK UNAIR: materi per mata
-           kuliah, bank soal tahun sebelumnya, dan latihan CBT terstruktur per bab.
+           kuliah dan latihan CBT terstruktur per bab.
          </p>
        </motion.div>
        <motion.div {...fadeUp} className="flex flex-wrap gap-3">
@@ -184,6 +178,20 @@ export default function LandingPage() {
              tingkat nasional, dengan kurikulum pendalaman materi dan simulasi soal berskala
              kompetisi.
            </p>
+           <div className="mt-6">
+             <p className="text-sm text-stone-600 mb-3">
+               Berminat mengikuti pembinaan olimpiade? Hubungi kami langsung:
+             </p>
+             <a
+               href="https://wa.me/6282342831513"
+               target="_blank"
+               rel="noopener noreferrer"
+               className="inline-flex items-center gap-2 rounded-full bg-gold-400 text-alba-50 font-semibold px-5 py-2.5 text-sm hover:bg-gold-600 transition-colors shadow-sm"
+             >
+               <MessageCircle size={16} />
+               +62 823-4283-1513
+             </a>
+           </div>
          </div>
        </motion.div>
      </section>
@@ -245,8 +253,18 @@ export default function LandingPage() {
 
      <footer className="border-t border-alba-200 bg-alba-50">
        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row justify-between gap-4 text-sm text-stone-500">
-         <p>© {new Date().getFullYear()} PCV Classroom — Bimbel FK UNAIR</p>
-         <p>Kontak narahubung: <span className="font-semibold text-maroon-600">khansazafiri@gmail.com</span></p>
+         <p>© {new Date().getFullYear()} PCV Classroom — Bimbel Ter-Worth It</p>
+         <p>
+           Kontak narahubung:{' '}
+           <a
+             href="https://wa.me/6282342831513"
+             target="_blank"
+             rel="noopener noreferrer"
+             className="font-semibold text-maroon-600 hover:text-maroon-700"
+           >
+             (admin PCV)
+           </a>
+         </p>
        </div>
      </footer>
    </div>
