@@ -38,13 +38,13 @@ export default function LoginPage() {
        <Logo size="md" light />
        <div>
          <h2 className="font-display text-4xl font-semibold leading-snug mb-5 max-w-md">
-           Satu pintu menuju semua materi &amp; bank soal preklinikmu.
+           One step closer into your exciting medical journey.
          </h2>
          <ul className="space-y-3 text-alba-200 text-sm max-w-sm">
            {[
-             'Ringkasan PPT per BAB dari 11 mata kuliah',
+             'PPT High Yield per Topik',
              'Latihan soal dengan pembahasan tiap opsi',
-             'Simulasi CBT angkatan 2016–2026',
+             'Simulasi CBT',
            ].map((t) => (
              <li key={t} className="flex gap-3">
                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0" />
@@ -53,7 +53,7 @@ export default function LoginPage() {
            ))}
          </ul>
        </div>
-       <p className="text-xs text-alba-200/70">© {new Date().getFullYear()} PCV Classroom — Bimbel FK UNAIR</p>
+       <p className="text-xs text-alba-200/70">© {new Date().getFullYear()} PCV Classroom — Bimbel Ter-Worth It</p>
      </div>
 
      {/* Panel kanan — form login */}
@@ -123,7 +123,7 @@ export default function LoginPage() {
          </button>
 
          <p className="text-xs text-stone-500 mt-8 leading-relaxed bg-alba-100/70 border border-alba-200 rounded-xl px-4 py-3">
-           Setiap akun hanya bisa aktif di maksimal <span className="font-semibold">2 device</span>. Kesulitan login?
+           Setiap akun hanya bisa aktif di maksimal <span className="font-semibold">3 device</span>. Kesulitan login?
            Hubungi narahubung admin di <span className="font-semibold text-maroon-600">khansazafiri@gmail.com</span>.
          </p>
        </div>
