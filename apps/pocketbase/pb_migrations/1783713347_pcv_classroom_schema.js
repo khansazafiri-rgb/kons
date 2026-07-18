@@ -137,7 +137,7 @@ migrate(
             name: "file",
             type: "file",
             maxSelect: 1,
-            maxSize: 20971520,
+            maxSize: 104857600,
             mimeTypes: ["application/pdf"],
           },
           { name: "created", type: "autodate", onCreate: true, onUpdate: false },

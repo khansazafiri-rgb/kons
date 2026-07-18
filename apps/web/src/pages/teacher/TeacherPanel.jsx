@@ -78,7 +78,7 @@ function ProfField({ label, value }) {
   );
 }
 
-const MAX_PDF_SIZE = 20 * 1024 * 1024; // matches ppt_files.file maxSize (20MB)
+const MAX_PDF_SIZE = 100 * 1024 * 1024; // matches ppt_files.file maxSize (100MB)
 
 function PPTUpload() {
   const [subjects, setSubjects] = useState([]);
@@ -139,7 +139,7 @@ function PPTUpload() {
     }
     if (f.size > MAX_PDF_SIZE) {
       setFile(null);
-      setFileError('Ukuran file melebihi batas maksimal 20MB.');
+      setFileError('Ukuran file melebihi batas maksimal 100MB.');
       return;
     }
     setFileError('');
@@ -244,7 +244,9 @@ function PPTUpload() {
           disabled={uploading}
           className="text-sm disabled:opacity-60"
         />
-        {fileError && <p className="text-xs text-red-600 mt-1">{fileError}</p>}
+        {fileError
+          ? <p className="text-xs text-red-600 mt-1">{fileError}</p>
+          : <p className="text-xs text-stone-400 mt-1">Format PDF, ukuran maksimal 100MB.</p>}
       </div>
       <button
         onClick={upload}
