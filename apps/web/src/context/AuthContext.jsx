@@ -33,17 +33,23 @@ export function AuthProvider({ children }) {
       pb.authStore.clear();
       throw new Error('Akun ini telah dinonaktifkan. Silakan hubungi admin.');
     }
-    const deviceId = getDeviceId();
-    const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
-    if (!devices.includes(deviceId)) {
-      if (devices.length >= 2) {
-        pb.authStore.clear();
-        throw new Error(
-          'Akun ini sudah login di 2 device lain. Hubungi admin untuk reset device.',
-        );
+    // Batas jumlah device per akun:
+    // - admin  : BEBAS (tanpa batas, tidak dilacak)
+    // - teacher & student : maksimal 3 device
+    const DEVICE_LIMIT = 3;
+    if (record.role !== 'admin') {
+      const deviceId = getDeviceId();
+      const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
+      if (!devices.includes(deviceId)) {
+        if (devices.length >= DEVICE_LIMIT) {
+          pb.authStore.clear();
+          throw new Error(
+            `Akun ini sudah login di ${DEVICE_LIMIT} device lain. Hubungi admin untuk reset device.`,
+          );
+        }
+        const updated = [...devices, deviceId];
+        await pb.collection('users').update(record.id, { deviceIds: updated });
       }
-      const updated = [...devices, deviceId];
-      await pb.collection('users').update(record.id, { deviceIds: updated });
     }
     setGuest(false);
     return record;
