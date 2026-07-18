@@ -6,6 +6,11 @@ set -euo pipefail
 REPO_DIR=/opt/pcv/kons
 cd "$REPO_DIR"
 
+# Cegah error "dubious ownership" — folder dimiliki user pcv, tapi update
+# dijalankan sebagai root. Tanpa ini, git pull gagal diam-diam dan kode
+# tidak pernah ter-update (build sukses tapi membangun kode lama).
+git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
+
 echo "==> [1/5] Ambil kode terbaru dari GitHub"
 git pull
 
