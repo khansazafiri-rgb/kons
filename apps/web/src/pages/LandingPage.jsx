@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Award, BookOpenText, Briefcase, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, MessageCircle, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
+import { ArrowRight, Award, BookOpenText, Briefcase, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, MessageCircle, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
 import { TEACHERS, MANAGERS, MANAGER_CATEGORIES } from '@/data/team';
 
@@ -29,9 +29,49 @@ const features = [
  },
 ];
 
-const subjects = [
- 'Anatomi', 'Fisiologi', 'Histologi', 'Biologi Kedokteran', 'Farmakologi',
- 'Biokimia', 'Mikrobiologi', 'Parasitologi', 'Patologi Anatomi', 'Patologi Klinis',
+// Kurikulum semester 1 & 3 — ditampilkan di Student Program (bisa diperluas
+// untuk melihat daftar BAB tiap mata kuliah). Total 151 BAB pada 10 mata kuliah.
+const curriculum = [
+ {
+   name: 'Anatomi',
+   chapters: ['Terminologi Dasar, Osteologi, Arthrologi', 'Regio femoralis, Glutea, Plexus Lumbosacralis', 'Genu, Poplitea, Cruris, Pedis', 'Regio pectoralis & scapularis, Fossa axillaris, Plexus brachialis, Regio brachii', 'Fossa cubiti, Regio antebrachii, Manus', 'Regio thorax, Mediastinum, Pulmo & pleura, Cor & pericardium', 'Anterior & Posterior abdominal wall, Diaphragm, Blood supply of the abdominal viscera', 'Hollow organ, accessory digestive organs (Liver, gallbladder, pancreas, lien)', 'Regio pelvis, tractus urinarius', 'Genitalia feminina dan masculina', 'Superficial face region, Deep face region', 'Superficial neck region, Deep neck region', 'Skull, Overview nervous system, Cranial nerve', 'Meninges, sinus durae maters, system ventrikuli, CSF, auris et ocullus', 'Overview SSP, Forebrain (Telencephalon, Dienchepalon)', 'Brainstem (mesencephalon, pons, medong), Medspin, Cerebellum'],
+ },
+ {
+   name: 'Fisiologi',
+   chapters: ['Endokrin 1', 'Endokrin 2', 'Integumen', 'Urinaria', 'Reproduksi', 'Saraf 1 (Introduction)', 'Saraf Perifer & Muskulokeletal', 'Faal Kardiologi', 'Faal Respirasi', 'Fisiologi Olahraga', 'Sirkulasi & Cairan Tubuh', 'Saraf 2 (Sistem somatosensorik dan motorik)', 'Saraf 3 (Higher brain function dan ANS)', 'Darah & Imun', 'Metabolisme', 'EKG', 'Pencernaan', 'Indra'],
+ },
+ {
+   name: 'Histologi',
+   chapters: ['Pendahuluan dan Sel (Introduction and Cell)', 'BAS dan Jaringan Ikat (Extracellular Matrix and Connective Tissue)', 'Darah Tepi dan Sumsum tulang (Peripheral Blood and Bone Marrow)', 'Jaringan Epitel (Epithelial Tissue)', 'Kulit dan Adneksa (Integumentary System)', 'Jaringan Tulang dan Tulang Rawan (Bone and Cartilage)', 'Jaringan Otot (Muscle)', 'Jaringan Saraf Tepi dan Saraf Pusat (Peripheral and Central Nervous System)', 'Sistem Cardiovascular (Cardiovascular System)', 'Sistem Limfatik (Lymphatic System)', 'Rongga Mulut, Gigi Dewasa dan Pertumbuhan Gigi (Oral Cavity, Teeth and Teeth Formation)', 'Kelenjar Liur, Pankreas, Hepar dan Kandung Empedu (Salivary Glands, Pancreas, Liver and Gallbladder)', 'Esofagus sampai Anus (Esophagus to Anal Canal/Gastrointestinal Tract)', 'Sistem Urinaria (Urinary System)', 'Sistem Reproduksi Pria (Male Reproductive System)', 'Sistem Reproduksi Wanita (Female Reproductive System)', 'Sistem Endokrin (Endocrine System)', 'Sistem Respirasi (Respiratory System)', 'Mata (Eye)', 'Telinga (Ear)'],
+ },
+ {
+   name: 'Biologi Kedokteran',
+   chapters: ['Sel, Membran Sel, dan Komunikasi antar sel', 'RNA, DNA, Sintesis protein', 'Pembelahan Sel dan Kematian Sel', 'Bioteknologi', 'Sistem reproduksi pria', 'Sistem reproduksi wanita', 'Andrologi', 'Embriologi & Teratologi', 'Epigenetik dan Genetika populasi', 'Onkogenetik'],
+ },
+ {
+   name: 'Farmakologi',
+   chapters: ['Perkenalan : General Pharmacology', 'SSO; Obat kolinergik & adrenergik', 'Analgesik & antigout', 'Antihistamine, Autacoid, Ergot alkaloid', 'Obat sistem respirasi, P drug', 'Obat jantung (Hipertensi, Gagal Jantung, Angina, Aritmia)', 'Antikoagulan, antiplatelet, trombolitik, obat dislipidemia', 'Antibiotik & Antimycobacteria', 'Antivirus, antifungi, antiparasit', 'Immunofarmakologi & antikanker', 'BSO, Dosis, Waktu & Cara Pemberian Obat', 'Obat Endokrin', 'Obat GIT', 'Obat SSP', 'Toxicology & Interaksi Obat', 'Perihal Resep + Latihan Menulis Resep'],
+ },
+ {
+   name: 'Biokimia',
+   chapters: ['Enzim', 'Oksidasi Biologi & Redoks', 'Metabolisme Lipid', 'Metabolisme Kolesterol', 'Metabolisme Asam amino', 'Metabolisme Terpadu', 'Metabolisme Karbohidrat 1', 'Metabolisme Karbohidrat 2', 'Asam Basa', 'Metabolisme Heme, Porfirin, Bilirubin', 'Darah-Immunogenetic', 'Metabolisme Nukleotida & Sintesis Protein', 'Membran & Transpor Membran', 'Metabolisme Air-Mineral', 'Metabolisme Vitamin', 'Biokimia Jaringan', 'Xenobiotik & Oksidan-Antioksidan', 'Hormon'],
+ },
+ {
+   name: 'Mikrobiologi',
+   chapters: ['Taksonomi bakteri; Morfologi dan Ultrastruktur bakteri, pewarnaan bakteri, Genetika bakteri', 'Metabolisme dan Pertumbuhan bakteri; Metode dan medium kultur bakteri', 'Sterilisasi, Desinfeksi, dan Antiseptik, Antibiotik dan Mekanisme Resistensi Bakteri, Metode Uji Kepekaan Antibiotik', 'Staphylococcus spp. (termasuk MRSA); Streptococcus spp. dan post Streptococcal Disease, Spore forming bacteria aerob', 'Mycoplasma, Chlamydia, Ricketsia, Haemophilus spp., Bordetella pertusis, Legionella pneumophila, Leptospira spp.', 'Mycobacterium tuberculosis dan MOTT; Mycobacterium leprae', 'Corynebacterium diphtheriae, Vibrio spp., Campylobacter spp., Helicobacter pylori, Acinetobacter spp., Pseudomonas spp.', 'Neisseria spp., Treponema pallidum, bacterial vaginosis, Bakteri anaerob', 'Enterobacteriaceae 1', 'Enterobacteriaceae 2', 'Imunologi infeksi + Imunoprofilaksis', 'Virologi Dasar; Patogenesis infeksi virus; Mekanisme kerja obat antivirus; Pemeriksaan laboratorium mikrobiologi pada infeksi virus', 'Influenza, Coronavirus, Rhinovirus', 'Mumps, Measless, Rubella (MMR) virus; Rotavirus', 'ARBO virus; Virus zoonosis', 'Herpesviridae, Human papiloma virus', 'Virus Hepatitis, HIV / AIDS', 'Respon imun pada infeksi jamur dan Mekanisme Obat antifungi, Superficial mycosis, dermatophytosis dan subcutaneus mycosis', 'Oppotunistik mycosis I: Candida, Cryptococcus, Pneumocystis jiroveci', 'Opportunistic mycosis II: Zygomycosis, Aspergillosis, Systemic mycosis'],
+ },
+ {
+   name: 'Parasitologi',
+   chapters: ['Ascaris lumbricoides, Hookworm, Strongyloides stercoralis, CLM, VLM', 'Trichuris trichiura, Enterobius vermicularis, Trichinella, Filaria, Dracunculus, Angiostrongylus', 'Cestoda, Taenia, cysticercosis', 'Hymenolepis nana, Hymenolepis diminuta, Dipylidium caninum, Echinococcus granulosus', 'Diphyllobothrium latum, Trematoda Hati', 'Trematoda Usus : Fasciolopsis buski, Heterophyes, Metagonimus, Echinostoma', 'Schistosoma, Paragonimus westermani', 'Balantidium, Entamoeba, Free living Amoeba, Cryptosporidium', 'Giardiasis, Chilomastix mesnili, Trichomonas spp., Trichomonas vaginalis', 'Trypanosoma, Leishmania, Toxoplasma', 'Plasmodium', 'Nyamuk', 'Hymenoptera, coleoptera, lepidoptera', 'Lalat, termasuk Myiasis; Parasitologi Forensik', 'Tick dan Mites; Venomous Arthropoda', 'Hemiptera, Ortoptera, Anoplura, Siphonaptera', 'Imunoparasitologi, Arthropod Control', 'Pemeriksaan lab, Teknik diagnostik parasit; Zoonosis'],
+ },
+ {
+   name: 'Patologi Anatomi',
+   chapters: [],
+ },
+ {
+   name: 'Patologi Klinis',
+   chapters: ['Hematologi 1', 'Hematologi 2', 'Imunologi Serologi', 'Infeksi', 'Pemeriksaan Laboratorium Daerah Steril dan Tidak Steril', 'GIT', 'Ginjal & Urinaria', 'Endokrin', 'Autoimun disease', 'Tumor Markers', 'Laboratory Testing Diabetes Mellitus', 'Laboratory Testing Thyroid', 'Hipersensitivitas', 'Analisis Cairan Tubuh', 'Covid-19'],
+ },
 ];
 
 const fadeUp = {
@@ -97,8 +137,8 @@ export default function LandingPage() {
            </a>
          </div>
          <div className="mt-10 grid grid-cols-3 gap-4 max-w-sm">
-           <Stat value="37" label="Mata Kuliah" />
-           <Stat value="490+" label="BAB Materi" />
+           <Stat value="10" label="Mata Kuliah" />
+           <Stat value="151" label="BAB Materi" />
            <Stat value="60+" label="Pengajar Juara" />
          </div>
        </motion.div>
@@ -150,16 +190,19 @@ export default function LandingPage() {
        <motion.div {...fadeUp}>
          <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">STUDENT PROGRAM</p>
          <h2 className="font-display text-3xl font-semibold mb-3">Pendampingan Preklinik Terstruktur</h2>
-         <p className="text-stone-600 max-w-2xl mb-10 leading-relaxed">
-           Program pendampingan intensif untuk mahasiswa preklinik FK UNAIR: materi per mata
-           kuliah dan latihan CBT terstruktur per bab.
+         <p className="text-stone-600 max-w-2xl mb-4 leading-relaxed">
+           Program pendampingan intensif untuk mahasiswa semester 1 &amp; 3 FK UNAIR: materi per
+           mata kuliah dan latihan CBT terstruktur per bab. Klik tiap mata kuliah untuk melihat
+           daftar BAB-nya.
          </p>
+         <div className="flex flex-wrap gap-4 mb-10 text-xs font-semibold text-stone-500">
+           <span className="inline-flex items-center gap-1.5"><BookOpenText size={14} className="text-maroon-600" /> {curriculum.length} Mata Kuliah</span>
+           <span className="inline-flex items-center gap-1.5"><ClipboardList size={14} className="text-maroon-600" /> {curriculum.reduce((n, s) => n + s.chapters.length, 0)} BAB Materi</span>
+         </div>
        </motion.div>
-       <motion.div {...fadeUp} className="flex flex-wrap gap-3">
-         {subjects.map((s) => (
-           <span key={s} className="rounded-full border border-alba-300 bg-alba-50 px-5 py-2.5 text-sm font-semibold text-stone-700 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors cursor-default">
-             {s}
-           </span>
+       <motion.div {...fadeUp} className="grid sm:grid-cols-2 gap-3">
+         {curriculum.map((s, i) => (
+           <SubjectAccordion key={s.name} subject={s} index={i} />
          ))}
        </motion.div>
      </section>
@@ -276,6 +319,44 @@ function Stat({ value, label }) {
    <div className="rounded-xl border border-alba-200 bg-alba-100/60 px-3 py-3 text-center">
      <p className="font-display text-xl font-bold text-maroon-600">{value}</p>
      <p className="text-[11px] font-semibold text-stone-500 mt-0.5">{label}</p>
+   </div>
+ );
+}
+
+/* Kartu mata kuliah yang bisa diklik untuk memperlihatkan daftar BAB-nya. */
+function SubjectAccordion({ subject, index }) {
+ const [open, setOpen] = useState(false);
+ const count = subject.chapters.length;
+ return (
+   <div className={`rounded-2xl border bg-alba-50 shadow-card overflow-hidden transition-colors ${open ? 'border-maroon-300' : 'border-alba-200'}`}>
+     <button
+       onClick={() => setOpen((v) => !v)}
+       className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-maroon-50/50 transition-colors"
+       aria-expanded={open}
+     >
+       <span className="w-8 h-8 rounded-lg bg-maroon-600 text-alba-50 flex items-center justify-center text-sm font-bold shrink-0">
+         {index + 1}
+       </span>
+       <span className="flex-1 min-w-0">
+         <span className="block font-display font-semibold text-stone-800">{subject.name}</span>
+         <span className="block text-xs text-stone-500 mt-0.5">
+           {count > 0 ? `${count} BAB` : 'Segera hadir'}
+         </span>
+       </span>
+       {count > 0 && (
+         <ChevronDown size={18} className={`text-maroon-600 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+       )}
+     </button>
+     {open && count > 0 && (
+       <ol className="px-5 pb-5 pt-1 space-y-1.5 border-t border-alba-200 animate-fade-in">
+         {subject.chapters.map((ch, i) => (
+           <li key={i} className="flex gap-2.5 text-sm text-stone-600 leading-relaxed">
+             <span className="text-maroon-400 font-semibold shrink-0 tabular-nums">{i + 1}.</span>
+             <span>{ch}</span>
+           </li>
+         ))}
+       </ol>
+     )}
    </div>
  );
 }
