@@ -872,26 +872,70 @@ export function EditSoal({ allowedSubjectIds = null }) {
       setBulkStatus('❌ Format salah: ' + e.message);
       return;
     }
-    setBulkStatus('⏳ Mengunggah ' + items.length + ' soal...');
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     let n = questions.length;
+    let sukses = 0;
+
+    // Buat satu soal dengan retry otomatis kalau kena rate limit (429) atau
+    // gangguan jaringan sesaat — biar import banyak soal tidak "gagal di tengah
+    // jalan". Menunggu makin lama tiap kali gagal (backoff).
+    const createWithRetry = async (payload) => {
+      let lastErr;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          await pb.collection('questions').create(payload);
+          return;
+        } catch (e) {
+          lastErr = e;
+          const status = e?.status;
+          if (status === 429) {
+            const waitMs = 3000 * (attempt + 1); // 3s, 6s, 9s, 12s...
+            setBulkStatus(`⏳ Server minta jeda sebentar (batas kecepatan). Menunggu ${waitMs / 1000} detik lalu lanjut... (${sukses}/${items.length} tersimpan)`);
+            await sleep(waitMs);
+            continue;
+          }
+          if (status === 0 || status === 502 || status === 503) {
+            await sleep(1500 * (attempt + 1)); // gangguan jaringan sesaat
+            continue;
+          }
+          throw e; // error lain (mis. data tidak valid / izin) — jangan diulang
+        }
+      }
+      throw lastErr;
+    };
+
+    setBulkStatus('⏳ Mengunggah ' + items.length + ' soal...');
     try {
-      for (const item of items) {
-        await pb.collection('questions').create({
-          subject: subjectId,
-          chapter: chapterId,
-          type: 'latihan',
-          year: null,
-          text: item.text,
-          hint: item.hint,
-          options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
-          order: ++n,
-        });
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        try {
+          await createWithRetry({
+            subject: subjectId,
+            chapter: chapterId,
+            type: 'latihan',
+            year: null,
+            text: item.text,
+            hint: item.hint,
+            options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
+            order: ++n,
+          });
+        } catch (e) {
+          const detail = e?.response?.data
+            ? Object.entries(e.response.data).map(([f, info]) => `${f}: ${info?.message || 'tidak valid'}`).join(' | ')
+            : (e?.message || 'error tidak diketahui');
+          setBulkStatus(`❌ Berhenti di soal #${i + 1} dari ${items.length}. ${sukses} soal sebelumnya sudah tersimpan.\nPenyebab: ${detail}`);
+          loadQuestions(chapterId);
+          return;
+        }
+        sukses += 1;
+        if (sukses % 5 === 0) setBulkStatus(`⏳ Menyimpan... ${sukses}/${items.length} soal`);
+        await sleep(120); // jeda kecil supaya tidak menabrak rate limit server
       }
       onDone?.();
-      setBulkStatus('✅ Selesai! ' + items.length + ' soal berhasil ditambahkan.');
+      setBulkStatus('✅ Selesai! ' + sukses + ' soal berhasil ditambahkan.');
       loadQuestions(chapterId);
     } catch (e) {
-      setBulkStatus('❌ Gagal di tengah jalan: ' + e.message);
+      setBulkStatus('❌ Gagal: ' + (e?.message || 'error tidak diketahui') + ` (${sukses} soal tersimpan)`);
       loadQuestions(chapterId);
     }
   };

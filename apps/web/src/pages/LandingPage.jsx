@@ -1,9 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Award, BookOpenText, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
+import { ArrowRight, Award, BookOpenText, Briefcase, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
 import { TEACHERS, MANAGERS, MANAGER_CATEGORIES } from '@/data/team';
+
+// Semua manager digabung dalam satu carousel, tapi tetap urut sesuai jabatan
+// (Executive Board dulu, dst) supaya alur strukturnya tetap terbaca.
+const orderedManagers = [...MANAGERS].sort(
+ (a, b) => MANAGER_CATEGORIES.indexOf(a.category) - MANAGER_CATEGORIES.indexOf(b.category)
+);
 
 const features = [
  {
@@ -213,26 +219,11 @@ export default function LandingPage() {
          </p>
        </motion.div>
 
-       <div className="space-y-14">
-         {MANAGER_CATEGORIES.map((cat) => {
-           const people = MANAGERS.filter((m) => m.category === cat);
-           if (people.length === 0) return null;
-           return (
-             <div key={cat}>
-               <div className="flex items-center gap-3 mb-5">
-                 <span className="h-px flex-1 bg-alba-300" />
-                 <h3 className="font-display text-lg font-semibold text-maroon-600 whitespace-nowrap">{cat}</h3>
-                 <span className="h-px flex-1 bg-alba-300" />
-               </div>
-               <Carousel>
-                 {people.map((m, i) => (
-                   <ManagerCard key={m.name + i} m={m} />
-                 ))}
-               </Carousel>
-             </div>
-           );
-         })}
-       </div>
+       <Carousel>
+         {orderedManagers.map((m, i) => (
+           <ManagerCard key={m.name + i} m={m} />
+         ))}
+       </Carousel>
      </section>
 
      {/* CTA */}
@@ -271,42 +262,54 @@ function Stat({ value, label }) {
  );
 }
 
-/* Carousel: geser ke kanan/kiri, menampilkan 3 kartu sekaligus di desktop
-   (2 di tablet, 1 di HP). Tombol panah menggeser satu "halaman". */
+/* Carousel: geser kanan/kiri, 3 kartu di desktop (2 tablet, 1 HP).
+   - Tombol panah BESAR & jelas (maroon solid) supaya kelihatan bisa di-slide.
+   - LOOPING: kalau sudah mentok kanan, tombol next kembali ke awal; kalau
+     mentok kiri, tombol prev lompat ke akhir. */
 function Carousel({ children }) {
  const ref = useRef(null);
  const items = React.Children.toArray(children);
- const scrollByPage = (dir) => {
+
+ const paginate = (dir) => {
    const el = ref.current;
    if (!el) return;
-   el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: 'smooth' });
+   const step = el.clientWidth * 0.9;
+   const maxScroll = el.scrollWidth - el.clientWidth;
+   if (dir > 0) {
+     // sudah mentok kanan → loop ke awal
+     if (el.scrollLeft >= maxScroll - 8) el.scrollTo({ left: 0, behavior: 'smooth' });
+     else el.scrollBy({ left: step, behavior: 'smooth' });
+   } else {
+     // sudah mentok kiri → loop ke akhir
+     if (el.scrollLeft <= 8) el.scrollTo({ left: maxScroll, behavior: 'smooth' });
+     else el.scrollBy({ left: -step, behavior: 'smooth' });
+   }
  };
+
+ const arrowCls =
+   'flex absolute top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-maroon-600 text-alba-50 shadow-card-hover items-center justify-center hover:bg-maroon-700 hover:scale-105 active:scale-95 transition-all ring-4 ring-alba-50';
+
  return (
-   <div className="relative">
-     <button
-       onClick={() => scrollByPage(-1)}
-       aria-label="Sebelumnya"
-       className="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-alba-50 border border-alba-300 shadow-card items-center justify-center text-maroon-600 hover:bg-maroon-50 hover:border-maroon-300 transition-colors"
-     >
-       <ChevronLeft size={20} />
+   <div className="relative px-1">
+     <button onClick={() => paginate(-1)} aria-label="Sebelumnya" className={`${arrowCls} left-0 md:-left-5`}>
+       <ChevronLeft size={22} />
      </button>
      <div
        ref={ref}
-       className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 scrollbar-thin -mx-2 px-2"
+       className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 scrollbar-thin -mx-2 px-2 md:px-8"
      >
        {items.map((child, i) => (
-         <div key={i} className="snap-start shrink-0 w-[85%] sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]">
+         <div key={i} className="snap-start shrink-0 w-[80%] sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]">
            {child}
          </div>
        ))}
      </div>
-     <button
-       onClick={() => scrollByPage(1)}
-       aria-label="Berikutnya"
-       className="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-alba-50 border border-alba-300 shadow-card items-center justify-center text-maroon-600 hover:bg-maroon-50 hover:border-maroon-300 transition-colors"
-     >
-       <ChevronRight size={20} />
+     <button onClick={() => paginate(1)} aria-label="Berikutnya" className={`${arrowCls} right-0 md:-right-5`}>
+       <ChevronRight size={22} />
      </button>
+
+     {/* Petunjuk geser */}
+     <p className="text-center text-[11px] font-semibold text-stone-400 mt-1 md:hidden">← geser untuk melihat lainnya →</p>
    </div>
  );
 }
@@ -384,8 +387,12 @@ function TeacherCard({ t }) {
 function ManagerCard({ m }) {
  return (
    <div className="group h-full rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
-     <ProfilePhoto photo={m.photo} name={m.name} badge={m.category} />
+     <ProfilePhoto photo={m.photo} name={m.name} />
      <div className="p-6 flex flex-col flex-1">
+       {/* Jabatan ditonjolkan di tiap kartu */}
+       <span className="self-start inline-flex items-center gap-1.5 rounded-full bg-maroon-600 text-alba-50 text-[11px] font-bold px-3 py-1 mb-3">
+         <Briefcase size={12} /> {m.category}
+       </span>
        <h3 className="font-display text-lg font-semibold text-stone-800">{m.name}</h3>
        {m.quote && (
          <p className="text-sm text-stone-600 italic leading-relaxed mt-3">"{m.quote}"</p>

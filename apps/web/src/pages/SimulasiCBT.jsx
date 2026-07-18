@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Lock, Timer, Trophy } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
@@ -22,6 +22,12 @@ export default function SimulasiCBT() {
  const [leaderboard, setLeaderboard] = useState([]);
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
+
+ // Auto-scroll mengikuti pilihan (mata kuliah → tahun → mode → mulai)
+ const yearRef = useRef(null);
+ const modeRef = useRef(null);
+ const startRef = useRef(null);
+ const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
 
  // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
  useEffect(() => {
@@ -259,7 +265,7 @@ export default function SimulasiCBT() {
                return (
                  <button
                    key={s.id}
-                   onClick={() => { setSubjectId(s.id); setYear(''); }}
+                   onClick={() => { setSubjectId(s.id); setYear(''); scrollToRef(yearRef); }}
                    className={`text-left rounded-xl border p-4 transition-all ${
                      active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
@@ -283,7 +289,7 @@ export default function SimulasiCBT() {
          </div>
 
          {subjectId && (
-           <div className="animate-fade-in">
+           <div ref={yearRef} className="animate-fade-in scroll-mt-24">
              <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih Tahun Angkatan</label>
              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                {years.map((y) => {
@@ -292,7 +298,7 @@ export default function SimulasiCBT() {
                  return (
                    <button
                      key={y}
-                     onClick={() => setYear(String(y))}
+                     onClick={() => { setYear(String(y)); scrollToRef(modeRef); }}
                      className={`relative rounded-xl border px-2 py-2.5 text-sm font-bold transition-all ${
                        year === String(y)
                          ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
@@ -312,11 +318,11 @@ export default function SimulasiCBT() {
            </div>
          )}
 
-         <div>
+         <div ref={modeRef} className="scroll-mt-24">
            <label className="block text-sm font-bold text-stone-700 mb-2">3. Pilih Mode Ujian</label>
            <div className="grid sm:grid-cols-2 gap-4">
              <button
-               onClick={() => setMode('simulasi')}
+               onClick={() => { setMode('simulasi'); scrollToRef(startRef); }}
                className={`rounded-xl border-2 p-5 text-left transition-all ${
                  mode === 'simulasi'
                    ? 'border-maroon-600 bg-maroon-50'
@@ -330,7 +336,7 @@ export default function SimulasiCBT() {
                <p className="text-xs text-stone-500 leading-relaxed">Pakai timer (1 menit/soal), jawaban dinilai di akhir — seperti ujian sungguhan.</p>
              </button>
              <button
-               onClick={() => setMode('learning')}
+               onClick={() => { setMode('learning'); scrollToRef(startRef); }}
                className={`rounded-xl border-2 p-5 text-left transition-all ${
                  mode === 'learning'
                    ? 'border-maroon-600 bg-maroon-50'
@@ -346,7 +352,7 @@ export default function SimulasiCBT() {
            </div>
          </div>
 
-         <div className="pt-4 border-t border-alba-200">
+         <div ref={startRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
              disabled={!subjectId || !year || !mode}
              onClick={start}

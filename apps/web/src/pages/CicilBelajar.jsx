@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClipboardList, History, Lock, Search } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
@@ -21,6 +21,13 @@ export default function CicilBelajar() {
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
+
+ // Auto-scroll: begitu memilih, layar mengikuti ke bagian yang baru terbuka.
+ const babSectionRef = useRef(null);
+ const startBtnRef = useRef(null);
+ const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+ const pickSubject = (id) => { setSubjectId(id); scrollToRef(babSectionRef); };
+ const pickChapter = (id) => { setChapterId(id); scrollToRef(startBtnRef); };
 
  // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
  useEffect(() => {
@@ -277,7 +284,7 @@ export default function CicilBelajar() {
                return (
                  <button
                    key={s.id}
-                   onClick={() => setSubjectId(s.id)}
+                   onClick={() => pickSubject(s.id)}
                    className={`text-left rounded-xl border p-4 transition-all ${
                      active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
@@ -301,7 +308,7 @@ export default function CicilBelajar() {
          </div>
 
          {subjectId && (
-           <div className="animate-fade-in">
+           <div ref={babSectionRef} className="animate-fade-in scroll-mt-24">
              <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih BAB Pembelajaran</label>
              {chapters.length > 6 && (
                <div className="relative mb-3">
@@ -318,7 +325,7 @@ export default function CicilBelajar() {
                {visibleChapters.map((c) => (
                  <button
                    key={c.id}
-                   onClick={() => setChapterId(c.id)}
+                   onClick={() => pickChapter(c.id)}
                    className={`flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                      chapterId === c.id
                        ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
@@ -338,7 +345,7 @@ export default function CicilBelajar() {
            </div>
          )}
 
-         <div className="pt-4 border-t border-alba-200">
+         <div ref={startBtnRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
              disabled={!chapterId}
              onClick={openChapter}
