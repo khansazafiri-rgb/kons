@@ -3,7 +3,7 @@ import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
-const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'Tambah Akun', 'Reset Kurikulum'];
+const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'Tambah Akun', 'Jadwal Ujian'];
 export default function AdminPanel() {
   const [tab, setTab] = useState('Pengajar');
   const { user, isAuthed } = useAuth();
@@ -39,12 +39,7 @@ export default function AdminPanel() {
           {tab === 'Siswa' && <StudentCards adminMode />}
           {tab === 'Edit Soal' && <EditSoalHub />}
           {tab === 'Tambah Akun' && <TambahAkun />}
-          {tab === 'Reset Kurikulum' && (
-            <div className="space-y-6">
-              <CleanupDuplicates />
-              <SeedData />
-            </div>
-          )}
+          {tab === 'Jadwal Ujian' && <JadwalUjian />}
         </div>
       </div>
     </div>
@@ -799,6 +794,35 @@ export function EditSoal({ allowedSubjectIds = null }) {
     loadChapters(subjectId);
   };
 
+  // Ubah urutan BAB (tukar order dengan BAB tetangga) supaya siswa tahu
+  // urutan pengerjaan di Cicil Belajar & Perdalam Materi.
+  const moveChapter = async (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= chapters.length) return;
+    const a = chapters[index];
+    const b = chapters[target];
+    const aOrder = Number.isFinite(a.order) ? a.order : index + 1;
+    const bOrder = Number.isFinite(b.order) ? b.order : target + 1;
+    try {
+      await pb.collection('chapters').update(a.id, { order: bOrder });
+      await pb.collection('chapters').update(b.id, { order: aOrder });
+      loadChapters(subjectId);
+    } catch (err) {
+      alert('Gagal mengubah urutan BAB: ' + (err?.message || ''));
+    }
+  };
+
+  const deleteChapter = async (c) => {
+    if (!confirm(`Hapus BAB "${c.title}"? Semua soal & PPT di dalam BAB ini akan ikut terhapus dan tidak bisa dikembalikan.`)) return;
+    try {
+      await pb.collection('chapters').delete(c.id);
+      if (chapterId === c.id) setChapterId('');
+      loadChapters(subjectId);
+    } catch (err) {
+      alert('Gagal menghapus BAB: ' + (err?.message || ''));
+    }
+  };
+
   const saveQuestion = async () => {
     if (!form.text.trim() || !chapterId) return;
 
@@ -892,11 +916,20 @@ export function EditSoal({ allowedSubjectIds = null }) {
               <input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Tambah BAB baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
               <button onClick={addChapter} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
             </div>
-            <div className="grid gap-2 max-h-48 overflow-y-auto scrollbar-thin">
-              {chapters.map((c) => (
-                <button key={c.id} onClick={() => setChapterId(c.id)} className={`text-left rounded-lg border px-3 py-2 text-sm ${chapterId === c.id ? 'border-maroon-600 bg-maroon-50 font-semibold' : 'border-alba-200'}`}>
-                  {c.title} <span className="text-xs text-stone-400">· update {String(c.updated).slice(0, 10)}</span>
-                </button>
+            <p className="text-xs text-stone-400 -mb-1">Panah ↑ ↓ mengatur urutan BAB (dipakai untuk urutan pengerjaan siswa). Tombol 🗑 menghapus BAB beserta isinya.</p>
+            <div className="grid gap-2 max-h-64 overflow-y-auto scrollbar-thin">
+              {chapters.map((c, i) => (
+                <div key={c.id} className={`flex items-center gap-1 rounded-lg border pl-1 pr-1.5 ${chapterId === c.id ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200'}`}>
+                  <div className="flex flex-col">
+                    <button onClick={() => moveChapter(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
+                    <button onClick={() => moveChapter(i, +1)} disabled={i === chapters.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
+                  </div>
+                  <button onClick={() => setChapterId(c.id)} className={`flex-1 text-left px-2 py-2 text-sm ${chapterId === c.id ? 'font-semibold text-maroon-700' : ''}`}>
+                    <span className="text-stone-400 mr-1">{i + 1}.</span>{c.title}
+                    <span className="text-xs text-stone-400"> · update {String(c.updated).slice(0, 10)}</span>
+                  </button>
+                  <button onClick={() => deleteChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600" title="Hapus BAB">🗑</button>
+                </div>
               ))}
             </div>
           </>
@@ -1236,378 +1269,123 @@ function TambahAkun() {
     </div>
   );
 }
+
 // ==========================================
-// DATA KURIKULUM LENGKAP (dipakai tombol Reset Kurikulum)
+// TAB JADWAL UJIAN + URUTAN MATA KULIAH
+// Admin mengatur: (1) urutan mata kuliah yang tampil di "Cicil Belajar" &
+// "Perdalam Materi", dan (2) nama + tanggal ujian tiap mata kuliah yang
+// dipakai untuk countdown di halaman siswa.
 // ==========================================
+function JadwalUjian() {
+  const [subjects, setSubjects] = useState([]);
+  const [draft, setDraft] = useState({}); // { [id]: { examName, examDate } }
+  const [savingId, setSavingId] = useState(null);
+  const [error, setError] = useState('');
+  const [okMsg, setOkMsg] = useState('');
 
-const MASTER_DATA = [
-  {
-    subject: "Anatomi",
-    chapters: ["Terminologi", "Osteology of upper and lower limb", "Anterior thigh", "Lumbosacral plexus", "Gluteas, posterior Thigh, popliteal fossa", "Leg and Foot", "Pectoral and Scapular", "Brachial plexus-axillary fossa", "Arm and elbow", "Forearm", "Wrist and hand", "Arthrology", "Thoracic wall, neurovascular bundle, medastinum", "Pleura et Pulmo", "Heart and pericard", "Anterior abdominal wall", "Blood supply of the abdominal viscera", "Hollow organ", "Accessories digestive organ", "Diaphragm and posterior abdominal wall", "Urinary Tract", "Pelvis", "Female Genitalia", "Male Genitalia", "Autonomic nervous system", "Cranium", "Superficial face region", "Deep facial region", "Superficial Neck region", "Deep neck region", "Meninges, ventricles, blood supply of the brain", "Telen-diencephalon", "Mesencephalon", "Spinal cord-cerebellum", "Cranial nerve", "The eye", "The ear"]
-  },
-  {
-    subject: "Biologi Kedokteran",
-    chapters: ["The cells", "DNA, RNA, and protein Synthesis", "Cell Membrane", "Cell Communication", "Cell Cycle", "Cell Death", "Basic on Biotechnology", "Biology of Male Reproduction", "Biology of Female Reproduction", "Embryology", "Teratology", "Spermatology", "Assisted Reproductive Technology", "Chromosome and Gene", "Genetic Disorders", "Cancer Genetics", "Epigenetic and Ecogenetic", "Population Genetic"]
-  },
-  {
-    subject: "Trampilan Medik 1",
-    chapters: ["Pengantar Trampilan Medik 1"]
-  },
-  {
-    subject: "Histologi",
-    chapters: ["Introduction and cell", "Extracellular matrix and connective tissue", "Blood and bone marrow", "Epithelial tissue", "cartilage , bone, ossification and joint", "Muscle", "Nervous system", "Circulatory system", "Intergument system", "Lymphatic system", "Oral cavity, teeth, and teeth development", "Salivary gland, pancreas, hepar, and gall blader", "Esophagus to anus", "Urinary system", "Male reproductive system", "Female reproductive system", "Endocrine system", "Respiratory system", "Eye", "ear"]
-  },
-  {
-    subject: "Fisiologi",
-    chapters: ["Introduction and learning contract", "Concept of homeostasis", "Concept of medical physiology", "Electrophysiology", "Physiology of the endocrine system", "Neurophysiology", "Physiology of the respiratory system", "Physiology of the urinary system", "Cardiovascular physiology", "Physiology of the reproductive system", "Physiology of the intergumentary system", "Electrocardiography", "Metabolism and body temperature regulation", "Physiology of sensory nervous system and special senses", "Physiology of exercise", "Physiology of the blood and immune system", "Physiology of the circulatory system and body fluids", "Motor nerves and musculoskeletal system", "Physiology of the digestive system"]
-  },
-  {
-    subject: "Biokimia",
-    chapters: ["Enzyme", "Oksidasi biologi & redoks", "Metabolisme Biologi", "Metabolisme lipid", "Metabolisme Asam Amino", "Siklus Krebs", "Metabolisme Terpadu", "Metabolisme Heme", "Darah Imunogenetik", "Membran dan sistem transport membran", "Keseimbangan asam basa", "Metabolsime vitamin", "Metabolisme air dan mineral", "Biokimia jaringan", "Sintesis protein", "Metabolisme purin primidin", "Xenobiotik", "Oksidan - antioksidan", "hormon"]
-  },
-  {
-    subject: "Mikrobiologi",
-    chapters: ["Bakteri-01. Taksonomi Bakteri", "Bakteri-02. Morfologi Bakteri", "Bakteri-03. Pewarnaan Bakteri", "Bakteri-04. Flora Normal", "Bakteri-05. Genetika Bakteri", "Bakteri-06. Basic Concept of Antimicrobials", "Bakteri-07. Makanan dan Pertumbuhan Bakteri", "Bakteri-08. Media Perbenihan dan Hewan Coba", "Bakteri-09. Sterilisasi, Disinfeksi, Antiseptik", "Bakteri-10. Staphylococci", "Bakteri-11. Streptococcus", "Bakteri-12. TB Mycobacteria", "Bakteri-13. Bakteri Aerob Penghasil Spora", "Bakteri-14. Mycoplasma, Chlamydia, Ricketsia, Heaemophilus, dkk", "Bakteri-15. Enterobacterales", "Bakteri-16. E.Coli", "Bakteri-17. Klebsiella", "Bakteri-18. ESBL - Producing Bacteria", "Bakteri-19. Enterobacter & Chronobacter", "Bakteri-20. Salmonella", "Bakteri-21. Shigella", "Bakteri-22. Vibrio", "Bakteri-23. Campylobacter", "Bakteri-24. Helicobacter pylori", "Bakteri-25. Acinetobacter spp", "Bakteri-26. Pseudomonas aeruginosa", "Bakteri-27. Proteus", "Bakteri-28. Yersinia", "Bakteri-29. Bakteri anaerob 2024 PRINT", "Bakteri-30. NEISSERIAE, TREPONEMA, BACTERIAL VAGINOSIS", "Bakteri-31. Imunologi Infeksi.", "Virus-01. Virologi Dasar", "Virus-02. Influenza", "Virus-03. Corona", "Virus-04. Rhinovirus", "Virus-05. MMR (Mumps, Measless, Rubella)", "Virus-06. Rotavirus", "Virus-07. Dengue virus.", "Virus-08. CHIKV ZIKV.", "Virus-09. Rabiesvirus", "Virus-10. Ebola virus", "Virus-11. Herpesviridaet", "Virus-12. HPV", "Virus-13. HEPATITIS VIRUSES", "Virus-14. HIV", "Virus-01. Immunity to Fungal Infections and Antifungal drugs", "Virus-02. SUPERFICIAL MYCOSIS", "Virus-03. Dermatophyt infection", "Virus-04. SUBCUTANEUS MYCOSIS", "Virus-05. CANDIDA", "Virus-06. CRYPTOCOCCAL INFECTIONS (CRYPTOCOCCOSIS)", "Virus-07. Pneumicystis jiroveci", "Virus-08. Zygomycosis dan Aspergilosis", "Virus-09. Systemic Mycoses", "Virus-10. ARCC_PPRA_and Strategi to control AMR", "Virus-Materi Kuliah dr Pohan warna-2021"]
-  },
-  {
-    subject: "Parasitologi",
-    chapters: ["Helmintologi - Nematoda - Ascaris lumbricoides", "Helmintologi - Nematoda - Hookworms", "Helmintologi - Nematoda - Trichuris trichiura", "Helmintologi - Nematoda - enterobius vermicularis", "Helmintologi - Nematoda - trichinella spiralis", "Helmintologi - Nematoda - filaria, dracunculus medinensis, angiostrongylus", "Helmintologi - cestoda - Taenia, cystisercosis", "Helmintologi - cestoda - Hymenolepis nana", "Helmintologi - cestoda - Hymenolepis diminuta", "Helmintologi - cestoda - dipylidium caninum", "Helmintologi - cestoda - echinococus granulosus", "Helmintologi - cestoda - diphyllobothrium latum", "Helmintologi - Trematoda - Fasciola Hepatica", "Helmintologi - Trematoda - Opisthorchis, clonorchis sinensis", "Helmintologi - Trematoda - fasciolopsis buski", "Helmintologi - Trematoda - heterephyes", "Helmintologi - Trematoda - echinostoma", "Helmintologi - Trematoda - schistosoma", "Helmintologi - Trematoda - paragonimus westermani", "Protozoologi - Balantidium coli", "Protozoologi - giardia lamblia", "Protozoologi - trypanosoma & eishmania", "Protozoologi - cryptosporidium - amoeba", "Protozoologi - Trichomonas", "Protozoologi -  Entamoeba hystolytica", "Protozoologi - entamoeba coli", "Protozoologi - free living amoeba", "Protozoologi - toxoplasma gondii", "Protozoologi - plasmodium", "Entomologi - Anopeles, mansonia", "Entomologi - aedes, culex", "Entomologi - hemiptera", "Entomologi - siphonaptera", "Entomologi - ortoptera, tricks", "Entomologi - ticks and mites", "Entomologi - flies myasis,  hemiptera, hymenoptera, coleoptera, lepidotera", "Entomologi - vector control", "Entomologi - venomous arhropoda", "Entomologi - ordo anoplura", "Entomologi - entomolog forenxik", "Entomologi - imunoparasotologi", "Entomologi - zoonosis", "Entomologi - teknik diagnostik penyakit parasit"]
-  },
-  {
-    subject: "Farmakologi",
-    chapters: ["General Pharmacology", "Pharmacodynamics", "Pharmacokinetics", "SSO", "Rational Drug Use", "Farmakologi Respirasi - Asma dan COPD", "Farmakologi Respirasi - Batuk", "ANTIHISTAMIN", "ANTIBIOTIK-MKDU-GENAP", "Antivirus", "Antimikobakterial", "Antifungal", "Antihelminth", "Anti Parasit (Malaria, Amoebiasis)", "Anti Parasit (Ektoparasit)", "Immunopharmacology", "Obat Anti Hipertensi", "Obat Anti Angina", "10.3. Obat Anti Aritmia", "10.4. Obat Gagal Jantung", "11. NSAID & Anti Gout", "12. Antikoagulan, antitrombotik, trombolitik, antidisplidemia", "13.1. Introduction to CNS Pharmacology", "13.2. Obat Anti Kejang", "13.3. Muscle Relaxant", "13.4. Opioid", "13.5. Antipsychotic Agent", "13.6. Anti Depresan", "14. Farmakologi GIT", "15. Farmakologi Endokrin", "16. Toksikologi", "17. Obat Antikanker", "18. Regulasi, Obat", "19. TK Principles of Princiption Order Writing", "20. BSO Padat", "21. BSO Padat 2", "22. BSO Cair", "Dosis", "Cara dab Waktu", "Drugs interaction"]
-  },
-  {
-    subject: "Patologi Anatomi",
-    chapters: ["1. Adaptasi sel", "1. Cell Injury, Cell death, and Adaptations", "2. Patologi Eksperimental", "3. Environmental Pathology", "3. Patologi Lingkungan", "4. Penyembuhan Jaringan", "5. Sitologi Eksfoliatif", "6. Penyakit Genetik Pediatrik", "7. Kelainan Imunologi", "8.1. Gangguan Hemodinamik", "8.2. Gangguan Hemodinamik", "9. Radang", "10. Patologi Infeksi", "11. Patologi Payudara", "11.2. Patologi Payudara", "12. Patologi Gl", "13. Patologi Muskuloskeletal", "14. Patologi Mata", "15. Hepatologi", "16. Reproduksi Wanita", "16.2. DF FEMALE GENITAL SYSTEM", "17. Reproduksi Pria", "18. Endocrine Pathology", "18. Patologi Ginjal", "19. Patologi Kardiovaskular", "20. Patologi Respirasi", "21. Patologi Kulit"]
-  },
-  {
-    subject: "Patalogi Klinik",
-    chapters: ["2, 4. LABORATORY EXAMINATION IN HEMATOLOGIC MALIGNANCIES", "5. HEMATOPOIESIS", "5. Routine Blood Tests", "5.1. Hematopoeisis_compressed", "6-7. Coagulation and Fibrinolysis", "8, 10. Laboratory Examination of Thrombocyte and vascular abnormalities", "9. Penentuan Golongan Darah", "11. Pemeriksaan Laboratorium Pra Transfusi Darah", "11. Pretransfusion testing", "12. Reaksi Transfusi", "13. HIV", "14. Hepatitis", "15-18. Liver Function Test", "16. Gangguan Lemak", "17. Hipersensitivitas", "19. ENZYME TESTS FOR LIVER, PANCREAS, & HEART DISORDERS", "20. Autoimmune Disease", "21. Laboratory testing for TORCH", "22. ACID BASE DISORDER", "23. Urinalysis", "24. Tumor Markers", "25. Laboratory Testing Kidney Function", "26. Penyakit Tropik", "27. Cairan Lambung dan Duodenum", "27.2. Analisis Cairan Tubuh", "28. Pemeriksaan Laboratorium Daerah Steril dan tidak steril", "29. Transudat dan Eksudat", "30. Dasar Serologi", "31. Laboratory Testing Diabetes Mellitus", "32, 38. PEMERIKSAAN SEROLOGIS PENYAKIT INFEKSI", "33. Laboratory Testing Thyroid", "34. Serologi Rheumatoid Arthritis, CRP, RF, ASO", "35. Cortex Adrenal", "36. Dengue, Malaria, Biomolekuler", "37. SEPSIS DAN BEKTEREMIA", "39-40. Covid 19"]
-  }
-];
+  const load = () =>
+    pb.collection('subjects').getFullList({ sort: 'order' })
+      .then((subs) => {
+        setSubjects(subs);
+        const d = {};
+        subs.forEach((s) => {
+          d[s.id] = {
+            examName: s.examName || '',
+            examDate: s.examDate ? String(s.examDate).slice(0, 10) : '',
+          };
+        });
+        setDraft(d);
+      })
+      .catch((err) => setError('Gagal memuat mata kuliah: ' + (err?.message || '')));
 
-// Collection lain yang mungkin punya field "subject" dan/atau "chapter" yang merujuk
-// ke mata kuliah/BAB (misalnya untuk mencatat progres belajar siswa). Nama field yang
-// tidak ada di suatu collection akan otomatis dilewati (bukan error).
-const EXTRA_LINKED_COLLECTIONS = ['materi_progress', 'cbt_attempts', 'soal_progress'];
+  useEffect(() => { load(); }, []);
 
-async function reassignByChapter(oldChapterId, newChapterId, canonicalSubjectId, log) {
-  for (const colName of EXTRA_LINKED_COLLECTIONS) {
-    let recs;
+  // Tukar posisi (order) dua mata kuliah bersebelahan.
+  const move = async (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= subjects.length) return;
+    const a = subjects[index];
+    const b = subjects[target];
+    setError(''); setOkMsg('');
     try {
-      recs = await pb.collection(colName).getFullList({ filter: `chapter = '${oldChapterId}'` });
-    } catch (e) {
-      continue; // field "chapter" tidak ada di collection ini, atau collection tidak ada
-    }
-    for (const r of recs) {
-      try {
-        await pb.collection(colName).update(r.id, { chapter: newChapterId, subject: canonicalSubjectId });
-      } catch (e) {
-        // kemungkinan bentrok unique constraint (misal 1 progres per siswa per BAB) -> hapus saja yang duplikat
-        try {
-          await pb.collection(colName).delete(r.id);
-        } catch (e2) {
-          log.push(`Gagal memindahkan/menghapus ${colName} (${r.id}): ${e2.message}`);
-        }
-      }
-    }
-  }
-}
-
-async function reassignBySubject(oldSubjectId, canonicalSubjectId, log) {
-  for (const colName of EXTRA_LINKED_COLLECTIONS) {
-    let recs;
-    try {
-      recs = await pb.collection(colName).getFullList({ filter: `subject = '${oldSubjectId}'` });
-    } catch (e) {
-      continue; // field "subject" tidak ada di collection ini, atau collection tidak ada
-    }
-    for (const r of recs) {
-      try {
-        await pb.collection(colName).update(r.id, { subject: canonicalSubjectId });
-      } catch (e) {
-        try {
-          await pb.collection(colName).delete(r.id);
-        } catch (e2) {
-          log.push(`Gagal memindahkan/menghapus ${colName} (${r.id}): ${e2.message}`);
-        }
-      }
-    }
-  }
-}
-
-// ==========================================
-// BERSIHKAN DUPLIKAT MATA KULIAH (aman, tidak menghapus soal)
-// ==========================================
-function CleanupDuplicates() {
-  const [status, setStatus] = useState('Menunggu aksi...');
-  const [loading, setLoading] = useState(false);
-
-  const handleCleanup = async () => {
-    if (!confirm('Ini akan menggabungkan mata kuliah yang namanya sama (duplikat) menjadi satu, memindahkan BAB & soal yang sudah ada TANPA menghapusnya. Lanjutkan?')) return;
-
-    setLoading(true);
-    const log = [];
-    try {
-      setStatus('Memeriksa mata kuliah duplikat...');
-      const allSubjects = await pb.collection('subjects').getFullList({ sort: 'created' });
-      const groups = {};
-      for (const s of allSubjects) {
-        const key = s.name.trim();
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(s);
-      }
-
-      const duplicateGroups = Object.values(groups).filter((g) => g.length > 1);
-      if (duplicateGroups.length === 0) {
-        setStatus('✅ Tidak ada mata kuliah duplikat yang ditemukan. Data sudah bersih.');
-        setLoading(false);
-        return;
-      }
-
-      setStatus('Memuat daftar pengajar...');
-      const teachers = await pb.collection('users').getFullList({ filter: "role = 'teacher'" });
-
-      let mergedCount = 0;
-
-      for (const group of duplicateGroups) {
-        mergedCount++;
-        const canonical = group[0];
-        const duplicates = group.slice(1);
-        setStatus(`Menggabungkan "${canonical.name}" (${group.length} salinan)...`);
-
-        const canonicalChapters = await pb.collection('chapters').getFullList({ filter: `subject = '${canonical.id}'` });
-        const chapterMap = {};
-        for (const c of canonicalChapters) chapterMap[c.title.trim()] = c.id;
-
-        for (const dup of duplicates) {
-          const dupChapters = await pb.collection('chapters').getFullList({ filter: `subject = '${dup.id}'` });
-
-          for (const dc of dupChapters) {
-            const dcTitle = dc.title.trim();
-            if (chapterMap[dcTitle]) {
-              // BAB dengan judul sama sudah ada di mata kuliah asli -> pindahkan soal & PPT-nya, lalu hapus BAB duplikat
-              const targetChapterId = chapterMap[dcTitle];
-              const dupQuestions = await pb.collection('questions').getFullList({ filter: `chapter = '${dc.id}'` });
-              for (const q of dupQuestions) {
-                try {
-                  await pb.collection('questions').update(q.id, { chapter: targetChapterId, subject: canonical.id });
-                } catch (e) {
-                  log.push(`Gagal memindahkan soal (${q.id}): ${e.message}`);
-                }
-              }
-              const dupPpt = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${dc.id}'` });
-              for (const p of dupPpt) {
-                try {
-                  await pb.collection('ppt_files').update(p.id, { chapter: targetChapterId, subject: canonical.id });
-                } catch (e) {
-                  // BAB tujuan mungkin sudah punya PPT sendiri -> hapus saja PPT duplikat ini
-                  try {
-                    await pb.collection('ppt_files').delete(p.id);
-                  } catch (e2) {
-                    log.push(`Gagal memindahkan/menghapus PPT duplikat (${p.id}): ${e2.message}`);
-                  }
-                }
-              }
-              await reassignByChapter(dc.id, targetChapterId, canonical.id, log);
-              try {
-                await pb.collection('chapters').delete(dc.id);
-              } catch (e) {
-                log.push(`Gagal menghapus BAB duplikat "${dc.title}": ${e.message}`);
-              }
-            } else {
-              // BAB ini belum ada di mata kuliah asli -> pindahkan saja BAB-nya (soal & PPT ikut karena tetap merujuk ke BAB yang sama)
-              try {
-                await pb.collection('chapters').update(dc.id, { subject: canonical.id });
-                chapterMap[dcTitle] = dc.id;
-                const dupQuestions = await pb.collection('questions').getFullList({ filter: `chapter = '${dc.id}'` });
-                for (const q of dupQuestions) {
-                  try {
-                    await pb.collection('questions').update(q.id, { subject: canonical.id });
-                  } catch (e) {
-                    log.push(`Gagal memperbarui mata kuliah pada soal (${q.id}): ${e.message}`);
-                  }
-                }
-                const dupPpt = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${dc.id}'` });
-                for (const p of dupPpt) {
-                  try {
-                    await pb.collection('ppt_files').update(p.id, { subject: canonical.id });
-                  } catch (e) {
-                    log.push(`Gagal memperbarui mata kuliah pada PPT (${p.id}): ${e.message}`);
-                  }
-                }
-                await reassignByChapter(dc.id, dc.id, canonical.id, log);
-              } catch (e) {
-                log.push(`Gagal memindahkan BAB "${dc.title}": ${e.message}`);
-              }
-            }
-          }
-
-          // Soal CBT dan PPT yang nempel langsung ke mata kuliah tanpa BAB -> pindahkan juga sebelum menghapus mata kuliah duplikat
-          const directQuestions = await pb.collection('questions').getFullList({ filter: `subject = '${dup.id}'` });
-          for (const q of directQuestions) {
-            try {
-              await pb.collection('questions').update(q.id, { subject: canonical.id });
-            } catch (e) {
-              log.push(`Gagal memindahkan soal CBT (${q.id}): ${e.message}`);
-            }
-          }
-          const directPpt = await pb.collection('ppt_files').getFullList({ filter: `subject = '${dup.id}'` });
-          for (const p of directPpt) {
-            try {
-              await pb.collection('ppt_files').update(p.id, { subject: canonical.id });
-            } catch (e) {
-              log.push(`Gagal memindahkan PPT (${p.id}): ${e.message}`);
-            }
-          }
-          await reassignBySubject(dup.id, canonical.id, log);
-
-          // Perbaiki dulu semua pengajar yang masih merujuk ke mata kuliah duplikat ini,
-          // supaya PocketBase tidak menolak penghapusan karena masih direferensikan (required relation).
-          for (const t of teachers) {
-            const cur = t.teachingSubjects || [];
-            if (!cur.includes(dup.id)) continue;
-            const fixed = Array.from(new Set(cur.map((id) => (id === dup.id ? canonical.id : id))));
-            try {
-              await pb.collection('users').update(t.id, { teachingSubjects: fixed });
-              t.teachingSubjects = fixed;
-            } catch (e) {
-              log.push(`Gagal memperbarui pengajar "${t.name}": ${e.message}`);
-            }
-          }
-
-          try {
-            await pb.collection('subjects').delete(dup.id);
-          } catch (e) {
-            log.push(`Gagal menghapus mata kuliah duplikat "${dup.name}": ${e.message}`);
-          }
-        }
-      }
-
-      if (log.length === 0) {
-        setStatus(`✅ Selesai! ${mergedCount} mata kuliah duplikat berhasil digabungkan tanpa kehilangan soal.`);
-      } else {
-        setStatus(`⚠️ Selesai dengan ${log.length} masalah:\n` + log.join('\n'));
-      }
-    } catch (error) {
-      console.error(error);
-      setStatus('❌ Terjadi kesalahan: ' + error.message);
-    } finally {
-      setLoading(false);
+      // pakai nilai order yang ada; kalau sama/null, normalkan pakai index
+      const aOrder = Number.isFinite(a.order) ? a.order : index + 1;
+      const bOrder = Number.isFinite(b.order) ? b.order : target + 1;
+      await pb.collection('subjects').update(a.id, { order: bOrder });
+      await pb.collection('subjects').update(b.id, { order: aOrder });
+      await load();
+    } catch (err) {
+      setError('Gagal mengubah urutan: ' + (err?.message || ''));
     }
   };
 
+  const saveExam = async (s) => {
+    setSavingId(s.id); setError(''); setOkMsg('');
+    const d = draft[s.id] || {};
+    try {
+      await pb.collection('subjects').update(s.id, {
+        examName: d.examName?.trim() || '',
+        examDate: d.examDate ? `${d.examDate} 00:00:00` : '',
+      });
+      setOkMsg(`Jadwal ujian "${s.name}" tersimpan.`);
+      await load();
+    } catch (err) {
+      setError(`Gagal menyimpan jadwal "${s.name}": ` + (err?.message || ''));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const setField = (id, key, val) =>
+    setDraft((prev) => ({ ...prev, [id]: { ...prev[id], [key]: val } }));
+
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm text-center">
-      <h2 className="font-display text-lg font-semibold text-gold-600">🧹 Bersihkan Duplikat Mata Kuliah</h2>
-      <p className="text-sm text-stone-600">
-        Menggabungkan mata kuliah yang namanya sama (misal dua "Anatomi") menjadi satu. BAB dan soal yang sudah ada dipindahkan, bukan dihapus. Aman dijalankan kapan saja, termasuk berkali-kali.
-      </p>
-      <button
-        onClick={handleCleanup}
-        disabled={loading}
-        className={`px-4 py-2 rounded-lg text-alba-50 font-bold transition-colors ${loading ? 'bg-stone-400 cursor-not-allowed' : 'bg-gold-400 hover:bg-gold-600'}`}
-      >
-        {loading ? 'Sedang Memproses...' : 'Gabungkan Duplikat Sekarang'}
-      </button>
-      <div className="mt-4 p-3 bg-alba-100 border border-alba-200 rounded-lg text-left text-xs font-mono text-stone-700 whitespace-pre-wrap">
-        Status: <span className={loading ? 'text-maroon-500 font-bold' : 'font-bold'}>{status}</span>
+    <div className="space-y-6">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <h2 className="font-display text-lg font-semibold text-maroon-600">Jadwal Ujian & Urutan Mata Kuliah</h2>
+        <p className="text-sm text-stone-500 mt-1 leading-relaxed">
+          Panah <b>↑ ↓</b> mengatur urutan tampil mata kuliah di halaman <b>Cicil Belajar</b> dan <b>Perdalam Materi</b>.
+          Isi <b>nama ujian</b> (bebas, mis. UTB / UAB / UP) dan <b>tanggal</b>-nya; siswa akan melihat hitung mundur di beranda.
+        </p>
+        {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+        {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
       </div>
-    </div>
-  );
-}
 
-function SeedData() {
-  const [status, setStatus] = useState("Menunggu aksi...");
-  const [loading, setLoading] = useState(false);
-  const [konfirmasi, setKonfirmasi] = useState('');
-
-  const handleReset = async () => {
-    if (konfirmasi !== 'RESET') {
-      setStatus("Ketik RESET (huruf besar) dulu di kotak untuk mengaktifkan tombol.");
-      return;
-    }
-    if (!confirm("YAKIN? Semua Mata Kuliah, BAB, dan SOAL yang ada sekarang akan DIHAPUS TOTAL, lalu diganti dengan daftar kurikulum lengkap yang benar. Tindakan ini tidak bisa dibatalkan.")) return;
-
-    setLoading(true);
-    const errors = [];
-    try {
-      // 1. Hapus semua soal lama
-      setStatus("Menghapus semua soal lama...");
-      const allQuestions = await pb.collection('questions').getFullList();
-      for (const q of allQuestions) {
-        try { await pb.collection('questions').delete(q.id); }
-        catch (e) { errors.push(`Soal (${q.id}): ${e.message}`); }
-      }
-
-      // 2. Hapus semua BAB lama
-      setStatus("Menghapus semua BAB lama...");
-      const allChapters = await pb.collection('chapters').getFullList();
-      for (const c of allChapters) {
-        try { await pb.collection('chapters').delete(c.id); }
-        catch (e) { errors.push(`BAB "${c.title}": ${e.message}`); }
-      }
-
-      // 3. Hapus semua Mata Kuliah lama
-      setStatus("Menghapus semua Mata Kuliah lama...");
-      const allSubjects = await pb.collection('subjects').getFullList();
-      for (const s of allSubjects) {
-        try { await pb.collection('subjects').delete(s.id); }
-        catch (e) { errors.push(`Mata kuliah "${s.name}": ${e.message}`); }
-      }
-
-      // Kalau ada yang gagal dihapus, JANGAN lanjut membuat data baru,
-      // supaya data lama yang gagal terhapus tidak numpuk jadi duplikat dengan data baru.
-      if (errors.length > 0) {
-        setStatus(`❌ ${errors.length} item gagal dihapus, proses dihentikan supaya tidak terjadi duplikat:\n` + errors.join('\n'));
-        setLoading(false);
-        return;
-      }
-
-      // 4. Buat ulang kurikulum lengkap yang benar (tanpa duplikat)
-      let subjectOrder = 1;
-      for (const item of MASTER_DATA) {
-        setStatus(`Membuat Mata Kuliah: ${item.subject}...`);
-        const createdSubject = await pb.collection('subjects').create({ name: item.subject, order: subjectOrder });
-        subjectOrder++;
-        let chapterOrder = 1;
-        for (const chapterTitle of item.chapters) {
-          await pb.collection('chapters').create({ title: chapterTitle, subject: createdSubject.id, order: chapterOrder });
-          chapterOrder++;
-        }
-      }
-      setStatus("✅ Selesai! Kurikulum berhasil di-reset dan ditata ulang dengan benar.");
-      setKonfirmasi('');
-    } catch (error) {
-      console.error(error);
-      setStatus("❌ Terjadi kesalahan: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-sm text-center">
-      <h2 className="font-display text-lg font-semibold text-red-600">⚠️ Factory Reset Kurikulum</h2>
-      <p className="text-sm text-stone-600">
-        Tombol ini akan MENGHAPUS TOTAL semua Mata Kuliah, BAB, dan Soal (termasuk soal yang sudah dibuat pengajar), lalu menatanya ulang dengan daftar lengkap yang benar. Gunakan hanya kalau "Bersihkan Duplikat" di atas tidak cukup.
-      </p>
-      <input
-        value={konfirmasi}
-        onChange={(e) => setKonfirmasi(e.target.value)}
-        placeholder="Ketik RESET untuk mengaktifkan"
-        className="w-full max-w-xs mx-auto block rounded-lg border border-alba-300 px-3 py-2 text-sm text-center"
-      />
-      <button
-        onClick={handleReset}
-        disabled={loading || konfirmasi !== 'RESET'}
-        className={`px-4 py-2 rounded-lg text-alba-50 font-bold transition-colors ${loading || konfirmasi !== 'RESET' ? 'bg-stone-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
-      >
-        {loading ? 'Sedang Memproses...' : 'Reset & Tata Ulang Kurikulum'}
-      </button>
-      <div className="mt-4 p-3 bg-alba-100 border border-alba-200 rounded-lg text-left text-xs font-mono text-stone-700 whitespace-pre-wrap">
-        Status: <span className={loading ? 'text-maroon-500 font-bold' : 'font-bold'}>{status}</span>
+      <div className="space-y-3">
+        {subjects.map((s, i) => {
+          const d = draft[s.id] || {};
+          const dirty = d.examName !== (s.examName || '') || d.examDate !== (s.examDate ? String(s.examDate).slice(0, 10) : '');
+          return (
+            <div key={s.id} className="bg-alba-50 rounded-2xl border border-alba-200 p-4 flex flex-col md:flex-row md:items-center gap-3">
+              <div className="flex items-center gap-1">
+                <button onClick={() => move(i, -1)} disabled={i === 0} className="w-8 h-8 rounded-lg border border-alba-300 text-stone-600 disabled:opacity-30 hover:bg-maroon-50 hover:text-maroon-600" title="Naik">↑</button>
+                <button onClick={() => move(i, +1)} disabled={i === subjects.length - 1} className="w-8 h-8 rounded-lg border border-alba-300 text-stone-600 disabled:opacity-30 hover:bg-maroon-50 hover:text-maroon-600" title="Turun">↓</button>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-stone-700 truncate">{i + 1}. {s.name}</p>
+              </div>
+              <input
+                value={d.examName || ''}
+                onChange={(e) => setField(s.id, 'examName', e.target.value)}
+                placeholder="Nama ujian (UTB/UAB/UP)"
+                className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 md:w-44"
+              />
+              <input
+                type="date"
+                value={d.examDate || ''}
+                onChange={(e) => setField(s.id, 'examDate', e.target.value)}
+                className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+              />
+              <button
+                onClick={() => saveExam(s)}
+                disabled={savingId === s.id || !dirty}
+                className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4 py-2 disabled:opacity-40"
+              >
+                {savingId === s.id ? '...' : 'Simpan'}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
