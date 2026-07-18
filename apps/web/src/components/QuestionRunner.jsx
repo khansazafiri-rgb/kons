@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Flag, Lightbulb, RotateCcw, TimerReset, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, RotateCcw, TimerReset, X, XCircle } from 'lucide-react';
 
 /*
  QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
@@ -77,6 +77,7 @@ export default function QuestionRunner({
  const [checked, setChecked] = useState(new Set()); // soal isian yang sudah dicek (mode learning)
  const [showHint, setShowHint] = useState(false);
  const [submitted, setSubmitted] = useState(false);
+ const [showReview, setShowReview] = useState(false); // layar "review semua jawaban dalam 1 halaman"
  const [secondsLeft, setSecondsLeft] = useState(timerSeconds);
 
  const [finalScore, setFinalScore] = useState(null);
@@ -221,6 +222,52 @@ export default function QuestionRunner({
 
  if (!q) {
    return <p className="text-center text-stone-400 py-16">Tidak ada soal untuk BAB ini.</p>;
+ }
+
+ // MODE REVIEW: buka langsung semua soal + jawaban tersimpan dalam satu halaman
+ // (dipakai kalau siswa membuka BAB/tryout yang sudah pernah diselesaikan).
+ if (mode === 'review') {
+   return (
+     <ReviewSheet
+       qs={qs}
+       answers={answers}
+       onBack={onExit}
+       backLabel="Keluar"
+       title="Review Jawaban"
+       subtitle="Semua soal & jawabanmu ditampilkan di sini. Tinggal scroll untuk melihat mana yang benar dan salah beserta pembahasannya."
+     />
+   );
+ }
+
+ // SETELAH SUBMIT: pindah ke halaman review semua jawaban (mirip cek skor Google Form)
+ if (submitted && showReview) {
+   return (
+     <ReviewSheet
+       qs={qs}
+       answers={answers}
+       onBack={() => setShowReview(false)}
+       backLabel="Kembali ke Hasil"
+       title="Review Jawaban Saya"
+       subtitle="Berikut semua soal yang kamu kerjakan, lengkap dengan jawaban benar dan pembahasannya."
+     />
+   );
+ }
+
+ // SETELAH SUBMIT: halaman hasil (skor) terpisah dari halaman soal
+ if (submitted && finalScore !== null) {
+   return (
+     <ResultScreen
+       score={finalScore}
+       total={qs.length}
+       wrongCount={wrongQuestions.length}
+       weakChapters={weakChapters}
+       weakTopics={weakTopics}
+       mode={mode}
+       onReview={() => setShowReview(true)}
+       onRetry={wrongQuestions.length > 0 ? retryWrong : null}
+       onExit={onExit}
+     />
+   );
  }
 
  const timerDanger = secondsLeft != null && secondsLeft < 60;
@@ -445,67 +492,6 @@ export default function QuestionRunner({
        <p className="mt-4 text-[11px] text-stone-400 hidden md:block">
          Shortcut: <Kbd>←</Kbd> <Kbd>→</Kbd> pindah soal · <Kbd>A</Kbd>–<Kbd>E</Kbd> pilih jawaban · <Kbd>R</Kbd> tandai ragu
        </p>
-
-       {/* HASIL & EVALUASI */}
-       {submitted && finalScore !== null && (
-         <div className="mt-8 border border-alba-200 bg-alba-100/60 p-6 rounded-2xl animate-fade-in">
-           <div className="flex items-center justify-between gap-4 mb-5 border-b border-alba-200 pb-5">
-             <div>
-               <h3 className="font-display font-semibold text-2xl text-stone-800 mb-1">Evaluasi &amp; Poin Akhir</h3>
-               <p className="text-sm text-stone-500">
-                 {finalScore >= 80 ? 'Kerja bagus — pertahankan!' : finalScore >= 60 ? 'Sudah lumayan, sedikit lagi!' : 'Jangan menyerah, ulangi materinya ya.'}
-               </p>
-             </div>
-             <ScoreRing score={finalScore} />
-           </div>
-
-           {/* FITUR: ulangi soal yang salah saja */}
-           {wrongQuestions.length > 0 && (
-             <button
-               onClick={retryWrong}
-               className="mb-5 inline-flex items-center gap-2 rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
-             >
-               <RotateCcw size={14} />
-               Ulangi Soal yang Salah ({wrongQuestions.length})
-             </button>
-           )}
-
-           <div className="space-y-3">
-             <p className="font-bold text-sm text-stone-700">Rekomendasi Belajar Otomatis:</p>
-
-             {weakChapters.length === 0 && weakTopics.length === 0 ? (
-               <div className="bg-green-50 text-green-900 p-4 rounded-xl border border-green-200 text-sm font-medium">
-                 🎉 Luar Biasa! Jawabanmu benar semua. Pemahamanmu pada materi ini sudah sangat matang dan siap menghadapi ujian sungguhan.
-               </div>
-             ) : (
-               <div className="bg-alba-50 p-5 rounded-xl border border-alba-200 text-sm text-stone-600 shadow-sm">
-                 {mode === 'simulasi' ? (
-                   <>
-                     <p className="mb-3 font-medium flex items-center gap-2">
-                       <AlertTriangle size={15} className="text-maroon-500" />
-                       Sistem mendeteksi kamu perlu <strong>mempelajari ulang materi pada BAB berikut</strong>:
-                     </p>
-                     <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
-                       {weakChapters.map((chap, i) => (
-                         <li key={i}>{chap}</li>
-                       ))}
-                     </ul>
-                   </>
-                 ) : (
-                   <>
-                     <p className="mb-3 font-medium">Kamu masih kurang menguasai beberapa konsep di BAB ini. Pemahaman terhadap konsep pada soal berikut perlu ditingkatkan:</p>
-                     <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
-                       {weakTopics.map((topic, i) => (
-                         <li key={i}>{topic}</li>
-                       ))}
-                     </ul>
-                   </>
-                 )}
-               </div>
-             )}
-           </div>
-         </div>
-       )}
      </div>
 
      {/* NAVIGATOR SOAL — seperti CBT sungguhan */}
@@ -559,6 +545,218 @@ function ScoreRing({ score }) {
      <div className="w-[74px] h-[74px] rounded-full bg-alba-50 grid place-items-center">
        <span className="font-display font-bold text-2xl" style={{ color }}>{score}</span>
      </div>
+   </div>
+ );
+}
+
+// ==========================================================================
+// HALAMAN HASIL (setelah submit) — terpisah dari halaman soal, mirip cek skor
+// Google Form: tampil skor dulu, lalu tombol "Review Jawaban Saya!".
+// ==========================================================================
+function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit }) {
+ const correct = Math.round((score / 100) * total);
+ return (
+   <div className="max-w-2xl mx-auto animate-fade-in">
+     <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-8 text-center">
+       <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-6">HASIL PENGERJAAN</p>
+       <div className="flex justify-center mb-5">
+         <ScoreRing score={score} />
+       </div>
+       <h2 className="font-display text-2xl font-semibold text-stone-800 mb-1">
+         {score >= 80 ? 'Kerja bagus — pertahankan!' : score >= 60 ? 'Sudah lumayan, sedikit lagi!' : 'Jangan menyerah, ulangi materinya ya.'}
+       </h2>
+       <p className="text-sm text-stone-500 mb-8">
+         Kamu menjawab benar <strong className="text-maroon-600">{correct}</strong> dari <strong>{total}</strong> soal.
+       </p>
+
+       <div className="flex flex-col sm:flex-row gap-3 justify-center">
+         <button
+           onClick={onReview}
+           className="inline-flex items-center justify-center gap-2 rounded-full bg-maroon-600 text-alba-50 px-7 py-3 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+         >
+           <ListChecks size={16} />
+           Review Jawaban Saya!
+         </button>
+         {onRetry && (
+           <button
+             onClick={onRetry}
+             className="inline-flex items-center justify-center gap-2 rounded-full border border-maroon-200 bg-maroon-50 text-maroon-700 px-6 py-3 text-sm font-bold hover:bg-maroon-100 transition-colors"
+           >
+             <RotateCcw size={15} />
+             Ulangi Soal yang Salah ({wrongCount})
+           </button>
+         )}
+       </div>
+     </div>
+
+     {/* Rekomendasi belajar otomatis */}
+     <div className="mt-6 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6">
+       <p className="font-bold text-sm text-stone-700 mb-3">Rekomendasi Belajar Otomatis</p>
+       {weakChapters.length === 0 && weakTopics.length === 0 ? (
+         <div className="bg-green-50 text-green-900 p-4 rounded-xl border border-green-200 text-sm font-medium">
+           🎉 Luar Biasa! Jawabanmu benar semua. Pemahamanmu pada materi ini sudah sangat matang.
+         </div>
+       ) : (
+         <div className="text-sm text-stone-600">
+           {mode === 'simulasi' ? (
+             <>
+               <p className="mb-3 font-medium flex items-center gap-2">
+                 <AlertTriangle size={15} className="text-maroon-500" />
+                 Kamu perlu <strong>mempelajari ulang materi pada BAB berikut</strong>:
+               </p>
+               <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
+                 {weakChapters.map((chap, i) => <li key={i}>{chap}</li>)}
+               </ul>
+             </>
+           ) : (
+             <>
+               <p className="mb-3 font-medium">Beberapa konsep di BAB ini masih perlu ditingkatkan:</p>
+               <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
+                 {weakTopics.map((topic, i) => <li key={i}>{topic}</li>)}
+               </ul>
+             </>
+           )}
+         </div>
+       )}
+     </div>
+
+     <div className="mt-6 text-center">
+       <button onClick={onExit} className="inline-flex items-center gap-1.5 text-sm font-bold text-stone-500 hover:text-maroon-600 px-4 py-2">
+         <X size={14} /> Selesai & Kembali
+       </button>
+     </div>
+   </div>
+ );
+}
+
+// ==========================================================================
+// HALAMAN REVIEW — semua soal + jawaban dalam satu halaman (benar/salah),
+// dipakai setelah submit ("Review Jawaban Saya!") maupun mode="review".
+// ==========================================================================
+function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
+ const list = (qs || []).map(normalizeQuestion);
+ const total = list.length;
+ const correct = list.filter((qq) => isQuestionCorrect(qq, answers[qq.id])).length;
+ const score = total ? Math.round((correct / total) * 100) : 0;
+
+ return (
+   <div className="max-w-3xl mx-auto animate-fade-in">
+     <div className="sticky top-0 z-10 -mx-2 px-2 py-3 bg-alba-50/95 backdrop-blur border-b border-alba-200 flex items-center justify-between gap-3 mb-6">
+       <div>
+         <h2 className="font-display text-xl font-semibold text-stone-800">{title}</h2>
+         <p className="text-xs text-stone-500">Benar {correct} dari {total} soal · Nilai {score}</p>
+       </div>
+       <button
+         onClick={onBack}
+         className="inline-flex items-center gap-1.5 rounded-full border border-alba-300 px-4 py-2 text-sm font-bold text-stone-600 hover:bg-alba-100 transition-colors shrink-0"
+       >
+         <ChevronLeft size={15} /> {backLabel}
+       </button>
+     </div>
+
+     {subtitle && <p className="text-sm text-stone-500 mb-5 leading-relaxed">{subtitle}</p>}
+
+     <div className="space-y-5">
+       {list.map((qq, i) => (
+         <QuestionReviewCard key={qq.id || i} q={qq} ans={answers[qq.id]} index={i} />
+       ))}
+     </div>
+
+     <div className="mt-8 text-center">
+       <button
+         onClick={onBack}
+         className="inline-flex items-center gap-1.5 rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+       >
+         <ChevronLeft size={15} /> {backLabel}
+       </button>
+     </div>
+   </div>
+ );
+}
+
+// Satu kartu soal versi baca-saja untuk halaman review.
+function QuestionReviewCard({ q, ans, index }) {
+ const qq = normalizeQuestion(q);
+ const isian = isIsian(qq);
+ const answered = isQuestionAnswered(qq, ans);
+ const correct = isQuestionCorrect(qq, ans);
+
+ return (
+   <div className={`rounded-2xl border bg-alba-50 shadow-card p-5 md:p-6 ${correct ? 'border-green-200' : 'border-maroon-200'}`}>
+     <div className="flex items-center justify-between gap-3 mb-3">
+       <span className="text-sm font-bold text-stone-500">Soal {index + 1}</span>
+       {answered ? (
+         correct ? (
+           <span className="inline-flex items-center gap-1 text-xs font-bold text-green-800 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+             <CheckCircle2 size={13} /> Benar
+           </span>
+         ) : (
+           <span className="inline-flex items-center gap-1 text-xs font-bold text-maroon-700 bg-maroon-50 border border-maroon-200 rounded-full px-3 py-1">
+             <XCircle size={13} /> Salah
+           </span>
+         )
+       ) : (
+         <span className="text-xs font-bold text-stone-500 bg-alba-100 border border-alba-200 rounded-full px-3 py-1">Tidak dijawab</span>
+       )}
+     </div>
+
+     <p className="font-medium leading-relaxed text-stone-800 mb-3" dangerouslySetInnerHTML={{ __html: qq.text || '' }} />
+
+     {qq.imageUrl && (
+       <img src={qq.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" loading="lazy" className="max-h-80 w-auto max-w-full rounded-xl border border-alba-200 shadow-sm mx-auto mb-4" />
+     )}
+
+     {isian ? (
+       <div className="space-y-3">
+         {(qq.subQuestions || []).map((sub) => {
+           const userText = (typeof ans === 'object' && ans !== null ? ans : {})[sub.label] || '';
+           const ok = isSubAnswerCorrect(sub, userText);
+           return (
+             <div key={sub.label} className="rounded-xl border border-alba-200 p-3 bg-alba-100/60">
+               <p className="text-sm font-bold text-stone-700 mb-1.5">
+                 <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-[11px] font-bold mr-2">{sub.label}</span>
+                 {sub.question}
+               </p>
+               <p className={`text-sm ${ok ? 'text-green-800' : 'text-maroon-700'}`}>
+                 Jawabanmu: <span className="font-semibold">{userText || '—'}</span> {ok ? '✅' : '❌'}
+               </p>
+               {!ok && (
+                 <p className="text-xs text-stone-600 mt-1">
+                   Jawaban benar: <span className="font-semibold">{(sub.validAnswers || []).join(' | ')}</span>
+                 </p>
+               )}
+             </div>
+           );
+         })}
+       </div>
+     ) : (
+       <div className="space-y-2">
+         {(qq.options || []).map((opt, i) => {
+           const isSelected = ans === i;
+           let cls = 'border-alba-200';
+           if (opt.correct) cls = 'border-green-500 bg-green-50';
+           else if (isSelected && !opt.correct) cls = 'border-maroon-500 bg-maroon-50';
+           return (
+             <div key={i} className={`rounded-xl border-2 px-4 py-2.5 text-sm ${cls}`}>
+               <div className="flex gap-3 items-start">
+                 <span className={`w-6 h-6 shrink-0 rounded-full border flex items-center justify-center text-xs font-bold ${
+                   opt.correct ? 'bg-green-600 border-green-600 text-white' : isSelected ? 'bg-maroon-600 border-maroon-600 text-alba-50' : 'border-alba-300 text-stone-500'
+                 }`}>{String.fromCharCode(65 + i)}</span>
+                 <span className="leading-relaxed font-medium text-stone-800 pt-0.5">
+                   {opt.text}
+                   {isSelected && <span className="ml-2 text-[11px] font-bold text-stone-500">(jawabanmu)</span>}
+                 </span>
+               </div>
+               {opt.explanation && (opt.correct || isSelected) && (
+                 <p className={`mt-2 ml-9 text-xs leading-relaxed ${opt.correct ? 'text-green-900' : 'text-stone-600'}`}>
+                   <span className="font-bold">{opt.correct ? 'Alasan benar: ' : 'Mengapa salah: '}</span>{opt.explanation}
+                 </p>
+               )}
+             </div>
+           );
+         })}
+       </div>
+     )}
    </div>
  );
 }

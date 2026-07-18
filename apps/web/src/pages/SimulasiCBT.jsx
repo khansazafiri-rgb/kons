@@ -15,6 +15,8 @@ export default function SimulasiCBT() {
  const [mode, setMode] = useState('');
  const [questions, setQuestions] = useState(null);
  const [attemptId, setAttemptId] = useState(null);
+ const [completedAttempt, setCompletedAttempt] = useState(null); // attempt lama yg sudah selesai (untuk review)
+ const [reviewing, setReviewing] = useState(false);
  const [availYears, setAvailYears] = useState({});   // { subjectId: Set(tahun yang ada soalnya) }
  const [doneYears, setDoneYears] = useState({});     // { subjectId: Set(tahun yang sudah dikerjakan) }
  const [leaderboard, setLeaderboard] = useState([]);
@@ -97,8 +99,37 @@ export default function SimulasiCBT() {
      alert(`Belum ada soal CBT tahun ${year} untuk mata kuliah ini. Silakan pilih tahun lain.`);
      return;
    }
-   setQuestions(qs);
+   // Kalau tahun ini sudah pernah dituntaskan, tawarkan review dulu (jangan
+   // langsung buat attempt baru) supaya jawaban lama tidak tertimpa.
+   if (!guest && user) {
+     const done = await pb
+       .collection('cbt_attempts')
+       .getFullList({ filter: `owner = '${user.id}' && subject = '${subjectId}' && year = ${year} && status = 'completed'`, sort: '-created' });
+     if (done[0]) {
+       setCompletedAttempt(done[0]);
+       setQuestions(qs);
+       return;
+     }
+   }
 
+   setQuestions(qs);
+   if (!guest && user) {
+     const rec = await pb.collection('cbt_attempts').create({
+       owner: user.id,
+       subject: subjectId,
+       year: parseInt(year),
+       mode,
+       status: 'in_progress',
+       startedAt: new Date().toISOString(),
+     });
+     setAttemptId(rec.id);
+   }
+ };
+
+ // Mulai attempt baru walau tahun ini sudah pernah dikerjakan (dari layar pilihan).
+ const startFresh = async () => {
+   setCompletedAttempt(null);
+   setReviewing(false);
    if (!guest && user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
@@ -133,19 +164,56 @@ export default function SimulasiCBT() {
  const exit = async () => {
    setQuestions(null);
    setAttemptId(null);
+   setCompletedAttempt(null);
+   setReviewing(false);
    setRefreshKey((k) => k + 1); // refresh progress & leaderboard
  };
 
- // Layar Pengerjaan Ujian
- if (questions) {
+ // Layar Pilihan untuk tahun yang SUDAH selesai: review atau kerjakan ulang
+ if (questions && completedAttempt && !reviewing && !attemptId) {
+   return (
+     <div className="min-h-screen bg-alba-50">
+       <Header />
+       <div className="max-w-md mx-auto px-6 py-24">
+         <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
+           <div className="w-16 h-16 bg-green-50 text-green-700 rounded-full flex items-center justify-center mx-auto mb-5">
+             <Trophy size={26} />
+           </div>
+           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Tryout Ini Sudah Kamu Kerjakan</h2>
+           <p className="text-sm font-medium text-stone-600 mb-6 leading-relaxed">
+             Nilai terakhirmu: <span className="font-bold text-maroon-600">{completedAttempt.score ?? 0}</span>. Mau review jawaban yang lalu, atau kerjakan ulang tryout ini?
+           </p>
+           <div className="flex flex-col gap-3">
+             <button
+               onClick={() => setReviewing(true)}
+               className="w-full rounded-xl bg-maroon-600 text-alba-50 px-5 py-3.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               Review Jawaban Saya (semua jawaban sudah terisi, review di sini!)
+             </button>
+             <button
+               onClick={startFresh}
+               className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 transition-colors"
+             >
+               Kerjakan Ulang Tryout Ini
+             </button>
+           </div>
+         </div>
+       </div>
+     </div>
+   );
+ }
+
+ // Layar Pengerjaan Ujian (atau Review)
+ if (questions && (attemptId || reviewing || guest)) {
    return (
      <div className="min-h-screen bg-alba-50">
        <Header />
        <div className="max-w-5xl mx-auto px-6 py-10">
          <QuestionRunner
            questions={questions}
-           mode={mode === 'simulasi' ? 'simulasi' : 'learning'}
-           timerSeconds={mode === 'simulasi' ? questions.length * 60 : null}
+           mode={reviewing ? 'review' : (mode === 'simulasi' ? 'simulasi' : 'learning')}
+           timerSeconds={!reviewing && mode === 'simulasi' ? questions.length * 60 : null}
+           initialAnswers={reviewing ? completedAttempt?.answers || {} : {}}
            onAnswerChange={savePartial}
            onExit={exit}
            onSubmit={submit}
