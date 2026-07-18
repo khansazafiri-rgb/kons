@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Lock, Timer, Trophy } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
@@ -15,11 +15,19 @@ export default function SimulasiCBT() {
  const [mode, setMode] = useState('');
  const [questions, setQuestions] = useState(null);
  const [attemptId, setAttemptId] = useState(null);
+ const [completedAttempt, setCompletedAttempt] = useState(null); // attempt lama yg sudah selesai (untuk review)
+ const [reviewing, setReviewing] = useState(false);
  const [availYears, setAvailYears] = useState({});   // { subjectId: Set(tahun yang ada soalnya) }
  const [doneYears, setDoneYears] = useState({});     // { subjectId: Set(tahun yang sudah dikerjakan) }
  const [leaderboard, setLeaderboard] = useState([]);
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
+
+ // Auto-scroll mengikuti pilihan (mata kuliah → tahun → mode → mulai)
+ const yearRef = useRef(null);
+ const modeRef = useRef(null);
+ const startRef = useRef(null);
+ const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
 
  // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
  useEffect(() => {
@@ -97,8 +105,37 @@ export default function SimulasiCBT() {
      alert(`Belum ada soal CBT tahun ${year} untuk mata kuliah ini. Silakan pilih tahun lain.`);
      return;
    }
-   setQuestions(qs);
+   // Kalau tahun ini sudah pernah dituntaskan, tawarkan review dulu (jangan
+   // langsung buat attempt baru) supaya jawaban lama tidak tertimpa.
+   if (!guest && user) {
+     const done = await pb
+       .collection('cbt_attempts')
+       .getFullList({ filter: `owner = '${user.id}' && subject = '${subjectId}' && year = ${year} && status = 'completed'`, sort: '-created' });
+     if (done[0]) {
+       setCompletedAttempt(done[0]);
+       setQuestions(qs);
+       return;
+     }
+   }
 
+   setQuestions(qs);
+   if (!guest && user) {
+     const rec = await pb.collection('cbt_attempts').create({
+       owner: user.id,
+       subject: subjectId,
+       year: parseInt(year),
+       mode,
+       status: 'in_progress',
+       startedAt: new Date().toISOString(),
+     });
+     setAttemptId(rec.id);
+   }
+ };
+
+ // Mulai attempt baru walau tahun ini sudah pernah dikerjakan (dari layar pilihan).
+ const startFresh = async () => {
+   setCompletedAttempt(null);
+   setReviewing(false);
    if (!guest && user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
@@ -133,19 +170,56 @@ export default function SimulasiCBT() {
  const exit = async () => {
    setQuestions(null);
    setAttemptId(null);
+   setCompletedAttempt(null);
+   setReviewing(false);
    setRefreshKey((k) => k + 1); // refresh progress & leaderboard
  };
 
- // Layar Pengerjaan Ujian
- if (questions) {
+ // Layar Pilihan untuk tahun yang SUDAH selesai: review atau kerjakan ulang
+ if (questions && completedAttempt && !reviewing && !attemptId) {
+   return (
+     <div className="min-h-screen bg-alba-50">
+       <Header />
+       <div className="max-w-md mx-auto px-6 py-24">
+         <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
+           <div className="w-16 h-16 bg-green-50 text-green-700 rounded-full flex items-center justify-center mx-auto mb-5">
+             <Trophy size={26} />
+           </div>
+           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Tryout Ini Sudah Kamu Kerjakan</h2>
+           <p className="text-sm font-medium text-stone-600 mb-6 leading-relaxed">
+             Nilai terakhirmu: <span className="font-bold text-maroon-600">{completedAttempt.score ?? 0}</span>. Mau review jawaban yang lalu, atau kerjakan ulang tryout ini?
+           </p>
+           <div className="flex flex-col gap-3">
+             <button
+               onClick={() => setReviewing(true)}
+               className="w-full rounded-xl bg-maroon-600 text-alba-50 px-5 py-3.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               Review Jawaban Saya (semua jawaban sudah terisi, review di sini!)
+             </button>
+             <button
+               onClick={startFresh}
+               className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 transition-colors"
+             >
+               Kerjakan Ulang Tryout Ini
+             </button>
+           </div>
+         </div>
+       </div>
+     </div>
+   );
+ }
+
+ // Layar Pengerjaan Ujian (atau Review)
+ if (questions && (attemptId || reviewing || guest)) {
    return (
      <div className="min-h-screen bg-alba-50">
        <Header />
        <div className="max-w-5xl mx-auto px-6 py-10">
          <QuestionRunner
            questions={questions}
-           mode={mode === 'simulasi' ? 'simulasi' : 'learning'}
-           timerSeconds={mode === 'simulasi' ? questions.length * 60 : null}
+           mode={reviewing ? 'review' : (mode === 'simulasi' ? 'simulasi' : 'learning')}
+           timerSeconds={!reviewing && mode === 'simulasi' ? questions.length * 60 : null}
+           initialAnswers={reviewing ? completedAttempt?.answers || {} : {}}
            onAnswerChange={savePartial}
            onExit={exit}
            onSubmit={submit}
@@ -191,7 +265,7 @@ export default function SimulasiCBT() {
                return (
                  <button
                    key={s.id}
-                   onClick={() => { setSubjectId(s.id); setYear(''); }}
+                   onClick={() => { setSubjectId(s.id); setYear(''); scrollToRef(yearRef); }}
                    className={`text-left rounded-xl border p-4 transition-all ${
                      active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
@@ -215,7 +289,7 @@ export default function SimulasiCBT() {
          </div>
 
          {subjectId && (
-           <div className="animate-fade-in">
+           <div ref={yearRef} className="animate-fade-in scroll-mt-24">
              <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih Tahun Angkatan</label>
              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                {years.map((y) => {
@@ -224,7 +298,7 @@ export default function SimulasiCBT() {
                  return (
                    <button
                      key={y}
-                     onClick={() => setYear(String(y))}
+                     onClick={() => { setYear(String(y)); scrollToRef(modeRef); }}
                      className={`relative rounded-xl border px-2 py-2.5 text-sm font-bold transition-all ${
                        year === String(y)
                          ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
@@ -244,11 +318,11 @@ export default function SimulasiCBT() {
            </div>
          )}
 
-         <div>
+         <div ref={modeRef} className="scroll-mt-24">
            <label className="block text-sm font-bold text-stone-700 mb-2">3. Pilih Mode Ujian</label>
            <div className="grid sm:grid-cols-2 gap-4">
              <button
-               onClick={() => setMode('simulasi')}
+               onClick={() => { setMode('simulasi'); scrollToRef(startRef); }}
                className={`rounded-xl border-2 p-5 text-left transition-all ${
                  mode === 'simulasi'
                    ? 'border-maroon-600 bg-maroon-50'
@@ -262,7 +336,7 @@ export default function SimulasiCBT() {
                <p className="text-xs text-stone-500 leading-relaxed">Pakai timer (1 menit/soal), jawaban dinilai di akhir — seperti ujian sungguhan.</p>
              </button>
              <button
-               onClick={() => setMode('learning')}
+               onClick={() => { setMode('learning'); scrollToRef(startRef); }}
                className={`rounded-xl border-2 p-5 text-left transition-all ${
                  mode === 'learning'
                    ? 'border-maroon-600 bg-maroon-50'
@@ -278,7 +352,7 @@ export default function SimulasiCBT() {
            </div>
          </div>
 
-         <div className="pt-4 border-t border-alba-200">
+         <div ref={startRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
              disabled={!subjectId || !year || !mode}
              onClick={start}

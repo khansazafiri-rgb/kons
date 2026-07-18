@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpenText, CheckCircle2, Lock, Search } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
@@ -16,6 +16,13 @@ export default function PerdalamMateri() {
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [search, setSearch] = useState('');
  const [enrolled, setEnrolled] = useState(null); // null=tanpa batasan, []=belum dipilihkan, [..]=boleh
+
+ // Auto-scroll mengikuti pilihan
+ const babSectionRef = useRef(null);
+ const startBtnRef = useRef(null);
+ const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+ const pickSubject = (id) => { setSubjectId(id); scrollToRef(babSectionRef); };
+ const pickChapter = (id) => { setChapterId(id); scrollToRef(startBtnRef); };
 
  // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin.
  // Diambil FRESH dari server (bukan dari sesi login yang bisa basi).
@@ -116,7 +123,7 @@ export default function PerdalamMateri() {
                return (
                  <button
                    key={s.id}
-                   onClick={() => setSubjectId(s.id)}
+                   onClick={() => pickSubject(s.id)}
                    className={`text-left rounded-xl border p-4 transition-all ${
                      active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
@@ -140,7 +147,7 @@ export default function PerdalamMateri() {
          </div>
 
          {subjectId && (
-           <div className="animate-fade-in">
+           <div ref={babSectionRef} className="animate-fade-in scroll-mt-24">
              <label className="block text-sm font-bold text-stone-700 mb-2">2. BAB</label>
              {chapters.length > 6 && (
                <div className="relative mb-3">
@@ -159,7 +166,7 @@ export default function PerdalamMateri() {
                  return (
                    <button
                      key={c.id}
-                     onClick={() => setChapterId(c.id)}
+                     onClick={() => pickChapter(c.id)}
                      className={`flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                        chapterId === c.id
                          ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
@@ -181,9 +188,10 @@ export default function PerdalamMateri() {
          )}
 
          <button
+           ref={startBtnRef}
            disabled={!subjectId || !chapterId}
            onClick={start}
-           className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card disabled:opacity-40 hover:bg-maroon-700 transition-colors"
+           className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card disabled:opacity-40 hover:bg-maroon-700 transition-colors scroll-mt-24"
          >
            Pelajari
          </button>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClipboardList, History, Lock, Search } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
@@ -21,6 +21,13 @@ export default function CicilBelajar() {
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
+
+ // Auto-scroll: begitu memilih, layar mengikuti ke bagian yang baru terbuka.
+ const babSectionRef = useRef(null);
+ const startBtnRef = useRef(null);
+ const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+ const pickSubject = (id) => { setSubjectId(id); scrollToRef(babSectionRef); };
+ const pickChapter = (id) => { setChapterId(id); scrollToRef(startBtnRef); };
 
  // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
  useEffect(() => {
@@ -105,9 +112,13 @@ export default function CicilBelajar() {
    if (!guest && user) {
      const existing = await pb
        .collection('soal_progress')
-       .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}' && status = 'in_progress'` });
-     if (existing[0]) {
-       setPriorProgress(existing[0]);
+       .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
+     const rec = existing[0];
+     if (rec?.status === 'in_progress') {
+       setPriorProgress(rec);      // → layar lanjutkan/ulang
+     } else if (rec?.status === 'completed') {
+       setPriorProgress(rec);
+       setResume('completed');     // → layar pilih review / kerjakan ulang
      } else {
        setResume('restart');
      }
@@ -184,16 +195,51 @@ export default function CicilBelajar() {
    );
  }
 
- // Layar Utama Pengerjaan Ujian
- if (questions && resume !== null) {
+ // Layar Pilihan untuk BAB yang SUDAH selesai: review atau kerjakan ulang
+ if (questions && resume === 'completed' && priorProgress) {
+   return (
+     <div className="min-h-screen bg-alba-50">
+       <Header />
+       <div className="max-w-md mx-auto px-6 py-24">
+         <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
+           <div className="w-16 h-16 bg-green-50 text-green-700 rounded-full flex items-center justify-center mx-auto mb-5">
+             <ClipboardList size={26} />
+           </div>
+           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">BAB Ini Sudah Kamu Selesaikan</h2>
+           <p className="text-sm font-medium text-stone-600 mb-2 leading-relaxed">
+             Nilai terakhirmu: <span className="font-bold text-maroon-600">{priorProgress.score ?? 0}</span>. Mau lihat kembali jawabanmu, atau kerjakan ulang dari awal?
+           </p>
+           <div className="flex flex-col gap-3 mt-6">
+             <button
+               onClick={() => setResume('review')}
+               className="w-full rounded-xl bg-maroon-600 text-alba-50 px-5 py-3.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               Review Jawaban Saya (semua jawaban sudah terisi, review di sini!)
+             </button>
+             <button
+               onClick={() => setResume('restart')}
+               className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 transition-colors"
+             >
+               Kerjakan Ulang dari Awal
+             </button>
+           </div>
+         </div>
+       </div>
+     </div>
+   );
+ }
+
+ // Layar Utama Pengerjaan Ujian (atau Review)
+ if (questions && resume !== null && resume !== 'completed') {
+   const isReview = resume === 'review';
    return (
      <div className="min-h-screen bg-alba-50">
        <Header />
        <div className="max-w-5xl mx-auto px-6 py-10">
          <QuestionRunner
            questions={questions}
-           mode="learning"
-           initialAnswers={resume === 'resume' ? priorProgress?.answers || {} : {}}
+           mode={isReview ? 'review' : 'learning'}
+           initialAnswers={(resume === 'resume' || isReview) ? priorProgress?.answers || {} : {}}
            onAnswerChange={savePartial}
            onExit={() => {
              setQuestions(null);
@@ -238,7 +284,7 @@ export default function CicilBelajar() {
                return (
                  <button
                    key={s.id}
-                   onClick={() => setSubjectId(s.id)}
+                   onClick={() => pickSubject(s.id)}
                    className={`text-left rounded-xl border p-4 transition-all ${
                      active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
@@ -262,7 +308,7 @@ export default function CicilBelajar() {
          </div>
 
          {subjectId && (
-           <div className="animate-fade-in">
+           <div ref={babSectionRef} className="animate-fade-in scroll-mt-24">
              <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih BAB Pembelajaran</label>
              {chapters.length > 6 && (
                <div className="relative mb-3">
@@ -279,7 +325,7 @@ export default function CicilBelajar() {
                {visibleChapters.map((c) => (
                  <button
                    key={c.id}
-                   onClick={() => setChapterId(c.id)}
+                   onClick={() => pickChapter(c.id)}
                    className={`flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
                      chapterId === c.id
                        ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
@@ -299,7 +345,7 @@ export default function CicilBelajar() {
            </div>
          )}
 
-         <div className="pt-4 border-t border-alba-200">
+         <div ref={startBtnRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
              disabled={!chapterId}
              onClick={openChapter}

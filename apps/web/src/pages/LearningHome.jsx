@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, BookOpenText, ClipboardList, History, Timer } from 'lucide-react';
+import { ArrowRight, BookOpenText, ClipboardList, History, Timer, CalendarClock } from 'lucide-react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +31,30 @@ export default function LearningHome() {
  const navigate = useNavigate();
  const { user, guest } = useAuth();
  const [resumeList, setResumeList] = useState([]);
+ const [exams, setExams] = useState([]);
+
+ // Reminder ujian: ambil mata kuliah yang punya tanggal ujian di masa depan,
+ // urutkan dari yang paling dekat, tampilkan countdown di beranda.
+ useEffect(() => {
+   pb.collection('subjects')
+     .getFullList({ sort: 'order' })
+     .then((subs) => {
+       const now = new Date();
+       now.setHours(0, 0, 0, 0);
+       const upcoming = subs
+         .filter((s) => s.examDate && s.examName)
+         .map((s) => {
+           const d = new Date(String(s.examDate).slice(0, 10));
+           const days = Math.ceil((d - now) / 86400000);
+           return { id: s.id, name: s.name, examName: s.examName, date: d, days };
+         })
+         .filter((e) => e.days >= 0)
+         .sort((a, b) => a.days - b.days)
+         .slice(0, 4);
+       setExams(upcoming);
+     })
+     .catch(() => setExams([]));
+ }, []);
 
  // Fitur "Lanjutkan Belajar": tampilkan latihan yang belum selesai supaya
  // siswa bisa langsung loncat kembali ke BAB yang ditinggalkan.
@@ -59,6 +83,42 @@ export default function LearningHome() {
          </h1>
          <p className="text-stone-600 mb-10">Pilih menu yang ingin kamu kerjakan hari ini.</p>
        </motion.div>
+
+       {/* Reminder Ujian — countdown menuju ujian terdekat */}
+       {exams.length > 0 && (
+         <motion.div
+           initial={{ opacity: 0, y: 12 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.4, delay: 0.03 }}
+           className="mb-10 rounded-2xl border border-maroon-200 bg-maroon-50/60 p-6"
+         >
+           <p className="flex items-center gap-2 text-sm font-bold text-maroon-600 mb-4">
+             <CalendarClock size={16} />
+             Reminder Ujian
+           </p>
+           <div className="flex flex-wrap gap-3">
+             {exams.map((e) => (
+               <div
+                 key={e.id}
+                 className="flex items-center gap-3 rounded-xl bg-alba-50 border border-maroon-100 px-5 py-3"
+               >
+                 <div className="min-w-0">
+                   <p className="font-display font-semibold text-stone-800 leading-tight">{e.examName} · {e.name}</p>
+                   <p className="text-xs text-stone-500">
+                     {e.date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                   </p>
+                 </div>
+                 <div className="shrink-0 text-right pl-3 border-l border-maroon-100">
+                   <p className="font-display text-2xl font-bold text-maroon-600 leading-none">
+                     {e.days === 0 ? 'Hari ini' : e.days}
+                   </p>
+                   {e.days > 0 && <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">hari lagi</p>}
+                 </div>
+               </div>
+             ))}
+           </div>
+         </motion.div>
+       )}
 
        {/* Lanjutkan Belajar */}
        {resumeList.length > 0 && (

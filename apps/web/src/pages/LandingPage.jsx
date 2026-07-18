@@ -1,44 +1,15 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Award, BookOpenText, ClipboardList, GraduationCap, Instagram, MapPin, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
+import { ArrowRight, Award, BookOpenText, Briefcase, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
+import { TEACHERS, MANAGERS, MANAGER_CATEGORIES } from '@/data/team';
 
-/* ============================================================================
-   TIM PENGAJAR — edit daftar di bawah ini untuk menamb/mengubah pengajar.
-   Tidak perlu database. Foto pakai link googleusercontent (sama seperti logo):
-   dari Google Drive https://drive.google.com/file/d/FILE_ID/view  →  ambil FILE_ID,
-   lalu tulis: https://lh3.googleusercontent.com/d/FILE_ID
-   (pastikan foto di-set "Anyone with the link").
-   Rekomendasi foto: POTRET 3:4, minimal 900x1200 px, wajah di tengah, background rapi.
-   achievements: tulis MAKSIMAL 3 prestasi paling bergengsi.
-============================================================================ */
-const TEACHERS = [
- {
-   name: 'dr. Contoh Pengajar 1',
-   photo: 'https://lh3.googleusercontent.com/d/FILE_ID_1', // ganti FILE_ID_1
-   specialty: 'Anatomi',
-   university: 'Fakultas Kedokteran UNAIR',
-   tagline: 'Belajar anatomi itu soal memahami cerita tubuh, bukan menghafal.',
-   achievements: [
-     'Juara 1 — Regional Medical Olympiad Anatomy (2023)',
-     'Finalis — IMO Nasional cabang Anatomi (2022)',
-   ],
-   instagram: '', // opsional, mis. 'https://instagram.com/username'
- },
- {
-   name: 'dr. Contoh Pengajar 2',
-   photo: 'https://lh3.googleusercontent.com/d/FILE_ID_2',
-   specialty: 'Fisiologi',
-   university: 'Fakultas Kedokteran UNAIR',
-   tagline: 'Fisiologi adalah logika — sekali paham alurnya, semuanya nyambung.',
-   achievements: [
-     'Juara 2 — International Physiology Quiz (2023)',
-     'Juara 1 — Olimpiade Fisiologi Nasional (2021)',
-   ],
-   instagram: '',
- },
-];
+// Semua manager digabung dalam satu carousel, tapi tetap urut sesuai jabatan
+// (Executive Board dulu, dst) supaya alur strukturnya tetap terbaca.
+const orderedManagers = [...MANAGERS].sort(
+ (a, b) => MANAGER_CATEGORIES.indexOf(a.category) - MANAGER_CATEGORIES.indexOf(b.category)
+);
 
 const features = [
  {
@@ -59,8 +30,14 @@ const features = [
 ];
 
 const subjects = [
- 'Anatomi', 'Biologi Kedokteran', 'Trampilan Medik 1', 'Histologi', 'Fisiologi', 'Biokimia',
- 'Mikrobiologi', 'Parasitologi', 'Farmakologi', 'Patologi Anatomi', 'Patologi Klinik',
+ 'Anatomi', 'Fisiologi', 'Histologi', 'Biologi Kedokteran', 'Farmakologi', 'Biokimia',
+ 'Mikrobiologi', 'Parasitologi', 'Patologi Anatomi', 'Patologi Klinik', 'Kardiorespi',
+ 'Muskuloskeletal', 'Endokrin', 'Gastrohepatoenterologi', 'Growth and Development',
+ 'Hematologi & Imunologi', 'Neuropsikiatri', 'Sistem Indra', 'Sistem Ginjal',
+ 'Sistem Reproduksi', 'GELS 1', 'Tramed 3', 'IPD', 'IKA', 'Neuropsiki-rehab',
+ 'Kedokteran Tropis', 'Tramed 4', 'GELS 2', 'IKM-KP 2', 'Forensik dan medikolegal',
+ 'Ilmu Bedah', 'Obgyn', 'Ilmu Penunjang Klinik', 'CCS (tramed)', 'Ilmu Penyakit Indera',
+ 'Penelitian 1', 'Penelitian 2',
 ];
 
 const fadeUp = {
@@ -84,6 +61,7 @@ export default function LandingPage() {
            <a href="#student-program" className="hover:text-maroon-600 transition-colors">Student Program</a>
            <a href="#olympiad-program" className="hover:text-maroon-600 transition-colors">Olympiad Program</a>
            <a href="#teachers" className="hover:text-maroon-600 transition-colors">Pengajar</a>
+           <a href="#managers" className="hover:text-maroon-600 transition-colors">Manager</a>
            <Link to="/login" className="hover:text-maroon-600 transition-colors">Student Web</Link>
          </nav>
          <Link
@@ -125,9 +103,9 @@ export default function LandingPage() {
            </a>
          </div>
          <div className="mt-10 grid grid-cols-3 gap-4 max-w-sm">
-           <Stat value="11" label="Mata Kuliah" />
-           <Stat value="300+" label="BAB Materi" />
-           <Stat value="10" label="Tahun Bank Soal" />
+           <Stat value="37" label="Mata Kuliah" />
+           <Stat value="490+" label="BAB Materi" />
+           <Stat value="60+" label="Pengajar Juara" />
          </div>
        </motion.div>
 
@@ -222,12 +200,30 @@ export default function LandingPage() {
            </p>
          </motion.div>
 
-         <motion.div {...fadeUp} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-           {TEACHERS.map((t) => (
-             <TeacherCard key={t.name} t={t} />
+         <Carousel>
+           {TEACHERS.map((t, i) => (
+             <TeacherCard key={t.name + i} t={t} />
            ))}
-         </motion.div>
+         </Carousel>
        </div>
+     </section>
+
+     {/* TIM MANAGER */}
+     <section id="managers" className="max-w-6xl mx-auto px-6 py-20">
+       <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-12">
+         <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM MANAGER</p>
+         <h2 className="font-display text-3xl font-semibold mb-3">Struktur Kepengurusan PCV</h2>
+         <p className="text-stone-600 leading-relaxed">
+           Tim di balik layar yang menjalankan PCV Classroom — dari kepemimpinan,
+           pengembangan, operasional, hingga pemasaran.
+         </p>
+       </motion.div>
+
+       <Carousel>
+         {orderedManagers.map((m, i) => (
+           <ManagerCard key={m.name + i} m={m} />
+         ))}
+       </Carousel>
      </section>
 
      {/* CTA */}
@@ -266,44 +262,95 @@ function Stat({ value, label }) {
  );
 }
 
-function TeacherCard({ t }) {
- const [imgFail, setImgFail] = useState(false);
- const validPhoto = t.photo && !t.photo.includes('FILE_ID') && !imgFail;
- return (
-   <div className="group rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
-     {/* Foto potret 3:4 — di-crop otomatis biar seragam */}
-     <div className="relative aspect-[3/4] bg-alba-200 overflow-hidden">
-       {validPhoto ? (
-         <img
-           src={t.photo}
-           alt={t.name}
-           referrerPolicy="no-referrer"
-           onError={() => setImgFail(true)}
-           className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
-         />
-       ) : (
-         <div className="w-full h-full flex flex-col items-center justify-center text-alba-400 gap-2">
-           <UserRound size={44} />
-           <span className="text-[11px] font-semibold">Foto belum diisi</span>
-         </div>
-       )}
-       {t.specialty && (
-         <span className="absolute top-3 left-3 rounded-full bg-maroon-600 text-alba-50 text-[11px] font-bold px-3 py-1 shadow-sm">
-           {t.specialty}
-         </span>
-       )}
-     </div>
+/* Carousel: geser kanan/kiri, 3 kartu di desktop (2 tablet, 1 HP).
+   - Tombol panah BESAR & jelas (maroon solid) supaya kelihatan bisa di-slide.
+   - LOOPING: kalau sudah mentok kanan, tombol next kembali ke awal; kalau
+     mentok kiri, tombol prev lompat ke akhir. */
+function Carousel({ children }) {
+ const ref = useRef(null);
+ const items = React.Children.toArray(children);
 
+ const paginate = (dir) => {
+   const el = ref.current;
+   if (!el) return;
+   const step = el.clientWidth * 0.9;
+   const maxScroll = el.scrollWidth - el.clientWidth;
+   if (dir > 0) {
+     // sudah mentok kanan → loop ke awal
+     if (el.scrollLeft >= maxScroll - 8) el.scrollTo({ left: 0, behavior: 'smooth' });
+     else el.scrollBy({ left: step, behavior: 'smooth' });
+   } else {
+     // sudah mentok kiri → loop ke akhir
+     if (el.scrollLeft <= 8) el.scrollTo({ left: maxScroll, behavior: 'smooth' });
+     else el.scrollBy({ left: -step, behavior: 'smooth' });
+   }
+ };
+
+ const arrowCls =
+   'flex absolute top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-maroon-600 text-alba-50 shadow-card-hover items-center justify-center hover:bg-maroon-700 hover:scale-105 active:scale-95 transition-all ring-4 ring-alba-50';
+
+ return (
+   <div className="relative px-1">
+     <button onClick={() => paginate(-1)} aria-label="Sebelumnya" className={`${arrowCls} left-0 md:-left-5`}>
+       <ChevronLeft size={22} />
+     </button>
+     <div
+       ref={ref}
+       className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 scrollbar-thin -mx-2 px-2 md:px-8"
+     >
+       {items.map((child, i) => (
+         <div key={i} className="snap-start shrink-0 w-[80%] sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]">
+           {child}
+         </div>
+       ))}
+     </div>
+     <button onClick={() => paginate(1)} aria-label="Berikutnya" className={`${arrowCls} right-0 md:-right-5`}>
+       <ChevronRight size={22} />
+     </button>
+
+     {/* Petunjuk geser */}
+     <p className="text-center text-[11px] font-semibold text-stone-400 mt-1 md:hidden">← geser untuk melihat lainnya →</p>
+   </div>
+ );
+}
+
+function ProfilePhoto({ photo, name, badge }) {
+ const [imgFail, setImgFail] = useState(false);
+ const validPhoto = photo && !photo.includes('FILE_ID') && !imgFail;
+ return (
+   <div className="relative aspect-[3/4] bg-alba-200 overflow-hidden">
+     {validPhoto ? (
+       <img
+         src={photo}
+         alt={name}
+         referrerPolicy="no-referrer"
+         loading="lazy"
+         onError={() => setImgFail(true)}
+         className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+       />
+     ) : (
+       <div className="w-full h-full flex flex-col items-center justify-center text-alba-400 gap-2">
+         <UserRound size={44} />
+         <span className="text-[11px] font-semibold">Foto belum diisi</span>
+       </div>
+     )}
+     {badge && (
+       <span className="absolute top-3 left-3 rounded-full bg-maroon-600 text-alba-50 text-[11px] font-bold px-3 py-1 shadow-sm">
+         {badge}
+       </span>
+     )}
+   </div>
+ );
+}
+
+function TeacherCard({ t }) {
+ return (
+   <div className="group h-full rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
+     <ProfilePhoto photo={t.photo} name={t.name} badge="Pengajar" />
      <div className="p-6 flex flex-col flex-1">
        <h3 className="font-display text-lg font-semibold text-stone-800">{t.name}</h3>
-       {t.university && (
-         <p className="flex items-center gap-1.5 text-xs text-stone-500 mt-1">
-           <MapPin size={12} className="text-maroon-400 shrink-0" />
-           {t.university}
-         </p>
-       )}
-       {t.tagline && (
-         <p className="text-sm text-stone-600 italic leading-relaxed mt-3">"{t.tagline}"</p>
+       {t.bidang && (
+         <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">{t.bidang}</p>
        )}
 
        {Array.isArray(t.achievements) && t.achievements.length > 0 && (
@@ -327,7 +374,35 @@ function TeacherCard({ t }) {
            href={t.instagram}
            target="_blank"
            rel="noopener noreferrer"
-           className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-maroon-600 hover:text-maroon-700"
+           className="mt-auto pt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-maroon-600 hover:text-maroon-700"
+         >
+           <Instagram size={14} /> Instagram
+         </a>
+       )}
+     </div>
+   </div>
+ );
+}
+
+function ManagerCard({ m }) {
+ return (
+   <div className="group h-full rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
+     <ProfilePhoto photo={m.photo} name={m.name} />
+     <div className="p-6 flex flex-col flex-1">
+       {/* Jabatan ditonjolkan di tiap kartu */}
+       <span className="self-start inline-flex items-center gap-1.5 rounded-full bg-maroon-600 text-alba-50 text-[11px] font-bold px-3 py-1 mb-3">
+         <Briefcase size={12} /> {m.category}
+       </span>
+       <h3 className="font-display text-lg font-semibold text-stone-800">{m.name}</h3>
+       {m.quote && (
+         <p className="text-sm text-stone-600 italic leading-relaxed mt-3">"{m.quote}"</p>
+       )}
+       {m.instagram && (
+         <a
+           href={m.instagram}
+           target="_blank"
+           rel="noopener noreferrer"
+           className="mt-auto pt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-maroon-600 hover:text-maroon-700"
          >
            <Instagram size={14} /> Instagram
          </a>
