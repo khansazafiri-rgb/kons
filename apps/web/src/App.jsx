@@ -4,6 +4,7 @@ import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
+import CinematicTour from './pages/CinematicTour';
 import LoginPage from './pages/LoginPage';
 import LearningHome from './pages/LearningHome';
 import ProfilePage from './pages/ProfilePage';
@@ -21,7 +22,8 @@ function App() {
        <ScrollToTop />
        <Routes>
          <Route path="/" element={<LandingPage />} />
-         <Route path="/login" element={<LoginPage />} />
+         <Route path="/tur" element={<CinematicTour />} />
+        <Route path="/login" element={<LoginPage />} />
          <Route path="/beranda" element={<ProtectedRoute><LearningHome /></ProtectedRoute>} />
          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
          <Route path="/perdalam-materi" element={<ProtectedRoute><PerdalamMateri /></ProtectedRoute>} />
