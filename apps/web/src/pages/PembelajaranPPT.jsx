@@ -13,6 +13,7 @@ export default function PembelajaranPPT() {
  const chapterId = params.get('chapter');
  const [chapter, setChapter] = useState(null);
  const [fileUrl, setFileUrl] = useState('');
+ const [useGView, setUseGView] = useState(false); // false = viewer PDF bawaan browser (kuat untuk file besar)
  const [done, setDone] = useState(false);
  const [denied, setDenied] = useState(false); // akses ditolak (mata kuliah di luar jatah siswa)
 
@@ -89,25 +90,42 @@ export default function PembelajaranPPT() {
        <div className="bg-alba-50 rounded-2xl border border-alba-200 overflow-hidden shadow-card flex flex-col">
          {fileUrl ? (
            <>
-             {/* Tombol penyelamat jika viewer PDF diblokir browser */}
+             {/* Info + tombol penyelamat. Viewer utama membaca PDF langsung dari
+                 server (bukan Google Viewer) supaya file berukuran besar tetap
+                 bisa dibuka. Kalau tampilan kosong (biasanya di HP), sediakan
+                 opsi Google Viewer & buka di tab baru. */}
              <div className="bg-gold-100/60 border-b border-gold-200 p-4 flex flex-col sm:flex-row justify-between items-center gap-3">
                <p className="text-sm text-stone-700 font-medium text-center sm:text-left">
-                 Layar di bawah ini putih/kosong? Browser kamu mungkin memblokir tampilan PDF.
+                 Tampilan di bawah kosong atau file besar tidak kunjung muncul? Coba mode
+                 alternatif atau buka langsung di tab baru.
                </p>
-               <a
-                 href={fileUrl}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-gold-400 text-alba-50 font-bold px-4 py-2 text-sm hover:bg-gold-600 transition-colors"
-               >
-                 Buka PDF di Tab Baru
-                 <ExternalLink size={13} />
-               </a>
+               <div className="flex flex-wrap items-center justify-center gap-2 shrink-0">
+                 <button
+                   onClick={() => setUseGView((v) => !v)}
+                   className="inline-flex items-center gap-1.5 rounded-lg border border-gold-400 text-gold-700 font-bold px-4 py-2 text-sm hover:bg-gold-100 transition-colors"
+                 >
+                   {useGView ? 'Mode Bawaan Browser' : 'Mode Google Viewer'}
+                 </button>
+                 <a
+                   href={fileUrl}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="inline-flex items-center gap-1.5 rounded-lg bg-gold-400 text-alba-50 font-bold px-4 py-2 text-sm hover:bg-gold-600 transition-colors"
+                 >
+                   Buka di Tab Baru
+                   <ExternalLink size={13} />
+                 </a>
+               </div>
              </div>
 
              <iframe
+               key={useGView ? 'gview' : 'native'}
                title="materi"
-               src={`https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`}
+               src={
+                 useGView
+                   ? `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`
+                   : `${fileUrl}#view=FitH`
+               }
                className="w-full h-[68vh] bg-white border-0"
              />
            </>

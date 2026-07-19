@@ -98,7 +98,7 @@ export default function LandingPage() {
          </div>
          <div className="mt-10 grid grid-cols-3 gap-4 max-w-sm">
            <Stat value="37" label="Mata Kuliah" />
-           <Stat value="490+" label="BAB Materi" />
+           <Stat value="500+" label="BAB Materi" />
            <Stat value="60+" label="Pengajar Juara" />
          </div>
        </motion.div>
@@ -150,10 +150,19 @@ export default function LandingPage() {
        <motion.div {...fadeUp}>
          <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">STUDENT PROGRAM</p>
          <h2 className="font-display text-3xl font-semibold mb-3">Pendampingan Preklinik Terstruktur</h2>
-         <p className="text-stone-600 max-w-2xl mb-10 leading-relaxed">
-           Program pendampingan intensif untuk mahasiswa preklinik FK UNAIR: materi per mata
-           kuliah dan latihan CBT terstruktur per bab.
+         <p className="text-stone-600 max-w-2xl mb-6 leading-relaxed">
+           Program pendampingan intensif bagi mahasiswa Fakultas Kedokteran untuk membantu
+           memahami materi preklinik secara sistematis. Dilengkapi dengan website interaktif
+           berisi PPT high-yield, rangkuman materi, serta latihan CBT yang tersusun berdasarkan
+           mata kuliah dan bab, sehingga proses belajar menjadi lebih terarah dan efektif.
          </p>
+         <div className="max-w-2xl mb-10 rounded-xl border border-gold-200 bg-gold-100/50 px-4 py-3 flex gap-2.5">
+           <span className="font-bold text-gold-600 shrink-0">Notes:</span>
+           <p className="text-sm text-stone-600 leading-relaxed">
+             Website saat ini masih dalam tahap pengembangan dan sementara dapat diakses oleh
+             mahasiswa Semester 1 &amp; 3 Kurikulum FK UNAIR.
+           </p>
+         </div>
        </motion.div>
        <motion.div {...fadeUp} className="flex flex-wrap gap-3">
          {subjects.map((s) => (
