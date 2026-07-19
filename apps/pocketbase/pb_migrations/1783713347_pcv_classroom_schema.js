@@ -366,7 +366,7 @@ migrate(
       },
       {
         name: "Patologi Anatomi",
-        chapters: [],
+        chapters: ["Cell Injury, Cell Death, and Adaptation; Inflamasi; Tissue Repair – Regeneration, Healing, and Fibrosis", "Gangguan Hemodinamik", "Experimental Pathology & Cytology", "Neoplasia", "Patologi Lingkungan", "Penyakit General Pediatrik", "Kelainan Imunologi", "Infectious Diseases", "Patologi Respi", "Patologi GIT", "Patologi Female UG", "Patologi Male UG", "Patologi Ginjal Saluran Kemih", "Patologi Payudara", "Patologi Kulit", "Patologi Muskuloskeletal"],
       },
       {
         name: "Patologi Klinik",
