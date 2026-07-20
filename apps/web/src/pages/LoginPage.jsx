@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
+import { ArrowLeft, KeyRound, IdCard } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Logo } from '@/components/Header';
 
 export default function LoginPage() {
  const { login, enterGuest } = useAuth();
  const navigate = useNavigate();
- const [email, setEmail] = useState('');
+ const [userId, setUserId] = useState('');
  const [password, setPassword] = useState('');
  const [error, setError] = useState('');
  const [loading, setLoading] = useState(false);
@@ -17,10 +17,10 @@ export default function LoginPage() {
    setError('');
    setLoading(true);
    try {
-     await login(email, password);
+     await login(userId.trim(), password);
      navigate('/beranda');
    } catch (err) {
-     setError(err?.message || 'Login gagal. Periksa email dan password.');
+     setError(err?.message || 'Login gagal. Periksa ID User dan password.');
    } finally {
      setLoading(false);
    }
@@ -71,16 +71,18 @@ export default function LoginPage() {
 
          <form onSubmit={submit} className="space-y-5">
            <div>
-             <label className="block text-sm font-semibold mb-1.5 text-stone-700">Email</label>
+             <label className="block text-sm font-semibold mb-1.5 text-stone-700">ID User</label>
              <div className="relative">
-               <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+               <IdCard size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
                <input
-                 type="email"
+                 type="text"
                  required
-                 value={email}
-                 onChange={(e) => setEmail(e.target.value)}
+                 autoCapitalize="none"
+                 autoCorrect="off"
+                 value={userId}
+                 onChange={(e) => setUserId(e.target.value)}
                  className="w-full rounded-xl border border-alba-300 bg-alba-50 pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-                 placeholder="nama@email.com"
+                 placeholder="ID User dari admin"
                />
              </div>
            </div>
@@ -123,8 +125,16 @@ export default function LoginPage() {
          </button>
 
          <p className="text-xs text-stone-500 mt-8 leading-relaxed bg-alba-100/70 border border-alba-200 rounded-xl px-4 py-3">
-           Setiap akun hanya bisa aktif di maksimal <span className="font-semibold">3 device</span>. Kesulitan login?
-           Hubungi narahubung admin di <span className="font-semibold text-maroon-600">khansazafiri@gmail.com</span>.
+           Setiap akun hanya bisa aktif di maksimal <span className="font-semibold">1 device</span>. Kesulitan login?
+           Hubungi narahubung admin di{' '}
+           <a
+             href="https://wa.me/6282257238650"
+             target="_blank"
+             rel="noopener noreferrer"
+             className="font-semibold text-green-700 hover:text-green-800 underline underline-offset-2"
+           >
+             WhatsApp (+62 822-5723-8650)
+           </a>.
          </p>
        </div>
      </div>

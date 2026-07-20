@@ -26,8 +26,10 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password) => {
-    await pb.collection('users').authWithPassword(email, password);
+  // Login memakai "ID User" (field userId) atau email — keduanya didukung
+  // oleh identityFields di PocketBase. Parameter dinamai `identity`.
+  const login = async (identity, password) => {
+    await pb.collection('users').authWithPassword(identity, password);
     const record = pb.authStore.record;
     if (record.disabled) {
       pb.authStore.clear();
@@ -35,8 +37,8 @@ export function AuthProvider({ children }) {
     }
     // Batas jumlah device per akun:
     // - admin  : BEBAS (tanpa batas, tidak dilacak)
-    // - teacher & student : maksimal 3 device
-    const DEVICE_LIMIT = 3;
+    // - teacher & student : maksimal 1 device
+    const DEVICE_LIMIT = 1;
     if (record.role !== 'admin') {
       const deviceId = getDeviceId();
       const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
@@ -44,7 +46,7 @@ export function AuthProvider({ children }) {
         if (devices.length >= DEVICE_LIMIT) {
           pb.authStore.clear();
           throw new Error(
-            `Akun ini sudah login di ${DEVICE_LIMIT} device lain. Hubungi admin untuk reset device.`,
+            'Akun ini sudah login di device lain. Hubungi admin untuk reset device.',
           );
         }
         const updated = [...devices, deviceId];

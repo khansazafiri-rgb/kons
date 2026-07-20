@@ -14,7 +14,7 @@ export default function ProfilePage() {
  const [attempts, setAttempts] = useState([]);
  const [subjectNames, setSubjectNames] = useState({});
 
- // Nama mata kuliah yang diambil siswa (field teachingSubjects di users)
+ // Nama mata kuliah yang diambil siswa / diajar pengajar (field teachingSubjects di users)
  useEffect(() => {
    if (guest || !user) return;
    pb.collection('subjects')
@@ -28,6 +28,9 @@ export default function ProfilePage() {
      })
      .catch(() => {});
  }, [user, guest]);
+
+ // Label mata kuliah menyesuaikan role: siswa "diambil", pengajar "diajar".
+ const mataKuliahLabel = role === 'teacher' ? 'Mata kuliah yang diajar' : 'Mata kuliah yang diambil';
 
  // FITUR: riwayat & grafik nilai tryout (data dari cbt_attempts)
  useEffect(() => {
@@ -79,29 +82,23 @@ export default function ProfilePage() {
            ) : (
              <>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                 <Field label="ID User" value={user?.userId} />
                  <Field label="Nama" value={user?.name} />
+                 <Field label="Gmail" value={user?.email} />
                  <Field label="Role" value={role} className="capitalize" />
-                 <Field label="Email" value={user?.email} />
+                 <Field label="Semester" value={user?.semester} />
+                 <Field label="Asal Kuliah" value={user?.asalKuliah} />
                  {role === 'student' && (
-                   <>
-                     <Field
-                       label="Akun aktif sampai"
-                       value={user?.activeUntil ? String(user.activeUntil).slice(0, 10) : '-'}
-                     />
-                     <Field label="Semester" value={user?.semester} />
-                   </>
-                 )}
-                 {role === 'teacher' && (
-                   <>
-                     <Field label="Asal Kuliah" value={user?.asalKuliah} />
-                     <Field label="Jumlah mata kuliah diajar" value={(user?.teachingSubjects || []).length} />
-                   </>
+                   <Field
+                     label="Akun aktif sampai"
+                     value={user?.activeUntil ? String(user.activeUntil).slice(0, 10) : '-'}
+                   />
                  )}
                </div>
 
-               {role === 'student' && (
+               {(role === 'student' || role === 'teacher') && (
                  <div className="mt-6 rounded-xl bg-alba-100/60 border border-alba-200 px-4 py-3">
-                   <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-2">Mata kuliah yang diambil</p>
+                   <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-stone-400 mb-2">{mataKuliahLabel}</p>
                    {enrolledNames.length > 0 ? (
                      <div className="flex flex-wrap gap-2">
                        {enrolledNames.map((n) => (
