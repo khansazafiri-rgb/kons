@@ -122,7 +122,7 @@ function Pengajar() {
       {teachers.map((t) => (
         <div key={t.id} className="border border-alba-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <p className="font-semibold">{t.name} <span className="text-xs text-stone-400">({t.email})</span></p>
+            <p className="font-semibold">{t.name} <span className="text-xs text-stone-400">(ID: {t.userId || '-'} · {t.email})</span></p>
             <div className="flex gap-2">
               <button onClick={() => resetDevice(t)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1 hover:bg-gold-100">Reset Device</button>
               <button onClick={() => disable(t)} className="text-xs font-semibold rounded-full border px-3 py-1">{t.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
@@ -323,8 +323,10 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                 )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                  <MiniField label="Email" value={s.email} />
+                  <MiniField label="ID User" value={s.userId} />
+                  <MiniField label="Gmail" value={s.email} />
                   <MiniField label="Semester" value={s.semester} />
+                  <MiniField label="Asal kuliah" value={s.asalKuliah} />
                   <MiniField label="Aktif sampai" value={s.activeUntil ? String(s.activeUntil).slice(0, 10) : '-'} />
                 </div>
 
@@ -1247,12 +1249,17 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 // TAB TAMBAH AKUN
 // ==========================================
 function TambahAkun() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'student' });
+  const [form, setForm] = useState({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student' });
   const [msg, setMsg] = useState('');
   const [msgOk, setMsgOk] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
     setMsg('');
+    if (!form.userId.trim()) {
+      setMsg('ID User wajib diisi — dipakai siswa/pengajar untuk login.');
+      setMsgOk(false);
+      return;
+    }
     if (form.password.length < 8) {
       setMsg('Password minimal 8 karakter (aturan bawaan database).');
       setMsgOk(false);
@@ -1260,11 +1267,15 @@ function TambahAkun() {
     }
     try {
       await pb.collection('users').create({
+        userId: form.userId.trim(),
         name: form.name,
         email: form.email,
         emailVisibility: true,
         password: form.password,
         passwordConfirm: form.password,
+        // semester & asal kuliah opsional; number di-cast agar valid
+        semester: form.semester ? Number(form.semester) : null,
+        asalKuliah: form.asalKuliah,
         role: form.role,
         // CATATAN: "verified" sengaja TIDAK dikirim — PocketBase menolak akun
         // non-superuser men-set verified (error "Values don't match").
@@ -1275,7 +1286,7 @@ function TambahAkun() {
       });
       setMsg(`Akun ${form.role} berhasil dibuat. Buka tab ${form.role === 'student' ? 'Siswa' : 'Pengajar'} untuk memilihkan mata kuliahnya.`);
       setMsgOk(true);
-      setForm({ name: '', email: '', password: '', role: 'student' });
+      setForm({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student' });
     } catch (err) {
       // tampilkan detail error per field supaya ketahuan persis salahnya di mana
       let detail = '';
@@ -1295,12 +1306,18 @@ function TambahAkun() {
     <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 max-w-md">
       <h2 className="font-display text-lg font-semibold mb-4">Tambah Akun</h2>
       <form onSubmit={submit} className="space-y-3">
+        <div>
+          <input required value={form.userId} onChange={(e) => setForm((f) => ({ ...f, userId: e.target.value }))} placeholder="ID User (untuk login)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+          <p className="text-[11px] text-stone-400 mt-1">Dipakai siswa/pengajar untuk login (bukan email).</p>
+        </div>
         <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
-        <input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+        <input required type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Gmail" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
         <div>
           <input required type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Password" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
           <p className="text-[11px] text-stone-400 mt-1">Minimal 8 karakter.</p>
         </div>
+        <input type="number" min="1" value={form.semester} onChange={(e) => setForm((f) => ({ ...f, semester: e.target.value }))} placeholder="Semester" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+        <input value={form.asalKuliah} onChange={(e) => setForm((f) => ({ ...f, asalKuliah: e.target.value }))} placeholder="Asal kuliah" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
         <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50">
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
