@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FileText, Lock } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
@@ -8,14 +8,20 @@ import { useAuth } from '@/context/AuthContext';
 export default function PembelajaranPPT() {
  const [params] = useSearchParams();
  const navigate = useNavigate();
+ const location = useLocation();
  const { guest, user, role } = useAuth();
  const subjectId = params.get('subject');
  const chapterId = params.get('chapter');
  const [chapter, setChapter] = useState(null);
  const [fileUrl, setFileUrl] = useState('');
- const [useGView, setUseGView] = useState(false); // false = viewer PDF bawaan browser (kuat untuk file besar)
  const [done, setDone] = useState(false);
  const [denied, setDenied] = useState(false); // akses ditolak (mata kuliah di luar jatah siswa)
+
+ // Sudah dibukakan tab baru dari halaman Perdalam Materi? (klik "Pelajari" =
+ // gesture user, jadi tab pasti terbuka tanpa diblokir popup). Kalau ya, jangan
+ // auto-buka lagi di sini supaya tidak muncul dua tab.
+ const openedFromList = location.state?.pptOpened === true;
+ const autoOpenedRef = useRef(openedFromList);
 
  // Kunci akses langsung lewat URL: siswa hanya boleh membuka mata kuliah miliknya
  useEffect(() => {
@@ -30,7 +36,7 @@ export default function PembelajaranPPT() {
 
  useEffect(() => {
    if (!chapterId || denied) return;
-   pb.collection('chapters').getOne(chapterId).then(setChapter);
+   pb.collection('chapters').getOne(chapterId).then(setChapter).catch(() => setChapter(null));
    pb.collection('ppt_files')
      .getFirstListItem(`chapter = '${chapterId}'`)
      .then((rec) => {
@@ -39,6 +45,14 @@ export default function PembelajaranPPT() {
      })
      .catch(() => setFileUrl(''));
  }, [chapterId, denied]);
+
+ // Auto-buka materi di tab baru sekali saja saat file siap — hanya bila belum
+ // dibukakan dari halaman daftar (akses langsung via URL / setelah "Lanjut").
+ useEffect(() => {
+   if (!fileUrl || autoOpenedRef.current) return;
+   autoOpenedRef.current = true;
+   window.open(fileUrl, '_blank', 'noopener,noreferrer');
+ }, [fileUrl]);
 
  const finish = async () => {
    setDone(true);
@@ -75,7 +89,7 @@ export default function PembelajaranPPT() {
  return (
    <div className="min-h-screen bg-alba-50">
      <Header />
-     <div className="max-w-4xl mx-auto px-6 py-10">
+     <div className="max-w-2xl mx-auto px-6 py-10">
        <Link
          to="/perdalam-materi"
          className="inline-flex items-center gap-1.5 text-sm font-bold text-stone-500 hover:text-maroon-600 transition-colors"
@@ -87,50 +101,32 @@ export default function PembelajaranPPT() {
          {chapter?.title || 'Memuat...'}
        </h1>
 
-       <div className="bg-alba-50 rounded-2xl border border-alba-200 overflow-hidden shadow-card flex flex-col">
+       {/* Materi dibuka di TAB BARU (bukan viewer tertanam) supaya file besar
+           tetap enak dibaca. Tombol ini juga jadi cadangan bila auto-buka
+           diblokir popup browser. */}
+       <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-8 text-center">
          {fileUrl ? (
            <>
-             {/* Info + tombol penyelamat. Viewer utama membaca PDF langsung dari
-                 server (bukan Google Viewer) supaya file berukuran besar tetap
-                 bisa dibuka. Kalau tampilan kosong (biasanya di HP), sediakan
-                 opsi Google Viewer & buka di tab baru. */}
-             <div className="bg-gold-100/60 border-b border-gold-200 p-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-               <p className="text-sm text-stone-700 font-medium text-center sm:text-left">
-                 Tampilan di bawah kosong atau file besar tidak kunjung muncul? Coba mode
-                 alternatif atau buka langsung di tab baru.
-               </p>
-               <div className="flex flex-wrap items-center justify-center gap-2 shrink-0">
-                 <button
-                   onClick={() => setUseGView((v) => !v)}
-                   className="inline-flex items-center gap-1.5 rounded-lg border border-gold-400 text-gold-700 font-bold px-4 py-2 text-sm hover:bg-gold-100 transition-colors"
-                 >
-                   {useGView ? 'Mode Bawaan Browser' : 'Mode Google Viewer'}
-                 </button>
-                 <a
-                   href={fileUrl}
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   className="inline-flex items-center gap-1.5 rounded-lg bg-gold-400 text-alba-50 font-bold px-4 py-2 text-sm hover:bg-gold-600 transition-colors"
-                 >
-                   Buka di Tab Baru
-                   <ExternalLink size={13} />
-                 </a>
-               </div>
-             </div>
-
-             <iframe
-               key={useGView ? 'gview' : 'native'}
-               title="materi"
-               src={
-                 useGView
-                   ? `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`
-                   : `${fileUrl}#view=FitH`
-               }
-               className="w-full h-[68vh] bg-white border-0"
-             />
+             <span className="w-16 h-16 rounded-2xl bg-maroon-50 border border-maroon-100 text-maroon-600 flex items-center justify-center mx-auto mb-5">
+               <FileText size={30} />
+             </span>
+             <h2 className="font-display text-lg font-semibold text-stone-800 mb-1.5">Materi terbuka di tab baru</h2>
+             <p className="text-sm text-stone-600 mb-6 leading-relaxed">
+               Materi BAB ini otomatis dibuka di <span className="font-semibold">tab baru</span> agar lebih nyaman dibaca
+               (mendukung file besar). Jika tab tidak muncul (mungkin diblokir browser), tekan tombol di bawah.
+             </p>
+             <a
+               href={fileUrl}
+               target="_blank"
+               rel="noopener noreferrer"
+               className="inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 font-bold px-8 py-3.5 shadow-card hover:bg-maroon-700 transition-colors"
+             >
+               Buka Materi di Tab Baru
+               <ExternalLink size={15} />
+             </a>
            </>
          ) : (
-           <div className="h-[50vh] flex flex-col items-center justify-center text-stone-400 text-sm p-6 text-center">
+           <div className="flex flex-col items-center justify-center text-stone-400 text-sm py-6">
              <span className="w-14 h-14 rounded-2xl bg-alba-100 border border-alba-200 flex items-center justify-center mb-4">
                <FileText size={24} className="text-alba-400" />
              </span>
@@ -139,6 +135,7 @@ export default function PembelajaranPPT() {
          )}
        </div>
 
+       {/* "Pencet jika sudah selesai" tetap ada di bawah → lanjut ke latihan soal */}
        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
          {!done ? (
            <button

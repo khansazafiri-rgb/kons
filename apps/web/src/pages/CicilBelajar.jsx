@@ -55,7 +55,8 @@ export default function CicilBelajar() {
      const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
      setSubjects(subs);
      try {
-       const allChapters = await pb.collection('chapters').getFullList({ fields: 'id,subject' });
+       // BAB yang di-hide tidak dihitung sebagai bagian dari progress siswa.
+       const allChapters = await pb.collection('chapters').getFullList({ filter: 'hidden != true', fields: 'id,subject' });
        let doneSet = new Set();
        if (!guest && user?.id) {
          const prog = await pb
@@ -81,7 +82,8 @@ export default function CicilBelajar() {
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
-   let filter = `subject = '${subjectId}'`;
+   // BAB yang di-hide disembunyikan dari siswa (tetap bisa dikelola di Edit Soal).
+   let filter = `subject = '${subjectId}' && hidden != true`;
    if (guest) filter += ' && guestAccessible = true';
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then(setChapters);
  }, [subjectId, guest]);
