@@ -3,6 +3,7 @@ import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import PPTUpload from '@/components/PPTUpload';
+import ChapterManager from '@/components/ChapterManager';
 import { MANAGER_CATEGORIES } from '@/data/team';
 
 const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
@@ -861,9 +862,7 @@ async function bulkDeleteQuestions({ ids, setStatus }) {
 export function EditSoal({ allowedSubjectIds = null }) {
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
-  const [chapters, setChapters] = useState([]);
   const [chapterId, setChapterId] = useState('');
-  const [newChapterTitle, setNewChapterTitle] = useState('');
   const [newSubjectName, setNewSubjectName] = useState('');
   const [questions, setQuestions] = useState([]);
 
@@ -875,79 +874,17 @@ export function EditSoal({ allowedSubjectIds = null }) {
   const loadSubjects = () => pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
     setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
   });
-  const loadChapters = (sid) => pb.collection('chapters').getFullList({ sort: 'order', filter: `subject = '${sid}'` }).then(setChapters);
   const loadQuestions = (cid) => pb.collection('questions').getFullList({ filter: `chapter = '${cid}'`, sort: '-created' }).then((list) => setQuestions(list.map(normalizeQuestion)));
 
   useEffect(() => { loadSubjects(); }, []);
-  useEffect(() => { if (subjectId) loadChapters(subjectId); }, [subjectId]);
-  useEffect(() => { if (chapterId) loadQuestions(chapterId); }, [chapterId]);
+  useEffect(() => { setChapterId(''); }, [subjectId]);
+  useEffect(() => { if (chapterId) loadQuestions(chapterId); else setQuestions([]); }, [chapterId]);
 
   const addSubject = async () => {
     if (!newSubjectName.trim()) return;
     await pb.collection('subjects').create({ name: newSubjectName, order: subjects.length + 1 });
     setNewSubjectName('');
     loadSubjects();
-  };
-
-  const addChapter = async () => {
-    if (!newChapterTitle.trim() || !subjectId) return;
-    await pb.collection('chapters').create({ title: newChapterTitle, subject: subjectId, order: chapters.length + 1 });
-    setNewChapterTitle('');
-    loadChapters(subjectId);
-  };
-
-  // Ubah urutan BAB (tukar order dengan BAB tetangga) supaya siswa tahu
-  // urutan pengerjaan di Cicil Belajar & Perdalam Materi.
-  const moveChapter = async (index, dir) => {
-    const target = index + dir;
-    if (target < 0 || target >= chapters.length) return;
-    const a = chapters[index];
-    const b = chapters[target];
-    const aOrder = Number.isFinite(a.order) ? a.order : index + 1;
-    const bOrder = Number.isFinite(b.order) ? b.order : target + 1;
-    try {
-      await pb.collection('chapters').update(a.id, { order: bOrder });
-      await pb.collection('chapters').update(b.id, { order: aOrder });
-      loadChapters(subjectId);
-    } catch (err) {
-      alert('Gagal mengubah urutan BAB: ' + (err?.message || ''));
-    }
-  };
-
-  const deleteChapter = async (c) => {
-    if (!confirm(`Hapus BAB "${c.title}"? Semua soal & PPT di dalam BAB ini akan ikut terhapus dan tidak bisa dikembalikan.`)) return;
-    try {
-      await pb.collection('chapters').delete(c.id);
-      if (chapterId === c.id) setChapterId('');
-      loadChapters(subjectId);
-    } catch (err) {
-      alert('Gagal menghapus BAB: ' + (err?.message || ''));
-    }
-  };
-
-  // Ubah nama BAB (kalau ada salah tulis). Berlaku untuk Perdalam Materi & Cicil Belajar.
-  const renameChapter = async (c) => {
-    const title = prompt('Ubah nama BAB:', c.title);
-    if (title == null) return; // batal
-    const trimmed = title.trim();
-    if (!trimmed || trimmed === c.title) return;
-    try {
-      await pb.collection('chapters').update(c.id, { title: trimmed });
-      loadChapters(subjectId);
-    } catch (err) {
-      alert('Gagal mengubah nama BAB: ' + (err?.message || ''));
-    }
-  };
-
-  // Sembunyikan/tampilkan BAB dari siswa (di Perdalam Materi & Cicil Belajar).
-  // BAB yang di-hide tetap terlihat di sini agar bisa diaktifkan kembali.
-  const toggleHideChapter = async (c) => {
-    try {
-      await pb.collection('chapters').update(c.id, { hidden: !c.hidden });
-      loadChapters(subjectId);
-    } catch (err) {
-      alert('Gagal mengubah status tampil BAB: ' + (err?.message || ''));
-    }
   };
 
   const saveQuestion = async () => {
@@ -970,7 +907,6 @@ export function EditSoal({ allowedSubjectIds = null }) {
 
     setForm(EMPTY_FORM);
     setEditingId(null);
-    loadChapters(subjectId);
     loadQuestions(chapterId);
   };
 
@@ -1026,32 +962,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         {subjectId && (
-          <>
-            <div className="flex gap-2">
-              <input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Tambah BAB baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
-              <button onClick={addChapter} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
-            </div>
-            <p className="text-xs text-stone-400 -mb-1">Panah ↑ ↓ mengatur urutan BAB. ✏️ ubah nama BAB, 👁 sembunyikan/tampilkan dari siswa, 🗑 menghapus BAB beserta isinya.</p>
-            <div className="grid gap-2 max-h-64 overflow-y-auto scrollbar-thin">
-              {chapters.map((c, i) => (
-                <div key={c.id} className={`flex items-center gap-1 rounded-lg border pl-1 pr-1.5 ${chapterId === c.id ? 'border-maroon-600 bg-maroon-50' : c.hidden ? 'border-alba-200 bg-alba-100/50' : 'border-alba-200'}`}>
-                  <div className="flex flex-col">
-                    <button onClick={() => moveChapter(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
-                    <button onClick={() => moveChapter(i, +1)} disabled={i === chapters.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
-                  </div>
-                  {/* min-w-0 + truncate: judul BAB sepanjang apa pun tidak mendorong tombol ✏️ 👁 🗑 keluar layar */}
-                  <button onClick={() => setChapterId(c.id)} title={c.title} className={`flex-1 min-w-0 truncate text-left px-2 py-2 text-sm ${chapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${c.hidden ? 'text-stone-400' : ''}`}>
-                    <span className="text-stone-400 mr-1">{i + 1}.</span>
-                    {c.hidden && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
-                    {c.title}
-                  </button>
-                  <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
-                  <button onClick={() => toggleHideChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={c.hidden ? 'Tampilkan BAB ke siswa' : 'Sembunyikan BAB dari siswa'}>{c.hidden ? '🙈' : '👁'}</button>
-                  <button onClick={() => deleteChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600" title="Hapus BAB">🗑</button>
-                </div>
-              ))}
-            </div>
-          </>
+          <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} />
         )}
       </div>
 
@@ -1685,7 +1596,7 @@ function LandingPageManager() {
           Tambah, edit, hapus, atau urutkan data <b>Tim Pengajar</b> & <b>Management</b> yang tampil di halaman depan.
           Foto memakai link Google Drive format <span className="font-mono text-xs">https://lh3.googleusercontent.com/d/FILE_ID</span> (pastikan "Anyone with the link").
         </p>
-        <div className="flex gap-2 mt-4">
+        <div className="flex flex-wrap items-center gap-2 mt-4">
           {[['teacher', 'Pengajar'], ['manager', 'Management']].map(([k, label]) => (
             <button
               key={k}
@@ -1695,7 +1606,7 @@ function LandingPageManager() {
               {label}
             </button>
           ))}
-          <button onClick={startNew} className="ml-auto rounded-lg bg-gold-400 hover:bg-gold-600 text-alba-50 text-sm font-semibold px-4 py-2">
+          <button onClick={startNew} className="sm:ml-auto rounded-lg bg-gold-400 hover:bg-gold-600 text-alba-50 text-sm font-semibold px-4 py-2">
             + Tambah {isTeacher ? 'Pengajar' : 'Management'}
           </button>
         </div>
