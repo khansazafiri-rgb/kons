@@ -1039,10 +1039,11 @@ export function EditSoal({ allowedSubjectIds = null }) {
                     <button onClick={() => moveChapter(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
                     <button onClick={() => moveChapter(i, +1)} disabled={i === chapters.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
                   </div>
-                  <button onClick={() => setChapterId(c.id)} className={`flex-1 text-left px-2 py-2 text-sm ${chapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${c.hidden ? 'text-stone-400' : ''}`}>
-                    <span className="text-stone-400 mr-1">{i + 1}.</span>{c.title}
-                    {c.hidden && <span className="ml-2 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
-                    <span className="text-xs text-stone-400"> · update {String(c.updated).slice(0, 10)}</span>
+                  {/* min-w-0 + truncate: judul BAB sepanjang apa pun tidak mendorong tombol ✏️ 👁 🗑 keluar layar */}
+                  <button onClick={() => setChapterId(c.id)} title={c.title} className={`flex-1 min-w-0 truncate text-left px-2 py-2 text-sm ${chapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${c.hidden ? 'text-stone-400' : ''}`}>
+                    <span className="text-stone-400 mr-1">{i + 1}.</span>
+                    {c.hidden && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
+                    {c.title}
                   </button>
                   <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
                   <button onClick={() => toggleHideChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={c.hidden ? 'Tampilkan BAB ke siswa' : 'Sembunyikan BAB dari siswa'}>{c.hidden ? '🙈' : '👁'}</button>
@@ -1744,24 +1745,27 @@ function LandingPageManager() {
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 shadow-card space-y-2">
         <p className="text-xs text-stone-400 px-1">Total {isTeacher ? 'pengajar' : 'management'}: {rows.length}. Panah ↑ ↓ mengatur urutan tampil.</p>
         {rows.map((r, i) => (
-          <div key={r.id} className="flex items-center gap-2 rounded-lg border border-alba-200 pl-1 pr-2 py-1.5">
-            <div className="flex flex-col">
+          <div key={r.id} className="flex items-center gap-2.5 rounded-lg border border-alba-200 px-2 py-2">
+            <div className="flex flex-col shrink-0">
               <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
               <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
             </div>
-            <div className="w-11 h-14 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
+            <div className="w-10 h-12 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
               {r.photo && !r.photo.includes('FILE_ID') ? (
                 <img src={r.photo} alt={r.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
               ) : (
-                <span className="text-[9px] text-stone-400 text-center px-1">no foto</span>
+                <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
               )}
             </div>
+            {/* min-w-0 + truncate: teks sepanjang apa pun tidak mendorong tombol keluar layar */}
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm text-stone-800 truncate">{r.name}</p>
               <p className="text-xs text-stone-400 truncate">{isTeacher ? (r.bidang || '—') : (r.category || '—')}</p>
             </div>
-            <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1 hover:bg-gold-100">Edit</button>
-            <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1 hover:bg-red-50">Hapus</button>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Edit</button>
+              <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50">Hapus</button>
+            </div>
           </div>
         ))}
         {rows.length === 0 && <p className="text-sm text-stone-400 px-1 py-2">Belum ada data.</p>}
