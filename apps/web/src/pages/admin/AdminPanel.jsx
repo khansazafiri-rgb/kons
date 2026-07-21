@@ -870,11 +870,14 @@ export function EditSoal({ allowedSubjectIds = null }) {
   const [previewData, setPreviewData] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [bulkStatus, setBulkStatus] = useState('');
+  const [soalRefresh, setSoalRefresh] = useState(0); // memaksa ChapterManager memuat ulang jumlah soal per BAB
 
   const loadSubjects = () => pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
     setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
   });
   const loadQuestions = (cid) => pb.collection('questions').getFullList({ filter: `chapter = '${cid}'`, sort: '-created' }).then((list) => setQuestions(list.map(normalizeQuestion)));
+  // Muat ulang daftar soal BAB aktif + segarkan badge jumlah soal di daftar BAB.
+  const reloadQuestions = (cid) => { loadQuestions(cid); setSoalRefresh((n) => n + 1); };
 
   useEffect(() => { loadSubjects(); }, []);
   useEffect(() => { setChapterId(''); }, [subjectId]);
@@ -907,7 +910,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
 
     setForm(EMPTY_FORM);
     setEditingId(null);
-    loadQuestions(chapterId);
+    reloadQuestions(chapterId);
   };
 
   const startEdit = (q) => {
@@ -944,7 +947,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
       }),
     });
     if (ok) onDone?.();
-    loadQuestions(chapterId);
+    reloadQuestions(chapterId);
   };
 
   return (
@@ -962,7 +965,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
           {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         {subjectId && (
-          <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} />
+          <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} indicator="soal" refreshSignal={soalRefresh} />
         )}
       </div>
 
@@ -987,7 +990,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
             questions={questions}
             onPreview={setPreviewData}
             onEdit={startEdit}
-            onReload={() => loadQuestions(chapterId)}
+            onReload={() => reloadQuestions(chapterId)}
           />
         </div>
       )}
@@ -1668,10 +1671,14 @@ function LandingPageManager() {
                 <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
               )}
             </div>
-            {/* min-w-0 + truncate: teks sepanjang apa pun tidak mendorong tombol keluar layar */}
+            {/* Hanya NAMA yang tampil di daftar. Detail (bidang, prestasi, quote,
+                dll) baru terlihat saat menekan "Edit". min-w-0 + truncate agar
+                nama panjang tidak mendorong tombol keluar layar. */}
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm text-stone-800 truncate">{r.name}</p>
-              <p className="text-xs text-stone-400 truncate">{isTeacher ? (r.bidang || '—') : (r.category || '—')}</p>
+              {!isTeacher && r.category && (
+                <p className="text-[11px] text-stone-400 truncate">{r.category}</p>
+              )}
             </div>
             <div className="flex gap-2 shrink-0">
               <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Edit</button>

@@ -17,6 +17,7 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
   const [msgType, setMsgType] = useState('info'); // 'info' | 'success' | 'error'
   const [uploading, setUploading] = useState(false);
   const [existingFile, setExistingFile] = useState(null);
+  const [pptRefresh, setPptRefresh] = useState(0); // memaksa ChapterManager muat ulang tanda ✓ PPT
 
   useEffect(() => {
     let alive = true;
@@ -119,6 +120,7 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
       setFile(null);
       const refreshed = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${chapterId}'` });
       setExistingFile(refreshed[0] || null);
+      setPptRefresh((n) => n + 1); // tandai ✓ PPT di daftar BAB ikut ter-update
     } catch (err) {
       let friendly = 'Upload gagal. Silakan coba lagi.';
       if (err?.status === 403) {
@@ -161,14 +163,25 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
         </p>
       )}
       {/* Kelola BAB (tambah/ubah nama/hide/urutkan/hapus) + pilih BAB untuk upload.
-          Sama seperti di Edit Soal, berlaku untuk admin & pengajar. */}
+          Tanda ✓ PPT muncul di BAB yang sudah punya file. Berlaku admin & pengajar. */}
       {subjectId && (
-        <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} />
+        <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} indicator="ppt" refreshSignal={pptRefresh} />
       )}
       {chapterId && existingFile && (
-        <p className="text-xs text-gold-600 bg-gold-100/70 border border-gold-200 rounded-lg px-3 py-2">
-          BAB ini sudah memiliki PDF. Mengupload file baru akan menggantikannya.
-        </p>
+        <div className="text-xs text-gold-700 bg-gold-100/70 border border-gold-200 rounded-lg px-3 py-2 space-y-1">
+          <p>BAB ini sudah memiliki PDF. Mengupload file baru akan menggantikannya.</p>
+          <p className="font-semibold break-all">
+            File saat ini: {existingFile.file}{' '}
+            <a
+              href={pb.files.getURL(existingFile, existingFile.file)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline text-gold-800 hover:text-gold-900"
+            >
+              (lihat)
+            </a>
+          </p>
+        </div>
       )}
       <div>
         <input
