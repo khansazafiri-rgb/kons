@@ -3,8 +3,9 @@ import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import PPTUpload from '@/components/PPTUpload';
+import { MANAGER_CATEGORIES } from '@/data/team';
 
-const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian'];
+const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
 export default function AdminPanel() {
   const [tab, setTab] = useState('Pengajar');
   const { user, isAuthed } = useAuth();
@@ -43,6 +44,7 @@ export default function AdminPanel() {
           {tab === 'PPT Mata Kuliah' && <PPTUpload allowedSubjectIds={null} />}
           {tab === 'Tambah Akun' && <TambahAkun />}
           {tab === 'Jadwal Ujian' && <JadwalUjian />}
+          {tab === 'Landing Page' && <LandingPageManager />}
         </div>
       </div>
     </div>
@@ -1574,6 +1576,195 @@ function JadwalUjian() {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// TAB LANDING PAGE — kelola data Tim Pengajar & Management yang tampil di
+// halaman depan (collection landing_team). Bisa tambah, edit, hapus, urutkan.
+// ==========================================
+function LandingPageManager() {
+  const [kind, setKind] = useState('teacher'); // 'teacher' | 'manager'
+  const [rows, setRows] = useState([]);
+  const [error, setError] = useState('');
+  const [okMsg, setOkMsg] = useState('');
+  const [editing, setEditing] = useState(null); // id record, 'new', atau null
+  const EMPTY = { name: '', photo: '', bidang: '', achievements: '', category: MANAGER_CATEGORIES[0], quote: '', instagram: '' };
+  const [form, setForm] = useState(EMPTY);
+
+  const load = () => {
+    setError('');
+    pb.collection('landing_team')
+      .getFullList({ filter: `kind = '${kind}'`, sort: 'order' })
+      .then(setRows)
+      .catch((e) => setError('Gagal memuat data: ' + (e?.message || '')));
+  };
+  useEffect(() => { setEditing(null); setForm(EMPTY); setOkMsg(''); load(); }, [kind]);
+
+  const startNew = () => { setEditing('new'); setForm({ ...EMPTY }); setOkMsg(''); };
+  const startEdit = (r) => {
+    setOkMsg('');
+    setEditing(r.id);
+    setForm({
+      name: r.name || '',
+      photo: r.photo || '',
+      bidang: r.bidang || '',
+      achievements: Array.isArray(r.achievements) ? r.achievements.join('\n') : '',
+      category: r.category || MANAGER_CATEGORIES[0],
+      quote: r.quote || '',
+      instagram: r.instagram || '',
+    });
+  };
+  const cancel = () => { setEditing(null); setForm(EMPTY); };
+
+  const save = async () => {
+    if (!form.name.trim()) { setError('Nama wajib diisi.'); return; }
+    setError('');
+    const payload = {
+      kind,
+      name: form.name.trim(),
+      photo: form.photo.trim(),
+      instagram: form.instagram.trim(),
+    };
+    if (kind === 'teacher') {
+      payload.bidang = form.bidang.trim();
+      payload.achievements = form.achievements.split('\n').map((s) => s.trim()).filter(Boolean);
+      payload.category = '';
+      payload.quote = '';
+    } else {
+      payload.category = form.category;
+      payload.quote = form.quote.trim();
+      payload.bidang = '';
+      payload.achievements = [];
+    }
+    try {
+      if (editing === 'new') {
+        payload.order = rows.length ? Math.max(...rows.map((r) => r.order ?? 0)) + 1 : 0;
+        await pb.collection('landing_team').create(payload);
+        setOkMsg('Data baru ditambahkan.');
+      } else {
+        await pb.collection('landing_team').update(editing, payload);
+        setOkMsg('Perubahan disimpan.');
+      }
+      cancel();
+      load();
+    } catch (e) {
+      setError('Gagal menyimpan: ' + (e?.message || '') + ' — pastikan Anda login sebagai admin.');
+    }
+  };
+
+  const remove = async (r) => {
+    if (!confirm(`Hapus "${r.name}" dari landing page? Tindakan ini tidak bisa dibatalkan.`)) return;
+    try { await pb.collection('landing_team').delete(r.id); setOkMsg('Data dihapus.'); load(); }
+    catch (e) { setError('Gagal menghapus: ' + (e?.message || '')); }
+  };
+
+  // Tukar urutan tampil dengan tetangganya.
+  const move = async (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= rows.length) return;
+    const a = rows[index], b = rows[target];
+    const aOrder = a.order ?? index, bOrder = b.order ?? target;
+    try {
+      await pb.collection('landing_team').update(a.id, { order: bOrder });
+      await pb.collection('landing_team').update(b.id, { order: aOrder });
+      load();
+    } catch (e) { setError('Gagal mengubah urutan: ' + (e?.message || '')); }
+  };
+
+  const isTeacher = kind === 'teacher';
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <h2 className="font-display text-lg font-semibold text-maroon-600">Kelola Landing Page</h2>
+        <p className="text-sm text-stone-500 mt-1 leading-relaxed">
+          Tambah, edit, hapus, atau urutkan data <b>Tim Pengajar</b> & <b>Management</b> yang tampil di halaman depan.
+          Foto memakai link Google Drive format <span className="font-mono text-xs">https://lh3.googleusercontent.com/d/FILE_ID</span> (pastikan "Anyone with the link").
+        </p>
+        <div className="flex gap-2 mt-4">
+          {[['teacher', 'Pengajar'], ['manager', 'Management']].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setKind(k)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${kind === k ? 'bg-maroon-600 text-alba-50' : 'border border-alba-300 text-stone-600 hover:bg-maroon-50'}`}
+            >
+              {label}
+            </button>
+          ))}
+          <button onClick={startNew} className="ml-auto rounded-lg bg-gold-400 hover:bg-gold-600 text-alba-50 text-sm font-semibold px-4 py-2">
+            + Tambah {isTeacher ? 'Pengajar' : 'Management'}
+          </button>
+        </div>
+        {error && <p className="mt-3 text-sm whitespace-pre-wrap text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+        {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
+      </div>
+
+      {/* Form tambah/edit */}
+      {editing !== null && (
+        <div className="bg-alba-50 rounded-2xl border border-maroon-200 p-6 shadow-card space-y-3 animate-fade-in">
+          <h3 className="font-bold text-maroon-600">{editing === 'new' ? `Tambah ${isTeacher ? 'Pengajar' : 'Management'} Baru` : 'Edit Data'}</h3>
+          <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama lengkap" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+          <div>
+            <input value={form.photo} onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))} placeholder="Link foto (Google Drive)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+            {form.photo && !form.photo.includes('FILE_ID') && (
+              <img src={form.photo} alt="Preview foto" referrerPolicy="no-referrer" className="mt-2 h-28 w-24 object-cover rounded-lg border border-alba-200" onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = ''; }} />
+            )}
+          </div>
+
+          {isTeacher ? (
+            <>
+              <textarea value={form.bidang} onChange={(e) => setForm((f) => ({ ...f, bidang: e.target.value }))} placeholder="Bidang (mis. Olimpiade Bidang Anatomi, All Basic Medical Science)" rows={2} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+              <div>
+                <textarea value={form.achievements} onChange={(e) => setForm((f) => ({ ...f, achievements: e.target.value }))} placeholder={"Prestasi — satu baris satu prestasi\nContoh:\nGold Medalist SIMPIC 2023\n1st Winner RMO 2022"} rows={4} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                <p className="text-[11px] text-stone-400 mt-1">Satu baris = satu prestasi. Yang tampil di kartu maksimal 3 teratas.</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50">
+                {MANAGER_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <textarea value={form.quote} onChange={(e) => setForm((f) => ({ ...f, quote: e.target.value }))} placeholder="Quote (opsional)" rows={2} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+            </>
+          )}
+
+          <input value={form.instagram} onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))} placeholder="Link Instagram (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+
+          <div className="flex gap-2 pt-1">
+            <button onClick={cancel} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal</button>
+            <button onClick={save} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-6 py-2">Simpan</button>
+          </div>
+        </div>
+      )}
+
+      {/* Daftar data */}
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 shadow-card space-y-2">
+        <p className="text-xs text-stone-400 px-1">Total {isTeacher ? 'pengajar' : 'management'}: {rows.length}. Panah ↑ ↓ mengatur urutan tampil.</p>
+        {rows.map((r, i) => (
+          <div key={r.id} className="flex items-center gap-2 rounded-lg border border-alba-200 pl-1 pr-2 py-1.5">
+            <div className="flex flex-col">
+              <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
+              <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
+            </div>
+            <div className="w-11 h-14 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
+              {r.photo && !r.photo.includes('FILE_ID') ? (
+                <img src={r.photo} alt={r.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+              ) : (
+                <span className="text-[9px] text-stone-400 text-center px-1">no foto</span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-stone-800 truncate">{r.name}</p>
+              <p className="text-xs text-stone-400 truncate">{isTeacher ? (r.bidang || '—') : (r.category || '—')}</p>
+            </div>
+            <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1 hover:bg-gold-100">Edit</button>
+            <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1 hover:bg-red-50">Hapus</button>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-sm text-stone-400 px-1 py-2">Belum ada data.</p>}
       </div>
     </div>
   );

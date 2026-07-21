@@ -1,15 +1,19 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Award, BookOpenText, Briefcase, ChevronLeft, ChevronRight, ClipboardList, GraduationCap, Instagram, MessageCircle, Stethoscope, Timer, Trophy, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
-import { TEACHERS, MANAGERS, MANAGER_CATEGORIES } from '@/data/team';
+import { TEACHERS as TEACHERS_FALLBACK, MANAGERS as MANAGERS_FALLBACK, MANAGER_CATEGORIES } from '@/data/team';
+import pb from '@/lib/pocketbaseClient';
 
-// Semua manager digabung dalam satu carousel, tapi tetap urut sesuai jabatan
-// (Executive Board dulu, dst) supaya alur strukturnya tetap terbaca.
-const orderedManagers = [...MANAGERS].sort(
- (a, b) => MANAGER_CATEGORIES.indexOf(a.category) - MANAGER_CATEGORIES.indexOf(b.category)
-);
+// Urutkan manager sesuai jabatan (Executive Board dulu, dst) lalu urutan simpan,
+// supaya alur strukturnya tetap terbaca di carousel.
+const sortManagers = (list) =>
+ [...list].sort(
+   (a, b) =>
+     (MANAGER_CATEGORIES.indexOf(a.category) - MANAGER_CATEGORIES.indexOf(b.category)) ||
+     ((a.order ?? 0) - (b.order ?? 0))
+ );
 
 const features = [
  {
@@ -42,6 +46,27 @@ const fadeUp = {
 };
 
 export default function LandingPage() {
+ // Data Tim Pengajar & Manager diambil dari database (collection landing_team)
+ // supaya bisa dikelola admin. Kalau DB kosong/gagal, pakai data bawaan team.js
+ // agar halaman tidak pernah tampak kosong.
+ const [teachers, setTeachers] = useState(TEACHERS_FALLBACK);
+ const [managers, setManagers] = useState(sortManagers(MANAGERS_FALLBACK));
+
+ useEffect(() => {
+   let alive = true;
+   pb.collection('landing_team')
+     .getFullList({ sort: 'order', fields: 'kind,name,photo,bidang,achievements,category,quote,instagram,order' })
+     .then((rows) => {
+       if (!alive) return;
+       const t = rows.filter((r) => r.kind === 'teacher');
+       const m = rows.filter((r) => r.kind === 'manager');
+       if (t.length) setTeachers(t);
+       if (m.length) setManagers(sortManagers(m));
+     })
+     .catch(() => {}); // biarkan pakai fallback
+   return () => { alive = false; };
+ }, []);
+
  return (
    <div className="min-h-screen bg-alba-50 text-stone-800">
      {/* Bar atas tipis maroon — aksen kampus */}
@@ -218,7 +243,7 @@ export default function LandingPage() {
          </motion.div>
 
          <Carousel>
-           {TEACHERS.map((t, i) => (
+           {teachers.map((t, i) => (
              <TeacherCard key={t.name + i} t={t} />
            ))}
          </Carousel>
@@ -237,7 +262,7 @@ export default function LandingPage() {
        </motion.div>
 
        <Carousel>
-         {orderedManagers.map((m, i) => (
+         {managers.map((m, i) => (
            <ManagerCard key={m.name + i} m={m} />
          ))}
        </Carousel>
