@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
+import ChapterManager from '@/components/ChapterManager';
 
 const MAX_PDF_SIZE = 100 * 1024 * 1024; // sesuai ppt_files.file maxSize (100MB)
 
@@ -9,7 +10,6 @@ const MAX_PDF_SIZE = 100 * 1024 * 1024; // sesuai ppt_files.file maxSize (100MB)
 export default function PPTUpload({ allowedSubjectIds = null }) {
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
-  const [chapters, setChapters] = useState([]);
   const [chapterId, setChapterId] = useState('');
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
@@ -41,17 +41,11 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
     return () => { alive = false; };
   }, [allowedSubjectIds]);
 
+  // BAB dikelola oleh ChapterManager; di sini cukup reset pilihan saat mata
+  // kuliah berganti.
   useEffect(() => {
     setChapterId('');
     setExistingFile(null);
-    if (subjectId) {
-      pb.collection('chapters')
-        .getFullList({ filter: `subject = '${subjectId}'`, sort: 'order' })
-        .then(setChapters)
-        .catch(() => setChapters([]));
-    } else {
-      setChapters([]);
-    }
   }, [subjectId]);
 
   useEffect(() => {
@@ -148,7 +142,7 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
   };
 
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-md shadow-card">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-2xl shadow-card">
       <h2 className="font-display text-lg font-semibold">PPT Mata Kuliah (PDF)</h2>
       <select
         value={subjectId}
@@ -166,16 +160,10 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
             : 'Belum ada mata kuliah ajar yang dipilihkan admin untuk Anda.'}
         </p>
       )}
+      {/* Kelola BAB (tambah/ubah nama/hide/urutkan/hapus) + pilih BAB untuk upload.
+          Sama seperti di Edit Soal, berlaku untuk admin & pengajar. */}
       {subjectId && (
-        <select
-          value={chapterId}
-          onChange={(e) => setChapterId(e.target.value)}
-          disabled={uploading}
-          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm disabled:opacity-60 bg-alba-50"
-        >
-          <option value="">Pilih BAB...</option>
-          {chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-        </select>
+        <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} />
       )}
       {chapterId && existingFile && (
         <p className="text-xs text-gold-600 bg-gold-100/70 border border-gold-200 rounded-lg px-3 py-2">
