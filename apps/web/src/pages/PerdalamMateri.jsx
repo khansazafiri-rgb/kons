@@ -16,6 +16,7 @@ export default function PerdalamMateri() {
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [search, setSearch] = useState('');
  const [enrolled, setEnrolled] = useState(null); // null=tanpa batasan, []=belum dipilihkan, [..]=boleh
+ const [pptUrl, setPptUrl] = useState(''); // URL PPT BAB terpilih (di-prefetch agar bisa dibuka saat klik "Pelajari")
 
  // Auto-scroll mengikuti pilihan
  const babSectionRef = useRef(null);
@@ -43,7 +44,8 @@ export default function PerdalamMateri() {
      const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
      setSubjects(subs);
      try {
-       const allChapters = await pb.collection('chapters').getFullList({ fields: 'id,subject' });
+       // BAB yang di-hide tidak dihitung sebagai bagian dari progress siswa.
+       const allChapters = await pb.collection('chapters').getFullList({ filter: 'hidden != true', fields: 'id,subject' });
        const totals = {};
        allChapters.forEach((c) => { totals[c.subject] = (totals[c.subject] || 0) + 1; });
        let doneSet = new Set();
@@ -69,7 +71,8 @@ export default function PerdalamMateri() {
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
-   let filter = `subject = '${subjectId}'`;
+   // BAB yang di-hide disembunyikan dari siswa (tetap bisa dikelola di Edit Soal).
+   let filter = `subject = '${subjectId}' && hidden != true`;
    if (guest) filter += ' && guestAccessible = true';
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
      setChapters(chs);
@@ -77,6 +80,19 @@ export default function PerdalamMateri() {
      setSearch('');
    });
  }, [subjectId, guest]);
+
+ // Prefetch URL PPT begitu BAB dipilih, supaya saat user menekan "Pelajari"
+ // (gesture langsung) tab baru bisa dibuka seketika tanpa diblokir popup.
+ useEffect(() => {
+   setPptUrl('');
+   if (!chapterId) return;
+   let alive = true;
+   pb.collection('ppt_files')
+     .getFirstListItem(`chapter = '${chapterId}'`)
+     .then((rec) => { if (alive) setPptUrl(pb.files.getURL(rec, rec.file)); })
+     .catch(() => { if (alive) setPptUrl(''); });
+   return () => { alive = false; };
+ }, [chapterId]);
 
  // Pencarian BAB — penting untuk mata kuliah dengan 30+ BAB seperti Anatomi
  const visibleChapters = useMemo(() => {
@@ -91,7 +107,16 @@ export default function PerdalamMateri() {
      alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
      return;
    }
-   navigate(`/pembelajaran-ppt?subject=${subjectId}&chapter=${chapterId}`);
+   // Langsung buka materi di tab baru dari gesture klik ini (tidak diblokir popup).
+   // Kalau URL belum sempat ter-prefetch, halaman tujuan yang akan membukanya.
+   let openedHere = false;
+   if (pptUrl) {
+     const w = window.open(pptUrl, '_blank', 'noopener,noreferrer');
+     openedHere = !!w;
+   }
+   navigate(`/pembelajaran-ppt?subject=${subjectId}&chapter=${chapterId}`, {
+     state: { pptOpened: openedHere },
+   });
  };
 
  return (

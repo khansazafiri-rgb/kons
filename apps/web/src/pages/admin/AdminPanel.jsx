@@ -757,6 +757,101 @@ function parseBulkItems(bulkText, qtype) {
   });
 }
 
+// Buat banyak soal sekaligus dengan tahan-banting: retry saat kena batas
+// kecepatan server (429) atau gangguan jaringan sesaat (502/503), plus jeda
+// kecil antar-soal supaya tidak menabrak rate limit. Dipakai BERSAMA oleh
+// EditSoal (Cicil Belajar) & EditSimulasi (CBT) agar keduanya SAMA andalnya —
+// sebelumnya import di Simulasi tidak punya retry sehingga sering "gagal di
+// tengah jalan" saat soalnya banyak.
+async function bulkCreateQuestions({ items, buildPayload, startOrder, setStatus }) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let order = startOrder;
+  let sukses = 0;
+
+  const createWithRetry = async (payload) => {
+    let lastErr;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await pb.collection('questions').create(payload);
+        return;
+      } catch (e) {
+        lastErr = e;
+        const status = e?.status;
+        if (status === 429) {
+          const waitMs = 3000 * (attempt + 1); // 3s, 6s, 9s, 12s...
+          setStatus(`⏳ Server minta jeda sebentar (batas kecepatan). Menunggu ${waitMs / 1000} detik lalu lanjut... (${sukses}/${items.length} tersimpan)`);
+          await sleep(waitMs);
+          continue;
+        }
+        if (status === 0 || status === 502 || status === 503) {
+          await sleep(1500 * (attempt + 1)); // gangguan jaringan sesaat
+          continue;
+        }
+        throw e; // error lain (data tidak valid / izin) — jangan diulang
+      }
+    }
+    throw lastErr;
+  };
+
+  setStatus('⏳ Mengunggah ' + items.length + ' soal...');
+  for (let i = 0; i < items.length; i++) {
+    try {
+      await createWithRetry({ ...buildPayload(items[i]), order: ++order });
+    } catch (e) {
+      const detail = e?.response?.data
+        ? Object.entries(e.response.data).map(([f, info]) => `${f}: ${info?.message || 'tidak valid'}`).join(' | ')
+        : (e?.message || 'error tidak diketahui');
+      setStatus(`❌ Berhenti di soal #${i + 1} dari ${items.length}. ${sukses} soal sebelumnya sudah tersimpan.\nPenyebab: ${detail}`);
+      return { sukses, ok: false };
+    }
+    sukses += 1;
+    if (sukses % 5 === 0) setStatus(`⏳ Menyimpan... ${sukses}/${items.length} soal`);
+    await sleep(120); // jeda kecil supaya tidak menabrak rate limit server
+  }
+  setStatus('✅ Selesai! ' + sukses + ' soal berhasil ditambahkan.');
+  return { sukses, ok: true };
+}
+
+// Hapus banyak soal sekaligus (untuk fitur pilih-lalu-hapus) dengan retry
+// serupa supaya tidak berhenti di tengah karena rate limit.
+async function bulkDeleteQuestions({ ids, setStatus }) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let sukses = 0;
+
+  const deleteWithRetry = async (id) => {
+    let lastErr;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        await pb.collection('questions').delete(id);
+        return;
+      } catch (e) {
+        lastErr = e;
+        const status = e?.status;
+        if (status === 404) return; // sudah tidak ada — anggap berhasil
+        if (status === 429) { await sleep(3000 * (attempt + 1)); continue; }
+        if (status === 0 || status === 502 || status === 503) { await sleep(1500 * (attempt + 1)); continue; }
+        throw e;
+      }
+    }
+    throw lastErr;
+  };
+
+  setStatus?.(`⏳ Menghapus ${ids.length} soal...`);
+  for (let i = 0; i < ids.length; i++) {
+    try {
+      await deleteWithRetry(ids[i]);
+    } catch (e) {
+      setStatus?.(`❌ Berhenti di soal ke-${i + 1} dari ${ids.length}. ${sukses} soal sudah terhapus.\nPenyebab: ${e?.message || 'error tidak diketahui'}`);
+      return { sukses, ok: false };
+    }
+    sukses += 1;
+    if (sukses % 5 === 0) setStatus?.(`⏳ Menghapus... ${sukses}/${ids.length} soal`);
+    await sleep(80);
+  }
+  setStatus?.(`✅ Selesai! ${sukses} soal berhasil dihapus.`);
+  return { sukses, ok: true };
+}
+
 // ==========================================
 // EDIT SOAL CICIL BELAJAR (mata kuliah → BAB → soal)
 // allowedSubjectIds: teacher hanya melihat mata kuliah ajarnya
@@ -828,6 +923,31 @@ export function EditSoal({ allowedSubjectIds = null }) {
     }
   };
 
+  // Ubah nama BAB (kalau ada salah tulis). Berlaku untuk Perdalam Materi & Cicil Belajar.
+  const renameChapter = async (c) => {
+    const title = prompt('Ubah nama BAB:', c.title);
+    if (title == null) return; // batal
+    const trimmed = title.trim();
+    if (!trimmed || trimmed === c.title) return;
+    try {
+      await pb.collection('chapters').update(c.id, { title: trimmed });
+      loadChapters(subjectId);
+    } catch (err) {
+      alert('Gagal mengubah nama BAB: ' + (err?.message || ''));
+    }
+  };
+
+  // Sembunyikan/tampilkan BAB dari siswa (di Perdalam Materi & Cicil Belajar).
+  // BAB yang di-hide tetap terlihat di sini agar bisa diaktifkan kembali.
+  const toggleHideChapter = async (c) => {
+    try {
+      await pb.collection('chapters').update(c.id, { hidden: !c.hidden });
+      loadChapters(subjectId);
+    } catch (err) {
+      alert('Gagal mengubah status tampil BAB: ' + (err?.message || ''));
+    }
+  };
+
   const saveQuestion = async () => {
     if (!form.text.trim() || !chapterId) return;
 
@@ -862,12 +982,6 @@ export function EditSoal({ allowedSubjectIds = null }) {
     setEditingId(null);
   };
 
-  const deleteQuestion = async (id) => {
-    if (!confirm('Yakin ingin menghapus soal ini?')) return;
-    await pb.collection('questions').delete(id);
-    loadQuestions(chapterId);
-  };
-
   const importBulk = async (bulkText, qtype, onDone) => {
     if (!chapterId) { setBulkStatus('⚠️ Pilih BAB dulu.'); return; }
     let items;
@@ -877,72 +991,22 @@ export function EditSoal({ allowedSubjectIds = null }) {
       setBulkStatus('❌ Format salah: ' + e.message);
       return;
     }
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    let n = questions.length;
-    let sukses = 0;
-
-    // Buat satu soal dengan retry otomatis kalau kena rate limit (429) atau
-    // gangguan jaringan sesaat — biar import banyak soal tidak "gagal di tengah
-    // jalan". Menunggu makin lama tiap kali gagal (backoff).
-    const createWithRetry = async (payload) => {
-      let lastErr;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          await pb.collection('questions').create(payload);
-          return;
-        } catch (e) {
-          lastErr = e;
-          const status = e?.status;
-          if (status === 429) {
-            const waitMs = 3000 * (attempt + 1); // 3s, 6s, 9s, 12s...
-            setBulkStatus(`⏳ Server minta jeda sebentar (batas kecepatan). Menunggu ${waitMs / 1000} detik lalu lanjut... (${sukses}/${items.length} tersimpan)`);
-            await sleep(waitMs);
-            continue;
-          }
-          if (status === 0 || status === 502 || status === 503) {
-            await sleep(1500 * (attempt + 1)); // gangguan jaringan sesaat
-            continue;
-          }
-          throw e; // error lain (mis. data tidak valid / izin) — jangan diulang
-        }
-      }
-      throw lastErr;
-    };
-
-    setBulkStatus('⏳ Mengunggah ' + items.length + ' soal...');
-    try {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        try {
-          await createWithRetry({
-            subject: subjectId,
-            chapter: chapterId,
-            type: 'latihan',
-            year: null,
-            text: item.text,
-            hint: item.hint,
-            options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
-            order: ++n,
-          });
-        } catch (e) {
-          const detail = e?.response?.data
-            ? Object.entries(e.response.data).map(([f, info]) => `${f}: ${info?.message || 'tidak valid'}`).join(' | ')
-            : (e?.message || 'error tidak diketahui');
-          setBulkStatus(`❌ Berhenti di soal #${i + 1} dari ${items.length}. ${sukses} soal sebelumnya sudah tersimpan.\nPenyebab: ${detail}`);
-          loadQuestions(chapterId);
-          return;
-        }
-        sukses += 1;
-        if (sukses % 5 === 0) setBulkStatus(`⏳ Menyimpan... ${sukses}/${items.length} soal`);
-        await sleep(120); // jeda kecil supaya tidak menabrak rate limit server
-      }
-      onDone?.();
-      setBulkStatus('✅ Selesai! ' + sukses + ' soal berhasil ditambahkan.');
-      loadQuestions(chapterId);
-    } catch (e) {
-      setBulkStatus('❌ Gagal: ' + (e?.message || 'error tidak diketahui') + ` (${sukses} soal tersimpan)`);
-      loadQuestions(chapterId);
-    }
+    const { ok } = await bulkCreateQuestions({
+      items,
+      startOrder: questions.length,
+      setStatus: setBulkStatus,
+      buildPayload: (item) => ({
+        subject: subjectId,
+        chapter: chapterId,
+        type: 'latihan',
+        year: null,
+        text: item.text,
+        hint: item.hint,
+        options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
+      }),
+    });
+    if (ok) onDone?.();
+    loadQuestions(chapterId);
   };
 
   return (
@@ -965,18 +1029,21 @@ export function EditSoal({ allowedSubjectIds = null }) {
               <input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Tambah BAB baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
               <button onClick={addChapter} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
             </div>
-            <p className="text-xs text-stone-400 -mb-1">Panah ↑ ↓ mengatur urutan BAB (dipakai untuk urutan pengerjaan siswa). Tombol 🗑 menghapus BAB beserta isinya.</p>
+            <p className="text-xs text-stone-400 -mb-1">Panah ↑ ↓ mengatur urutan BAB. ✏️ ubah nama BAB, 👁 sembunyikan/tampilkan dari siswa, 🗑 menghapus BAB beserta isinya.</p>
             <div className="grid gap-2 max-h-64 overflow-y-auto scrollbar-thin">
               {chapters.map((c, i) => (
-                <div key={c.id} className={`flex items-center gap-1 rounded-lg border pl-1 pr-1.5 ${chapterId === c.id ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200'}`}>
+                <div key={c.id} className={`flex items-center gap-1 rounded-lg border pl-1 pr-1.5 ${chapterId === c.id ? 'border-maroon-600 bg-maroon-50' : c.hidden ? 'border-alba-200 bg-alba-100/50' : 'border-alba-200'}`}>
                   <div className="flex flex-col">
                     <button onClick={() => moveChapter(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
                     <button onClick={() => moveChapter(i, +1)} disabled={i === chapters.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
                   </div>
-                  <button onClick={() => setChapterId(c.id)} className={`flex-1 text-left px-2 py-2 text-sm ${chapterId === c.id ? 'font-semibold text-maroon-700' : ''}`}>
+                  <button onClick={() => setChapterId(c.id)} className={`flex-1 text-left px-2 py-2 text-sm ${chapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${c.hidden ? 'text-stone-400' : ''}`}>
                     <span className="text-stone-400 mr-1">{i + 1}.</span>{c.title}
+                    {c.hidden && <span className="ml-2 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
                     <span className="text-xs text-stone-400"> · update {String(c.updated).slice(0, 10)}</span>
                   </button>
+                  <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
+                  <button onClick={() => toggleHideChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={c.hidden ? 'Tampilkan BAB ke siswa' : 'Sembunyikan BAB dari siswa'}>{c.hidden ? '🙈' : '👁'}</button>
                   <button onClick={() => deleteChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600" title="Hapus BAB">🗑</button>
                 </div>
               ))}
@@ -1001,23 +1068,13 @@ export function EditSoal({ allowedSubjectIds = null }) {
 
           <BulkImport onImport={importBulk} status={bulkStatus} />
 
-          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
-            <h4 className="font-semibold text-sm text-stone-600">Daftar Soal di Bab Ini</h4>
-            {questions.map((q) => (
-              <div key={q.id} className="flex items-center justify-between text-sm border border-alba-200 rounded-lg px-4 py-3 bg-alba-50 hover:bg-alba-100">
-                <span className="truncate pr-4 flex-1 font-medium">
-                  <QtypeBadge qtype={q.qtype} />
-                  {q.text}
-                </span>
-                <div className="flex gap-3 shrink-0">
-                  <button onClick={() => setPreviewData(q)} className="text-xs text-maroon-600 hover:underline font-semibold">Preview</button>
-                  <button onClick={() => startEdit(q)} className="text-xs text-gold-600 hover:underline font-semibold">Edit</button>
-                  <button onClick={() => deleteQuestion(q.id)} className="text-xs text-red-600 hover:underline font-semibold">Hapus</button>
-                </div>
-              </div>
-            ))}
-            {questions.length === 0 && <p className="text-xs text-stone-400">Belum ada soal tersimpan.</p>}
-          </div>
+          <QuestionList
+            title="Daftar Soal di Bab Ini"
+            questions={questions}
+            onPreview={setPreviewData}
+            onEdit={startEdit}
+            onReload={() => loadQuestions(chapterId)}
+          />
         </div>
       )}
 
@@ -1029,6 +1086,92 @@ export function EditSoal({ allowedSubjectIds = null }) {
 function QtypeBadge({ qtype }) {
   const label = { mcq: 'MCQ', mcq_img: 'MCQ 🖼', isian: 'Isian', isian_img: 'Isian 🖼' }[qtype || 'mcq'] || 'MCQ';
   return <span className="inline-block mr-2 text-[10px] font-bold uppercase bg-alba-200 text-stone-600 rounded px-1.5 py-0.5">{label}</span>;
+}
+
+// Daftar soal dengan fitur PILIH BANYAK lalu hapus sekaligus (checkbox + pilih
+// semua + "Hapus Terpilih"). Dipakai bersama oleh EditSoal (Cicil Belajar) &
+// EditSimulasi (CBT). onReload dipanggil setelah hapus agar daftar disegarkan.
+function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
+  const [selected, setSelected] = useState(() => new Set());
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // Buang id yang sudah tidak ada lagi (mis. setelah reload) dari seleksi.
+  useEffect(() => {
+    const ids = new Set(questions.map((q) => q.id));
+    setSelected((prev) => new Set([...prev].filter((id) => ids.has(id))));
+  }, [questions]);
+
+  const allSelected = questions.length > 0 && selected.size === questions.length;
+  const toggle = (id) =>
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(questions.map((q) => q.id)));
+
+  const deleteOne = async (id) => {
+    if (!confirm('Yakin ingin menghapus soal ini?')) return;
+    setBusy(true);
+    try {
+      await pb.collection('questions').delete(id);
+    } catch (e) {
+      setStatus('❌ Gagal menghapus: ' + (e?.message || ''));
+    }
+    setBusy(false);
+    onReload?.();
+  };
+
+  const deleteSelected = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!confirm(`Hapus ${ids.length} soal terpilih sekaligus? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setBusy(true);
+    await bulkDeleteQuestions({ ids, setStatus });
+    setSelected(new Set());
+    setBusy(false);
+    onReload?.();
+  };
+
+  return (
+    <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h4 className="font-semibold text-sm text-stone-600">{title}</h4>
+        {questions.length > 0 && (
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 cursor-pointer">
+              <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 cursor-pointer accent-maroon-600" />
+              Pilih semua
+            </label>
+            <button
+              onClick={deleteSelected}
+              disabled={selected.size === 0 || busy}
+              className="text-xs font-bold rounded-lg border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50 disabled:opacity-40"
+            >
+              Hapus Terpilih ({selected.size})
+            </button>
+          </div>
+        )}
+      </div>
+      {status && <p className="text-xs whitespace-pre-wrap bg-alba-100 border border-alba-200 rounded-lg px-3 py-2 text-stone-600">{status}</p>}
+      {questions.map((q) => (
+        <div key={q.id} className={`flex items-center gap-3 text-sm border rounded-lg px-4 py-3 ${selected.has(q.id) ? 'border-maroon-300 bg-maroon-50' : 'border-alba-200 bg-alba-50 hover:bg-alba-100'}`}>
+          <input type="checkbox" checked={selected.has(q.id)} onChange={() => toggle(q.id)} className="w-4 h-4 shrink-0 cursor-pointer accent-maroon-600" />
+          <span className="truncate pr-4 flex-1 font-medium">
+            <QtypeBadge qtype={q.qtype} />
+            {q.text}
+          </span>
+          <div className="flex gap-3 shrink-0">
+            <button onClick={() => onPreview(q)} className="text-xs text-maroon-600 hover:underline font-semibold">Preview</button>
+            <button onClick={() => onEdit(q)} className="text-xs text-gold-600 hover:underline font-semibold">Edit</button>
+            <button onClick={() => deleteOne(q.id)} className="text-xs text-red-600 hover:underline font-semibold">Hapus</button>
+          </div>
+        </div>
+      ))}
+      {questions.length === 0 && <p className="text-xs text-stone-400">Belum ada soal tersimpan.</p>}
+    </div>
+  );
 }
 
 function PreviewModal({ previewData, onClose }) {
@@ -1152,12 +1295,9 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
     setEditingId(q.id);
   };
 
-  const deleteQuestion = async (id) => {
-    if (!confirm('Yakin hapus soal CBT ini?')) return;
-    await pb.collection('questions').delete(id);
-    loadQuestions();
-  };
-
+  // Import massal soal CBT — kini memakai helper yang SAMA dengan Cicil Belajar
+  // (retry saat rate limit + jeda antar-soal), jadi tidak lagi "gagal di tengah
+  // jalan" ketika soalnya banyak.
   const importBulk = async (bulkText, qtype, onDone) => {
     if (!subjectId || !year) { setBulkStatus('⚠️ Pilih mata kuliah dan tahun dulu.'); return; }
     let items;
@@ -1167,28 +1307,22 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       setBulkStatus('❌ Format salah: ' + e.message);
       return;
     }
-    setBulkStatus('⏳ Mengunggah ' + items.length + ' soal...');
-    let n = questions.length;
-    try {
-      for (const item of items) {
-        await pb.collection('questions').create({
-          subject: subjectId,
-          chapter: '',
-          type: 'cbt',
-          year: Number(year),
-          text: item.text,
-          hint: item.hint,
-          options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
-          order: ++n,
-        });
-      }
-      onDone?.();
-      setBulkStatus('✅ Selesai! ' + items.length + ' soal berhasil ditambahkan.');
-      loadQuestions();
-    } catch (e) {
-      setBulkStatus('❌ Gagal di tengah jalan: ' + e.message);
-      loadQuestions();
-    }
+    const { ok } = await bulkCreateQuestions({
+      items,
+      startOrder: questions.length,
+      setStatus: setBulkStatus,
+      buildPayload: (item) => ({
+        subject: subjectId,
+        chapter: '',
+        type: 'cbt',
+        year: Number(year),
+        text: item.text,
+        hint: item.hint,
+        options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
+      }),
+    });
+    if (ok) onDone?.();
+    loadQuestions();
   };
 
   return (
@@ -1220,23 +1354,13 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
           <BulkImport onImport={importBulk} status={bulkStatus} />
 
-          <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
-            <h4 className="font-semibold text-sm text-stone-600">Daftar Soal CBT {year}</h4>
-            {questions.map((q) => (
-              <div key={q.id} className="flex justify-between text-sm border border-alba-200 rounded-lg px-4 py-3 bg-alba-50 hover:bg-alba-100">
-                <span className="truncate pr-4 flex-1 font-medium">
-                  <QtypeBadge qtype={q.qtype} />
-                  {q.text}
-                </span>
-                <div className="flex gap-3 shrink-0">
-                  <button onClick={() => setPreviewData(q)} className="text-xs text-maroon-600 font-semibold">Preview</button>
-                  <button onClick={() => startEdit(q)} className="text-xs text-gold-600 font-semibold">Edit</button>
-                  <button onClick={() => deleteQuestion(q.id)} className="text-xs text-red-600 font-semibold">Hapus</button>
-                </div>
-              </div>
-            ))}
-            {questions.length === 0 && <p className="text-xs text-stone-400">Belum ada soal tersimpan.</p>}
-          </div>
+          <QuestionList
+            title={`Daftar Soal CBT ${year}`}
+            questions={questions}
+            onPreview={setPreviewData}
+            onEdit={startEdit}
+            onReload={loadQuestions}
+          />
         </div>
       )}
 
