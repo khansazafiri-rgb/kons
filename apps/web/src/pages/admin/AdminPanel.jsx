@@ -1378,32 +1378,53 @@ function TambahAkun() {
 // ==========================================
 // TAB JADWAL UJIAN + URUTAN MATA KULIAH
 // Admin mengatur: (1) urutan mata kuliah yang tampil di "Cicil Belajar" &
-// "Perdalam Materi", dan (2) nama + tanggal ujian tiap mata kuliah yang
-// dipakai untuk countdown di halaman siswa.
+// "Perdalam Materi", dan (2) jadwal ujian tiap mata kuliah (bisa LEBIH DARI SATU
+// per mata kuliah — mis. UTB 1 & UTB 2 dalam satu blok) yang dipakai untuk
+// countdown di beranda siswa. Tiap jadwal bisa ditambah, diedit, dan dihapus.
+// Data jadwal disimpan di collection terpisah "exam_schedules".
 // ==========================================
 function JadwalUjian() {
   const [subjects, setSubjects] = useState([]);
-  const [draft, setDraft] = useState({}); // { [id]: { examName, examDate } }
+  const [schedules, setSchedules] = useState([]); // record exam_schedules
+  const [editDraft, setEditDraft] = useState({}); // { [scheduleId]: { examName, examDate } }
+  const [newDraft, setNewDraft] = useState({});   // { [subjectId]: { examName, examDate } }
   const [savingId, setSavingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState('');
   const [okMsg, setOkMsg] = useState('');
 
   const load = () =>
-    pb.collection('subjects').getFullList({ sort: 'order' })
-      .then((subs) => {
+    Promise.all([
+      pb.collection('subjects').getFullList({ sort: 'order' }),
+      pb.collection('exam_schedules').getFullList({ sort: 'examDate' }),
+    ])
+      .then(([subs, scheds]) => {
         setSubjects(subs);
+        setSchedules(scheds);
         const d = {};
-        subs.forEach((s) => {
+        scheds.forEach((s) => {
           d[s.id] = {
             examName: s.examName || '',
             examDate: s.examDate ? String(s.examDate).slice(0, 10) : '',
           };
         });
-        setDraft(d);
+        setEditDraft(d);
       })
-      .catch((err) => setError('Gagal memuat mata kuliah: ' + (err?.message || '')));
+      .catch((err) => setError('Gagal memuat data: ' + (err?.message || '')));
 
   useEffect(() => { load(); }, []);
+
+  // Kelompokkan jadwal per mata kuliah, urut menurut tanggal terdekat.
+  const bySubject = useMemo(() => {
+    const m = {};
+    schedules.forEach((s) => {
+      (m[s.subject] ||= []).push(s);
+    });
+    Object.values(m).forEach((list) =>
+      list.sort((a, b) => String(a.examDate).localeCompare(String(b.examDate))),
+    );
+    return m;
+  }, [schedules]);
 
   // Tukar posisi (order) dua mata kuliah bersebelahan.
   const move = async (index, dir) => {
@@ -1424,25 +1445,71 @@ function JadwalUjian() {
     }
   };
 
-  const saveExam = async (s) => {
-    setSavingId(s.id); setError(''); setOkMsg('');
-    const d = draft[s.id] || {};
+  // Tambah jadwal ujian baru untuk sebuah mata kuliah.
+  const addSchedule = async (s) => {
+    const d = newDraft[s.id] || {};
+    if (!d.examName?.trim() || !d.examDate) {
+      setError('Isi nama ujian dan tanggalnya dulu sebelum menambah.');
+      return;
+    }
+    setSavingId('new:' + s.id); setError(''); setOkMsg('');
     try {
-      await pb.collection('subjects').update(s.id, {
-        examName: d.examName?.trim() || '',
-        examDate: d.examDate ? `${d.examDate} 00:00:00` : '',
+      await pb.collection('exam_schedules').create({
+        subject: s.id,
+        examName: d.examName.trim(),
+        examDate: `${d.examDate} 00:00:00`,
       });
-      setOkMsg(`Jadwal ujian "${s.name}" tersimpan.`);
+      setNewDraft((prev) => ({ ...prev, [s.id]: { examName: '', examDate: '' } }));
+      setOkMsg(`Jadwal ujian untuk "${s.name}" ditambahkan.`);
       await load();
     } catch (err) {
-      setError(`Gagal menyimpan jadwal "${s.name}": ` + (err?.message || ''));
+      setError('Gagal menambah jadwal: ' + (err?.message || ''));
     } finally {
       setSavingId(null);
     }
   };
 
-  const setField = (id, key, val) =>
-    setDraft((prev) => ({ ...prev, [id]: { ...prev[id], [key]: val } }));
+  // Simpan perubahan pada jadwal yang sudah ada.
+  const saveSchedule = async (sched) => {
+    const d = editDraft[sched.id] || {};
+    if (!d.examName?.trim() || !d.examDate) {
+      setError('Nama ujian dan tanggal tidak boleh kosong.');
+      return;
+    }
+    setSavingId(sched.id); setError(''); setOkMsg('');
+    try {
+      await pb.collection('exam_schedules').update(sched.id, {
+        examName: d.examName.trim(),
+        examDate: `${d.examDate} 00:00:00`,
+      });
+      setOkMsg('Jadwal ujian tersimpan.');
+      await load();
+    } catch (err) {
+      setError('Gagal menyimpan jadwal: ' + (err?.message || ''));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  // Hapus sebuah jadwal ujian.
+  const deleteSchedule = async (sched) => {
+    if (!confirm(`Hapus jadwal "${sched.examName}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setDeletingId(sched.id); setError(''); setOkMsg('');
+    try {
+      await pb.collection('exam_schedules').delete(sched.id);
+      setOkMsg('Jadwal ujian dihapus.');
+      await load();
+    } catch (err) {
+      setError('Gagal menghapus jadwal: ' + (err?.message || ''));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const setEditField = (id, key, val) =>
+    setEditDraft((prev) => ({ ...prev, [id]: { ...prev[id], [key]: val } }));
+  const setNewField = (subjectId, key, val) =>
+    setNewDraft((prev) => ({ ...prev, [subjectId]: { ...prev[subjectId], [key]: val } }));
 
   return (
     <div className="space-y-6">
@@ -1450,7 +1517,8 @@ function JadwalUjian() {
         <h2 className="font-display text-lg font-semibold text-maroon-600">Jadwal Ujian & Urutan Mata Kuliah</h2>
         <p className="text-sm text-stone-500 mt-1 leading-relaxed">
           Panah <b>↑ ↓</b> mengatur urutan tampil mata kuliah di halaman <b>Cicil Belajar</b> dan <b>Perdalam Materi</b>.
-          Isi <b>nama ujian</b> (bebas, mis. UTB / UAB / UP) dan <b>tanggal</b>-nya; siswa akan melihat hitung mundur di beranda.
+          Tiap mata kuliah bisa punya <b>beberapa jadwal ujian</b> (mis. UTB 1 &amp; UTB 2). Tambah lewat baris <b>+ Tambah jadwal</b>,
+          lalu jadwal bisa <b>diedit</b> atau <b>dihapus</b> kapan saja. Siswa hanya melihat hitung mundur untuk mata kuliah yang ia ambil.
         </p>
         {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
         {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
@@ -1458,36 +1526,87 @@ function JadwalUjian() {
 
       <div className="space-y-3">
         {subjects.map((s, i) => {
-          const d = draft[s.id] || {};
-          const dirty = d.examName !== (s.examName || '') || d.examDate !== (s.examDate ? String(s.examDate).slice(0, 10) : '');
+          const list = bySubject[s.id] || [];
+          const nd = newDraft[s.id] || {};
           return (
-            <div key={s.id} className="bg-alba-50 rounded-2xl border border-alba-200 p-4 flex flex-col md:flex-row md:items-center gap-3">
-              <div className="flex items-center gap-1">
-                <button onClick={() => move(i, -1)} disabled={i === 0} className="w-8 h-8 rounded-lg border border-alba-300 text-stone-600 disabled:opacity-30 hover:bg-maroon-50 hover:text-maroon-600" title="Naik">↑</button>
-                <button onClick={() => move(i, +1)} disabled={i === subjects.length - 1} className="w-8 h-8 rounded-lg border border-alba-300 text-stone-600 disabled:opacity-30 hover:bg-maroon-50 hover:text-maroon-600" title="Turun">↓</button>
+            <div key={s.id} className="bg-alba-50 rounded-2xl border border-alba-200 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <button onClick={() => move(i, -1)} disabled={i === 0} className="w-8 h-8 rounded-lg border border-alba-300 text-stone-600 disabled:opacity-30 hover:bg-maroon-50 hover:text-maroon-600" title="Naik">↑</button>
+                  <button onClick={() => move(i, +1)} disabled={i === subjects.length - 1} className="w-8 h-8 rounded-lg border border-alba-300 text-stone-600 disabled:opacity-30 hover:bg-maroon-50 hover:text-maroon-600" title="Turun">↓</button>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-stone-700 truncate">{i + 1}. {s.name}</p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-stone-500 bg-alba-100 border border-alba-200 rounded-full px-3 py-1">
+                  {list.length} jadwal
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-stone-700 truncate">{i + 1}. {s.name}</p>
+
+              {/* Daftar jadwal ujian yang sudah ada — bisa diedit / dihapus */}
+              <div className="mt-3 pl-0 md:pl-[4.25rem] space-y-2">
+                {list.map((sched) => {
+                  const d = editDraft[sched.id] || {};
+                  const original = { examName: sched.examName || '', examDate: sched.examDate ? String(sched.examDate).slice(0, 10) : '' };
+                  const dirty = d.examName !== original.examName || d.examDate !== original.examDate;
+                  return (
+                    <div key={sched.id} className="flex flex-col md:flex-row md:items-center gap-2">
+                      <input
+                        value={d.examName || ''}
+                        onChange={(e) => setEditField(sched.id, 'examName', e.target.value)}
+                        placeholder="Nama ujian (UTB/UAB/UP)"
+                        className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 md:w-44"
+                      />
+                      <input
+                        type="date"
+                        value={d.examDate || ''}
+                        onChange={(e) => setEditField(sched.id, 'examDate', e.target.value)}
+                        className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+                      />
+                      <button
+                        onClick={() => saveSchedule(sched)}
+                        disabled={savingId === sched.id || !dirty}
+                        className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4 py-2 disabled:opacity-40"
+                      >
+                        {savingId === sched.id ? '...' : 'Simpan'}
+                      </button>
+                      <button
+                        onClick={() => deleteSchedule(sched)}
+                        disabled={deletingId === sched.id}
+                        className="rounded-lg border border-red-200 text-red-600 text-sm font-semibold px-4 py-2 hover:bg-red-50 disabled:opacity-40"
+                      >
+                        {deletingId === sched.id ? '...' : 'Hapus'}
+                      </button>
+                    </div>
+                  );
+                })}
+                {list.length === 0 && (
+                  <p className="text-xs text-stone-400 italic">Belum ada jadwal ujian untuk mata kuliah ini.</p>
+                )}
+
+                {/* Baris tambah jadwal baru */}
+                <div className="flex flex-col md:flex-row md:items-center gap-2 pt-1">
+                  <input
+                    value={nd.examName || ''}
+                    onChange={(e) => setNewField(s.id, 'examName', e.target.value)}
+                    placeholder="Nama ujian baru"
+                    className="rounded-lg border border-dashed border-alba-300 px-3 py-2 text-sm bg-alba-50 md:w-44"
+                  />
+                  <input
+                    type="date"
+                    value={nd.examDate || ''}
+                    onChange={(e) => setNewField(s.id, 'examDate', e.target.value)}
+                    className="rounded-lg border border-dashed border-alba-300 px-3 py-2 text-sm bg-alba-50"
+                  />
+                  <button
+                    onClick={() => addSchedule(s)}
+                    disabled={savingId === 'new:' + s.id || !nd.examName?.trim() || !nd.examDate}
+                    className="rounded-lg border border-maroon-300 text-maroon-600 text-sm font-semibold px-4 py-2 hover:bg-maroon-50 disabled:opacity-40"
+                  >
+                    {savingId === 'new:' + s.id ? '...' : '+ Tambah jadwal'}
+                  </button>
+                </div>
               </div>
-              <input
-                value={d.examName || ''}
-                onChange={(e) => setField(s.id, 'examName', e.target.value)}
-                placeholder="Nama ujian (UTB/UAB/UP)"
-                className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 md:w-44"
-              />
-              <input
-                type="date"
-                value={d.examDate || ''}
-                onChange={(e) => setField(s.id, 'examDate', e.target.value)}
-                className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
-              />
-              <button
-                onClick={() => saveExam(s)}
-                disabled={savingId === s.id || !dirty}
-                className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4 py-2 disabled:opacity-40"
-              >
-                {savingId === s.id ? '...' : 'Simpan'}
-              </button>
             </div>
           );
         })}

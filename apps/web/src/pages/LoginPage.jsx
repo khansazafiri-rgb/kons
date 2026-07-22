@@ -20,7 +20,7 @@ export default function LoginPage() {
      await login(userId.trim(), password);
      navigate('/beranda');
    } catch (err) {
-     setError(err?.message || 'Login gagal. Periksa ID User dan password.');
+     setError(err?.message || 'Login gagal. Periksa ID User / Email dan password.');
    } finally {
      setLoading(false);
    }
@@ -71,7 +71,7 @@ export default function LoginPage() {
 
          <form onSubmit={submit} className="space-y-5">
            <div>
-             <label className="block text-sm font-semibold mb-1.5 text-stone-700">ID User</label>
+             <label className="block text-sm font-semibold mb-1.5 text-stone-700">ID User / Email</label>
              <div className="relative">
                <IdCard size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
                <input
@@ -82,7 +82,7 @@ export default function LoginPage() {
                  value={userId}
                  onChange={(e) => setUserId(e.target.value)}
                  className="w-full rounded-xl border border-alba-300 bg-alba-50 pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-                 placeholder="ID User dari admin"
+                 placeholder="ID User / Email dari admin"
                />
              </div>
            </div>
