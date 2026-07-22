@@ -1,0 +1,18 @@
+{
+  "name": "pptparser",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ekstraksi struktur sub-topik dari PPT/PDF materi (deteksi Daftar Isi + slide pembatas). Fondasi untuk feedback belajar per sub-topik.",
+  "bin": {
+    "pptparse": "./src/cli.mjs"
+  },
+  "scripts": {
+    "parse": "node src/cli.mjs",
+    "analyze": "node src/analyze.mjs",
+    "test": "node test/smoke.mjs && node test/analysis.mjs"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^4.10.38"
+  }
+}
