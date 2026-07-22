@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, RotateCcw, TimerReset, X, XCircle } from 'lucide-react';
+import { buildCorpus, buildIndex, analyzeWeakness } from '@/lib/weaknessAnalyzer';
 
 /*
  QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
@@ -60,6 +61,53 @@ function isQuestionAnswered(q, ans) {
  return ans !== undefined;
 }
 
+// Convert question to ML analyzer format for BM25 matching
+function normalizeQuestionForML(q) {
+ const qq = normalizeQuestion(q);
+ const qtype = qq.qtype || 'mcq';
+ let answers = [];
+ let correctOptions = [];
+ let distractors = [];
+
+ if (isIsian(qq)) {
+   const subs = qq.subQuestions || [];
+   for (const sub of subs) {
+     if (sub.validAnswers && Array.isArray(sub.validAnswers)) {
+       const variants = sub.validAnswers
+         .flatMap((v) => String(v).split('/'))
+         .map((s) => s.trim())
+         .filter(Boolean);
+       answers.push(...variants);
+     }
+   }
+ } else {
+   const opts = qq.options || [];
+   for (const opt of opts) {
+     const text = opt?.text || String(opt).trim();
+     if (opt?.correct) {
+       correctOptions.push(text);
+     } else {
+       distractors.push(text);
+     }
+   }
+   answers = [...correctOptions, ...distractors];
+ }
+
+ const stem = String(qq.text || '').replace(/<[^>]+>/g, '');
+
+ return {
+   id: qq.id,
+   qtype,
+   imageBased: qtype.includes('img'),
+   stem,
+   answers,
+   correctOptions,
+   distractors,
+   explanations: [],
+   concept: correctOptions.join(' / '),
+ };
+}
+
 export default function QuestionRunner({
  questions,
  mode = 'learning',
@@ -84,6 +132,7 @@ export default function QuestionRunner({
  const [weakChapters, setWeakChapters] = useState([]);
  const [weakTopics, setWeakTopics] = useState([]);
  const [wrongQuestions, setWrongQuestions] = useState([]);
+ const [weaknessReport, setWeaknessReport] = useState(null);
 
  useEffect(() => {
    if (secondsLeft == null || submitted || retryRound) return;
@@ -156,7 +205,7 @@ export default function QuestionRunner({
 
  const answeredCount = qs.filter((qq) => isQuestionAnswered(qq, answers[qq.id])).length;
 
- const finish = () => {
+ const finish = async () => {
    setSubmitted(true);
    const total = qs.length;
    let correct = 0;
@@ -190,6 +239,26 @@ export default function QuestionRunner({
 
    if (mode === 'simulasi') setWeakChapters(Array.from(weakChapList));
    else setWeakTopics(weakTopicList);
+
+   // ML-based weakness analysis (if corpus data available)
+   try {
+     const corpusData = localStorage.getItem('ml_corpus');
+     if (corpusData && mode === 'simulasi') {
+       const parsedCorpus = JSON.parse(corpusData);
+       const corpus = buildCorpus(Array.isArray(parsedCorpus) ? parsedCorpus : [parsedCorpus]);
+       const index = buildIndex(corpus);
+
+       const gradedQuestions = qs.map((qq) => ({
+         bundle: normalizeQuestionForML(qq),
+         wasCorrect: isQuestionCorrect(qq, answers[qq.id]),
+       }));
+
+       const report = analyzeWeakness(gradedQuestions, index);
+       setWeaknessReport(report);
+     }
+   } catch (err) {
+     console.warn('Weakness analysis unavailable:', err);
+   }
 
    // Ronde "ulangi yang salah" tidak menimpa nilai asli di database
    if (!retryRound) onSubmit?.({ answers, score });
@@ -266,6 +335,7 @@ export default function QuestionRunner({
        onReview={() => setShowReview(true)}
        onRetry={wrongQuestions.length > 0 ? retryWrong : null}
        onExit={onExit}
+       weaknessReport={weaknessReport}
      />
    );
  }
@@ -553,7 +623,7 @@ function ScoreRing({ score }) {
 // HALAMAN HASIL (setelah submit) — terpisah dari halaman soal, mirip cek skor
 // Google Form: tampil skor dulu, lalu tombol "Review Jawaban Saya!".
 // ==========================================================================
-function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit }) {
+function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
  const correct = Math.round((score / 100) * total);
  return (
    <div className="max-w-2xl mx-auto animate-fade-in">
@@ -589,36 +659,93 @@ function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode
        </div>
      </div>
 
-     {/* Rekomendasi belajar otomatis */}
-     <div className="mt-6 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6">
-       <p className="font-bold text-sm text-stone-700 mb-3">Rekomendasi Belajar Otomatis</p>
-       {weakChapters.length === 0 && weakTopics.length === 0 ? (
-         <div className="bg-green-50 text-green-900 p-4 rounded-xl border border-green-200 text-sm font-medium">
-           🎉 Luar Biasa! Jawabanmu benar semua. Pemahamanmu pada materi ini sudah sangat matang.
+     {/* Analisis Kelemahan Berbasis ML (jika tersedia) */}
+     {weaknessReport && weaknessReport.weakest.length > 0 && (
+       <div className="mt-6 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6">
+         <p className="font-bold text-sm text-stone-700 mb-4 flex items-center gap-2">
+           <AlertTriangle size={16} className="text-maroon-500" />
+           Analisis Kelemahan Konsep (berdasarkan materi pembelajaran)
+         </p>
+         <div className="space-y-3">
+           {weaknessReport.weakest.map((topic, i) => (
+             <div key={i} className="bg-maroon-50 border border-maroon-200 rounded-xl p-4">
+               <div className="flex items-start justify-between gap-3 mb-2">
+                 <div>
+                   <p className="font-bold text-maroon-800 text-sm">
+                     {i + 1}. {topic.chapterTitle} — <span className="text-maroon-600">{topic.topic}</span>
+                   </p>
+                   <p className="text-xs text-stone-600 mt-1">
+                     {topic.wrong} dari {topic.attempted} salah · Akurasi: {Math.round(topic.accuracy * 100)}%
+                   </p>
+                   {topic.slideStart && (
+                     <p className="text-xs text-maroon-600 font-semibold mt-2">
+                       📌 Buka Slide {topic.slideStart}–{topic.slideEnd} untuk review
+                     </p>
+                   )}
+                 </div>
+                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                   topic.severity === 'tinggi' ? 'bg-red-100 text-red-800' :
+                   topic.severity === 'sedang' ? 'bg-yellow-100 text-yellow-800' :
+                   'bg-green-100 text-green-800'
+                 }`}>
+                   {topic.severity === 'tinggi' ? '🔴 Prioritas Tinggi' :
+                    topic.severity === 'sedang' ? '🟡 Sedang' :
+                    '🟢 Ringan'}
+                 </span>
+               </div>
+               {topic.examples.length > 0 && (
+                 <div className="mt-2 text-xs text-stone-600">
+                   <p className="font-semibold mb-1">Konsep yang sering salah:</p>
+                   <ul className="list-disc pl-5 space-y-0.5">
+                     {topic.examples.slice(0, 3).map((ex, j) => (
+                       <li key={j} className="text-stone-700">{ex}</li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+             </div>
+           ))}
          </div>
-       ) : (
-         <div className="text-sm text-stone-600">
-           {mode === 'simulasi' ? (
-             <>
-               <p className="mb-3 font-medium flex items-center gap-2">
-                 <AlertTriangle size={15} className="text-maroon-500" />
-                 Kamu perlu <strong>mempelajari ulang materi pada BAB berikut</strong>:
-               </p>
-               <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
-                 {weakChapters.map((chap, i) => <li key={i}>{chap}</li>)}
-               </ul>
-             </>
-           ) : (
-             <>
-               <p className="mb-3 font-medium">Beberapa konsep di BAB ini masih perlu ditingkatkan:</p>
-               <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
-                 {weakTopics.map((topic, i) => <li key={i}>{topic}</li>)}
-               </ul>
-             </>
-           )}
-         </div>
-       )}
-     </div>
+         {weaknessReport.unclassified > 0 && (
+           <p className="text-xs text-stone-500 mt-3 p-2 bg-alba-100 rounded">
+             💡 {weaknessReport.unclassified} soal belum bisa dipetakan otomatis karena materinya mungkin belum diunggah.
+           </p>
+         )}
+       </div>
+     )}
+
+     {/* Rekomendasi belajar otomatis (fallback jika ML tidak tersedia) */}
+     {!weaknessReport && (
+       <div className="mt-6 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6">
+         <p className="font-bold text-sm text-stone-700 mb-3">Rekomendasi Belajar Otomatis</p>
+         {weakChapters.length === 0 && weakTopics.length === 0 ? (
+           <div className="bg-green-50 text-green-900 p-4 rounded-xl border border-green-200 text-sm font-medium">
+             🎉 Luar Biasa! Jawabanmu benar semua. Pemahamanmu pada materi ini sudah sangat matang.
+           </div>
+         ) : (
+           <div className="text-sm text-stone-600">
+             {mode === 'simulasi' ? (
+               <>
+                 <p className="mb-3 font-medium flex items-center gap-2">
+                   <AlertTriangle size={15} className="text-maroon-500" />
+                   Kamu perlu <strong>mempelajari ulang materi pada BAB berikut</strong>:
+                 </p>
+                 <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
+                   {weakChapters.map((chap, i) => <li key={i}>{chap}</li>)}
+                 </ul>
+               </>
+             ) : (
+               <>
+                 <p className="mb-3 font-medium">Beberapa konsep di BAB ini masih perlu ditingkatkan:</p>
+                 <ul className="list-disc pl-6 space-y-1.5 text-maroon-600 font-bold">
+                   {weakTopics.map((topic, i) => <li key={i}>{topic}</li>)}
+                 </ul>
+               </>
+             )}
+           </div>
+         )}
+       </div>
+     )}
 
      <div className="mt-6 text-center">
        <button onClick={onExit} className="inline-flex items-center gap-1.5 text-sm font-bold text-stone-500 hover:text-maroon-600 px-4 py-2">
