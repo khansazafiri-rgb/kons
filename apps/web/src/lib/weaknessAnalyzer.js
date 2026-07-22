@@ -2,6 +2,26 @@
 // Handles loading corpus data and computing student weaknesses.
 
 /**
+ * Load parsed sub-topic corpus from PocketBase (collection `topics`, filled
+ * by `npm run sync` in apps/pptparser — see ML_INTEGRATION.md). Returns null
+ * if the collection is empty/unreachable so callers can fall back gracefully
+ * (e.g. localStorage, or skip ML analysis entirely).
+ */
+export async function loadCorpusFromPocketBase(pb) {
+  try {
+    const records = await pb.collection('topics').getFullList();
+    if (!records.length) return null;
+    return records.map((r) => ({
+      chapterId: r.chapter,
+      chapterTitle: r.chapterTitle,
+      topics: r.topicsData || [],
+    }));
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
  * Build a corpus from stored parse results.
  * Each parse result should have: chapterId, chapterTitle, topics[]
  */

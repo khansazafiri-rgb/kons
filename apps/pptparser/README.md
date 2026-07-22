@@ -36,7 +36,13 @@ npm run parse -- materi.pdf --json bab.json     # simpan hasil
 #     tidak perlu ketik nama file satu-satu.
 npm run parse:batch -- --dir materials --out corpus
 
-# 4) laporan kelemahan dari korpus + soal yang sudah dinilai
+# 1c) ATAU: PPT sudah diupload lewat panel Admin/Pengajar (collection
+#     ppt_files)? Tarik langsung dari PocketBase, parse, simpan balik ke
+#     PocketBase (collection topics) — web app otomatis memakainya, tidak
+#     perlu simpan file JSON manual sama sekali.
+PB_ADMIN_EMAIL=admin@x.com PB_ADMIN_PASSWORD=xxxx npm run sync -- --url http://127.0.0.1:8090
+
+# 4) laporan kelemahan dari korpus + soal yang sudah dinilai (mode file lokal)
 npm run analyze -- --corpus bab1.json,bab2.json --answers graded.json
 ```
 
@@ -65,6 +71,35 @@ npm run parse:batch -- --dir materials --out corpus
 - Di akhir, script menunjukkan file mana yang `confidence`-nya bukan `high`
   (perlu ditinjau manual — biasanya karena PPT itu tidak punya Daftar Isi yang
   jelas).
+
+### Sinkron langsung dari PocketBase (`sync`) — cara paling praktis
+
+Kalau PPT-nya **sudah** diupload lewat panel Admin/Pengajar di web app (fitur
+upload PPT yang sudah ada, collection `ppt_files`), tidak perlu unduh manual
+sama sekali. Script ini menarik semua PPT dari PocketBase, parse tiap file,
+lalu menulis hasilnya balik ke collection `topics` — web app langsung memuat
+korpus dari sana secara otomatis setiap kali ada siswa submit Simulasi CBT.
+
+```bash
+export PB_ADMIN_EMAIL=admin@x.com
+export PB_ADMIN_PASSWORD=xxxx
+npm run sync -- --url http://127.0.0.1:8090
+```
+
+(Pakai env var — bukan `--email`/`--password` di argumen CLI — supaya
+password tidak kelihatan di `ps`/riwayat shell. Argumen CLI tetap didukung
+kalau kamu lebih suka begitu.)
+
+Sama seperti `parse:batch`: tiap PDF diunduh + diparse di child process
+terpisah (aman untuk file besar), gagal di satu file tidak menghentikan yang
+lain, dan `--concurrency N` mengatur berapa file diproses bersamaan.
+
+Butuh collection `topics` sudah ada di database (migration
+`1784707735_topics_ml_corpus.js` — jalan otomatis begitu `apps/pocketbase`
+dijalankan/`migrations:up`, seperti migration lain di proyek ini).
+
+Jalankan `npm run sync` ini setiap kali ada PPT baru/diperbarui — cukup 1
+command, tidak perlu sentuh folder atau file JSON manual sama sekali.
 
 `graded.json` = array record `questions` aplikasi + flag `wasCorrect`
 (aplikasi sudah tahu benar/salah, mesin tinggal memetakan):
@@ -100,8 +135,10 @@ pelengkap untuk sinonim/parafrasa, tapi tidak diperlukan untuk kualitas dasar.
 | `src/corpus.mjs`   | gabung banyak PPT → dokumen sub-topik |
 | `src/matcher.mjs`  | indeks BM25 + pencocokan soal → sub-topik + confidence |
 | `src/weakness.mjs` | agregasi hasil ujian → laporan kelemahan |
-| `src/cli.mjs`      | CLI parse |
-| `src/analyze.mjs`  | CLI laporan kelemahan |
+| `src/cli.mjs`      | CLI parse (satu file) |
+| `src/batch.mjs`    | CLI parse (satu folder, banyak file, aman memori) |
+| `src/sync-from-pocketbase.mjs` | CLI tarik PPT dari PocketBase (`ppt_files`) → parse → simpan ke `topics` |
+| `src/analyze.mjs`  | CLI laporan kelemahan (mode file lokal) |
 
 ## Batasan jujur — harap ditinjau
 
@@ -118,6 +155,12 @@ pelengkap untuk sinonim/parafrasa, tapi tidak diperlukan untuk kualitas dasar.
 
 - **[SELESAI]** Seluruh mesin di atas, teruji pada 4 PPT lintas mata kuliah
   (Anatomi, Reproduksi, Pelvis, Embriologi) — semua `high` confidence.
-- **[BELUM — perlu PocketBase berjalan]** Menyimpan hasil parse ke DB, dan
-  menampilkan laporan kelemahan di halaman Simulasi CBT setelah siswa submit.
-  Ini langkah integrasi berikutnya; butuh data + aplikasi berjalan untuk diuji.
+- **[SELESAI]** Integrasi penuh ke PocketBase + Simulasi CBT: collection
+  `topics` (migration `1784707735_topics_ml_corpus.js`), `npm run sync` untuk
+  mengisinya dari PPT yang sudah diupload, dan `QuestionRunner.jsx` yang
+  otomatis memuat korpus itu + menampilkan laporan kelemahan ML setelah siswa
+  submit Simulasi CBT. Diverifikasi end-to-end memakai PocketBase asli
+  (upload PPT → `npm run sync` → cek record `topics` terisi benar).
+- **[BELUM]** Menjalankan `npm run sync` otomatis/berjadwal (mis. tiap kali
+  PPT baru diupload). Untuk sekarang jalankan manual setelah upload/perbarui
+  materi.

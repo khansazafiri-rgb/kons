@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, RotateCcw, TimerReset, X, XCircle } from 'lucide-react';
-import { buildCorpus, buildIndex, analyzeWeakness } from '@/lib/weaknessAnalyzer';
+import pb from '@/lib/pocketbaseClient';
+import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } from '@/lib/weaknessAnalyzer';
 
 /*
  QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
@@ -241,23 +242,35 @@ export default function QuestionRunner({
    else setWeakTopics(weakTopicList);
 
    // ML-based weakness analysis (if corpus data available)
-   try {
-     const corpusData = localStorage.getItem('ml_corpus');
-     if (corpusData && mode === 'simulasi') {
-       const parsedCorpus = JSON.parse(corpusData);
-       const corpus = buildCorpus(Array.isArray(parsedCorpus) ? parsedCorpus : [parsedCorpus]);
-       const index = buildIndex(corpus);
+   if (mode === 'simulasi') {
+     try {
+       // Sumber utama: collection `topics` di PocketBase, diisi oleh
+       // `npm run sync` (apps/pptparser) dari PPT yang sudah diupload admin/
+       // pengajar. Fallback ke localStorage untuk demo/testing tanpa PocketBase.
+       let parseResults = await loadCorpusFromPocketBase(pb);
+       if (!parseResults) {
+         const corpusData = localStorage.getItem('ml_corpus');
+         if (corpusData) {
+           const parsed = JSON.parse(corpusData);
+           parseResults = Array.isArray(parsed) ? parsed : [parsed];
+         }
+       }
 
-       const gradedQuestions = qs.map((qq) => ({
-         bundle: normalizeQuestionForML(qq),
-         wasCorrect: isQuestionCorrect(qq, answers[qq.id]),
-       }));
+       if (parseResults && parseResults.length) {
+         const corpus = buildCorpus(parseResults);
+         const index = buildIndex(corpus);
 
-       const report = analyzeWeakness(gradedQuestions, index);
-       setWeaknessReport(report);
+         const gradedQuestions = qs.map((qq) => ({
+           bundle: normalizeQuestionForML(qq),
+           wasCorrect: isQuestionCorrect(qq, answers[qq.id]),
+         }));
+
+         const report = analyzeWeakness(gradedQuestions, index);
+         setWeaknessReport(report);
+       }
+     } catch (err) {
+       console.warn('Weakness analysis unavailable:', err);
      }
-   } catch (err) {
-     console.warn('Weakness analysis unavailable:', err);
    }
 
    // Ronde "ulangi yang salah" tidak menimpa nilai asli di database
