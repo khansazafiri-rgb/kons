@@ -1,93 +1,93 @@
-# pptparser
+# pptparser — mesin analitik belajar
 
-Mengubah satu PPT/PDF materi menjadi **peta sub-topik** — nama tiap bagian,
-rentang slide-nya, dan isinya — supaya feedback belajar bisa diberikan **per
-sub-topik**, bukan cuma "jawaban kamu salah".
+Mengubah materi PPT + hasil latihan siswa menjadi **feedback berbasis konsep**:
+bukan sekadar "jawaban kamu salah", tapi *"kamu lemah di BAB Reproduksi »
+sub-topik **Penis** (2/2 salah) — buka slide 40-54"*.
 
-Contoh: file `Terminologi Dasar Osteologi Arthrologi.pdf` (34 slide) di dalam
-**satu BAB** kurikulum, ternyata memuat 4 sub-topik. Tool ini memisahkannya:
+Berjalan sebagai tool Node terpisah di VPS yang sama. **Tidak mengubah dashboard,
+struktur BAB, maupun database kamu** — dipakai di samping alur yang sudah ada.
+
+## Pipeline
 
 ```
-1. Anatomical Positions, Planes, and Movements   [slide 6-12]
-2. Basic Anatomical Terms                         [slide 13-16]
-3. Human Bones                                    [slide 17-23]
-4. Joints (Arthrology)                            [slide 24-31]
+1) PARSE     PPT/PDF  ─▶  peta sub-topik (nama, rentang slide, isi)      [src/cli.mjs]
+2) KORPUS    banyak PPT ─▶ kumpulan dokumen sub-topik                    [src/corpus.mjs]
+3) KLASIFIKASI  soal   ─▶ sub-topik paling cocok (BM25)                  [src/matcher.mjs]
+4) KELEMAHAN  hasil ujian ─▶ laporan lemah-di-mana + slide review        [src/weakness.mjs]
 ```
 
-Dashboard dan struktur BAB kamu **tidak diubah sama sekali** — ini tool terpisah
-yang berjalan di samping (Node murni, di VPS yang sama).
+Langkah 3-4 inilah yang menjawab kebutuhan **Simulasi CBT**: soal CBT itu untuk
+satu mata kuliah penuh dan **tidak menyimpan BAB**-nya. Mesin ini memetakan tiap
+soal ke BAB/sub-topik lewat *teks*-nya (dicocokkan ke isi PPT), lalu menunjuk
+konsep yang lemah.
 
 ## Pakai
 
 ```bash
-# dari root repo
-npm install                       # sekali saja (workspace ikut ter-install)
-
+npm install                       # sekali (dari root repo)
 cd apps/pptparser
-npm run parse -- <file.pdf>                    # ringkasan enak-baca
-npm run parse -- <file.pdf> --json out.json    # tulis JSON penuh
-npm test                                        # uji logika (tanpa perlu PDF)
+npm test                          # 30 assertion, tanpa perlu PDF
+
+# 1) parse satu PPT
+npm run parse -- materi.pdf
+npm run parse -- materi.pdf --json bab.json     # simpan hasil
+
+# 4) laporan kelemahan dari korpus + soal yang sudah dinilai
+npm run analyze -- --corpus bab1.json,bab2.json --answers graded.json
 ```
 
-## Keluaran JSON
-
-```jsonc
-{
-  "chapterTitle": "Basic Terminology, Osteology, Arthrology",
-  "method": "toc+divider",     // cara segmentasi yang terpakai
-  "confidence": "high",        // high | medium | low
-  "topics": [
-    {
-      "index": 1,
-      "name": "Human Bones",
-      "slideStart": 17,
-      "slideEnd": 23,
-      "pageCount": 7,
-      "content": "…teks gabungan slide 17-23…",  // bahan untuk tag soal (langkah 2)
-      "matchScore": 1            // seberapa cocok dgn kosakata Daftar Isi
-    }
-  ],
-  "warnings": []                 // hal yang perlu ditinjau manusia
-}
+`graded.json` = array record `questions` aplikasi + flag `wasCorrect`
+(aplikasi sudah tahu benar/salah, mesin tinggal memetakan):
+```json
+[{ "text": "…", "options": { "qtype": "mcq", "choices": [ … ] }, "wasCorrect": false }]
 ```
 
-## Cara kerja (dan kenapa begini)
+## Soal bergambar — tidak butuh computer vision
 
-1. **Daftar Isi (TOC)** — slide "Topik Pembahasan / Daftar Isi" dipakai untuk
-   tahu *berapa* topik yang dijanjikan.
-2. **Slide pembatas** — bagian baru dikenali dari **ukuran font judul** yang
-   jauh lebih besar dari font isi. Ini terbukti lebih andal daripada membaca
-   footer "Topik N" (footer itu hilang saat PDF diekstrak per halaman).
-3. Halaman **pembuka** (intro) dan **penutup** (referensi, terima kasih) dibuang
-   otomatis, jadi tidak ikut ke topik mana pun.
-4. Nama topik diambil dari judul slide pembatas; TOC dipakai untuk validasi.
+Soal isian bergambar disimpan dengan URL gambar + jawaban teks. Mesin **membuang
+URL gambar** dan memakai **teks jawaban** ("Cellular Cementum", "Bell Stage")
+yang justru paling padat membawa konsep. Jadi gambar tak perlu "dilihat" — konsep
+sudah ada di kunci jawaban. Kedua bentuk soal aplikasi didukung:
+`mcq`, `mcq_img`, `isian`, `isian_img` (amplop JSON di field `options`).
 
-### Ini parsing deterministik, bukan model ML yang dilatih — dan itu memang lebih tepat di sini
+## Kenapa BM25, bukan model ML yang dilatih?
 
-Untuk skala kamu (puluhan slide, beberapa topik per BAB), **memisahkan struktur
-tidak butuh model yang dilatih**: PPT sudah memuat sinyalnya (TOC + judul besar).
-Parsing deterministik lebih akurat, bisa dijelaskan, dan tidak perlu data latih.
-Bagian yang benar-benar "cerdas" (mencocokkan **soal** ke sub-topik, lalu
-mengukur kelemahan siswa) menyusul di langkah berikut dan boleh pakai kemiripan
-teks — bukan di tahap ini.
+Kosakata soal medis sangat khas dan muncul **persis** di materi. Pada uji di 4
+PPT asli, pencocokan istilah (BM25) memetakan soal ke sub-topik yang benar dengan
+margin skor besar (mis. Penis 43.5 vs runner-up 4.0) — lebih andal, instan, dan
+**bisa dijelaskan** ("cocok karena term: corpus, cavernosum, sinusoid"), tanpa
+unduh model atau data latih. Embedding semantik bisa ditambahkan kelak sebagai
+pelengkap untuk sinonim/parafrasa, tapi tidak diperlukan untuk kualitas dasar.
 
-### Batasan jujur — harap ditinjau
+## Modul
 
-- Andal saat PPT punya **slide Daftar Isi** + **judul bagian berfont besar**.
-  Banyak PPT kamu mungkin belum tentu seragam begitu.
-- Kalau tidak ada pembatas terdeteksi → seluruh materi jadi **satu topik**
-  (`confidence: low`) dengan peringatan, bukan tebakan diam-diam.
-- **Selalu cek `confidence` dan `warnings`.** `low`/`medium` artinya perlu mata
-  manusia sebelum dipakai.
-- PDF hasil **scan/gambar** (tanpa teks) tidak bisa dibaca (butuh OCR — di luar
-  cakupan tool ini).
+| File | Isi |
+|------|-----|
+| `src/extract.mjs`  | PDF → halaman terstruktur (pdfjs-dist) |
+| `src/segment.mjs`  | halaman → sub-topik (Daftar Isi + slide pembatas per font) |
+| `src/text.mjs`     | util teks murni (normalisasi, token, pembersih konten) |
+| `src/question.mjs` | soal (4 tipe / teks tempel) → bundel teks + kueri |
+| `src/corpus.mjs`   | gabung banyak PPT → dokumen sub-topik |
+| `src/matcher.mjs`  | indeks BM25 + pencocokan soal → sub-topik + confidence |
+| `src/weakness.mjs` | agregasi hasil ujian → laporan kelemahan |
+| `src/cli.mjs`      | CLI parse |
+| `src/analyze.mjs`  | CLI laporan kelemahan |
 
-## Posisi dalam rencana besar
+## Batasan jujur — harap ditinjau
 
-- **[Langkah 1 — SELESAI di sini]** Parser PPT → peta sub-topik.
-- **[Langkah 2]** Isi peta ini ke PocketBase (collection `topics`) + saran tag
-  sub-topik untuk tiap soal (guru tinggal konfirmasi).
-- **[Langkah 3]** Saat siswa submit di Cicil Belajar, kumpulkan jawaban salah
-  per sub-topik → feedback: *"Kamu lemah di Arthrology (3/5 salah) — buka slide 24-31."*
+- **Kualitas pemetaan bergantung pada materi yang tepat.** Soal hanya bisa
+  dipetakan ke sub-topik bila PPT topik itu sudah diparse ke korpus. Soal yang
+  materinya belum diunggah akan dihitung "belum terpetakan" (dilaporkan apa
+  adanya, bukan dipaksakan).
+- Segmentasi andal saat PPT punya **Daftar Isi** + **judul bagian berfont besar**.
+  Bila tidak, seluruh materi jadi satu topik (`confidence: low`) dengan peringatan.
+- PDF hasil **scan/gambar** (tanpa teks) butuh OCR — di luar cakupan.
+- **Selalu cek `confidence` + `warnings`.**
 
-Langkah 2 & 3 menyusul; keduanya butuh PocketBase yang berjalan untuk diuji.
+## Sudah / belum
+
+- **[SELESAI]** Seluruh mesin di atas, teruji pada 4 PPT lintas mata kuliah
+  (Anatomi, Reproduksi, Pelvis, Embriologi) — semua `high` confidence.
+- **[BELUM — perlu PocketBase berjalan]** Menyimpan hasil parse ke DB, dan
+  menampilkan laporan kelemahan di halaman Simulasi CBT setelah siswa submit.
+  Ini langkah integrasi berikutnya; butuh data + aplikasi berjalan untuk diuji.

@@ -1,10 +1,17 @@
 // Utilitas teks murni (tanpa dependensi) untuk segmentasi PPT.
 // Dipisah agar mudah diuji tanpa perlu membuka file PDF.
 
-// Kata-kata umum yang tidak membantu pencocokan judul topik.
+// Kata-kata umum yang tidak membantu pencocokan (Indonesia + Inggris).
+// Sengaja TIDAK memuat istilah medis/Latin apa pun supaya tetap terjaga.
 const STOPWORDS = new Set([
-  'the', 'a', 'an', 'of', 'and', 'or', 'to', 'in', 'on', 'for', 'with', 'vs',
+  // inggris
+  'the', 'a', 'an', 'of', 'and', 'or', 'to', 'in', 'on', 'at', 'for', 'with', 'vs',
+  'is', 'are', 'as', 'by', 'from', 'that', 'this', 'these', 'those', 'it', 'its',
+  // indonesia
   'dan', 'yang', 'di', 'ke', 'dari', 'pada', 'untuk', 'atau', 'itu', 'ini',
+  'adalah', 'dengan', 'oleh', 'akan', 'juga', 'dalam', 'sebagai', 'yaitu',
+  'apa', 'apakah', 'mana', 'berikut', 'oleh', 'suatu', 'para', 'dapat',
+  'perhatikan', 'gambar', 'ditunjuk', 'bagian', 'nomor', 'huruf', 'warna',
 ]);
 
 // Normalisasi: huruf kecil, buang diakritik & tanda baca, rapatkan spasi.
@@ -74,4 +81,20 @@ const TOC_MARKERS = [
 export function looksLikeToc(title, text) {
   const n = normalize(`${title} ${text}`);
   return TOC_MARKERS.some((k) => n.includes(k));
+}
+
+// Bersihkan isi slide untuk dipakai sebagai korpus pencocokan:
+// - buang penanda footer "Topik N" yang kadang bocor saat ekstraksi
+// - buang footer judul deck yang berulang
+// - rapatkan kata identik yang berturut-turut (mis. "Fertilisasi Fertilisasi")
+export function cleanContent(text, chapterTitle = '') {
+  let out = String(text || '').replace(/\btopik\s*\d+\b/gi, ' ');
+  if (chapterTitle) {
+    const re = new RegExp(chapterTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    out = out.replace(re, ' ');
+  }
+  out = out.replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n');
+  // buang pengulangan kata berturut-turut (case-insensitive)
+  out = out.replace(/\b(\w+)(\s+\1\b)+/gi, '$1');
+  return out.replace(/\n{2,}/g, '\n').trim();
 }

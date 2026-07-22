@@ -9,7 +9,8 @@
   },
   "scripts": {
     "parse": "node src/cli.mjs",
-    "test": "node test/smoke.mjs"
+    "analyze": "node src/analyze.mjs",
+    "test": "node test/smoke.mjs && node test/analysis.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^4.10.38"

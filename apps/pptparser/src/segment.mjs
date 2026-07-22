@@ -12,7 +12,7 @@
 // Selalu melaporkan confidence + warnings supaya kasus ragu bisa ditinjau manusia,
 // bukan menghasilkan tebakan diam-diam.
 
-import { normalize, isFrontMatter, isBackMatter, looksLikeToc, bagCoverage } from './text.mjs';
+import { normalize, isFrontMatter, isBackMatter, looksLikeToc, bagCoverage, cleanContent } from './text.mjs';
 
 function median(nums) {
   if (nums.length === 0) return 0;
@@ -126,15 +126,6 @@ function lastNonBackMatter(pages) {
 }
 
 function joinContent(slice, chapterTitle) {
-  const footerRe = chapterTitle ? new RegExp(escapeRe(chapterTitle), 'gi') : null;
-  return slice
-    .map((p) => (footerRe ? p.text.replace(footerRe, ' ') : p.text))
-    .join('\n')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{2,}/g, '\n')
-    .trim();
-}
-
-function escapeRe(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const raw = slice.map((p) => p.text).join('\n');
+  return cleanContent(raw, chapterTitle);
 }
