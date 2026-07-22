@@ -9,6 +9,8 @@
   },
   "scripts": {
     "parse": "node src/cli.mjs",
+    "parse:batch": "node src/batch.mjs",
+    "sync": "node src/sync-from-pocketbase.mjs",
     "analyze": "node src/analyze.mjs",
     "test": "node test/smoke.mjs && node test/analysis.mjs"
   },
