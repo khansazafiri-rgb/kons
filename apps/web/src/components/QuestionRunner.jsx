@@ -62,36 +62,33 @@ function isQuestionAnswered(q, ans) {
  return ans !== undefined;
 }
 
-// Convert question to ML analyzer format for BM25 matching
+// Ubah soal -> bundel teks untuk pencocokan BM25. Port setia dari
+// question.mjs `build` (apps/pptparser): untuk MCQ, `answers` sengaja kosong
+// (bobot ada di correctOptions), untuk isian `answers` = semua alias jawaban.
 function normalizeQuestionForML(q) {
  const qq = normalizeQuestion(q);
  const qtype = qq.qtype || 'mcq';
- let answers = [];
- let correctOptions = [];
- let distractors = [];
+ const isian = isIsian(qq);
 
- if (isIsian(qq)) {
-   const subs = qq.subQuestions || [];
-   for (const sub of subs) {
-     if (sub.validAnswers && Array.isArray(sub.validAnswers)) {
-       const variants = sub.validAnswers
-         .flatMap((v) => String(v).split('/'))
-         .map((s) => s.trim())
-         .filter(Boolean);
-       answers.push(...variants);
+ const subStems = [];
+ const answers = [];
+ const correctOptions = [];
+ const distractors = [];
+ const explanations = [];
+
+ if (isian) {
+   for (const sub of qq.subQuestions || []) {
+     if (sub?.question) subStems.push(String(sub.question));
+     for (const a of sub?.validAnswers || []) {
+       String(a).split('/').map((s) => s.trim()).filter(Boolean).forEach((s) => answers.push(s));
      }
    }
  } else {
-   const opts = qq.options || [];
-   for (const opt of opts) {
-     const text = opt?.text || String(opt).trim();
-     if (opt?.correct) {
-       correctOptions.push(text);
-     } else {
-       distractors.push(text);
-     }
+   for (const opt of qq.options || []) {
+     if (!opt?.text) continue;
+     (opt.correct ? correctOptions : distractors).push(String(opt.text));
+     if (opt.explanation) explanations.push(String(opt.explanation));
    }
-   answers = [...correctOptions, ...distractors];
  }
 
  const stem = String(qq.text || '').replace(/<[^>]+>/g, '');
@@ -99,13 +96,15 @@ function normalizeQuestionForML(q) {
  return {
    id: qq.id,
    qtype,
-   imageBased: qtype.includes('img'),
+   imageBased: String(qtype).includes('img'),
    stem,
+   subStems,
    answers,
    correctOptions,
    distractors,
-   explanations: [],
-   concept: correctOptions.join(' / '),
+   explanations,
+   // konsep utama = jawaban benar (paling padat sinyal topik)
+   concept: (isian ? answers : correctOptions).join(' / '),
  };
 }
 
@@ -241,25 +240,37 @@ export default function QuestionRunner({
    if (mode === 'simulasi') setWeakChapters(Array.from(weakChapList));
    else setWeakTopics(weakTopicList);
 
-   // ML-based weakness analysis (if corpus data available)
-   if (mode === 'simulasi') {
-     try {
-       // Sumber utama: collection `topics` di PocketBase, diisi oleh
-       // `npm run sync` (apps/pptparser) dari PPT yang sudah diupload admin/
-       // pengajar. Fallback ke localStorage untuk demo/testing tanpa PocketBase.
-       let parseResults = await loadCorpusFromPocketBase(pb);
-       if (!parseResults) {
-         const corpusData = localStorage.getItem('ml_corpus');
-         if (corpusData) {
-           const parsed = JSON.parse(corpusData);
-           parseResults = Array.isArray(parsed) ? parsed : [parsed];
-         }
+   // Analisis kelemahan berbasis ML (kalau korpus materi tersedia).
+   // Dipakai di DUA tempat:
+   //  - Simulasi CBT  : soal lintas BAB tanpa info BAB → dicocokkan ke seluruh korpus.
+   //  - Cicil Belajar : soal satu BAB → korpus dipersempit ke BAB itu saja supaya
+   //                    sub-topik yang ditunjuk akurat (tidak nyasar ke BAB lain).
+   try {
+     // Sumber utama: collection `topics` di PocketBase, diisi oleh
+     // `npm run sync` (apps/pptparser) dari PPT yang sudah diupload admin/
+     // pengajar. Fallback ke localStorage untuk demo/testing tanpa PocketBase.
+     let parseResults = await loadCorpusFromPocketBase(pb);
+     if (!parseResults) {
+       const corpusData = localStorage.getItem('ml_corpus');
+       if (corpusData) {
+         const parsed = JSON.parse(corpusData);
+         parseResults = Array.isArray(parsed) ? parsed : [parsed];
+       }
+     }
+
+     if (parseResults && parseResults.length) {
+       let corpus = buildCorpus(parseResults);
+
+       // Cicil Belajar: semua soal berasal dari satu BAB. Persempit korpus ke
+       // BAB itu. Kalau BAB tsb belum punya materi terparse, korpus jadi kosong
+       // → ML dilewati & tampil rekomendasi biasa (jujur, tidak memaksa cocok).
+       const chapterIds = [...new Set(qs.map((qq) => qq.chapter).filter(Boolean))];
+       if (chapterIds.length === 1) {
+         corpus = corpus.filter((d) => d.chapter === chapterIds[0]);
        }
 
-       if (parseResults && parseResults.length) {
-         const corpus = buildCorpus(parseResults);
+       if (corpus.length) {
          const index = buildIndex(corpus);
-
          const gradedQuestions = qs.map((qq) => ({
            bundle: normalizeQuestionForML(qq),
            wasCorrect: isQuestionCorrect(qq, answers[qq.id]),
@@ -268,9 +279,9 @@ export default function QuestionRunner({
          const report = analyzeWeakness(gradedQuestions, index);
          setWeaknessReport(report);
        }
-     } catch (err) {
-       console.warn('Weakness analysis unavailable:', err);
      }
+   } catch (err) {
+     console.warn('Weakness analysis unavailable:', err);
    }
 
    // Ronde "ulangi yang salah" tidak menimpa nilai asli di database
