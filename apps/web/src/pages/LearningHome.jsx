@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, BookOpenText, ClipboardList, History, Timer, CalendarClock } from 'lucide-react';
-import Header from '@/components/Header';
+import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -29,32 +29,43 @@ const cards = [
 
 export default function LearningHome() {
  const navigate = useNavigate();
- const { user, guest } = useAuth();
+ const { user, guest, role } = useAuth();
  const [resumeList, setResumeList] = useState([]);
  const [exams, setExams] = useState([]);
 
- // Reminder ujian: ambil mata kuliah yang punya tanggal ujian di masa depan,
- // urutkan dari yang paling dekat, tampilkan countdown di beranda.
+ // Reminder ujian: ambil jadwal ujian mendatang lalu tampilkan countdown di
+ // beranda. Untuk SISWA, hanya jadwal dari mata kuliah yang ia ambil yang
+ // ditampilkan (jadwal mata kuliah lain tidak relevan untuknya). Guru/admin/
+ // guest (tanpa pembatasan mata kuliah) melihat semua jadwal.
  useEffect(() => {
-   pb.collection('subjects')
-     .getFullList({ sort: 'order' })
-     .then((subs) => {
+   let alive = true;
+   (async () => {
+     try {
+       const [rows, enrolled] = await Promise.all([
+         pb.collection('exam_schedules').getFullList({ sort: 'examDate', expand: 'subject' }),
+         fetchEnrolledSubjectIds(pb, user, role),
+       ]);
        const now = new Date();
        now.setHours(0, 0, 0, 0);
-       const upcoming = subs
-         .filter((s) => s.examDate && s.examName)
-         .map((s) => {
-           const d = new Date(String(s.examDate).slice(0, 10));
+       // enrolled === null -> tanpa pembatasan (semua). Array -> hanya yang diambil.
+       const visible = enrolled ? rows.filter((r) => enrolled.includes(r.subject)) : rows;
+       const upcoming = visible
+         .filter((r) => r.examDate && r.examName)
+         .map((r) => {
+           const d = new Date(String(r.examDate).slice(0, 10));
            const days = Math.ceil((d - now) / 86400000);
-           return { id: s.id, name: s.name, examName: s.examName, date: d, days };
+           return { id: r.id, name: r.expand?.subject?.name || '', examName: r.examName, date: d, days };
          })
          .filter((e) => e.days >= 0)
          .sort((a, b) => a.days - b.days)
-         .slice(0, 4);
-       setExams(upcoming);
-     })
-     .catch(() => setExams([]));
- }, []);
+         .slice(0, 6);
+       if (alive) setExams(upcoming);
+     } catch (_) {
+       if (alive) setExams([]);
+     }
+   })();
+   return () => { alive = false; };
+ }, [user, guest, role]);
 
  // Fitur "Lanjutkan Belajar": tampilkan latihan yang belum selesai supaya
  // siswa bisa langsung loncat kembali ke BAB yang ditinggalkan.
