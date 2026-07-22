@@ -180,13 +180,15 @@ npm install  # (once, from root repo)
 # Parse a single PPT
 npm run parse -- materials/Reproduksi.pdf --json Reproduksi.json
 
-# Parse all PPTs in a directory
-for file in materials/*.pdf; do
-  npm run parse -- "$file" --json "${file%.pdf}.json"
-done
+# Parse ALL PPTs in a directory in one command (20+ files, no typing names one by one)
+npm run parse:batch -- --dir materials --out corpus
 ```
 
 Each PPT generates a `*.json` corpus file (~50–100 KB per 100-page PPT).
+`parse:batch` runs each PDF in its own child process, so memory is fully
+released between files — safe for batches with large (10MB+) files. Use
+`--concurrency N` to process more than one file at a time if your VPS has
+RAM to spare (default is 1, safest for small VPS).
 
 ### Step 2: Store Corpus Data
 

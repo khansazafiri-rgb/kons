@@ -118,13 +118,12 @@ Only questions with **medium+ confidence** are included in the report.
 
 To deploy this end-to-end:
 
-1. **Parse your PPTs**:
+1. **Parse your PPTs** (batch — one command for all files, no need to type names one by one):
    ```bash
    cd apps/pptparser
-   for file in /path/to/materials/*.pdf; do
-     npm run parse -- "$file" --json "${file%.pdf}.json"
-   done
+   npm run parse:batch -- --dir /path/to/materials --out /path/to/corpus
    ```
+   Each PDF is parsed in its own child process (memory-safe for large/many files — see `--concurrency` in README).
 
 2. **Store corpus data** in PocketBase `topics` collection
 

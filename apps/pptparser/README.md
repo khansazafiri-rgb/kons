@@ -32,9 +32,39 @@ npm test                          # 30 assertion, tanpa perlu PDF
 npm run parse -- materi.pdf
 npm run parse -- materi.pdf --json bab.json     # simpan hasil
 
+# 1b) parse BANYAK PPT sekaligus (mis. 20 file dalam satu folder) —
+#     tidak perlu ketik nama file satu-satu.
+npm run parse:batch -- --dir materials --out corpus
+
 # 4) laporan kelemahan dari korpus + soal yang sudah dinilai
 npm run analyze -- --corpus bab1.json,bab2.json --answers graded.json
 ```
+
+### Parse banyak PPT sekaligus (`parse:batch`)
+
+Kalau sekali upload ada 20+ file PPT (dan beberapa ukurannya besar, >10MB),
+jangan panggil `npm run parse` satu-satu. Taruh semua PDF di satu folder lalu:
+
+```bash
+npm run parse:batch -- --dir materials --out corpus
+```
+
+- **`--dir`**: folder berisi semua file `.pdf` yang mau diproses (dibaca apa
+  adanya, tidak rekursif ke subfolder).
+- **`--out`**: folder tujuan — tiap `NamaFile.pdf` menghasilkan `NamaFile.json`.
+- **`--concurrency N`** (default `1`): berapa PDF diproses **bersamaan**. Tiap
+  PDF diproses di **child process terpisah** (bukan di-loop dalam satu proses
+  Node) supaya memori dilepas total setiap file selesai — penting untuk file
+  besar berisi banyak gambar. Di VPS kecil (RAM terbatas), biarkan di `1`
+  (default) walau lebih lambat; itu lebih aman daripada proses OOM di
+  tengah jalan. Kalau VPS punya RAM lega dan filenya kecil-kecil, boleh naikkan
+  ke `2`-`4` supaya lebih cepat.
+- File yang gagal dibaca (mis. PDF hasil scan/rusak) **tidak menghentikan**
+  file lain — dilaporkan di akhir sebagai daftar terpisah, sisanya tetap
+  selesai diproses.
+- Di akhir, script menunjukkan file mana yang `confidence`-nya bukan `high`
+  (perlu ditinjau manual — biasanya karena PPT itu tidak punya Daftar Isi yang
+  jelas).
 
 `graded.json` = array record `questions` aplikasi + flag `wasCorrect`
 (aplikasi sudah tahu benar/salah, mesin tinggal memetakan):
