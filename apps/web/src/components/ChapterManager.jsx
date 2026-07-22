@@ -89,15 +89,30 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
   const move = async (index, dir) => {
     const target = index + dir;
     if (target < 0 || target >= chapters.length) return;
-    const a = chapters[index], b = chapters[target];
-    const aOrder = Number.isFinite(a.order) ? a.order : index + 1;
-    const bOrder = Number.isFinite(b.order) ? b.order : target + 1;
     setError('');
+
+    // Susun urutan baru dengan menukar posisi index & target.
+    const reordered = [...chapters];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+
+    // Tampilkan perubahan langsung (optimistic) supaya terasa responsif.
+    setChapters(reordered);
+
+    // Tulis ulang order menjadi 1..n untuk SEMUA bab yang nilainya berubah.
+    // Cara ini tahan terhadap data lama yang order-nya duplikat / kosong (PocketBase
+    // mengembalikan field number kosong sebagai 0), yang bikin metode "tukar dua
+    // nilai" jadi tidak berpengaruh (0 ↔ 0). Dengan normalisasi ini tombol ↑ ↓
+    // selalu memindahkan bab.
     try {
-      await pb.collection('chapters').update(a.id, { order: bOrder });
-      await pb.collection('chapters').update(b.id, { order: aOrder });
+      const writes = reordered
+        .map((c, i) => (c.order === i + 1 ? null : pb.collection('chapters').update(c.id, { order: i + 1 })))
+        .filter(Boolean);
+      await Promise.all(writes);
       reload();
-    } catch (e) { setError(errMsg(e)); }
+    } catch (e) {
+      setError(errMsg(e));
+      reload(); // kembalikan ke kondisi server bila gagal
+    }
   };
 
   const remove = async (c) => {

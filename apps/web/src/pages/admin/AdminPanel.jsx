@@ -1426,22 +1426,25 @@ function JadwalUjian() {
     return m;
   }, [schedules]);
 
-  // Tukar posisi (order) dua mata kuliah bersebelahan.
+  // Pindahkan mata kuliah ke atas/bawah. Order ditulis ulang menjadi 1..n untuk
+  // semua yang berubah — tahan terhadap order lama yang duplikat/kosong (0),
+  // yang bikin metode tukar dua nilai jadi no-op.
   const move = async (index, dir) => {
     const target = index + dir;
     if (target < 0 || target >= subjects.length) return;
-    const a = subjects[index];
-    const b = subjects[target];
     setError(''); setOkMsg('');
+    const reordered = [...subjects];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setSubjects(reordered); // optimistic
     try {
-      // pakai nilai order yang ada; kalau sama/null, normalkan pakai index
-      const aOrder = Number.isFinite(a.order) ? a.order : index + 1;
-      const bOrder = Number.isFinite(b.order) ? b.order : target + 1;
-      await pb.collection('subjects').update(a.id, { order: bOrder });
-      await pb.collection('subjects').update(b.id, { order: aOrder });
+      const writes = reordered
+        .map((s, i) => (s.order === i + 1 ? null : pb.collection('subjects').update(s.id, { order: i + 1 })))
+        .filter(Boolean);
+      await Promise.all(writes);
       await load();
     } catch (err) {
       setError('Gagal mengubah urutan: ' + (err?.message || ''));
+      await load();
     }
   };
 
@@ -1695,17 +1698,24 @@ function LandingPageManager() {
     catch (e) { setError('Gagal menghapus: ' + (e?.message || '')); }
   };
 
-  // Tukar urutan tampil dengan tetangganya.
+  // Pindahkan urutan tampil ke atas/bawah. Order ditulis ulang menjadi 1..n untuk
+  // semua yang berubah — tahan terhadap order lama yang duplikat/kosong (0).
   const move = async (index, dir) => {
     const target = index + dir;
     if (target < 0 || target >= rows.length) return;
-    const a = rows[index], b = rows[target];
-    const aOrder = a.order ?? index, bOrder = b.order ?? target;
+    const reordered = [...rows];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setRows(reordered); // optimistic
     try {
-      await pb.collection('landing_team').update(a.id, { order: bOrder });
-      await pb.collection('landing_team').update(b.id, { order: aOrder });
+      const writes = reordered
+        .map((r, i) => (r.order === i + 1 ? null : pb.collection('landing_team').update(r.id, { order: i + 1 })))
+        .filter(Boolean);
+      await Promise.all(writes);
       load();
-    } catch (e) { setError('Gagal mengubah urutan: ' + (e?.message || '')); }
+    } catch (e) {
+      setError('Gagal mengubah urutan: ' + (e?.message || ''));
+      load();
+    }
   };
 
   const isTeacher = kind === 'teacher';
