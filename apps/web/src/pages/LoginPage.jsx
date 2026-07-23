@@ -67,7 +67,12 @@ export default function LoginPage() {
          <div className="lg:hidden mb-8"><Logo size="md" /></div>
 
          <h1 className="font-display text-2xl font-semibold mb-1.5">Masuk ke Web Siswa</h1>
-         <p className="text-sm text-stone-500 mb-8">Gunakan akun Student, Teacher, atau Admin yang diberikan oleh admin.</p>
+         <p className="text-sm text-stone-500 mb-8">
+           Gunakan akun Student, Teacher, atau Admin yang diberikan oleh admin. Belum punya akun?{' '}
+           <Link to="/signup" className="font-bold text-maroon-600 hover:text-maroon-700 underline underline-offset-2">
+             Sign Up di sini
+           </Link>.
+         </p>
 
          <form onSubmit={submit} className="space-y-5">
            <div>
@@ -123,6 +128,12 @@ export default function LoginPage() {
          >
            Masuk sebagai Guest <span className="font-normal text-stone-500">(akses BAB 1 tiap mata kuliah)</span>
          </button>
+         <Link
+           to="/signup"
+           className="mt-3 block w-full text-center rounded-xl border-2 border-maroon-600 font-bold py-3 text-sm text-maroon-600 hover:bg-maroon-600 hover:text-alba-50 transition-colors"
+         >
+           Sign Up — Daftar Akun Baru
+         </Link>
 
          <p className="text-xs text-stone-500 mt-8 leading-relaxed bg-alba-100/70 border border-alba-200 rounded-xl px-4 py-3">
            Setiap akun hanya bisa aktif di maksimal <span className="font-semibold">1 device</span>. Kesulitan login?
