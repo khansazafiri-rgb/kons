@@ -3,9 +3,9 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Flame, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-// Logo asli PCV (di-host di Google). Kalau gagal dimuat (misal offline),
-// otomatis jatuh ke monogram "P" maroon.
-export const PCV_LOGO_URL = 'https://lh3.googleusercontent.com/d/1lhXOXrxkfutAv0d13IBZoqYsJMmis5Ex';
+// Logo asli PCV, disimpan lokal di public/ supaya selalu termuat
+// (link Google Drive sering diblok/lambat sehingga jatuh ke monogram "P").
+export const PCV_LOGO_URL = '/logo-pcv.png';
 
 // size: 'sm' (header) | 'md' (landing/login)
 export function Logo({ size = 'sm', light = false }) {
