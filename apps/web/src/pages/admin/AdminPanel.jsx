@@ -43,7 +43,13 @@ export default function AdminPanel() {
           {tab === 'Edit Soal' && <EditSoalHub />}
           {/* Admin bisa upload PPT untuk SEMUA mata kuliah (allowedSubjectIds=null) */}
           {tab === 'PPT Mata Kuliah' && <PPTUpload allowedSubjectIds={null} />}
-          {tab === 'Tambah Akun' && <TambahAkun />}
+          {tab === 'Tambah Akun' && (
+            <div className="space-y-6">
+              <PendingSignups />
+              <TambahAkun />
+              <SignupSettings />
+            </div>
+          )}
           {tab === 'Jadwal Ujian' && <JadwalUjian />}
           {tab === 'Landing Page' && <LandingPageManager />}
         </div>
@@ -1289,6 +1295,212 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 // ==========================================
 // TAB TAMBAH AKUN
 // ==========================================
+
+// Pendaftar dari halaman Sign Up yang menunggu ACC. Alur admin:
+// 1. pilihkan mata kuliah lewat chip di kartu, 2. klik "ACC" -> akun aktif dan
+// email notifikasi terkirim otomatis (hook PocketBase), atau "Tolak" -> hapus.
+function PendingSignups() {
+  const [pending, setPending] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [busyId, setBusyId] = useState(null);
+  const [msg, setMsg] = useState('');
+
+  const load = () =>
+    Promise.all([
+      pb.collection('users').getFullList({ filter: 'signupPending = true', sort: '-created' }),
+      pb.collection('subjects').getFullList({ sort: 'order' }),
+    ])
+      .then(([p, s]) => { setPending(p); setSubjects(s); })
+      .catch((e) => setMsg(`Gagal memuat pendaftar: ${e?.message || ''}`));
+
+  useEffect(() => { load(); }, []);
+
+  const toggleSubject = async (u, subjectId) => {
+    const cur = Array.isArray(u.teachingSubjects) ? u.teachingSubjects : [];
+    const next = cur.includes(subjectId) ? cur.filter((x) => x !== subjectId) : [...cur, subjectId];
+    setPending((prev) => prev.map((x) => (x.id === u.id ? { ...x, teachingSubjects: next } : x)));
+    try {
+      await pb.collection('users').update(u.id, { teachingSubjects: next });
+    } catch (e) {
+      setMsg(`Gagal menyimpan mata kuliah: ${e?.message || ''}`);
+      load();
+    }
+  };
+
+  const approve = async (u) => {
+    setBusyId(u.id);
+    setMsg('');
+    try {
+      await pb.collection('users').update(u.id, { signupPending: false, disabled: false });
+      setPending((prev) => prev.filter((x) => x.id !== u.id));
+      setMsg(`${u.name || u.userId} di-ACC. Email notifikasi dikirim ke ${u.email}.`);
+    } catch (e) {
+      setMsg(`Gagal ACC: ${e?.message || ''}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const reject = async (u) => {
+    if (!window.confirm(`Tolak dan hapus pendaftaran ${u.name || u.userId}?`)) return;
+    setBusyId(u.id);
+    try {
+      await pb.collection('users').delete(u.id);
+      setPending((prev) => prev.filter((x) => x.id !== u.id));
+      setMsg(`Pendaftaran ${u.name || u.userId} dihapus.`);
+    } catch (e) {
+      setMsg(`Gagal menghapus: ${e?.message || ''}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="font-display text-lg font-semibold">Pendaftaran dari Sign Up</h2>
+        {pending.length > 0 && (
+          <span className="rounded-full bg-maroon-600 text-alba-50 text-xs font-bold px-3 py-1">{pending.length} menunggu</span>
+        )}
+      </div>
+      <p className="text-xs text-stone-500 mb-4">
+        Pilihkan mata kuliah dulu, lalu klik <b>ACC</b> — siswa otomatis menerima email
+        bahwa web sudah bisa diakses.
+      </p>
+      {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2 mb-4">{msg}</p>}
+      {pending.length === 0 ? (
+        <p className="text-sm text-stone-400">Belum ada pendaftar baru.</p>
+      ) : (
+        <div className="space-y-4">
+          {pending.map((u) => (
+            <div key={u.id} className="rounded-xl border border-gold-200 bg-gold-100/30 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{u.name} <span className="text-stone-400 font-normal">({u.userId})</span></p>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    {u.email} · {u.program || '—'} · Semester {u.semester || '—'} · {u.asalKuliah || '—'}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => approve(u)}
+                    disabled={busyId === u.id}
+                    className="rounded-lg bg-green-600 text-alba-50 text-xs font-bold px-4 py-2 hover:bg-green-700 disabled:opacity-50"
+                  >
+                    ACC & Kirim Email
+                  </button>
+                  <button
+                    onClick={() => reject(u)}
+                    disabled={busyId === u.id}
+                    className="rounded-lg border border-red-300 text-red-600 text-xs font-bold px-4 py-2 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Tolak
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gold-200">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-2">Mata kuliah yang boleh diakses:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {subjects.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => toggleSubject(u, s.id)}
+                      className={`text-xs rounded-full px-3 py-1 border transition-colors ${
+                        (u.teachingSubjects || []).includes(s.id)
+                          ? 'bg-maroon-600 text-alba-50 border-maroon-600'
+                          : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'
+                      }`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Pengaturan halaman Sign Up — admin bebas buka/tutup pendaftaran dan mengubah
+// teksnya. Disiapkan untuk ke depannya saat administrasi/pembelian akses web
+// dilakukan lewat halaman sign up.
+function SignupSettings() {
+  const [rec, setRec] = useState(null);
+  const [draft, setDraft] = useState({ open: true, headline: '', info: '' });
+  const [msg, setMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    pb.collection('signup_settings')
+      .getFirstListItem('id != ""')
+      .then((r) => {
+        setRec(r);
+        setDraft({ open: !!r.open, headline: r.headline || '', info: r.info || '' });
+      })
+      .catch(() => setMsg('Pengaturan sign up belum ada di database (migration belum jalan?).'));
+  }, []);
+
+  const save = async () => {
+    if (!rec) return;
+    setSaving(true);
+    setMsg('');
+    try {
+      const updated = await pb.collection('signup_settings').update(rec.id, draft);
+      setRec(updated);
+      setMsg('Pengaturan tersimpan.');
+    } catch (e) {
+      setMsg(`Gagal menyimpan: ${e?.message || ''}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 max-w-xl">
+      <h2 className="font-display text-lg font-semibold mb-1">Pengaturan Halaman Sign Up</h2>
+      <p className="text-xs text-stone-500 mb-4">
+        Kamu bebas mengatur halaman pendaftaran dari sini — buka/tutup pendaftaran dan
+        ubah teksnya kapan pun.
+      </p>
+      <div className="space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={draft.open}
+            onChange={(e) => setDraft((d) => ({ ...d, open: e.target.checked }))}
+            className="w-4 h-4 accent-maroon-600"
+          />
+          <span className="text-sm font-semibold">{draft.open ? 'Pendaftaran DIBUKA' : 'Pendaftaran DITUTUP'}</span>
+        </label>
+        <input
+          value={draft.headline}
+          onChange={(e) => setDraft((d) => ({ ...d, headline: e.target.value }))}
+          placeholder="Judul halaman sign up"
+          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+        />
+        <textarea
+          value={draft.info}
+          onChange={(e) => setDraft((d) => ({ ...d, info: e.target.value }))}
+          placeholder="Teks info di form pendaftaran"
+          rows={3}
+          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+        />
+        <button
+          onClick={save}
+          disabled={saving || !rec}
+          className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-5 py-2.5 disabled:opacity-50"
+        >
+          {saving ? 'Menyimpan…' : 'Simpan Pengaturan'}
+        </button>
+        {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2">{msg}</p>}
+      </div>
+    </div>
+  );
+}
+
 function TambahAkun() {
   const [form, setForm] = useState({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student' });
   const [msg, setMsg] = useState('');

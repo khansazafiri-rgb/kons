@@ -3,8 +3,13 @@ import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import LandingPage from './pages/LandingPage';
+import HomeLanding from './pages/landing/HomeLanding';
+import StudentProgramPage from './pages/landing/StudentProgramPage';
+import OlympiadProgramPage from './pages/landing/OlympiadProgramPage';
+import TeamPage from './pages/landing/TeamPage';
+import StudentWebPage from './pages/landing/StudentWebPage';
 import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 import LearningHome from './pages/LearningHome';
 import ProfilePage from './pages/ProfilePage';
 import PerdalamMateri from './pages/PerdalamMateri';
@@ -20,8 +25,13 @@ function App() {
      <AuthProvider>
        <ScrollToTop />
        <Routes>
-         <Route path="/" element={<LandingPage />} />
+         <Route path="/" element={<HomeLanding />} />
+         <Route path="/student-program" element={<StudentProgramPage />} />
+         <Route path="/olympiad-program" element={<OlympiadProgramPage />} />
+         <Route path="/tim" element={<TeamPage />} />
+         <Route path="/student-web" element={<StudentWebPage />} />
          <Route path="/login" element={<LoginPage />} />
+         <Route path="/signup" element={<SignupPage />} />
          <Route path="/beranda" element={<ProtectedRoute><LearningHome /></ProtectedRoute>} />
          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
          <Route path="/perdalam-materi" element={<ProtectedRoute><PerdalamMateri /></ProtectedRoute>} />

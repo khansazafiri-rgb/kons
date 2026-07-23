@@ -1,0 +1,1244 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>PCV Classroom — Cinematic Tour</title>
+<style>
+  :root{
+    --alba-50:#FDFBF7;--alba-100:#F8F4EC;--alba-200:#EFE7D9;--alba-300:#E2D6C2;
+    --maroon-50:#FBF1F0;--maroon-100:#F4DEDC;--maroon-200:#E6B8B4;--maroon-300:#D28A84;
+    --maroon-400:#B54038;--maroon-500:#A11C13;--maroon-600:#8E0100;--maroon-700:#740100;
+    --maroon-800:#5A0100;--maroon-900:#420000;
+    --gold-100:#F7EFD8;--gold-200:#EBDCA8;--gold-400:#C9A227;--gold-600:#9A7B1C;
+    --stone-400:#a8a29e;--stone-500:#78716c;--stone-600:#57534e;--stone-700:#44403c;--stone-800:#292524;
+    --green-600:#16a34a;--green-50:#f0fdf4;--green-200:#bbf7d0;--green-900:#14532d;
+    --ink:#F7F3EC;
+    --serif:'Fraunces',Georgia,serif;
+    --sans:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --ez:cubic-bezier(.22,1,.36,1);
+    --ezc:cubic-bezier(.62,0,.35,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans);overflow:hidden;color:var(--stone-800);
+    background:radial-gradient(130% 100% at 50% 30%,#3b3532 0%,#241f1e 45%,#2a0f0d 100%)}
+  /* ===== zona: tagline atas / film tengah / kontrol bawah ===== */
+  #tag{position:fixed;top:0;left:0;right:0;height:104px;z-index:70;pointer-events:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:8px 24px 0}
+  #tag .t{font-family:var(--serif);font-weight:700;text-transform:uppercase;letter-spacing:-.01em;
+    font-size:clamp(19px,3vw,34px);color:var(--ink);text-shadow:0 2px 22px rgba(0,0,0,.75)}
+  #tag .s{margin-top:5px;color:var(--gold-200);font-size:clamp(11px,1.3vw,14px);font-weight:500}
+  #tag.show .t{animation:tagIn .5s var(--ez)}
+  #tag.show .s{animation:tagIn .5s .1s both var(--ez)}
+  @keyframes tagIn{from{opacity:0;transform:translateY(20px);filter:blur(7px)}
+    to{opacity:1;transform:none;filter:blur(0)}}
+  #frame{position:fixed;top:104px;bottom:38px;left:0;right:0;overflow:hidden}
+  #frame.shake{animation:shake .32s}
+  @keyframes shake{0%,100%{transform:none}25%{transform:translate(3px,-2px)}
+    50%{transform:translate(-3px,2px)}75%{transform:translate(2px,2px)}}
+  #wrap{position:absolute;inset:0;display:grid;place-items:center}
+  #wrap::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 95% at 50% 45%,transparent 40%,rgba(8,5,4,.55) 100%)}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  #fxb{z-index:1}
+  #fxf{z-index:60;pointer-events:none}
+  #fit{transform-origin:center center;position:relative;z-index:8}
+  #stage{perspective:1750px;perspective-origin:50% 42%}
+  #camera{position:relative;transform-style:preserve-3d;transition:transform .85s var(--ezc)}
+  /* ===== laptop ===== */
+  #laptop{transform-style:preserve-3d;opacity:0;transition:opacity .5s ease}
+  #laptop.on{opacity:1}
+  #lid{background:#0b0a0a;border-radius:22px;padding:12px 12px 14px;
+    box-shadow:0 45px 130px rgba(0,0,0,.7),inset 0 0 0 1px #2a2727}
+  #cam-dot{width:6px;height:6px;border-radius:50%;background:#332f2f;margin:0 auto 6px}
+  #viewport{position:relative;width:1040px;height:648px;border-radius:10px;overflow:hidden;
+    background:var(--alba-50)}
+  #base{width:1130px;height:16px;margin:-2px auto 0;border-radius:0 0 16px 16px;
+    background:linear-gradient(#3a3535,#151212);position:relative;
+    box-shadow:0 24px 40px rgba(0,0,0,.5)}
+  #base::after{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+    width:120px;height:7px;border-radius:0 0 9px 9px;background:#0b0a0a}
+  /* ===== layar-layar (setia ke web asli) ===== */
+  .screen{position:absolute;inset:0;opacity:0;pointer-events:none;
+    transition:opacity .4s ease;display:flex;flex-direction:column;background:var(--alba-50);
+    overflow:hidden}
+  .screen.active{opacity:1}
+  .logo{display:inline-flex;align-items:center;gap:9px}
+  .logo img.mk{width:28px;height:28px;border-radius:8px;object-fit:cover;display:block}
+  .logo .wd{font-family:var(--serif);font-weight:600;font-size:16px;color:var(--maroon-600)}
+  .logo .wd b{color:var(--stone-800);font-weight:600}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--maroon-600);display:flex;align-items:center;gap:8px}
+  .h1{font-family:var(--serif);font-weight:600;color:var(--stone-800)}
+  svg.i{width:1em;height:1em;stroke:currentColor;stroke-width:1.9;fill:none;
+    stroke-linecap:round;stroke-linejoin:round}
+  .appbar{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 26px;border-bottom:1px solid var(--alba-200);
+    background:rgba(253,251,247,.92)}
+  .appbar .nav{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:600;margin-left:26px}
+  .appbar .nav span{padding:6px 12px;border-radius:99px;color:var(--stone-600)}
+  .appbar .nav span.on{background:var(--maroon-600);color:var(--alba-50);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .appbar .right{display:flex;align-items:center;gap:10px}
+  .chip-user{display:flex;align-items:center;gap:9px;border:1px solid var(--alba-200);
+    background:rgba(248,244,236,.6);border-radius:99px;padding:5px 14px 5px 6px}
+  .chip-user .av{width:26px;height:26px;border-radius:50%;background:var(--maroon-600);
+    color:var(--alba-50);display:grid;place-items:center;font-size:12px;font-weight:700}
+  .chip-user .nm{font-size:11px;font-weight:700;line-height:1.15}
+  .chip-user .rl{font-size:8.5px;letter-spacing:.12em;color:var(--maroon-500);font-weight:600}
+  .btn-out{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+    border:1px solid var(--alba-300);color:var(--stone-600);border-radius:99px;padding:7px 13px}
+  /* landing */
+  .land-top{height:4px;background:var(--maroon-600)}
+  .land-head{display:flex;align-items:center;justify-content:space-between;
+    padding:13px 34px;border-bottom:1px solid var(--alba-200);background:rgba(253,251,247,.9)}
+  .land-nav{display:flex;gap:20px;align-items:center;font-size:12.5px;font-weight:600;color:var(--stone-600)}
+  .btn-mrn{display:inline-flex;align-items:center;gap:8px;background:var(--maroon-600);
+    color:var(--alba-50);border-radius:99px;font-weight:600;box-shadow:0 2px 6px rgba(90,1,0,.25)}
+  .land-head .btn-mrn{padding:9px 18px;font-size:12.5px}
+  .land-body{flex:1;padding:0 44px;overflow:hidden}
+  .land-scroll{transform:translateY(0);transition:transform 2.6s ease}
+  .landing.play .land-scroll{transform:translateY(-190px)}
+  .land-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:38px;align-items:center;padding-top:40px}
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;
+    letter-spacing:.2em;color:var(--maroon-600);background:var(--maroon-50);
+    border:1px solid var(--maroon-100);border-radius:99px;padding:6px 14px;margin-bottom:16px}
+  .land-grid h1{font-family:var(--serif);font-size:40px;line-height:1.1;font-weight:600}
+  .land-grid h1 .m{color:var(--maroon-600);font-style:italic}
+  .land-sub{margin-top:14px;color:var(--stone-600);font-size:15px;max-width:400px;line-height:1.55}
+  .land-ctas{display:flex;align-items:center;gap:16px;margin-top:22px}
+  .land-ctas .btn-mrn{padding:12px 24px;font-size:13.5px}
+  .land-ctas .lnk{font-size:12.5px;font-weight:600;color:var(--maroon-600);
+    text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--maroon-200)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:26px;max-width:360px}
+  .stat{border:1px solid var(--alba-200);background:rgba(248,244,236,.6);border-radius:12px;
+    padding:10px;text-align:center}
+  .stat .v{font-family:var(--serif);font-size:19px;font-weight:700;color:var(--maroon-600)}
+  .stat .l{font-size:10px;font-weight:600;color:var(--stone-500);margin-top:2px}
+  .focus-wrap{position:relative}
+  .focus-wrap::before{content:"";position:absolute;top:-18px;left:-18px;width:86px;height:86px;
+    border-radius:22px;background:var(--gold-100);border:1px solid var(--gold-200)}
+  .focus{position:relative;border-radius:22px;padding:28px;color:var(--alba-50);
+    background:radial-gradient(120% 130% at 20% 0%,var(--maroon-500),var(--maroon-700) 55%,var(--maroon-800));
+    box-shadow:0 18px 40px rgba(0,0,0,.18)}
+  .focus .k{font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--alba-200);margin-bottom:14px}
+  .focus li{display:flex;gap:10px;font-size:13px;line-height:1.5;margin-bottom:11px;list-style:none}
+  .focus li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold-400);
+    flex:none;margin-top:6px}
+  .focus .ft{margin-top:16px;padding-top:14px;border-top:1px solid rgba(253,251,247,.15);
+    display:flex;gap:9px;align-items:center;font-size:12px;color:var(--alba-200)}
+  /* web siswa home */
+  .home-body{padding:26px 44px;position:relative}
+  .remind{margin-top:18px;border:1px solid var(--maroon-200);background:rgba(251,241,240,.6);
+    border-radius:16px;padding:14px 18px}
+  .remind .rt{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--maroon-600);margin-bottom:9px}
+  .remind .card{display:inline-flex;align-items:center;gap:12px;background:var(--alba-50);
+    border:1px solid var(--maroon-100);border-radius:12px;padding:9px 16px}
+  .remind .en{font-family:var(--serif);font-weight:600;font-size:13px}
+  .remind .ed{font-size:10.5px;color:var(--stone-500)}
+  .remind .dd{border-left:1px solid var(--maroon-100);padding-left:12px;text-align:right}
+  .remind .dv{font-family:var(--serif);font-size:19px;font-weight:700;color:var(--maroon-600);line-height:1}
+  .remind .dl{font-size:8.5px;letter-spacing:.1em;color:var(--stone-400);font-weight:600;text-transform:uppercase}
+  .home-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px}
+  .hc{position:relative;display:flex;flex-direction:column;border:1px solid var(--alba-200);
+    background:var(--alba-50);border-radius:16px;overflow:hidden;
+    box-shadow:0 8px 20px rgba(0,0,0,.06);transition:transform .55s var(--ez),box-shadow .55s}
+  .hc .top{height:5px;background:var(--maroon-600)}
+  .hc .in{padding:19px;display:flex;flex-direction:column;flex:1}
+  .hc .ico{width:40px;height:40px;border-radius:11px;background:var(--maroon-50);
+    border:1px solid var(--maroon-100);color:var(--maroon-600);display:grid;place-items:center;
+    font-size:18px;margin-bottom:13px;transition:.4s}
+  .hc h2{font-family:var(--serif);font-size:16.5px;font-weight:600}
+  .hc p{font-size:12px;color:var(--stone-600);line-height:1.55;margin-top:5px;flex:1}
+  .hc .go{margin-top:14px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px;
+    background:var(--maroon-600);color:var(--alba-50);border-radius:99px;padding:8px 18px;
+    font-size:11.5px;font-weight:700}
+  @keyframes riseIn{from{opacity:0;transform:translateY(26px)}70%{opacity:1;transform:translateY(-5px)}
+    to{opacity:1;transform:none}}
+  .studentHome.enter .hc{opacity:0;animation:riseIn .45s var(--ez) forwards}
+  .studentHome.enter .hc:nth-child(1){animation-delay:.05s}
+  .studentHome.enter .hc:nth-child(2){animation-delay:.2s}
+  .studentHome.enter .hc:nth-child(3){animation-delay:.35s}
+  .dim-layer{position:absolute;inset:0;background:#0b0a0a;opacity:0;pointer-events:none;
+    transition:opacity .5s ease;z-index:5}
+  .studentHome.dim .dim-layer{opacity:.45}
+  .studentHome.pop-perdalam .hc.perdalam,
+  .studentHome.fly-cicil .hc.cicil{z-index:20;transform:scale(1.1) translateY(-10px);
+    box-shadow:0 30px 60px rgba(90,1,0,.4)}
+  .studentHome.pop-perdalam .hc.perdalam .ico,
+  .studentHome.fly-cicil .hc.cicil .ico{background:var(--maroon-600);color:var(--alba-50)}
+  @keyframes flyIn{from{transform:translateX(560px) scale(.8);opacity:0}
+    to{transform:scale(1.1) translateY(-10px);opacity:1}}
+  .studentHome.fly-cicil .hc.cicil{animation:flyIn .8s var(--ez)}
+  /* picker */
+  .pk{max-width:620px;margin:0 auto;padding:22px 24px 0;width:100%}
+  .pk-card{margin-top:16px;border:1px solid var(--alba-200);background:var(--alba-50);
+    border-radius:16px;padding:20px;box-shadow:0 8px 22px rgba(0,0,0,.05)}
+  .lbl{font-size:12.5px;font-weight:700;color:var(--stone-700);margin-bottom:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .subj{border:1px solid var(--alba-200);border-radius:12px;padding:11px 13px;transition:.3s;text-align:left}
+  .subj .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+  .subj .nm{font-size:12.5px;font-weight:700;color:var(--stone-700)}
+  .subj .ct{font-size:10px;font-weight:700;color:var(--maroon-500)}
+  .subj .pb{height:5px;border-radius:99px;background:var(--alba-200);overflow:hidden}
+  .subj .pb i{display:block;height:100%;background:var(--maroon-600);border-radius:99px}
+  .subj.sel{border-color:var(--maroon-600);background:var(--maroon-50)}
+  .subj.sel .nm{color:var(--maroon-700)}
+  .reveal2{max-height:0;opacity:0;overflow:hidden;transition:max-height .45s var(--ez),opacity .4s}
+  .picker .reveal2.on{max-height:340px;opacity:1}
+  .search{display:flex;align-items:center;gap:8px;border:1px solid var(--alba-300);
+    background:var(--alba-50);border-radius:12px;padding:8px 12px;font-size:12.5px;color:var(--stone-400);margin:15px 0 9px}
+  .chaps{display:grid;gap:7px}
+  .chap{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--alba-200);
+    border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:500;color:var(--stone-700);transition:.25s}
+  .chap.done svg{color:var(--maroon-400)}
+  .chap.sel{border-color:var(--maroon-600);background:var(--maroon-50);color:var(--maroon-700);font-weight:600}
+  .btn-start{margin-top:16px;width:100%;border-radius:12px;background:var(--maroon-600);
+    color:var(--alba-50);font-weight:700;font-size:13.5px;text-align:center;padding:12px;
+    box-shadow:0 6px 16px rgba(90,1,0,.25)}
+  /* ppt */
+  .ppt-wrap{max-width:760px;margin:0 auto;width:100%;padding:18px 24px 0}
+  .backlnk{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--stone-500)}
+  .ppt-wrap h1{font-family:var(--serif);font-size:22px;font-weight:600;margin:8px 0 14px}
+  .ppt-card{border:1px solid var(--alba-200);border-radius:16px;overflow:hidden;
+    box-shadow:0 8px 22px rgba(0,0,0,.05);background:var(--alba-50)}
+  .gold-note{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    background:rgba(247,239,216,.6);border-bottom:1px solid var(--gold-200);padding:9px 14px}
+  .gold-note p{font-size:11px;color:var(--stone-700);font-weight:500}
+  .gold-note .gb{flex:none;display:inline-flex;align-items:center;gap:6px;background:var(--gold-400);
+    color:var(--alba-50);font-weight:700;font-size:11px;border-radius:9px;padding:7px 12px}
+  .viewer{position:relative;height:330px;background:#fff;overflow:hidden}
+  .ppt-scroll{position:absolute;left:50%;transform:translate(-50%,0);width:86%;padding:18px 0;
+    display:grid;gap:14px;transition:transform 1.6s linear}
+  .ppt.play .ppt-scroll{transform:translate(-50%,-215px)}
+  .slide{border:1px solid #e5e0d5;background:var(--alba-50);border-radius:10px;padding:20px 24px;
+    box-shadow:0 4px 14px rgba(0,0,0,.05)}
+  .slide-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .tag-hy{background:var(--maroon-50);color:var(--maroon-600);border-radius:99px;padding:3px 10px;
+    font-size:9.5px;font-weight:700}
+  .slide h2{font-family:var(--serif);font-size:17px;font-weight:600}
+  .slide-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-top:10px}
+  .slide ul{list-style:none;display:grid;gap:6px;font-size:11px;color:var(--stone-600)}
+  .slide li::before{content:"•";color:var(--maroon-400);margin-right:7px}
+  .diagram{display:grid;place-items:center;border-radius:8px;background:var(--maroon-50);
+    color:var(--maroon-300);font-size:38px}
+  .ppt-done{margin:14px auto 0;display:block;width:fit-content;border-radius:12px;
+    background:var(--maroon-600);color:var(--alba-50);font-weight:700;font-size:12.5px;padding:11px 26px}
+  /* question runner */
+  .run{max-width:660px;margin:0 auto;width:100%;padding:20px 24px 0}
+  .run-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .run-top .md{font-size:11.5px;font-weight:700;color:var(--maroon-600);
+    background:var(--maroon-50);border:1px solid var(--maroon-100);border-radius:99px;padding:5px 13px}
+  .run-top .ex{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--stone-500)}
+  .run-pb{height:5px;border-radius:99px;background:var(--alba-200);overflow:hidden}
+  .run-pb i{display:block;height:100%;background:var(--maroon-600);border-radius:99px;transition:width .4s var(--ez)}
+  .run-pbt{font-size:10px;font-weight:600;color:var(--stone-400);margin:5px 0 14px}
+  .qtext{font-size:16px;font-weight:500;color:var(--stone-800);line-height:1.5;margin-bottom:14px}
+  .opts{display:grid;gap:9px}
+  .opt2{display:flex;gap:11px;align-items:flex-start;border:2px solid var(--alba-300);
+    border-radius:12px;padding:10px 13px;transition:.25s;background:var(--alba-50)}
+  .opt2 .lt{width:23px;height:23px;flex:none;border-radius:50%;border:1px solid var(--alba-300);
+    display:grid;place-items:center;font-size:10.5px;font-weight:700;color:var(--stone-500);transition:.25s}
+  .opt2 .tx{font-size:13px;font-weight:500;padding-top:2px;line-height:1.45}
+  .opt2.good{border-color:var(--green-600);background:var(--green-50);box-shadow:0 2px 8px rgba(22,163,74,.12)}
+  .opt2.good .lt{background:var(--green-600);border-color:var(--green-600);color:#fff}
+  .opt2.pick{border-color:var(--maroon-600);background:var(--maroon-50)}
+  .opt2.pick .lt{background:var(--maroon-600);border-color:var(--maroon-600);color:var(--alba-50)}
+  .expl{margin:2px 0 0 34px;border:1px solid var(--green-200);background:var(--green-50);
+    color:var(--green-900);border-radius:12px;padding:0 13px;font-size:11.5px;line-height:1.5;
+    max-height:0;opacity:0;overflow:hidden;transition:max-height .4s var(--ez),opacity .3s,padding .3s}
+  .expl.on{max-height:90px;opacity:1;padding-top:9px;padding-bottom:9px}
+  .expl b{display:block;margin-bottom:2px}
+  .img-q{display:grid;place-items:center;margin-bottom:14px}
+  .img-q .ph{border:1px solid var(--alba-200);border-radius:12px;background:#fff;
+    box-shadow:0 4px 14px rgba(0,0,0,.06);padding:10px 26px}
+  .isian{border:1px solid var(--alba-200);background:rgba(248,244,236,.6);border-radius:12px;padding:13px}
+  .isian .ql{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--stone-700);margin-bottom:9px}
+  .isian .ql .b{width:22px;height:22px;border-radius:50%;background:var(--maroon-600);color:var(--alba-50);
+    display:grid;place-items:center;font-size:10.5px;font-weight:700}
+  .isian .inp{width:100%;border:1px solid var(--alba-300);border-radius:12px;background:var(--alba-50);
+    padding:10px 13px;font-size:12.5px;color:var(--stone-800);transition:.25s}
+  .isian .inp .caret{display:inline-block;width:1px;height:13px;background:var(--stone-700);
+    vertical-align:-2px;animation:blink 1s steps(1) infinite;margin-left:1px}
+  @keyframes blink{50%{opacity:0}}
+  .isian .inp.empty{color:var(--stone-400)}
+  .isian .inp.good{border-color:var(--green-600);background:var(--green-50);color:var(--green-900);font-weight:600}
+  .isian .res{margin-top:8px;font-size:11px;font-weight:700;color:var(--green-900);opacity:0;transition:opacity .3s}
+  .isian .res.on{opacity:1}
+  .isian .res span{font-weight:400;color:var(--stone-600)}
+  .btn-cek{margin-top:12px;display:inline-flex;border-radius:99px;background:var(--maroon-600);
+    color:var(--alba-50);font-size:12px;font-weight:700;padding:9px 20px;
+    box-shadow:0 4px 12px rgba(90,1,0,.25)}
+  /* hasil */
+  .score{display:grid;place-items:center}
+  .score>div{display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 40px}
+  .ring{width:108px;height:108px;border-radius:50%;display:grid;place-items:center;
+    transform:scale(.6);opacity:0;transition:transform .5s var(--ez),opacity .4s;position:relative}
+  .scoreS.play .ring{transform:scale(1);opacity:1}
+  .ring .num{font-family:var(--serif);font-size:38px;font-weight:700;font-variant-numeric:tabular-nums}
+  .score h2{font-family:var(--serif);font-size:24px;font-weight:600;margin-top:18px}
+  .score .sub{margin-top:5px;color:var(--stone-600);font-size:13.5px}
+  .score .sub b{color:var(--maroon-600)}
+  .score .msg{margin-top:14px;border-radius:12px;padding:11px 18px;font-size:12.5px;max-width:430px;line-height:1.55}
+  .score .msg.win{background:var(--green-50);border:1px solid var(--green-200);color:var(--green-900)}
+  .score .btns{display:flex;gap:10px;margin-top:18px}
+  .score .btns .b1{border-radius:99px;background:var(--maroon-600);color:var(--alba-50);
+    font-size:11.5px;font-weight:700;padding:8px 18px}
+  .score .btns .b2{border-radius:99px;border:1px solid var(--alba-300);color:var(--stone-600);
+    font-size:11.5px;font-weight:700;padding:8px 18px}
+  .confetti{position:absolute;width:8px;height:13px;border-radius:2px;top:-20px;z-index:40;
+    animation:confall linear forwards}
+  @keyframes confall{to{transform:translateY(700px) rotate(540deg);opacity:.15}}
+  /* warning — sinematik ala film, satu layar penuh */
+  .warn{align-items:center;justify-content:center;
+    background:var(--alba-50);transition:background .45s ease}
+  .warn.play{background:radial-gradient(120% 130% at 50% 50%,#8E1710,#4d0300 68%,#2e0200 100%)}
+  .warn-scan{position:absolute;inset:0;opacity:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 2px,transparent 2px 5px)}
+  .warn.play .warn-scan{opacity:1}
+  .warn-edge{position:absolute;inset:0;pointer-events:none;opacity:0}
+  .warn.play .warn-edge{opacity:1;animation:edgePulse .75s ease-in-out infinite}
+  @keyframes edgePulse{
+    0%,100%{box-shadow:inset 0 0 90px rgba(255,70,45,.45),inset 0 0 12px rgba(255,120,80,.35)}
+    50%{box-shadow:inset 0 0 170px rgba(255,70,45,.85),inset 0 0 26px rgba(255,140,90,.6)}}
+  .warn-line{position:absolute;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,transparent,var(--gold-400),transparent);
+    opacity:0;transform:scaleX(0);transition:transform .6s var(--ez) .2s,opacity .4s .2s}
+  .warn-line.t{top:56px}.warn-line.b{bottom:56px}
+  .warn.play .warn-line{opacity:.95;transform:scaleX(1)}
+  .warn-in{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;transform:scale(.92);opacity:0;
+    transition:.5s var(--ez) .15s;width:100%;padding:0 40px}
+  .warn.play .warn-in{transform:scale(1);opacity:1}
+  .warn-in .tri{font-size:72px;color:var(--gold-400);
+    filter:drop-shadow(0 0 26px rgba(201,162,39,.7))}
+  .warn.play .warn-in .tri{animation:pulse .8s ease-in-out infinite}
+  @keyframes pulse{50%{transform:scale(1.12)}}
+  .warn-in .kicker{margin-top:16px;font-size:15px;font-weight:700;letter-spacing:.42em;
+    text-transform:uppercase;color:#FFB4A0}
+  .warn.play .warn-in .kicker{animation:blinkTxt 1s steps(2) infinite}
+  @keyframes blinkTxt{50%{opacity:.35}}
+  .warn-in h3{font-family:var(--serif);font-size:36px;color:var(--alba-50);margin-top:10px;font-weight:600}
+  .warn-in h1{font-family:var(--serif);font-size:74px;color:var(--gold-400);line-height:1.05;
+    text-shadow:0 0 44px rgba(201,162,39,.5)}
+  .warn-in p{margin-top:16px;color:var(--maroon-100);font-size:18px}
+  /* exam */
+  .timer{display:flex;align-items:center;gap:7px;border-radius:99px;padding:5px 14px;
+    font-family:var(--serif);font-size:16px;font-weight:700;background:var(--maroon-50);
+    color:var(--maroon-600);font-variant-numeric:tabular-nums;transition:.3s}
+  .timer.low{background:var(--maroon-600);color:var(--alba-50);animation:pulse .55s infinite;
+    box-shadow:0 0 22px rgba(142,1,0,.55)}
+  .submit-row{margin-top:16px;display:flex;justify-content:flex-end}
+  .btn-submit{display:inline-flex;align-items:center;gap:8px;background:var(--maroon-600);
+    color:var(--alba-50);border-radius:99px;padding:10px 24px;font-size:13px;font-weight:700;
+    box-shadow:0 6px 16px rgba(90,1,0,.3)}
+  /* kursor presisi */
+  #cursor{position:absolute;left:0;top:0;width:30px;height:30px;z-index:60;pointer-events:none;
+    opacity:0;transform:translate(430px,300px);transition:transform .55s var(--ezc),opacity .3s;
+    filter:drop-shadow(0 3px 5px rgba(0,0,0,.35))}
+  #cursor.press svg{transform:scale(.82);transform-origin:6px 4px}
+  #cursor svg{transition:transform .1s}
+  .ripple{position:absolute;z-index:55;border:2px solid var(--maroon-600);border-radius:50%;
+    transform:translate(-50%,-50%);pointer-events:none;animation:rip .5s ease-out forwards}
+  @keyframes rip{from{width:0;height:0;opacity:.9}to{width:60px;height:60px;opacity:0}}
+  /* ===== karakter presenter (satu siluet menyatu) ===== */
+  #stu{position:absolute;left:-6px;bottom:-14px;width:230px;z-index:30;opacity:0;
+    transform:translateY(60px);transition:opacity .5s ease,transform .6s var(--ez)}
+  #stu.on{opacity:1;transform:none}
+  #stu.big{left:50%;bottom:auto;top:50%;width:320px;transform:translate(-50%,-46%);z-index:9}
+  #stu svg{width:100%;display:block}
+  #stu .f{display:none}
+  #stu.sad .f-sad{display:block}
+  #stu.hope .f-hope{display:block}
+  #stu.happy .f-happy{display:block}
+  #stu.conf .f-conf{display:block}
+  #stu .armsU{display:none}
+  #stu.sad .armsU{display:block}
+  #stu .sweat{animation:sweat 1.1s ease-in infinite}
+  @keyframes sweat{0%{transform:translateY(0);opacity:0}25%{opacity:1}100%{transform:translateY(24px);opacity:0}}
+  #stu .head{transform-origin:150px 150px;transition:transform .5s var(--ez)}
+  #stu.hope .head{transform:rotate(-4deg)}
+  #stu.happy .head{transform:rotate(2deg)}
+  #stu.bob{animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{50%{margin-bottom:6px}}
+  /* chaos icons (intro overwhelmed) */
+  #chaos{position:absolute;inset:0;z-index:10;opacity:0;pointer-events:none;transition:opacity .4s}
+  #chaos.on{opacity:1}
+  .chi{position:absolute;width:46px;height:46px;border-radius:13px;display:grid;place-items:center;
+    background:rgba(253,251,247,.13);border:1px solid rgba(253,251,247,.22);
+    font-size:20px;backdrop-filter:blur(3px)}
+  #chaos.on .chi{animation:orbit 2.6s linear infinite}
+  @keyframes orbit{from{transform:rotate(0) translateX(var(--r)) rotate(0)}
+    to{transform:rotate(360deg) translateX(var(--r)) rotate(-360deg)}}
+  /* ===== overlay intro & outro (logo POLOS, tanpa border) ===== */
+  .overlay{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:90;
+    display:grid;place-items:center;opacity:0;
+    pointer-events:none;transition:opacity .6s ease}
+  .overlay.show{opacity:1}
+  #intro{background:radial-gradient(120% 100% at 50% 40%,#4a1520,#1c1016 75%)}
+  #intro .in{display:flex;flex-direction:column;align-items:center}
+  .mark{position:relative;width:130px;height:130px}
+  .mark .scaffold{position:absolute;inset:0;overflow:visible}
+  .mark .scaffold rect{fill:none;stroke:rgba(247,243,236,.9);stroke-width:2;
+    stroke-dasharray:520;stroke-dashoffset:520;
+    filter:drop-shadow(0 0 10px rgba(247,243,236,.6))}
+  #intro.roll .scaffold rect{animation:draw .8s .1s forwards var(--ezc),scafOut .4s 1.15s forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  @keyframes scafOut{to{opacity:0}}
+  .mark img.pcvlogo{position:absolute;inset:8px;width:114px;height:114px;border-radius:24px;
+    object-fit:cover;opacity:0;transform:scale(.85);box-shadow:0 22px 50px rgba(0,0,0,.45)}
+  #intro.roll .mark img.pcvlogo{animation:inScale .45s .85s forwards var(--ez)}
+  @keyframes inScale{0%{opacity:0;transform:scale(.7)}70%{opacity:1;transform:scale(1.05)}
+    100%{opacity:1;transform:scale(1)}}
+  @keyframes inUp{0%{opacity:0;transform:translateY(34px)}70%{opacity:1;transform:translateY(-5px)}
+    100%{opacity:1;transform:none}}
+  #intro .wd{margin-top:18px;font-family:var(--serif);font-size:30px;font-weight:600;
+    color:var(--ink);opacity:0}
+  #intro .wd b{color:var(--gold-200)}
+  #intro.roll .wd{animation:inUp .4s 1.15s forwards var(--ez)}
+  #intro .sub{margin-top:6px;font-size:15px;font-weight:700;letter-spacing:.1em;
+    color:var(--gold-400);opacity:0}
+  #intro.roll .sub{animation:inUp .4s 1.3s forwards var(--ez)}
+  #intro.hide{opacity:0;transform:scale(1.3);filter:blur(8px);transition:.7s}
+  #finale{background:radial-gradient(130% 120% at 50% 38%,#4a1520,#1c1016 70%);z-index:95}
+  #finale .in{display:flex;flex-direction:column;align-items:center;gap:16px}
+  #finale .cs{font-family:var(--serif);font-weight:700;letter-spacing:.06em;
+    font-size:clamp(38px,6vw,62px);color:var(--gold-400);
+    text-shadow:0 0 40px rgba(201,162,39,.4);opacity:0}
+  #finale.roll .cs{animation:inUp .5s .5s forwards var(--ez),csGlow 1.8s 1.4s ease-in-out infinite}
+  @keyframes csGlow{50%{text-shadow:0 0 60px rgba(201,162,39,.75)}}
+  #finale img.pcvlogo{width:110px;height:110px;border-radius:24px;object-fit:cover;
+    box-shadow:0 24px 60px rgba(0,0,0,.5);opacity:0;transform:scale(.4)}
+  #finale.roll img.pcvlogo{animation:inScale .5s .8s forwards var(--ez)}
+  #finale .nm{font-family:var(--serif);font-size:32px;font-weight:600;color:var(--ink);opacity:0}
+  #finale .nm b{color:var(--gold-200)}
+  #finale.roll .nm{animation:inUp .4s 1.05s forwards var(--ez)}
+  #finale .tg{font-size:15px;font-weight:700;letter-spacing:.1em;color:var(--gold-400);opacity:0}
+  #finale.roll .tg{animation:inUp .4s 1.2s forwards var(--ez)}
+  /* gate & kontrol */
+  #gate{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:200;
+    display:grid;place-items:center;
+    background:radial-gradient(120% 100% at 50% 40%,#4a1520,#12101d 75%)}
+  #gate.off{display:none}
+  #gate button{display:flex;flex-direction:column;align-items:center;gap:18px;background:none;
+    border:none;cursor:pointer;font-family:var(--sans)}
+  #gate .pr{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;
+    background:var(--gold-400);color:var(--maroon-900);font-size:34px;
+    box-shadow:0 0 0 10px rgba(201,162,39,.22),0 20px 50px rgba(0,0,0,.5);transition:.3s}
+  #gate button:hover .pr{transform:scale(1.06)}
+  #gate button:focus-visible .pr{outline:3px solid var(--ink);outline-offset:4px}
+  #gate .gt{font-family:var(--serif);font-size:24px;font-weight:600;color:var(--ink)}
+  #gate .gs{font-size:13px;color:var(--gold-200);margin-top:-8px}
+  #ctrl{position:fixed;bottom:11px;left:50%;transform:translateX(-50%);z-index:120;display:flex;gap:12px}
+  #ctrl button{border:1px solid rgba(247,243,236,.35);background:rgba(247,243,236,.1);
+    color:var(--ink);border-radius:99px;padding:6px 16px;font-size:12px;font-weight:700;
+    cursor:pointer;backdrop-filter:blur(6px);font-family:var(--sans)}
+  #ctrl button:hover{background:rgba(247,243,236,.22)}
+  #ctrl button:focus-visible{outline:2px solid var(--gold-400);outline-offset:2px}
+  #prog{position:fixed;left:0;right:0;bottom:0;height:4px;background:rgba(247,243,236,.12);z-index:120}
+  #progbar{height:100%;width:0;background:var(--gold-400);transition:width .3s linear}
+  @media (prefers-reduced-motion:reduce){
+    #camera{transition-duration:.3s}
+    #stu.bob,#chaos.on .chi,.timer.low,#finale.roll .cta{animation-iteration-count:1}
+  }
+</style>
+
+<div id="frame">
+  <div id="wrap">
+    <canvas id="fxb"></canvas>
+    <div id="fit"><div id="stage"><div id="camera">
+      <div id="laptop">
+        <div id="lid"><div id="cam-dot"></div>
+          <div id="viewport"><div id="cursor"></div></div>
+        </div>
+        <div id="base"></div>
+      </div>
+    </div></div></div>
+    <div id="chaos"></div>
+    <div id="stu"></div>
+    <canvas id="fxf"></canvas>
+  </div>
+</div>
+
+<div id="tag"></div>
+
+<div id="intro" class="overlay">
+  <div class="in">
+    <div class="mark">
+      <svg class="scaffold" viewBox="0 0 130 130"><rect x="8" y="8" width="114" height="114" rx="26"/></svg>
+      <img class="pcvlogo" alt="Logo PCV Classroom">
+    </div>
+    <div class="wd">PCV <b>Classroom</b></div>
+    <div class="sub">Bimble FK Ter-Worth It!</div>
+  </div>
+</div>
+
+<div id="finale" class="overlay">
+  <div class="in">
+    <div class="cs">COMING SOON</div>
+    <img class="pcvlogo" alt="Logo PCV Classroom">
+    <div class="nm">PCV <b>Classroom</b></div>
+    <div class="tg">Bimble FK Ter-Worth It!</div>
+  </div>
+</div>
+
+<div id="gate">
+  <button id="start" aria-label="Putar video dengan musik">
+    <span class="pr">▶</span>
+    <span class="gt">PCV Classroom — Cinematic Tour</span>
+    <span class="gs">Klik untuk memutar dengan musik · ±30 detik</span>
+  </button>
+</div>
+<div id="ctrl">
+  <button id="pp">❚❚ Pause</button>
+  <button id="mute">🔊 Musik</button>
+  <button id="rs">↻ Ulang</button>
+</div>
+<div id="prog"><div id="progbar"></div></div>
+
+<script>
+/* ============================================================
+   Gabungan terbaik: tur laptop informatif (UI asli) + pace cepat
+   124 BPM + musik ceria + karakter presenter menyatu.
+   ============================================================ */
+const $=s=>document.querySelector(s);
+const BPM=124, BEAT=60000/BPM;
+const beats=n=>Math.round(n*BEAT);
+
+/* ---------------- ikon ---------------- */
+const I = {
+  book:'<path d="M12 7c-1.5-1-4-1.5-6-1v11c2-.5 4.5 0 6 1 1.5-1 4-1.5 6-1V6c-2-.5-4.5 0-6 1z"/><path d="M12 7v11"/>',
+  clip:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9.5 4h5v3h-5z"/><path d="M9 11h6M9 15h4"/>',
+  timer:'<circle cx="12" cy="13" r="7.5"/><path d="M12 13V8.5"/><path d="M9.5 2.5h5"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.6 2.6L16 9"/>',
+  alert:'<path d="M12 3.5l9 16H3z"/><path d="M12 10v4.5M12 17.5h.01"/>',
+  arrow:'<path d="M5 12h13M13 6.5l6 5.5-6 5.5"/>',
+  arrowL:'<path d="M19 12H6M11 6.5L5 12l6 5.5"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  steth:'<path d="M5 3v5a5 5 0 0 0 10 0V3"/><path d="M15 13a4 4 0 0 0 4 4 3 3 0 0 0 3-3v-2"/><circle cx="22" cy="10" r="1.6"/>',
+  grad:'<path d="M2 9l10-4.5L22 9l-10 4.5z"/><path d="M6.5 11.5V16c0 1.2 2.5 2.5 5.5 2.5s5.5-1.3 5.5-2.5v-4.5"/>',
+  cal:'<rect x="4" y="5.5" width="16" height="15" rx="2.5"/><path d="M8 3.5v4M16 3.5v4M4 10.5h16"/>',
+  moon:'<path d="M20 13.5A8 8 0 1 1 10.5 4 6.5 6.5 0 0 0 20 13.5z"/>',
+  ext:'<path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M17 13.5V19H5V7h5.5"/>',
+};
+const ic = n => `<svg class="i" viewBox="0 0 24 24">${I[n]}</svg>`;
+/* Logo asli PCV (di-embed sebagai data URI supaya lolos CSP artifact) */
+const PCV_LOGO='data:image/png;base64,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';
+const logoHTML = `<span class="logo"><img class="mk" src="${PCV_LOGO}" alt="Logo PCV"><span class="wd">PCV <b>Classroom</b></span></span>`;
+document.querySelectorAll('img.pcvlogo').forEach(i=>i.src=PCV_LOGO);
+function appbar(active){
+  const items=['Beranda','Perdalam Materi','Cicil Belajar!','Simulasi Test'];
+  return `<div class="appbar"><div style="display:flex;align-items:center">${logoHTML}
+    <span class="nav">${items.map(n=>`<span class="${n===active?'on':''}">${n}</span>`).join('')}</span></div>
+    <div class="right">
+      <span style="width:28px;height:28px;border-radius:50%;border:1px solid var(--alba-300);display:grid;place-items:center;color:var(--stone-500);font-size:13px">${ic('moon')}</span>
+      <span class="chip-user"><span class="av">S</span><span><span class="nm" style="display:block">Siswa PCV</span><span class="rl">STUDENT</span></span></span>
+      <span class="btn-out">${ic('x')} Keluar</span>
+    </div></div>`;
+}
+
+/* ============ karakter — SATU siluet menyatu ============ */
+const SKIN='#EAC8A6',SKIN_D='#D9B68F',HAIR='#382C26';
+$('#stu').innerHTML=`
+<svg viewBox="0 0 300 330">
+  <!-- lengan terangkat: bentuk solid yang lahir dari dalam bahu (pose sedih) -->
+  <g class="armsU">
+    <path d="M92 330 L120 330 C104 292 100 252 108 214 C112 196 118 178 130 164
+             C136 157 134 146 126 142 C118 138 110 143 104 152
+             C88 176 80 214 82 254 C83 282 86 308 92 330 Z" fill="${SKIN}"/>
+    <path d="M208 330 L180 330 C196 292 200 252 192 214 C188 196 182 178 170 164
+             C164 157 166 146 174 142 C182 138 190 143 196 152
+             C212 176 220 214 218 254 C217 282 214 308 208 330 Z" fill="${SKIN}"/>
+  </g>
+  <!-- leher menyatu dengan kepala & badan (digambar dulu, ditimpa kerah + kepala) -->
+  <path d="M128 190 C128 178 172 178 172 190 L172 232 C172 246 128 246 128 232 Z" fill="${SKIN}"/>
+  <path d="M128 216 C136 226 164 226 172 216 L172 232 C172 244 128 244 128 232 Z" fill="${SKIN_D}"/>
+  <!-- badan/kemeja: bahu lebar menutup pangkal leher -->
+  <path d="M52 330 C52 272 92 250 124 243 C132 241 138 240 150 240
+           C162 240 168 241 176 243 C208 250 248 272 248 330 Z" fill="#8E0100"/>
+  <path d="M126 244 L150 270 L174 244 C166 240 134 240 126 244 Z" fill="#FDFBF7"/>
+  <!-- kepala menimpa leher: tidak ada celah -->
+  <g class="head">
+    <ellipse cx="97" cy="160" rx="10" ry="11" fill="${SKIN}"/>
+    <ellipse cx="203" cy="160" rx="10" ry="11" fill="${SKIN}"/>
+    <circle cx="150" cy="150" r="56" fill="${SKIN}"/>
+    <path d="M94 152 C90 90 128 66 152 68 C186 71 208 94 206 150
+             C198 116 180 102 150 102 C120 102 102 120 94 152 Z" fill="${HAIR}"/>
+    <!-- tangan menempel pelipis (bagian dari pose sedih; menyatu dgn lengan) -->
+    <g class="armsU">
+      <ellipse cx="116" cy="140" rx="16" ry="14" fill="${SKIN}"/>
+      <ellipse cx="184" cy="140" rx="16" ry="14" fill="${SKIN}"/>
+    </g>
+    <g class="f f-sad">
+      <path d="M118 144 L136 151" stroke="${HAIR}" stroke-width="4" stroke-linecap="round"/>
+      <path d="M182 144 L164 151" stroke="${HAIR}" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="129" cy="164" r="5" fill="${HAIR}"/>
+      <circle cx="171" cy="164" r="5" fill="${HAIR}"/>
+      <path d="M138 194 C146 188 154 188 162 194" stroke="${HAIR}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <path class="sweat" d="M206 122 C210 130 212 135 208 139 C204 142 199 139 199 133 C199 128 203 125 206 122 Z" fill="#8FC7E8"/>
+    </g>
+    <g class="f f-hope">
+      <circle cx="131" cy="158" r="5.5" fill="${HAIR}"/>
+      <circle cx="175" cy="156" r="5.5" fill="${HAIR}"/>
+      <circle cx="133.2" cy="156" r="1.8" fill="#fff"/>
+      <circle cx="177.2" cy="154" r="1.8" fill="#fff"/>
+      <path d="M139 190 C147 197 157 197 165 189" stroke="${HAIR}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    </g>
+    <g class="f f-happy">
+      <path d="M120 160 C125 153 134 153 139 160" stroke="${HAIR}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <path d="M161 160 C166 153 175 153 180 160" stroke="${HAIR}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      <path d="M134 188 C143 203 157 203 166 188 Z" fill="#7A3B33"/>
+      <ellipse cx="116" cy="177" rx="9" ry="6" fill="#F2B8A8" opacity=".7"/>
+      <ellipse cx="184" cy="177" rx="9" ry="6" fill="#F2B8A8" opacity=".7"/>
+    </g>
+    <g class="f f-conf">
+      <path d="M119 145 L138 145" stroke="${HAIR}" stroke-width="4" stroke-linecap="round"/>
+      <path d="M162 145 L181 145" stroke="${HAIR}" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="129" cy="161" r="5" fill="${HAIR}"/>
+      <circle cx="171" cy="161" r="5" fill="${HAIR}"/>
+      <path d="M139 191 C151 199 163 196 167 189" stroke="${HAIR}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>`;
+const CHAOS_ICONS=['📚','📄','🧠','💊','🫀','📝','⏰','📖'];
+$('#chaos').innerHTML=CHAOS_ICONS.map((e,i)=>{
+  const r=140+(i%3)*40, dur=2.2+(i%4)*.5;
+  return `<span class="chi" style="left:calc(50% - 23px);top:calc(42% - 23px);
+    --r:${r}px;animation-duration:${dur}s;animation-delay:-${i*.4}s">${e}</span>`;}).join('');
+
+/* ============ layar-layar UI (setia ke repo) ============ */
+const vp=$('#viewport'),cursor=$('#cursor');
+cursor.innerHTML='<svg viewBox="0 0 24 24" width="30" height="30"><path d="M5 3l14 7-6 2-2 6z" fill="#8E0100" stroke="#FDFBF7" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+function mk(id,cls,html){const d=document.createElement('div');
+  d.className='screen '+cls;d.dataset.id=id;d.innerHTML=html;vp.insertBefore(d,cursor);return d;}
+
+mk('landing','landing',
+ `<div class="land-top"></div>
+  <header class="land-head">${logoHTML}
+    <div style="display:flex;align-items:center;gap:22px">
+      <nav class="land-nav"><span>Home</span><span>Student Program</span><span>Olympiad Program</span><span>Pengajar</span><span>Manager</span></nav>
+      <span class="btn-mrn go-web">Pergi Ke Web Siswa ${ic('arrow')}</span>
+    </div></header>
+  <div class="land-body"><div class="land-scroll">
+    <div class="land-grid">
+      <div>
+        <span class="badge">${ic('steth')} BIMBEL KEDOKTERAN TER-WORTH IT</span>
+        <h1>Belajar Terarah, <span class="m">Lulus PBL</span> Percaya Diri</h1>
+        <p class="land-sub">PCV Classroom menghadirkan Ringkasan Materi, Latihan Soal Per BAB dan Simulasi Latihan Soal berupa CBT.</p>
+        <div class="land-ctas">
+          <span class="btn-mrn">Pergi Ke Web Siswa ${ic('arrow')}</span>
+          <span class="lnk">Lihat program kami</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><p class="v">37</p><p class="l">Mata Kuliah</p></div>
+          <div class="stat"><p class="v">490+</p><p class="l">BAB Materi</p></div>
+          <div class="stat"><p class="v">60+</p><p class="l">Pengajar Juara</p></div>
+        </div>
+      </div>
+      <div class="focus-wrap"><div class="focus">
+        <p class="k">Fokus Utama</p>
+        <ul>
+          <li>Drill Kumpulan Soal per Bab dan Mata Kuliah</li>
+          <li>Latihan CBT per bab, terpisah otomatis</li>
+          <li>PPT Materi High Yield Memudahkan Kamu Belajar!</li>
+          <li>Challenge Pemahamanmu Dengan Simulasi CBT Bertimer</li>
+        </ul>
+        <div class="ft">${ic('grad')} Didesain oleh dan untuk mahasiswa FK</div>
+      </div></div>
+    </div>
+  </div></div>`);
+
+mk('studentHome','studentHome',
+ `<div class="dim-layer"></div>
+  ${appbar('Beranda')}
+  <div class="home-body">
+    <p class="eyebrow">WEB SISWA PCV</p>
+    <h1 class="h1" style="font-size:27px;margin-top:4px">Selamat Belajar, Siswa!</h1>
+    <p style="color:var(--stone-600);margin-top:3px;font-size:13.5px">Pilih menu yang ingin kamu kerjakan hari ini.</p>
+    <div class="remind">
+      <p class="rt">${ic('cal')} Reminder Ujian</p>
+      <span class="card">
+        <span><span class="en">UTB 2 · Anatomi</span><br><span class="ed">Kamis, 23 Juli 2026</span></span>
+        <span class="dd"><span class="dv">4</span><br><span class="dl">hari lagi</span></span>
+      </span>
+    </div>
+    <div class="home-cards">
+      <div class="hc perdalam"><div class="top"></div><div class="in">
+        <span class="ico">${ic('book')}</span><h2>Perdalam Materi</h2>
+        <p>Perdalam pemahaman materimu dengan membaca PPT yang merupakan hasil simplifikasi dari PPT Dosen.</p>
+        <span class="go">Click here! ${ic('arrow')}</span></div></div>
+      <div class="hc cicil"><div class="top"></div><div class="in">
+        <span class="ico">${ic('clip')}</span><h2>Cicil Belajar</h2>
+        <p>Cicil belajar dengan mengerjakan soal sesuai BAB yang sedang kamu pelajari, pilih!</p>
+        <span class="go">Click here! ${ic('arrow')}</span></div></div>
+      <div class="hc cbt"><div class="top"></div><div class="in">
+        <span class="ico">${ic('timer')}</span><h2>CBT Test</h2>
+        <p>Kerjakan soal-soal angkatan sebelumnya sesuai dengan bab yang kamu pilih.</p>
+        <span class="go">Click here! ${ic('arrow')}</span></div></div>
+    </div>
+  </div>`);
+
+const SUBJ=[['Anatomi',3,12],['Fisiologi',5,9],['Histologi',2,8],['Biokimia',4,10],['Farmakologi',0,7],['Mikrobiologi',1,9]];
+const CHAPS=[['BAB 1 — Osteologi & Artrologi',1],['BAB 2 — Sistem Muskuloskeletal',1],
+  ['BAB 3 — Sistem Saraf Tepi',0],['BAB 4 — Sistem Kardiovaskular',0]];
+function pickerHTML(o){
+  return `${appbar(o.nav)}<div class="pk">
+    <p class="eyebrow">${o.icon} ${o.eyebrow}</p>
+    <h1 class="h1" style="font-size:21px;margin-top:4px">${o.title}</h1>
+    <p style="color:var(--stone-600);font-size:12.5px;margin-top:3px">${o.sub}</p>
+    <div class="pk-card">
+      <p class="lbl">${o.l1}</p>
+      <div class="grid2">
+        ${SUBJ.map(([n,d,t])=>`<div class="subj" data-s="${n}">
+          <div class="row"><span class="nm">${n}</span><span class="ct">${d}/${t}</span></div>
+          <div class="pb"><i style="width:${Math.round(d/t*100)}%"></i></div></div>`).join('')}
+      </div>
+      <div class="reveal2">
+        <p class="lbl" style="margin-top:18px">${o.l2}</p>
+        <div class="search">${ic('search')} Cari di 12 BAB...</div>
+        <div class="chaps">
+          ${CHAPS.map(([c,done])=>`<div class="chap${done?' done':''}"><span>${c}</span>${done?ic('check'):''}</div>`).join('')}
+        </div>
+        <div class="btn-start">${o.btn}</div>
+      </div>
+    </div></div>`;
+}
+mk('pickPerdalam','picker',pickerHTML({nav:'Perdalam Materi',icon:ic('book'),eyebrow:'PERDALAM MATERI',
+  title:'Pilih Materi Belajarmu',sub:'Pilih mata kuliah dan BAB yang ingin kamu pelajari.',
+  l1:'1. Mata Kuliah',l2:'2. BAB',btn:'Pelajari'}));
+mk('pickCicil','picker',pickerHTML({nav:'Cicil Belajar!',icon:ic('clip'),eyebrow:'CICIL BELAJAR',
+  title:'Latihan Soal per BAB',sub:'Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap.',
+  l1:'1. Pilih Mata Kuliah',l2:'2. Pilih BAB Pembelajaran',btn:'Kerjakan Soal'}));
+
+mk('ppt','ppt',
+ `${appbar('Perdalam Materi')}
+  <div class="ppt-wrap">
+    <span class="backlnk">${ic('arrowL')} Kembali ke Daftar Materi</span>
+    <h1>BAB 4 — Sistem Kardiovaskular</h1>
+    <div class="ppt-card">
+      <div class="gold-note">
+        <p>Layar di bawah ini putih/kosong? Browser kamu mungkin memblokir tampilan PDF.</p>
+        <span class="gb">Buka PDF di Tab Baru ${ic('ext')}</span>
+      </div>
+      <div class="viewer"><div class="ppt-scroll">
+        ${[1,2].map(n=>`<div class="slide">
+          <div class="slide-head"><span class="tag-hy">HIGH YIELD</span>
+            <span style="font-size:10px;color:var(--stone-400)">Slide ${n} / 24</span></div>
+          <h2>Sistem Kardiovaskular</h2>
+          <div class="slide-grid"><ul>
+            <li>Jantung: 4 ruang — 2 atrium, 2 ventrikel</li>
+            <li>Sirkulasi sistemik &amp; pulmonal</li>
+            <li>Curah jantung = SV × HR</li>
+            <li>Katup: mitral, trikuspid, aorta, pulmonal</li></ul>
+            <div class="diagram">${ic('book')}</div></div></div>`).join('')}
+      </div></div>
+    </div>
+    <span class="ppt-done">Pencet Jika Sudah Selesai Membaca</span>
+  </div>`);
+
+mk('quiz1','quizA',
+ `${appbar('Cicil Belajar!')}
+  <div class="run">
+    <div class="run-top"><span class="md">Latihan · Anatomi — BAB 4</span>
+      <span class="ex">${ic('x')} Keluar</span></div>
+    <div class="run-pb"><i class="pbar" style="width:0%"></i></div>
+    <p class="run-pbt pbtx">0 dari 2 soal terjawab</p>
+    <p class="qtext">Otot yang berperan utama pada fleksi siku adalah…</p>
+    <div class="opts">
+      ${['M. triceps brachii','M. biceps brachii','M. deltoideus','M. pectoralis major']
+        .map((o,i)=>`<div class="opt2" data-o="${i}"><span class="lt">${'ABCD'[i]}</span><span class="tx">${o}</span></div>`).join('')}
+    </div>
+    <div class="expl"><b>✅ Alasan Benar:</b> M. biceps brachii adalah fleksor utama sendi siku, terutama saat lengan bawah supinasi.</div>
+  </div>`);
+
+mk('quiz2','quizB',
+ `${appbar('Cicil Belajar!')}
+  <div class="run">
+    <div class="run-top"><span class="md">Latihan · Anatomi — BAB 4</span>
+      <span class="ex">${ic('x')} Keluar</span></div>
+    <div class="run-pb"><i style="width:50%"></i></div>
+    <p class="run-pbt">1 dari 2 soal terjawab</p>
+    <p class="qtext">Perhatikan gambar berikut. Sebutkan nama tulang yang ditunjuk oleh panah.</p>
+    <div class="img-q"><span class="ph">
+      <svg width="150" height="86" viewBox="0 0 150 86">
+        <path d="M28 14c8-6 16-5 20 0l8 9c3 4 3 8 8 11l38 24c7 5 9 11 5 16s-11 5-16 1L52 52c-5-3-9-2-13-5l-9-7c-6-4-8-12-2-16z"
+          fill="#F4DEDC" stroke="#B54038" stroke-width="2"/>
+        <path d="M118 22l-22 20" stroke="#8E0100" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M96 42l7-1.5M96 42l1.5-7" stroke="#8E0100" stroke-width="2.4" stroke-linecap="round"/>
+      </svg></span></div>
+    <div class="isian">
+      <p class="ql"><span class="b">a</span> Tulang yang ditunjuk panah adalah…</p>
+      <div class="inp empty"><span class="typed">Ketik jawabanmu di sini...</span><span class="caret" style="display:none"></span></div>
+      <p class="res">✅ Benar! <span>Jawaban yang diterima: <b>Os Humerus</b></span></p>
+    </div>
+    <span class="btn-cek">Cek Jawaban</span>
+  </div>`);
+
+function scoreHTML(kind){
+  const cbt=kind==='cbt';
+  return `${appbar(cbt?'Simulasi Test':'Cicil Belajar!')}<div class="score" style="flex:1"><div>
+    <div class="ring" style="background:var(--green-50);border:3px solid var(--green-600)">
+      <span class="num" style="color:var(--green-600)">0</span></div>
+    <h2>${cbt?'Simulasi Selesai!':'Latihan Selesai!'}</h2>
+    <p class="sub">Kamu menjawab benar <b>${cbt?'19':'2'}</b> dari <b>${cbt?'20':'2'}</b> soal.</p>
+    <p class="msg win">${cbt
+      ?'💪 Kamu siap. Hadapi CBT sungguhan dengan tenang.'
+      :'🎉 Luar Biasa! Jawabanmu benar semua. Pemahamanmu pada materi ini sudah sangat matang.'}</p>
+    <div class="btns"><span class="b1">Review Jawaban</span><span class="b2">Selesai &amp; Kembali</span></div>
+  </div></div>`;
+}
+mk('scoreGood','scoreS',scoreHTML('latihan'));
+mk('scoreCbt','scoreS',scoreHTML('cbt'));
+
+mk('warn','warn',
+ `<div class="warn-scan"></div><div class="warn-edge"></div>
+  <div class="warn-line t"></div><div class="warn-line b"></div>
+  <div class="warn-in"><span class="tri">${ic('alert')}</span>
+    <p class="kicker">Mode Ujian Aktif</p>
+    <h3>Anda Dipindahkan ke</h3><h1>HALAMAN SIMULASI TEST</h1>
+    <p>Ujian sesungguhnya akan segera dimulai — bersiaplah.</p></div>`);
+
+mk('cbtExam','exam',
+ `<div class="appbar"><div style="display:flex;align-items:center">${logoHTML}
+    <span class="nav"><span class="on">Simulasi Test</span></span></div>
+    <span class="timer">${ic('timer')} <span class="tval">00:58</span></span></div>
+  <div class="run">
+    <div class="run-top"><span class="md">Mode Simulasi · Anatomi 2023</span>
+      <span class="ex">${ic('x')} Keluar</span></div>
+    <div class="run-pb"><i class="pbar" style="width:30%"></i></div>
+    <p class="run-pbt pbtx">6 dari 20 soal terjawab</p>
+    <p class="qtext">Nervus yang mempersarafi diafragma adalah…</p>
+    <div class="opts">
+      ${['N. vagus','N. phrenicus','N. intercostalis','N. splanchnicus']
+        .map((o,i)=>`<div class="opt2" data-o="${i}"><span class="lt">${'ABCD'[i]}</span><span class="tx">${o}</span></div>`).join('')}
+    </div>
+    <div class="submit-row"><span class="btn-submit">Submit Ujian ${ic('arrow')}</span></div>
+  </div>`);
+
+const screens=[...vp.querySelectorAll('.screen')];
+const byId=id=>screens.find(s=>s.dataset.id===id);
+
+/* ============ AUDIO: musik ceria 124 BPM + SFX ============ */
+let AC=null,muteG=null,musG=null,sfxG=null,muted=false,seqTimer=null,step=0,nextT=0,mode='intro';
+const STEP=60/BPM/4;
+const PROG=[[130.81,164.81,196.00],[98.00,123.47,146.83],[110.00,130.81,164.81],[87.31,110.00,130.81]];
+function audioInit(){
+  if(AC)return;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  muteG=AC.createGain();
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-16;comp.ratio.value=5;
+  muteG.connect(comp);comp.connect(AC.destination);
+  musG=AC.createGain();musG.gain.value=.85;musG.connect(muteG);
+  sfxG=AC.createGain();sfxG.gain.value=1;sfxG.connect(muteG);
+  seqStart();
+}
+function eg(g,t,a,p,d){g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(p,t+a);
+  g.gain.exponentialRampToValueAtTime(.0001,t+a+d);}
+function osc(fr,t,dur,p,type,dest,slide){const o=AC.createOscillator(),g=AC.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(fr,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);
+  eg(g,t,.006,p,dur);o.connect(g);g.connect(dest||sfxG);o.start(t);o.stop(t+dur+.1);}
+function nz(t,dur,p,f1,f2,type,dest){const len=Math.max(1,AC.sampleRate*dur),
+  buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+  const s=AC.createBufferSource();s.buffer=buf;
+  const f=AC.createBiquadFilter();f.type=type||'bandpass';f.Q.value=1;
+  f.frequency.setValueAtTime(f1,t);
+  if(f2)f.frequency.exponentialRampToValueAtTime(f2,t+dur);
+  const g=AC.createGain();eg(g,t,.01,p,dur);
+  s.connect(f);f.connect(g);g.connect(dest||sfxG);s.start(t);}
+const kick=t=>osc(150,t,.13,.48,'sine',musG,42);
+const clap=t=>{nz(t,.05,.26,1600,null,'bandpass',musG);nz(t+.012,.05,.18,1900,null,'bandpass',musG);};
+const hat=(t,p)=>nz(t,.03,p||.08,7000,null,'highpass',musG);
+const bassN=(t,f)=>{const o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();
+  o.type='sawtooth';o.frequency.value=f;fl.type='lowpass';fl.frequency.value=480;
+  eg(g,t,.01,.2,.17);o.connect(fl);fl.connect(g);g.connect(musG);o.start(t);o.stop(t+.25);};
+const pluck=(t,f,p)=>{const o=AC.createOscillator(),g=AC.createGain(),fl=AC.createBiquadFilter();
+  o.type='triangle';o.frequency.value=f;fl.type='lowpass';fl.frequency.value=2600;
+  eg(g,t,.005,p||.13,.13);o.connect(fl);fl.connect(g);g.connect(musG);o.start(t);o.stop(t+.2);};
+const bell=(t,f,p)=>{osc(f,t,.5,p||.09,'sine',musG);osc(f*2.01,t,.3,(p||.09)*.4,'sine',musG);};
+const pad=(t,fs,dur)=>fs.forEach(f=>{const o=AC.createOscillator(),g=AC.createGain(),
+  fl=AC.createBiquadFilter();o.type='triangle';o.frequency.value=f;
+  fl.type='lowpass';fl.frequency.value=900;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.04,t+.5);
+  g.gain.setValueAtTime(.04,t+dur-.5);g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(fl);fl.connect(g);g.connect(musG);o.start(t);o.stop(t+dur+.1);});
+function seqStart(){
+  step=0;nextT=AC.currentTime+.1;
+  seqTimer=setInterval(()=>{
+    while(nextT<AC.currentTime+.14){schedStep(step,nextT);step++;nextT+=STEP;}
+  },40);
+}
+function schedStep(s,t){
+  const st=s%16,bar=Math.floor(s/16),ch=PROG[bar%4];
+  if(mode==='intro'){if(st===0)pad(t,ch,STEP*16+.4);
+    if(st%4===0)bell(t,ch[(st/4)%3]*4,.05);return;}
+  if(mode==='outro'){if(st===0){kick(t);clap(t);bell(t,523.25,.15);bell(t+.15,659.25,.12);pad(t,PROG[3],2.4);}return;}
+  const build=mode==='build',drop=mode==='drop';
+  if(st%4===0)kick(t);
+  if(st===4||st===12)clap(t);
+  if(build?true:st%2===0)hat(t,build?.1:.08);
+  if(st%4===2)bassN(t,ch[0]/2);
+  if(drop&&st%8===6)bassN(t,ch[2]/2);
+  const arp=[0,1,2,1];
+  if(st%2===0)pluck(t,ch[arp[(st/2)%4]]*2,drop?.15:.11);
+  if(st===0)bell(t,ch[0]*4,drop?.12:.07);
+  if(drop&&st===8)bell(t,ch[1]*4,.1);
+}
+const FXS={
+  whooshIn(){nz(AC.currentTime,.4,.16,300,2400);},
+  whooshOut(){nz(AC.currentTime,.45,.16,2200,260);},
+  click(){osc(1300,AC.currentTime,.05,.13,'triangle');nz(AC.currentTime,.02,.07,3200,null,'highpass');},
+  tick(){osc(1900,AC.currentTime,.02,.05,'sine');},
+  tock(){nz(AC.currentTime,.035,.08,1150);},
+  type(){nz(AC.currentTime,.025,.07,2400,null,'highpass');},
+  paper(){nz(AC.currentTime,.35,.09,900,1900);},
+  pop(){nz(AC.currentTime,.05,.18,900);},
+  ding(){[880,1174.7,1760].forEach((f,k)=>osc(f,AC.currentTime+k*.09,.6,.12,'sine'));},
+  chime(){[1046.5,1318.5,1568].forEach((f,k)=>osc(f,AC.currentTime+k*.07,.7,.11,'sine'));},
+  riser(){nz(AC.currentTime,.85,.15,240,3400);osc(180,AC.currentTime,.85,.06,'sawtooth',sfxG,650);},
+  boom(){osc(120,AC.currentTime,.5,.45,'sine',sfxG,36);nz(AC.currentTime,.28,.28,180,60,'lowpass');},
+  heart(){osc(120,AC.currentTime,.14,.35,'sine',sfxG,46);},
+  shimmer(){[1568,1976,2637,3136].forEach((f,k)=>osc(f,AC.currentTime+k*.12,1,.045,'sine'));},
+  alarm(){osc(660,AC.currentTime,.15,.08,'square');
+    osc(494,AC.currentTime+.18,.16,.08,'square');},
+};
+const sfx=n=>{if(AC&&!muted)try{FXS[n]()}catch(e){}};
+
+/* ============ canvas fx: debu + confetti kanvas ============ */
+const fxb=$('#fxb'),fxf=$('#fxf');
+let W=0,H=0;
+function sizes(){const fr=$('#frame');W=fr.clientWidth;H=fr.clientHeight;
+  [fxb,fxf].forEach(c=>{c.width=W*devicePixelRatio;c.height=H*devicePixelRatio;
+    c.getContext('2d').setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);});
+  // ukuran overlay dipaksa lewat px (unit vw/vh terbukti tidak stabil di host tertentu)
+  ['#intro','#finale','#gate'].forEach(s=>{const e=$(s);
+    e.style.width=window.innerWidth+'px';e.style.height=window.innerHeight+'px';});}
+addEventListener('resize',sizes);sizes();
+const bctx=fxb.getContext('2d'),fctx=fxf.getContext('2d');
+let dust=[],ribbons=[];
+for(let i=0;i<36;i++)dust.push({x:Math.random(),y:Math.random(),r:.6+Math.random()*1.6,
+  vy:-.00005-Math.random()*.0001,a:.1+Math.random()*.2});
+const RC=['#C9A227','#2EC4B6','#FF6B6B','#7C3AED'];
+function ribbonSweep(dir,big){
+  if(big){ // gelombang besar seperti ombak menyapu layar
+    const CC=RC.concat(['#8E0100','#EBDCA8','#2EC4B6']);
+    CC.forEach((c,k)=>ribbons.push({c,t:0,dur:.85+k*.06,
+      amp:80+k*22,ph:k*1.3,w:95+k*30,dir,y0:H*((k+.6)/(CC.length+.4))}));
+  }else{
+    RC.forEach((c,k)=>ribbons.push({c,t:0,dur:.6+k*.06,
+      amp:36+k*24,ph:k*1.7,w:20+k*6,dir,y0:H*(.28+k*.14)}));
+  }
+}
+let lastF=0;
+function drawFx(ts){requestAnimationFrame(drawFx);
+  const dt=Math.min((ts-lastF)/1000,.05);lastF=ts;
+  bctx.clearRect(0,0,W,H);bctx.fillStyle='#F7F3EC';
+  dust.forEach(p=>{p.y+=p.vy*H*dt*60;if(p.y<-.02){p.y=1.02;p.x=Math.random();}
+    bctx.globalAlpha=p.a;bctx.beginPath();bctx.arc(p.x*W,p.y*H,p.r,0,6.283);bctx.fill();});
+  bctx.globalAlpha=1;
+  fctx.clearRect(0,0,W,H);
+  ribbons=ribbons.filter(r=>r.t<1);
+  ribbons.forEach(r=>{r.t+=dt/r.dur;
+    const e=Math.min(Math.max(r.t,0),1), eh=e*e*(3-2*e); // smoothstep: kepala ombak melaju halus
+    const head=(r.dir>0?-0.25+eh*1.5:1.25-eh*1.5);
+    fctx.strokeStyle=r.c;fctx.lineWidth=r.w;
+    fctx.lineCap='round';fctx.lineJoin='round';
+    fctx.globalAlpha=Math.min(1,(1-e)*1.8);fctx.beginPath();
+    const N=44;
+    for(let i=0;i<=N;i++){const p=i/N,x=(head-p*.4*r.dir)*W;
+      const y=r.y0+Math.sin(p*2.3+r.ph+e*2.2)*r.amp;
+      i?fctx.lineTo(x,y):fctx.moveTo(x,y);}
+    fctx.stroke();});
+  fctx.globalAlpha=1;}
+requestAnimationFrame(drawFx);
+
+/* ============ kursor presisi + FX klik ============ */
+function posOf(scr,sel,dx,dy){const el=scr.querySelector(sel);if(!el)return null;
+  let x=0,y=0,n=el;while(n&&n!==vp){x+=n.offsetLeft;y+=n.offsetTop;n=n.offsetParent;}
+  return {x:x+el.offsetWidth/2+(dx||0),y:y+el.offsetHeight/2+(dy||0)};}
+function cursorTo(p,ms){cursor.style.transitionDuration=(ms||420)+'ms';
+  cursor.style.transform=`translate(${p.x}px,${p.y}px)`;}
+function ripple(p){const s=document.createElement('span');s.className='ripple';
+  s.style.left=p.x+'px';s.style.top=p.y+'px';vp.appendChild(s);
+  cursor.classList.add('press');setTimeout(()=>cursor.classList.remove('press'),130);
+  sfx('click');setTimeout(()=>s.remove(),550);}
+const FX={
+  selSubj(scr){scr.querySelector('.subj[data-s="Anatomi"]').classList.add('sel');
+    scr.querySelector('.reveal2').classList.add('on');},
+  selChap(scr){scr.querySelectorAll('.chap')[3].classList.add('sel');},
+  mcqGood(scr){scr.querySelector('.opt2[data-o="1"]').classList.add('good');
+    scr.querySelector('.expl').classList.add('on');
+    const pb=scr.querySelector('.pbar'),tx=scr.querySelector('.pbtx');
+    if(pb)pb.style.width='50%';if(tx)tx.textContent='1 dari 2 soal terjawab';
+    sfx('ding');},
+  cekJawab(scr){scr.querySelector('.inp').classList.add('good');
+    scr.querySelector('.res').classList.add('on');
+    scr.querySelector('.caret').style.display='none';sfx('ding');},
+  pickB(scr){scr.querySelector('.opt2[data-o="1"]').classList.add('pick');
+    const pb=scr.querySelector('.pbar'),tx=scr.querySelector('.pbtx');
+    if(pb)pb.style.width='35%';if(tx)tx.textContent='7 dari 20 soal terjawab';},
+};
+function typeAnswer(scr,text,startMs){
+  const ty=scr.querySelector('.typed'),caret=scr.querySelector('.caret'),inp=scr.querySelector('.inp');
+  sched(()=>{inp.classList.remove('empty');ty.textContent='';caret.style.display='inline-block';},startMs);
+  [...text].forEach((chr,i)=>sched(()=>{ty.textContent+=chr;sfx('type');},startMs+120+i*72));
+}
+
+/* ============ karakter helper ============ */
+const stu=$('#stu');
+function stuMood(mood,opts){
+  stu.className='';
+  if(mood){stu.classList.add('on',mood);
+    if(opts&&opts.big)stu.classList.add('big');else stu.classList.add('bob');}
+}
+
+/* ============ tagline ============ */
+const tag=$('#tag');
+function setTag(t,s){tag.classList.remove('show');
+  if(t){tag.innerHTML=`<div class="t">${t}</div>${s?`<div class="s">${s}</div>`:''}`;
+    void tag.offsetWidth;tag.classList.add('show');}
+  else tag.innerHTML='';}
+
+/* ============ timeline (durasi = kelipatan beat) ============ */
+const cam=$('#camera'),intro=$('#intro'),finale=$('#finale'),laptop=$('#laptop');
+const B=[
+ /* S1 logo build (polos, scaffold memudar) */
+ {d:beats(5),run(){
+   mode='intro';setTag(null);laptop.classList.remove('on');
+   $('#chaos').classList.remove('on');stuMood(null);
+   intro.classList.add('show');intro.classList.remove('hide','roll');
+   void intro.offsetWidth;intro.classList.add('roll');
+   finale.classList.remove('show','roll');
+   sched(()=>sfx('boom'),900);sched(()=>sfx('shimmer'),1250);
+ }},
+ /* S2 overwhelmed (karakter besar + ikon kacau) */
+ {d:beats(4),run(){
+   mode='verse';intro.classList.add('hide');
+   setTag('MATERI NUMPUK. WAKTU MEPET.',null);
+   $('#chaos').classList.add('on');stuMood('sad',{big:true});
+   ribbonSweep(1,true);sfx('whooshIn');sfx('riser');
+ }},
+ /* S3 tunjukkan laptop sebentar -> langsung zoom masuk ke layar */
+ {d:beats(5),run(){
+   setTag('PCV CLASSROOM','Belajar terarah, lulus PBL percaya diri');
+   $('#chaos').classList.remove('on');stuMood(null);
+   laptop.classList.add('on');
+   camSet(.62,0,15,15,-15);
+   show('landing');const l=byId('landing');
+   sched(()=>{camSet(1.05,0,0,0,0);sfx('whooshIn');},800);
+   sched(()=>l.classList.add('play'),1600);
+   sfx('whooshOut');
+ }},
+ /* S4 zoom + klik "Pergi Ke Web Siswa" (tetap di dalam layar) */
+ {d:beats(3),run(){
+   camSet(1.9,-249,236,0,0);sfx('whooshIn');
+   acts([{at:.55,sel:'.go-web',click:1}]);
+ }},
+ /* S5 web siswa, kartu stagger */
+ {d:beats(4),run(){
+   setTag('PILIH GAYA BELAJARMU','Tiga cara belajar dalam satu web siswa');
+   camSet(1.05,0,0,0,0);show('studentHome','enter');sfx('whooshOut');
+ }},
+ /* S6 pop perdalam + klik */
+ {d:beats(3),run(){
+   setTag('BELAJAR PAKAI PPT TERSTANDARISASI','Perdalam Materi — high yield');
+   camSet(1.5,41,-106,0,0);show('studentHome','pop-perdalam dim');sfx('whooshIn');
+   acts([{at:.6,sel:'.hc.perdalam .go',click:1}]);
+ }},
+ /* S7 picker MK + BAB */
+ {d:beats(4),run(){
+   setTag(null);camSet(1.05,0,0,0,0);show('pickPerdalam');
+   acts([{at:.26,sel:'.subj[data-s="Anatomi"]',click:1,fx:'selSubj'},
+         {at:.62,sel:'.chaps .chap:nth-child(4)',click:1,fx:'selChap'},
+         {at:.88,sel:'.btn-start',click:1}]);
+ }},
+ /* S8 PPT */
+ {d:beats(4),run(){
+   setTag('MATERI HIGH-YIELD, LANGSUNG PAHAM','Baca ringkas, fokus ke yang sering keluar');
+   camSet(1.05,0,0,0,0);show('ppt','play');
+   sfx('whooshOut');sched(()=>sfx('paper'),300);sched(()=>sfx('paper'),1200);
+ }},
+ /* S9 cicil terbang + klik */
+ {d:beats(3),run(){
+   setTag('CICIL SOAL PER BAB','Latihan terpisah otomatis tiap BAB');
+   camSet(1.5,0,-106,0,0);show('studentHome','fly-cicil dim');sfx('whooshIn');
+   const cc=byId('studentHome').querySelector('.hc.cicil');
+   cc.style.animation='none';void cc.offsetWidth;cc.style.animation='';
+   acts([{at:.62,sel:'.hc.cicil .go',click:1}]);
+ }},
+ /* S10 MCQ benar */
+ {d:beats(4),run(){
+   mode='build';setTag('LATIHAN + PEMBAHASAN INSTAN','Jawab, langsung tahu alasannya');
+   camSet(1.05,0,0,0,0);show('quiz1');
+   acts([{at:.4,sel:'.opt2[data-o="1"]',click:1,fx:'mcqGood'}]);
+ }},
+ /* S11 essai bergambar */
+ {d:beats(4),run(){
+   setTag('ADA ESSAI BERGAMBAR JUGA','Dinilai otomatis, lengkap dengan kunci');
+   camSet(1.05,0,0,0,0);show('quiz2');
+   const scr=byId('quiz2');typeAnswer(scr,'Os Humerus',180);
+   acts([{at:.78,sel:'.btn-cek',click:1,fx:'cekJawab'}]);
+ }},
+ /* S12 skor 100 */
+ {d:beats(4),run(){
+   mode='drop';setTag(null);camSet(1.05,0,0,0,0);
+   show('scoreGood','play');stuMood(null);
+   const scr=byId('scoreGood');countUp(scr,100,1000);
+ }},
+ /* S13 warning kilat */
+ {d:beats(3),run(){
+   setTag(null);camSet(1.05,0,0,0,0);show('warn','play');stuMood(null);
+   sfx('boom');sched(()=>sfx('alarm'),350);
+ }},
+ /* S14 ujian CBT bertimer */
+ {d:beats(4),run(){
+   setTag('SIMULASI CBT — SEPERTI UJIAN ASLI','Timer berjalan, submit di akhir');
+   camSet(1.05,0,0,0,0);show('cbtExam');sfx('whooshIn');
+   const scr=byId('cbtExam');runExam(scr);
+   acts([{at:.42,sel:'.opt2[data-o="1"]',click:1,fx:'pickB'},
+         {at:.86,sel:'.btn-submit',click:1}]);
+ }},
+ /* S15 skor 98 payoff */
+ {d:beats(4),run(){
+   setTag('SIAP UJIAN, TANPA PANIK','Latihan cukup, hasil bicara');
+   camSet(1.05,0,0,0,0);show('scoreCbt','play');stuMood(null);
+   sfx('riser');const scr=byId('scoreCbt');countUp(scr,98,1050);
+ }},
+ /* S16 ombak besar -> COMING SOON + logo + nama + tagline */
+ {d:beats(7),run(){
+   mode='outro';setTag(null);stuMood(null);
+   ribbonSweep(-1,true);sfx('whooshOut');sfx('boom');
+   sched(()=>{finale.classList.add('show');finale.classList.remove('roll');
+     void finale.offsetWidth;finale.classList.add('roll');
+     sfx('shimmer');},450);
+ }},
+];
+const TOTAL=B.reduce((a,b)=>a+b.d,0);
+
+/* ---------- helper timeline ---------- */
+let idx=0,mainT=null,subT=[],ivs=[],rafs=[],examIv=null,lastScreen=null,paused=false,started=false;
+function sched(fn,ms){const t=setTimeout(fn,ms);subT.push(t);return t;}
+function clearAll(){clearTimeout(mainT);subT.forEach(clearTimeout);subT=[];
+  ivs.forEach(clearInterval);ivs=[];rafs.forEach(cancelAnimationFrame);rafs=[];
+  clearInterval(examIv);examIv=null;}
+function camSet(s,x,y,rx,ry){
+  cam.style.transform=`translate(${x}px,${y}px) scale(${s}) rotateX(${rx}deg) rotateY(${ry}deg)`;}
+function show(id,variant){
+  const scr=byId(id);
+  if(lastScreen!==id){screens.forEach(s=>s.classList.remove('active'));scr.classList.add('active');}
+  if(id==='studentHome'){scr.className='screen studentHome active '+(variant||'');}
+  else if(variant){scr.classList.remove(variant);void scr.offsetWidth;scr.classList.add(variant);}
+  lastScreen=id;return scr;}
+function acts(list){
+  const scr=byId(lastScreen);cursor.style.opacity=1;
+  const d=B[idx].d;
+  list.forEach(a=>{
+    const tC=d*a.at,tM=Math.max(0,tC-430);
+    sched(()=>{const p=posOf(scr,a.sel,a.dx,a.dy);if(p)cursorTo(p,400);},tM);
+    sched(()=>{const p=posOf(scr,a.sel,a.dx,a.dy);if(!p)return;
+      if(a.click)ripple(p);
+      if(a.fx&&FX[a.fx])FX[a.fx](scr);},tC);
+  });
+}
+const CONF=['#8E0100','#C9A227','#B54038','#EBDCA8','#16a34a'];
+function confetti(scr){for(let i=0;i<24;i++){const s=document.createElement('span');
+  s.className='confetti';s.style.left=(8+Math.random()*84)+'%';
+  s.style.background=CONF[i%CONF.length];
+  s.style.animationDuration=(1.2+Math.random()*1)+'s';
+  s.style.animationDelay=(Math.random()*.25)+'s';
+  s.style.transform=`rotate(${Math.random()*360}deg)`;
+  scr.appendChild(s);setTimeout(()=>s.remove(),2600);}
+  sfx('pop');setTimeout(()=>sfx('pop'),130);}
+function shakeFrame(){const f=$('#frame');f.classList.remove('shake');void f.offsetWidth;f.classList.add('shake');}
+function countUp(scr,target,ms){
+  const el=scr.querySelector('.num');el.textContent='0';
+  const t0=performance.now();let lastTick=0;
+  const tk=t=>{const p=Math.min((t-t0)/ms,1);el.textContent=Math.round(p*target);
+    if(t-lastTick>80&&p<1){sfx('tick');lastTick=t;}
+    if(p<1)rafs.push(requestAnimationFrame(tk));
+    else{sfx('chime');shakeFrame();confetti(scr);}};
+  rafs.push(requestAnimationFrame(tk));}
+function runExam(scr){
+  const tval=scr.querySelector('.tval'),tm=scr.querySelector('.timer');
+  let sec=58,bt=0;
+  scr.querySelector('.opt2[data-o="1"]').classList.remove('pick');
+  examIv=setInterval(()=>{sec=Math.max(0,sec-3);bt++;
+    tval.textContent='00:'+String(sec).padStart(2,'0');
+    const low=sec<=25;tm.classList.toggle('low',low);
+    if(bt%2===0)sfx('tock');if(low&&bt%3===0)sfx('heart');},140);}
+function resetScreens(){
+  screens.forEach(s=>{
+    s.querySelectorAll('.sel,.good,.pick').forEach(e=>e.classList.remove('sel','good','pick'));
+    s.querySelectorAll('.reveal2.on,.expl.on,.res.on').forEach(e=>e.classList.remove('on'));
+    const inp=s.querySelector('.inp');
+    if(inp){inp.className='inp empty';
+      const ty=s.querySelector('.typed');if(ty)ty.textContent='Ketik jawabanmu di sini...';}
+  });
+  const q1=byId('quiz1');q1.querySelector('.pbar').style.width='0%';
+  q1.querySelector('.pbtx').textContent='0 dari 2 soal terjawab';
+  const ex=byId('cbtExam');ex.querySelector('.pbar').style.width='30%';
+  ex.querySelector('.pbtx').textContent='6 dari 20 soal terjawab';
+  byId('landing').classList.remove('play');
+  cursor.style.opacity=0;
+}
+function enter(i){
+  clearAll();idx=i;
+  if(i===0)resetScreens();
+  if(!B[i].run.toString().includes('acts('))cursor.style.opacity=0;
+  B[i].run();
+  updateProg(i);
+  if(!paused)mainT=setTimeout(()=>enter((i+1)%B.length),B[i].d);
+}
+function updateProg(i){
+  const done=B.slice(0,i+1).reduce((a,b)=>a+b.d,0);
+  $('#progbar').style.width=(done/TOTAL*100)+'%';}
+function fit(){const fr=$('#frame');
+  const f=Math.min(fr.clientWidth/1180,fr.clientHeight/760);
+  $('#fit').style.transform=`scale(${Math.min(f,1)})`;}
+addEventListener('resize',fit);
+
+/* ---------- kontrol ---------- */
+$('#start').onclick=()=>{audioInit();$('#gate').classList.add('off');
+  sizes();fit();started=true;enter(0);};
+const ppBtn=$('#pp');
+ppBtn.onclick=()=>{if(!started)return;paused=!paused;
+  ppBtn.textContent=paused?'▶ Play':'❚❚ Pause';
+  if(paused){clearAll();if(AC)AC.suspend();clearInterval(seqTimer);seqTimer=null;}
+  else{if(AC){AC.resume();if(!seqTimer)seqStart();}enter(idx);}};
+$('#mute').onclick=()=>{muted=!muted;
+  if(muteG)muteG.gain.value=muted?0:1;
+  $('#mute').textContent=muted?'🔇 Bisu':'🔊 Musik';};
+$('#rs').onclick=()=>{if(!started)return;paused=false;
+  ppBtn.textContent='❚❚ Pause';if(AC)AC.resume();enter(0);};
+</script>
+
+
+<script>
+/* ==== Kendali dari halaman induk (Student Web page) ====
+   - {pcvTour:'play'}  : mulai otomatis TANPA suara (kebijakan autoplay browser)
+   - {pcvTour:'pause'} : jeda saat panel keluar dari layar
+   - {pcvTour:'resume'}: lanjut saat panel terlihat lagi
+   Tombol musik tetap bisa menyalakan suara (klik = gesture sah). */
+(function(){
+  var mb=document.querySelector('#mute');
+  var oldMute=mb.onclick;
+  mb.onclick=function(){ if(typeof AC!=='undefined'&&AC&&AC.state==='suspended'){AC.resume();} oldMute(); };
+  function autoStart(){
+    if(started)return;
+    try{audioInit();}catch(e){}
+    muted=true; if(typeof muteG!=='undefined'&&muteG)muteG.gain.value=0;
+    mb.textContent='\uD83D\uDD07 Bisu';
+    document.querySelector('#gate').classList.add('off');
+    sizes();fit();started=true;enter(0);
+  }
+  addEventListener('message',function(ev){
+    var m=ev.data&&ev.data.pcvTour; if(!m)return;
+    var pp=document.querySelector('#pp');
+    if(m==='play'){ if(!started)autoStart(); else if(paused)pp.onclick(); }
+    else if(m==='pause'){ if(started&&!paused)pp.onclick(); }
+    else if(m==='resume'){ if(started&&paused)pp.onclick(); }
+  });
+})();
+</script>
+
+</body></html>

@@ -3,9 +3,10 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Flame, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
-// Logo asli PCV (di-host di Google). Kalau gagal dimuat (misal offline),
-// otomatis jatuh ke monogram "P" maroon.
+// Logo asli PCV, dari link Google Drive. Kalau link gagal dimuat, jatuh ke
+// salinan lokal gambar yang sama di public/ — jadi logo PCV selalu tampil.
 export const PCV_LOGO_URL = 'https://lh3.googleusercontent.com/d/1lhXOXrxkfutAv0d13IBZoqYsJMmis5Ex';
+export const PCV_LOGO_LOCAL = '/logo-pcv.png';
 
 // size: 'sm' (header) | 'md' (landing/login)
 export function Logo({ size = 'sm', light = false }) {
@@ -14,19 +15,13 @@ export function Logo({ size = 'sm', light = false }) {
  const word = size === 'md' ? 'text-lg' : 'text-base';
  return (
    <span className="inline-flex items-center gap-2.5">
-     {imgFailed ? (
-       <span className={`${box} ${light ? 'bg-alba-50 text-maroon-600' : 'bg-maroon-600 text-alba-50'} flex items-center justify-center font-display font-bold shadow-sm`}>
-         P
-       </span>
-     ) : (
-       <img
-         src={PCV_LOGO_URL}
-         alt="Logo PCV Classroom"
-         referrerPolicy="no-referrer"
-         onError={() => setImgFailed(true)}
-         className={`${box} object-cover shadow-sm ${light ? 'ring-1 ring-alba-50/40' : ''}`}
-       />
-     )}
+     <img
+       src={imgFailed ? PCV_LOGO_LOCAL : PCV_LOGO_URL}
+       alt="Logo PCV Classroom"
+       referrerPolicy="no-referrer"
+       onError={() => setImgFailed(true)}
+       className={`${box} object-cover shadow-sm ${light ? 'ring-1 ring-alba-50/40' : ''}`}
+     />
      <span className={`${word} font-display font-semibold tracking-tight ${light ? 'text-alba-50' : 'text-maroon-600'}`}>
        PCV <span className={light ? 'text-alba-200' : 'text-stone-800'}>Classroom</span>
      </span>
