@@ -1,0 +1,41 @@
+# Caddyfile — VM Odoo (back office PCV)
+#
+# Pasang di VM-2 (VM hasil App Catalog IDCloudHost):
+#   sudo cp deploy/Caddyfile.odoo /etc/caddy/Caddyfile && sudo systemctl reload caddy
+#
+# GANTI "erp.pcvclassroom.id" dengan subdomain ERP-mu. Caddy mengurus HTTPS
+# (Let's Encrypt) otomatis selama A record sudah mengarah ke IP VM ini.
+#
+# Prasyarat di /etc/odoo/odoo.conf (lihat deploy/odoo.conf.example):
+#   proxy_mode      = True        <- tanpa ini, link email & redirect pembayaran salah
+#   http_interface  = 127.0.0.1   <- Odoo hanya mendengar localhost
+#   list_db         = False       <- daftar database tidak bocor ke publik
+
+erp.pcvclassroom.id {
+	encode gzip
+
+	# Bus/websocket Odoo (chat, notifikasi realtime) jalan di worker terpisah.
+	# Odoo 16+ memakai /websocket; /longpolling untuk versi lama.
+	handle /websocket {
+		reverse_proxy 127.0.0.1:8072
+	}
+	handle /longpolling/* {
+		reverse_proxy 127.0.0.1:8072
+	}
+
+	# Database manager hanya boleh dari IP kantor/rumah. Isi dengan IP publikmu
+	# lalu hapus tanda komentar — endpoint ini bisa drop seluruh database.
+	# @dbmanager {
+	# 	path /web/database/*
+	# 	not remote_ip 203.0.113.10
+	# }
+	# respond @dbmanager 403
+
+	# Aset statis Odoo aman di-cache lama karena URL-nya sudah ber-hash.
+	@assets path /web/assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	handle {
+		reverse_proxy 127.0.0.1:8069
+	}
+}
