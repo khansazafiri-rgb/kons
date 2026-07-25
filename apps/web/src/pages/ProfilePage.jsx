@@ -3,20 +3,21 @@ import { MessageCircle, TrendingUp, UserRound } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, deviceLimitFor } from '@/context/AuthContext';
+import { roleLabel } from '@/lib/studentType';
 
 const WA_NUMBER_DISPLAY = '+62 822-5723-8650';
 const WA_LINK = 'https://wa.me/6282257238650';
 
 export default function ProfilePage() {
- const { user, guest, role } = useAuth();
+ const { user, role } = useAuth();
  const [enrolledNames, setEnrolledNames] = useState([]);
  const [attempts, setAttempts] = useState([]);
  const [subjectNames, setSubjectNames] = useState({});
 
  // Nama mata kuliah yang diambil siswa / diajar pengajar (field teachingSubjects di users)
  useEffect(() => {
-   if (guest || !user) return;
+   if (!user) return;
    pb.collection('subjects')
      .getFullList({ sort: 'order', fields: 'id,name' })
      .then((subs) => {
@@ -27,14 +28,14 @@ export default function ProfilePage() {
        setEnrolledNames(ids.map((id) => map[id]).filter(Boolean));
      })
      .catch(() => {});
- }, [user, guest]);
+ }, [user]);
 
  // Label mata kuliah menyesuaikan role: siswa "diambil", pengajar "diajar".
  const mataKuliahLabel = role === 'teacher' ? 'Mata kuliah yang diajar' : 'Mata kuliah yang diambil';
 
  // FITUR: riwayat & grafik nilai tryout (data dari cbt_attempts)
  useEffect(() => {
-   if (guest || !user?.id || role !== 'student') return;
+   if (!user?.id || role !== 'student') return;
    pb.collection('cbt_attempts')
      .getFullList({
        filter: `owner = '${user.id}' && status = 'completed'`,
@@ -43,7 +44,7 @@ export default function ProfilePage() {
      })
      .then(setAttempts)
      .catch(() => setAttempts([]));
- }, [user, guest, role]);
+ }, [user, role]);
 
  const chartData = attempts.map((a, i) => ({
    name: `#${i + 1}`,
@@ -65,27 +66,20 @@ export default function ProfilePage() {
            </span>
            <div>
              <p className="font-display text-xl font-semibold text-alba-50">
-               {guest ? 'Guest' : user?.name || '-'}
+               {user?.name || '-'}
              </p>
-             <p className="text-xs uppercase tracking-[0.25em] text-gold-200 font-bold mt-1">{role}</p>
+             <p className="text-xs uppercase tracking-[0.25em] text-gold-200 font-bold mt-1">{roleLabel(user)}</p>
            </div>
          </div>
 
          <div className="p-8">
-           {guest ? (
-             <div className="space-y-3">
-               <p className="text-sm text-stone-600 leading-relaxed">
-                 Akun Guest hanya dapat mengakses BAB 1 dari setiap mata kuliah. Silakan
-                 login dengan akun resmi untuk akses penuh.
-               </p>
-             </div>
-           ) : (
+           {(
              <>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                  <Field label="ID User" value={user?.userId} />
                  <Field label="Nama" value={user?.name} />
                  <Field label="Gmail" value={user?.email} />
-                 <Field label="Role" value={role} className="capitalize" />
+                 <Field label="Tipe Akun" value={roleLabel(user)} className="capitalize" />
                  <Field label="Semester" value={user?.semester} />
                  <Field label="Asal Kuliah" value={user?.asalKuliah} />
                  {role === 'student' && (
@@ -94,6 +88,14 @@ export default function ProfilePage() {
                      value={user?.activeUntil ? String(user.activeUntil).slice(0, 10) : '-'}
                    />
                  )}
+                 <Field
+                   label="Batas device"
+                   value={
+                     deviceLimitFor(user) === Infinity
+                       ? 'Tanpa batas'
+                       : `${deviceLimitFor(user)} device`
+                   }
+                 />
                </div>
 
                {(role === 'student' || role === 'teacher') && (
@@ -129,7 +131,7 @@ export default function ProfilePage() {
        </div>
 
        {/* FITUR: Riwayat & grafik nilai tryout */}
-       {!guest && role === 'student' && attempts.length > 0 && (
+       {role === 'student' && attempts.length > 0 && (
          <div className="mt-8 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-7 animate-fade-in">
            <p className="flex items-center gap-2 text-sm font-bold text-maroon-600 mb-5">
              <TrendingUp size={16} />

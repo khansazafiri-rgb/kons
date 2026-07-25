@@ -6,7 +6,7 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
 export default function PerdalamMateri() {
- const { guest, user, role } = useAuth();
+ const { user, role } = useAuth();
  const navigate = useNavigate();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState('');
@@ -49,7 +49,7 @@ export default function PerdalamMateri() {
        const totals = {};
        allChapters.forEach((c) => { totals[c.subject] = (totals[c.subject] || 0) + 1; });
        let doneSet = new Set();
-       if (!guest && pb.authStore.record?.id) {
+       if (pb.authStore.record?.id) {
          const prog = await pb
            .collection('materi_progress')
            .getFullList({ filter: `owner = '${pb.authStore.record.id}' && completed = true`, fields: 'chapter' });
@@ -67,19 +67,18 @@ export default function PerdalamMateri() {
        setProgressMap({});
      }
    })();
- }, [guest]);
+ }, []);
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
    // BAB yang di-hide disembunyikan dari siswa (tetap bisa dikelola di Edit Soal).
    let filter = `subject = '${subjectId}' && hidden != true`;
-   if (guest) filter += ' && guestAccessible = true';
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
      setChapters(chs);
      setChapterId('');
      setSearch('');
    });
- }, [subjectId, guest]);
+ }, [subjectId]);
 
  // Prefetch URL PPT begitu BAB dipilih, supaya saat user menekan "Pelajari"
  // (gesture langsung) tab baru bisa dibuka seketika tanpa diblokir popup.
@@ -155,9 +154,9 @@ export default function PerdalamMateri() {
                  >
                    <div className="flex items-center justify-between gap-2 mb-2">
                      <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
-                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
+                     {<span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
                    </div>
-                   {!guest && (
+                   {(
                      <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
                        <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
                      </div>

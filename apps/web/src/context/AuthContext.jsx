@@ -1,12 +1,22 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
 import { getDeviceId } from '@/lib/deviceId';
+import { studentTypeDevices } from '@/lib/studentType';
 
 const AuthContext = createContext(null);
 
+// Batas jumlah device per akun:
+// - admin   : BEBAS (tanpa batas, tidak dilacak)
+// - teacher : 1 device
+// - student : sesuai tipenya (reguler & private 1 device, web 2 device)
+export function deviceLimitFor(record) {
+  if (record?.role === 'admin') return Infinity;
+  if (record?.role === 'student') return studentTypeDevices(record.studentType);
+  return 1;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(pb.authStore.record);
-  const [guest, setGuest] = useState(false);
 
   useEffect(() => {
     const unsub = pb.authStore.onChange((_t, record) => setUser(record));
@@ -35,40 +45,35 @@ export function AuthProvider({ children }) {
       pb.authStore.clear();
       throw new Error('Akun ini telah dinonaktifkan. Silakan hubungi admin.');
     }
-    // Batas jumlah device per akun:
-    // - admin  : BEBAS (tanpa batas, tidak dilacak)
-    // - teacher & student : maksimal 1 device
-    const DEVICE_LIMIT = 1;
-    if (record.role !== 'admin') {
+    const limit = deviceLimitFor(record);
+    if (limit !== Infinity) {
       const deviceId = getDeviceId();
       const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
       if (!devices.includes(deviceId)) {
-        if (devices.length >= DEVICE_LIMIT) {
+        if (devices.length >= limit) {
           pb.authStore.clear();
           throw new Error(
-            'Akun ini sudah login di device lain. Hubungi admin untuk reset device.',
+            limit > 1
+              ? `Akun ini sudah dipakai di ${limit} device. Hubungi admin untuk reset device.`
+              : 'Akun ini sudah login di device lain. Hubungi admin untuk reset device.',
           );
         }
         const updated = [...devices, deviceId];
         await pb.collection('users').update(record.id, { deviceIds: updated });
       }
     }
-    setGuest(false);
     return record;
   };
 
-  const enterGuest = () => setGuest(true);
-
   const logout = () => {
     pb.authStore.clear();
-    setGuest(false);
   };
 
   const isAuthed = pb.authStore.isValid;
-  const role = guest ? 'guest' : user?.role;
+  const role = user?.role;
 
   return (
-    <AuthContext.Provider value={{ user, guest, role, isAuthed, login, logout, enterGuest }}>
+    <AuthContext.Provider value={{ user, role, isAuthed, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

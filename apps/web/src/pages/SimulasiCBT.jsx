@@ -8,7 +8,7 @@ import QuestionRunner from '@/components/QuestionRunner';
 const years = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
 
 export default function SimulasiCBT() {
- const { guest, user, role } = useAuth();
+ const { user, role } = useAuth();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState('');
  const [year, setYear] = useState('');
@@ -56,7 +56,7 @@ export default function SimulasiCBT() {
          avail[qq.subject].add(qq.year);
        });
        setAvailYears(avail);
-       if (!guest && user?.id) {
+       if (user?.id) {
          const attempts = await pb
            .collection('cbt_attempts')
            .getFullList({ filter: `owner = '${user.id}' && status = 'completed'`, fields: 'subject,year' });
@@ -71,7 +71,7 @@ export default function SimulasiCBT() {
        setAvailYears({});
      }
    })();
- }, [guest, user, refreshKey]);
+ }, [user, refreshKey]);
 
  // FITUR: Leaderboard anonim per tryout (subject + tahun).
  // Kalau API rule cbt_attempts tidak mengizinkan membaca milik orang lain,
@@ -107,7 +107,7 @@ export default function SimulasiCBT() {
    }
    // Kalau tahun ini sudah pernah dituntaskan, tawarkan review dulu (jangan
    // langsung buat attempt baru) supaya jawaban lama tidak tertimpa.
-   if (!guest && user) {
+   if (user) {
      const done = await pb
        .collection('cbt_attempts')
        .getFullList({ filter: `owner = '${user.id}' && subject = '${subjectId}' && year = ${year} && status = 'completed'`, sort: '-created' });
@@ -119,7 +119,7 @@ export default function SimulasiCBT() {
    }
 
    setQuestions(qs);
-   if (!guest && user) {
+   if (user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
        subject: subjectId,
@@ -136,7 +136,7 @@ export default function SimulasiCBT() {
  const startFresh = async () => {
    setCompletedAttempt(null);
    setReviewing(false);
-   if (!guest && user) {
+   if (user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
        subject: subjectId,
@@ -151,7 +151,7 @@ export default function SimulasiCBT() {
 
  // Menyimpan jawaban ke database setiap kali mahasiswa klik opsi (Real-time)
  const savePartial = async (ans) => {
-   if (attemptId && !guest && user) {
+   if (attemptId && user) {
      try {
        await pb.collection('cbt_attempts').update(attemptId, { answers: ans });
      } catch (error) {
@@ -210,7 +210,7 @@ export default function SimulasiCBT() {
  }
 
  // Layar Pengerjaan Ujian (atau Review)
- if (questions && (attemptId || reviewing || guest)) {
+ if (questions && (attemptId || reviewing)) {
    return (
      <div className="min-h-screen bg-alba-50">
        <Header />
@@ -272,9 +272,9 @@ export default function SimulasiCBT() {
                  >
                    <div className="flex items-center justify-between gap-2 mb-2">
                      <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
-                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{done}/{avail} thn</span>}
+                     {<span className="text-[11px] font-bold text-maroon-500">{done}/{avail} thn</span>}
                    </div>
-                   {!guest && (
+                   {(
                      <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
                        <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
                      </div>

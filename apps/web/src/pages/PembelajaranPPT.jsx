@@ -9,7 +9,7 @@ export default function PembelajaranPPT() {
  const [params] = useSearchParams();
  const navigate = useNavigate();
  const location = useLocation();
- const { guest, user, role } = useAuth();
+ const { user, role } = useAuth();
  const subjectId = params.get('subject');
  const chapterId = params.get('chapter');
  const [chapter, setChapter] = useState(null);
@@ -56,7 +56,7 @@ export default function PembelajaranPPT() {
 
  const finish = async () => {
    setDone(true);
-   if (!guest && user) {
+   if (user) {
      const existing = await pb
        .collection('materi_progress')
        .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });

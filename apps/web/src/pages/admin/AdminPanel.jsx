@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import PPTUpload from '@/components/PPTUpload';
 import ChapterManager from '@/components/ChapterManager';
 import { MANAGER_CATEGORIES } from '@/data/team';
+import { STUDENT_TYPES, studentTypeLabel, studentTypeShort } from '@/lib/studentType';
+import { SIGNUP_TEXT_GROUPS, resolveSignupTexts } from '@/lib/signupContent';
 
 const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
 export default function AdminPanel() {
@@ -274,6 +277,17 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     try { await pb.collection('users').update(s.id, { deviceIds: [] }); load(); }
     catch (err) { setError('Gagal mereset device: ' + (err?.message || '')); }
   };
+  // Ganti tipe siswa (menentukan batas device: reguler/private 1, web 2).
+  const changeStudentType = async (s, studentType) => {
+    setError('');
+    setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, studentType } : u)));
+    try {
+      await pb.collection('users').update(s.id, { studentType });
+    } catch (err) {
+      setError('Gagal mengubah tipe siswa: ' + (err?.message || ''));
+      load();
+    }
+  };
 
   return (
     <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
@@ -298,6 +312,9 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
               <div className="flex items-center justify-between gap-3 flex-wrap mb-1.5">
                 <p className="font-bold text-sm text-stone-800">
                   {s.name}
+                  <span className="ml-2 text-[10px] font-bold uppercase text-maroon-700 bg-maroon-50 border border-maroon-100 rounded-full px-2 py-0.5">
+                    {studentTypeShort(s.studentType)}
+                  </span>
                   {s.disabled && <span className="ml-2 text-[10px] font-bold uppercase text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">Nonaktif</span>}
                 </p>
               </div>
@@ -363,6 +380,28 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                     {st.pendingList.length === 0 && <p className="text-xs text-stone-400">Tidak ada tanggungan 🎉</p>}
                   </div>
                 </div>
+
+                {adminMode && (
+                  <div className="pt-2 border-t border-alba-200">
+                    <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Tipe akun siswa</p>
+                    <div className="flex flex-wrap gap-2">
+                      {STUDENT_TYPES.map((t) => (
+                        <button
+                          key={t.value}
+                          onClick={() => changeStudentType(s, t.value)}
+                          title={t.desc}
+                          className={`text-xs rounded-full px-3 py-1.5 border transition-colors ${
+                            (s.studentType || 'reguler') === t.value
+                              ? 'bg-maroon-600 text-alba-50 border-maroon-600'
+                              : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'
+                          }`}
+                        >
+                          {t.label} · {t.devices} device
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {adminMode && (
                   <div className="flex gap-2 pt-2 border-t border-alba-200 flex-wrap">
@@ -1011,13 +1050,68 @@ function QtypeBadge({ qtype }) {
   return <span className="inline-block mr-2 text-[10px] font-bold uppercase bg-alba-200 text-stone-600 rounded px-1.5 py-0.5">{label}</span>;
 }
 
-// Daftar soal dengan fitur PILIH BANYAK lalu hapus sekaligus (checkbox + pilih
-// semua + "Hapus Terpilih"). Dipakai bersama oleh EditSoal (Cicil Belajar) &
-// EditSimulasi (CBT). onReload dipanggil setelah hapus agar daftar disegarkan.
+// Teks soal disimpan sebagai HTML (field editor) — buang tag-nya supaya bisa
+// dicari & ditampilkan sebagai teks biasa di daftar.
+const stripHtml = (v) => String(v || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+
+// Semua teks yang bisa dicari dari satu soal. Untuk soal ISIAN, teks utamanya
+// sering hanya "Perhatikan gambar berikut" — pertanyaan aslinya ada di
+// subQuestions, jadi bagian itu ikut dikumpulkan di sini.
+function searchableParts(q) {
+  const parts = [stripHtml(q.text), stripHtml(q.hint)];
+  for (const sq of q.subQuestions || []) {
+    parts.push(stripHtml(sq.question));
+    for (const a of sq.validAnswers || []) parts.push(String(a));
+  }
+  for (const o of q.options || []) {
+    parts.push(stripHtml(o.text));
+    parts.push(stripHtml(o.explanation));
+  }
+  return parts.filter(Boolean);
+}
+
+// Cocok bila SEMUA kata kunci muncul di salah satu bagian soal.
+function matchesQuery(q, terms) {
+  if (terms.length === 0) return true;
+  const hay = searchableParts(q).join(' \n ').toLowerCase();
+  return terms.every((t) => hay.includes(t));
+}
+
+// Tandai potongan teks yang cocok dengan kata kunci pencarian.
+function Highlight({ text, terms }) {
+  const value = String(text || '');
+  if (!terms.length || !value) return <>{value}</>;
+  const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const pieces = value.split(new RegExp(`(${escaped})`, 'ig'));
+  const lower = terms.map((t) => t.toLowerCase());
+  return (
+    <>
+      {pieces.map((p, i) =>
+        lower.includes(p.toLowerCase())
+          ? <mark key={i} className="bg-gold-200 text-stone-900 rounded px-0.5">{p}</mark>
+          : <React.Fragment key={i}>{p}</React.Fragment>
+      )}
+    </>
+  );
+}
+
+// Daftar soal dengan PENCARIAN + fitur PILIH BANYAK lalu hapus sekaligus.
+// Dipakai bersama oleh EditSoal (Cicil Belajar) & EditSimulasi (CBT).
+// onReload dipanggil setelah hapus agar daftar disegarkan.
 function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
   const [selected, setSelected] = useState(() => new Set());
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const terms = useMemo(
+    () => query.trim().toLowerCase().split(/\s+/).filter(Boolean),
+    [query]
+  );
+  const filtered = useMemo(
+    () => questions.filter((q) => matchesQuery(q, terms)),
+    [questions, terms]
+  );
 
   // Buang id yang sudah tidak ada lagi (mis. setelah reload) dari seleksi.
   useEffect(() => {
@@ -1025,14 +1119,20 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
     setSelected((prev) => new Set([...prev].filter((id) => ids.has(id))));
   }, [questions]);
 
-  const allSelected = questions.length > 0 && selected.size === questions.length;
+  // "Pilih semua" bekerja pada soal yang SEDANG TAMPIL (hasil pencarian).
+  const allSelected = filtered.length > 0 && filtered.every((q) => selected.has(q.id));
   const toggle = (id) =>
     setSelected((prev) => {
       const n = new Set(prev);
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(questions.map((q) => q.id)));
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const n = new Set(prev);
+      filtered.forEach((q) => (allSelected ? n.delete(q.id) : n.add(q.id)));
+      return n;
+    });
 
   const deleteOne = async (id) => {
     if (!confirm('Yakin ingin menghapus soal ini?')) return;
@@ -1060,12 +1160,17 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
   return (
     <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h4 className="font-semibold text-sm text-stone-600">{title}</h4>
-        {questions.length > 0 && (
+        <h4 className="font-semibold text-sm text-stone-600">
+          {title}
+          <span className="ml-2 font-normal text-xs text-stone-400">
+            {terms.length ? `${filtered.length} dari ${questions.length} soal` : `${questions.length} soal`}
+          </span>
+        </h4>
+        {filtered.length > 0 && (
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 cursor-pointer">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 cursor-pointer accent-maroon-600" />
-              Pilih semua
+              Pilih semua{terms.length ? ' hasil cari' : ''}
             </label>
             <button
               onClick={deleteSelected}
@@ -1077,25 +1182,83 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
           </div>
         )}
       </div>
-      {status && <p className="text-xs whitespace-pre-wrap bg-alba-100 border border-alba-200 rounded-lg px-3 py-2 text-stone-600">{status}</p>}
-      {questions.map((q) => (
-        <div key={q.id} className={`flex items-center gap-3 text-sm border rounded-lg px-4 py-3 ${selected.has(q.id) ? 'border-maroon-300 bg-maroon-50' : 'border-alba-200 bg-alba-50 hover:bg-alba-100'}`}>
-          <input type="checkbox" checked={selected.has(q.id)} onChange={() => toggle(q.id)} className="w-4 h-4 shrink-0 cursor-pointer accent-maroon-600" />
-          <span className="truncate pr-4 flex-1 font-medium">
-            <QtypeBadge qtype={q.qtype} />
-            {q.text}
-          </span>
-          <div className="flex gap-3 shrink-0">
-            <button onClick={() => onPreview(q)} className="text-xs text-maroon-600 hover:underline font-semibold">Preview</button>
-            <button onClick={() => onEdit(q)} className="text-xs text-gold-600 hover:underline font-semibold">Edit</button>
-            <button onClick={() => deleteOne(q.id)} className="text-xs text-red-600 hover:underline font-semibold">Hapus</button>
-          </div>
+
+      {/* Pencarian: mencakup teks soal, anak soal isian, jawaban, pilihan, dan pembahasan */}
+      {questions.length > 0 && (
+        <div className="relative">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari soal… (mis. bentukan yang ditunjuk lingkaran biru)"
+            className="w-full rounded-lg border border-alba-300 bg-alba-50 pl-9 pr-20 py-2 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400 hover:text-maroon-600"
+            >
+              hapus
+            </button>
+          )}
+          <p className="text-[11px] text-stone-400 mt-1">
+            Mencari sampai ke dalam anak soal isian, pilihan jawaban, kunci, dan pembahasan.
+          </p>
         </div>
-      ))}
+      )}
+
+      {status && <p className="text-xs whitespace-pre-wrap bg-alba-100 border border-alba-200 rounded-lg px-3 py-2 text-stone-600">{status}</p>}
+
+      {filtered.map((q) => {
+        const stem = stripHtml(q.text);
+        const subs = q.subQuestions || [];
+        return (
+          <div key={q.id} className={`flex items-start gap-3 text-sm border rounded-lg px-4 py-3 ${selected.has(q.id) ? 'border-maroon-300 bg-maroon-50' : 'border-alba-200 bg-alba-50 hover:bg-alba-100'}`}>
+            <input type="checkbox" checked={selected.has(q.id)} onChange={() => toggle(q.id)} className="w-4 h-4 shrink-0 cursor-pointer accent-maroon-600 mt-1" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">
+                <QtypeBadge qtype={q.qtype} />
+                <Highlight text={stem || '(teks soal kosong)'} terms={terms} />
+              </p>
+              {/* Anak soal isian ditampilkan langsung supaya tidak perlu buka
+                  preview hanya untuk tahu isi pertanyaannya. */}
+              {subs.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {subs.map((sq, i) => (
+                    <li key={i} className="text-xs text-stone-600 flex gap-2">
+                      <span className="shrink-0 inline-flex w-4 h-4 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-[9px] font-bold mt-0.5">
+                        {sq.label || i + 1}
+                      </span>
+                      <span className="min-w-0">
+                        <Highlight text={stripHtml(sq.question)} terms={terms} />
+                        {(sq.validAnswers || []).length > 0 && (
+                          <span className="text-green-700 font-semibold">
+                            {' '}— <Highlight text={(sq.validAnswers || []).join(' | ')} terms={terms} />
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex gap-3 shrink-0">
+              <button onClick={() => onPreview(q)} className="text-xs text-maroon-600 hover:underline font-semibold">Preview</button>
+              <button onClick={() => onEdit(q)} className="text-xs text-gold-600 hover:underline font-semibold">Edit</button>
+              <button onClick={() => deleteOne(q.id)} className="text-xs text-red-600 hover:underline font-semibold">Hapus</button>
+            </div>
+          </div>
+        );
+      })}
+
       {questions.length === 0 && <p className="text-xs text-stone-400">Belum ada soal tersimpan.</p>}
+      {questions.length > 0 && filtered.length === 0 && (
+        <p className="text-xs text-stone-400">Tidak ada soal yang cocok dengan "{query}".</p>
+      )}
     </div>
   );
 }
+
 
 function PreviewModal({ previewData, onClose }) {
   if (!previewData) return null;
@@ -1327,6 +1490,18 @@ function PendingSignups() {
     }
   };
 
+  // Admin boleh menyesuaikan tipe siswa sebelum ACC (sign up publik hanya
+  // menawarkan reguler/private; upgrade ke Student - Web dilakukan di sini).
+  const changeType = async (u, studentType) => {
+    setPending((prev) => prev.map((x) => (x.id === u.id ? { ...x, studentType } : x)));
+    try {
+      await pb.collection('users').update(u.id, { studentType });
+    } catch (e) {
+      setMsg(`Gagal mengubah tipe: ${e?.message || ''}`);
+      load();
+    }
+  };
+
   const approve = async (u) => {
     setBusyId(u.id);
     setMsg('');
@@ -1378,8 +1553,20 @@ function PendingSignups() {
                 <div>
                   <p className="font-semibold">{u.name} <span className="text-stone-400 font-normal">({u.userId})</span></p>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    {u.email} · {u.program || '—'} · Semester {u.semester || '—'} · {u.asalKuliah || '—'}
+                    {u.email} · Semester {u.semester || '—'} · {u.asalKuliah || '—'}
                   </p>
+                  <label className="inline-flex items-center gap-2 mt-2 text-xs">
+                    <span className="font-bold text-stone-500">Tipe:</span>
+                    <select
+                      value={u.studentType || 'reguler'}
+                      onChange={(e) => changeType(u, e.target.value)}
+                      className="rounded-lg border border-alba-300 bg-alba-50 px-2 py-1 text-xs font-semibold"
+                    >
+                      {STUDENT_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1424,85 +1611,157 @@ function PendingSignups() {
   );
 }
 
-// Pengaturan halaman Sign Up — admin bebas buka/tutup pendaftaran dan mengubah
-// teksnya. Disiapkan untuk ke depannya saat administrasi/pembelian akses web
-// dilakukan lewat halaman sign up.
+// Pengaturan halaman Sign Up — admin bisa membuka/menutup pendaftaran DAN
+// mengedit SELURUH teks yang tampil di halaman /signup (judul, langkah-langkah,
+// label tiap kolom, placeholder, teks tombol, pesan sukses, sampai pesan saat
+// pendaftaran ditutup). Daftar teksnya didefinisikan di lib/signupContent.js,
+// jadi menambah teks baru cukup satu baris di file tersebut.
 function SignupSettings() {
   const [rec, setRec] = useState(null);
-  const [draft, setDraft] = useState({ open: true, headline: '', info: '' });
+  const [open, setOpen] = useState(true);
+  const [texts, setTexts] = useState(() => resolveSignupTexts(null));
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
+  const [openGroup, setOpenGroup] = useState(SIGNUP_TEXT_GROUPS[0].group);
 
   useEffect(() => {
     pb.collection('signup_settings')
       .getFirstListItem('id != ""')
       .then((r) => {
         setRec(r);
-        setDraft({ open: !!r.open, headline: r.headline || '', info: r.info || '' });
+        setOpen(!!r.open);
+        setTexts(resolveSignupTexts(r.texts));
       })
       .catch(() => setMsg('Pengaturan sign up belum ada di database (migration belum jalan?).'));
   }, []);
+
+  const setText = (key, value) => setTexts((t) => ({ ...t, [key]: value }));
 
   const save = async () => {
     if (!rec) return;
     setSaving(true);
     setMsg('');
     try {
-      const updated = await pb.collection('signup_settings').update(rec.id, draft);
+      const updated = await pb.collection('signup_settings').update(rec.id, { open, texts });
       setRec(updated);
-      setMsg('Pengaturan tersimpan.');
+      setMsg('✅ Tersimpan. Buka /signup untuk melihat hasilnya.');
     } catch (e) {
-      setMsg(`Gagal menyimpan: ${e?.message || ''}`);
+      setMsg(`❌ Gagal menyimpan: ${e?.message || ''}`);
     } finally {
       setSaving(false);
     }
   };
 
+  // Kembalikan satu teks ke bawaan: dikosongkan -> halaman sign up otomatis
+  // memakai teks bawaan lagi.
+  const resetOne = (key) => {
+    const base = resolveSignupTexts(null);
+    setText(key, base[key]);
+  };
+
+  const inputCls = 'w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 focus:outline-none focus:border-maroon-400';
+
   return (
-    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 max-w-xl">
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6">
       <h2 className="font-display text-lg font-semibold mb-1">Pengaturan Halaman Sign Up</h2>
       <p className="text-xs text-stone-500 mb-4">
-        Kamu bebas mengatur halaman pendaftaran dari sini — buka/tutup pendaftaran dan
-        ubah teksnya kapan pun.
+        Semua teks di halaman pendaftaran bisa kamu ubah dari sini. Klik nama bagian
+        untuk membukanya. Kolom yang dikosongkan otomatis kembali ke teks bawaan.
       </p>
-      <div className="space-y-3">
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={draft.open}
-            onChange={(e) => setDraft((d) => ({ ...d, open: e.target.checked }))}
-            className="w-4 h-4 accent-maroon-600"
-          />
-          <span className="text-sm font-semibold">{draft.open ? 'Pendaftaran DIBUKA' : 'Pendaftaran DITUTUP'}</span>
-        </label>
+
+      <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 mb-4">
         <input
-          value={draft.headline}
-          onChange={(e) => setDraft((d) => ({ ...d, headline: e.target.value }))}
-          placeholder="Judul halaman sign up"
-          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+          type="checkbox"
+          checked={open}
+          onChange={(e) => setOpen(e.target.checked)}
+          className="w-4 h-4 accent-maroon-600"
         />
-        <textarea
-          value={draft.info}
-          onChange={(e) => setDraft((d) => ({ ...d, info: e.target.value }))}
-          placeholder="Teks info di form pendaftaran"
-          rows={3}
-          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
-        />
+        <span className="text-sm font-semibold">
+          {open ? 'Pendaftaran DIBUKA' : 'Pendaftaran DITUTUP'}
+        </span>
+        <span className="text-xs text-stone-500">
+          {open ? '(form pendaftaran tampil)' : '(pengunjung melihat pesan "ditutup")'}
+        </span>
+      </label>
+
+      <div className="space-y-2">
+        {SIGNUP_TEXT_GROUPS.map((g) => {
+          const expanded = openGroup === g.group;
+          return (
+            <div key={g.group} className="rounded-xl border border-alba-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setOpenGroup(expanded ? '' : g.group)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold transition-colors ${
+                  expanded ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100/60 text-stone-700 hover:bg-maroon-50'
+                }`}
+              >
+                <span>{g.group}</span>
+                <span className="text-xs font-semibold">
+                  {expanded ? '▲ tutup' : `▼ ${g.fields.length} teks`}
+                </span>
+              </button>
+              {expanded && (
+                <div className="p-4 space-y-4 bg-alba-50">
+                  {g.fields.map((f) => (
+                    <div key={f.key}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-stone-600">{f.label}</label>
+                        <button
+                          type="button"
+                          onClick={() => resetOne(f.key)}
+                          className="text-[11px] font-semibold text-stone-400 hover:text-maroon-600"
+                        >
+                          kembalikan bawaan
+                        </button>
+                      </div>
+                      {f.type === 'textarea' ? (
+                        <textarea
+                          rows={3}
+                          value={texts[f.key] ?? ''}
+                          onChange={(e) => setText(f.key, e.target.value)}
+                          className={inputCls}
+                        />
+                      ) : (
+                        <input
+                          value={texts[f.key] ?? ''}
+                          onChange={(e) => setText(f.key, e.target.value)}
+                          className={inputCls}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3 mt-5">
         <button
           onClick={save}
           disabled={saving || !rec}
           className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-5 py-2.5 disabled:opacity-50"
         >
-          {saving ? 'Menyimpan…' : 'Simpan Pengaturan'}
+          {saving ? 'Menyimpan…' : 'Simpan Semua Perubahan'}
         </button>
-        {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2">{msg}</p>}
+        <a
+          href="/signup"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm font-semibold text-maroon-600 hover:underline"
+        >
+          Lihat halaman sign up ↗
+        </a>
       </div>
+      {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2 mt-3">{msg}</p>}
     </div>
   );
 }
 
 function TambahAkun() {
-  const [form, setForm] = useState({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student' });
+  const [form, setForm] = useState({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student', studentType: 'reguler' });
   const [msg, setMsg] = useState('');
   const [msgOk, setMsgOk] = useState(false);
   const submit = async (e) => {
@@ -1530,6 +1789,8 @@ function TambahAkun() {
         semester: form.semester ? Number(form.semester) : null,
         asalKuliah: form.asalKuliah,
         role: form.role,
+        // Tipe siswa menentukan batas device (reguler/private 1, web 2).
+        studentType: form.role === 'student' ? form.studentType : '',
         // CATATAN: "verified" sengaja TIDAK dikirim — PocketBase menolak akun
         // non-superuser men-set verified (error "Values don't match").
         deviceIds: [],
@@ -1537,9 +1798,10 @@ function TambahAkun() {
         // Mata kuliah siswa & guru sama-sama disimpan di teachingSubjects (field yang sudah ada).
         teachingSubjects: [],
       });
-      setMsg(`Akun ${form.role} berhasil dibuat. Buka tab ${form.role === 'student' ? 'Siswa' : 'Pengajar'} untuk memilihkan mata kuliahnya.`);
+      const label = form.role === 'student' ? studentTypeLabel(form.studentType) : 'teacher';
+      setMsg(`Akun ${label} berhasil dibuat. Buka tab ${form.role === 'student' ? 'Siswa' : 'Pengajar'} untuk memilihkan mata kuliahnya.`);
       setMsgOk(true);
-      setForm({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student' });
+      setForm({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student', studentType: 'reguler' });
     } catch (err) {
       // tampilkan detail error per field supaya ketahuan persis salahnya di mana
       let detail = '';
@@ -1575,6 +1837,23 @@ function TambahAkun() {
           <option value="student">Student</option>
           <option value="teacher">Teacher</option>
         </select>
+        {form.role === 'student' && (
+          <div>
+            <label className="block text-xs font-bold text-stone-500 mb-1.5">Tipe siswa</label>
+            <select
+              value={form.studentType}
+              onChange={(e) => setForm((f) => ({ ...f, studentType: e.target.value }))}
+              className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+            >
+              {STUDENT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-stone-400 mt-1">
+              {STUDENT_TYPES.find((t) => t.value === form.studentType)?.desc}
+            </p>
+          </div>
+        )}
         <button type="submit" className="w-full rounded-lg bg-maroon-600 text-alba-50 font-semibold py-2.5">Buat Akun</button>
         {msg && (
           <p className={`text-sm whitespace-pre-wrap rounded-lg px-3 py-2 ${msgOk ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-600'}`}>{msg}</p>

@@ -29,14 +29,14 @@ const cards = [
 
 export default function LearningHome() {
  const navigate = useNavigate();
- const { user, guest, role } = useAuth();
+ const { user, role } = useAuth();
  const [resumeList, setResumeList] = useState([]);
  const [exams, setExams] = useState([]);
 
  // Reminder ujian: ambil jadwal ujian mendatang lalu tampilkan countdown di
  // beranda. Untuk SISWA, hanya jadwal dari mata kuliah yang ia ambil yang
- // ditampilkan (jadwal mata kuliah lain tidak relevan untuknya). Guru/admin/
- // guest (tanpa pembatasan mata kuliah) melihat semua jadwal.
+ // ditampilkan (jadwal mata kuliah lain tidak relevan untuknya). Guru/admin
+ // (tanpa pembatasan mata kuliah) melihat semua jadwal.
  useEffect(() => {
    let alive = true;
    (async () => {
@@ -65,12 +65,12 @@ export default function LearningHome() {
      }
    })();
    return () => { alive = false; };
- }, [user, guest, role]);
+ }, [user, role]);
 
  // Fitur "Lanjutkan Belajar": tampilkan latihan yang belum selesai supaya
  // siswa bisa langsung loncat kembali ke BAB yang ditinggalkan.
  useEffect(() => {
-   if (guest || !user?.id) return;
+   if (!user?.id) return;
    pb.collection('soal_progress')
      .getFullList({
        filter: `owner = '${user.id}' && status = 'in_progress'`,
@@ -79,9 +79,9 @@ export default function LearningHome() {
      })
      .then((recs) => setResumeList(recs.filter((r) => r.expand?.chapter).slice(0, 3)))
      .catch(() => setResumeList([]));
- }, [user, guest]);
+ }, [user]);
 
- const firstName = guest ? 'Guest' : (user?.name || '').split(' ')[0];
+ const firstName = (user?.name || '').split(' ')[0];
 
  return (
    <div className="min-h-screen bg-alba-50">

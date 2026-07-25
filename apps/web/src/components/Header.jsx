@@ -50,7 +50,7 @@ export async function bumpStreak(pb, user) {
 // di teachingSubjects). Diambil FRESH dari server supaya perubahan assign oleh admin
 // langsung berlaku tanpa harus login ulang.
 // Mengembalikan:
-//   null        -> tidak ada pembatasan (guest/teacher/admin, atau bukan siswa)
+//   null        -> tidak ada pembatasan (teacher/admin, atau bukan siswa)
 //   []          -> siswa belum dipilihkan mata kuliah apa pun (tidak boleh buka apa-apa)
 //   [id, id...] -> daftar mata kuliah yang boleh diakses
 export async function fetchEnrolledSubjectIds(pb, user, role) {
@@ -71,7 +71,7 @@ const navItems = [
 ];
 
 export default function Header() {
- const { user, guest, role, logout } = useAuth();
+ const { user, role, logout } = useAuth();
  const navigate = useNavigate();
  const [dark, setDark] = useState(() => localStorage.getItem('pcv_theme') === 'dark');
 
@@ -110,7 +110,7 @@ export default function Header() {
          </nav>
        </div>
        <div className="flex items-center gap-2">
-         {!guest && (user?.streak || 0) > 0 && (
+         {(user?.streak || 0) > 0 && (
            <span
              title={`Streak belajar ${user.streak} hari berturut-turut`}
              className="hidden sm:inline-flex items-center gap-1 rounded-full bg-gold-100 border border-gold-200 text-gold-600 text-xs font-bold px-3 py-1.5"
@@ -135,7 +135,7 @@ export default function Header() {
            </span>
            <span className="text-left hidden sm:block">
              <span className="block text-xs font-bold leading-tight text-stone-800">
-               {guest ? 'Guest' : user?.name || user?.email}
+               {user?.name || user?.email}
              </span>
              <span className="block text-[10px] uppercase tracking-widest text-maroon-500 font-semibold leading-tight">
                {role}
