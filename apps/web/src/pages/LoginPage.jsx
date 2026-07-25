@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Logo } from '@/components/Header';
 
 export default function LoginPage() {
- const { login, enterGuest } = useAuth();
+ const { login } = useAuth();
  const navigate = useNavigate();
  const [userId, setUserId] = useState('');
  const [password, setPassword] = useState('');
@@ -24,11 +24,6 @@ export default function LoginPage() {
    } finally {
      setLoading(false);
    }
- };
-
- const asGuest = () => {
-   enterGuest();
-   navigate('/beranda');
  };
 
  return (
@@ -122,21 +117,16 @@ export default function LoginPage() {
            atau
            <div className="flex-1 h-px bg-alba-200" />
          </div>
-         <button
-           onClick={asGuest}
-           className="w-full rounded-xl border border-alba-300 font-semibold py-3 text-sm text-stone-700 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
-         >
-           Masuk sebagai Guest <span className="font-normal text-stone-500">(akses BAB 1 tiap mata kuliah)</span>
-         </button>
          <Link
            to="/signup"
-           className="mt-3 block w-full text-center rounded-xl border-2 border-maroon-600 font-bold py-3 text-sm text-maroon-600 hover:bg-maroon-600 hover:text-alba-50 transition-colors"
+           className="block w-full text-center rounded-xl border-2 border-maroon-600 font-bold py-3 text-sm text-maroon-600 hover:bg-maroon-600 hover:text-alba-50 transition-colors"
          >
            Sign Up — Daftar Akun Baru
          </Link>
 
          <p className="text-xs text-stone-500 mt-8 leading-relaxed bg-alba-100/70 border border-alba-200 rounded-xl px-4 py-3">
-           Setiap akun hanya bisa aktif di maksimal <span className="font-semibold">1 device</span>. Kesulitan login?
+           Akun kelas reguler &amp; privat bisa aktif di <span className="font-semibold">1 device</span>,
+           akun Student&nbsp;-&nbsp;Web di <span className="font-semibold">2 device</span>. Kesulitan login?
            Hubungi narahubung admin di{' '}
            <a
              href="https://wa.me/6282257238650"

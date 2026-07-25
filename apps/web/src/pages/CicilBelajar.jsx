@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 
 export default function CicilBelajar() {
- const { guest, user, role } = useAuth();
+ const { user, role } = useAuth();
  const [params] = useSearchParams();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useState(params.get('subject') || '');
@@ -58,7 +58,7 @@ export default function CicilBelajar() {
        // BAB yang di-hide tidak dihitung sebagai bagian dari progress siswa.
        const allChapters = await pb.collection('chapters').getFullList({ filter: 'hidden != true', fields: 'id,subject' });
        let doneSet = new Set();
-       if (!guest && user?.id) {
+       if (user?.id) {
          const prog = await pb
            .collection('soal_progress')
            .getFullList({ filter: `owner = '${user.id}' && status = 'completed'`, fields: 'chapter' });
@@ -78,15 +78,14 @@ export default function CicilBelajar() {
        setProgressMap({});
      }
    })();
- }, [guest, user, refreshKey]);
+ }, [user, refreshKey]);
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
    // BAB yang di-hide disembunyikan dari siswa (tetap bisa dikelola di Edit Soal).
    let filter = `subject = '${subjectId}' && hidden != true`;
-   if (guest) filter += ' && guestAccessible = true';
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then(setChapters);
- }, [subjectId, guest]);
+ }, [subjectId]);
 
  const visibleChapters = useMemo(() => {
    const q = search.trim().toLowerCase();
@@ -111,7 +110,7 @@ export default function CicilBelajar() {
    }
    setQuestions(qs);
 
-   if (!guest && user) {
+   if (user) {
      const existing = await pb
        .collection('soal_progress')
        .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
@@ -130,7 +129,7 @@ export default function CicilBelajar() {
  };
 
  const savePartial = async (ans) => {
-   if (guest || !user) return;
+   if (!user) return;
    try {
      const existing = await pb
        .collection('soal_progress')
@@ -147,7 +146,7 @@ export default function CicilBelajar() {
  };
 
  const submit = async ({ answers, score }) => {
-   if (guest || !user) return;
+   if (!user) return;
    const existing = await pb
      .collection('soal_progress')
      .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
@@ -293,9 +292,9 @@ export default function CicilBelajar() {
                  >
                    <div className="flex items-center justify-between gap-2 mb-2">
                      <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
-                     {!guest && <span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
+                     {<span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
                    </div>
-                   {!guest && (
+                   {(
                      <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
                        <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
                      </div>

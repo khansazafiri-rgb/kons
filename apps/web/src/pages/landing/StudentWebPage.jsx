@@ -119,7 +119,7 @@ export default function StudentWebPage() {
                 </li>
                 <li className="flex gap-2.5 items-start">
                   <ShieldCheck size={16} className="text-gold-400 shrink-0 mt-0.5" />
-                  Bisa juga coba dulu sebagai Guest (akses BAB 1 tiap mata kuliah).
+                  Akun kelas reguler &amp; privat aktif di 1 device; akun Student - Web di 2 device.
                 </li>
               </ul>
             </div>
