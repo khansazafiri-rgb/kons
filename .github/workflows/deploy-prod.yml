@@ -1,0 +1,52 @@
+name: Deploy ke Produksi
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Pull latest & rebuild
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }} <<'ENDSSH'
+          set -euo pipefail
+          cd /opt/pcv/kons
+          echo "📦 Pulling latest changes..."
+          sudo -u pcv git fetch origin
+          sudo -u pcv git reset --hard origin/main
+
+          echo "📥 Installing dependencies..."
+          npm install
+
+          echo "🔨 Building frontend..."
+          npm run build --prefix apps/web
+
+          echo "♻️  Reloading services..."
+          sudo systemctl reload caddy
+
+          echo "✅ Deploy selesai!"
+          echo "Verifikasi di: https://pcvclassroom.duckdns.org"
+          ENDSSH
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deploy gagal! Cek log di GitHub Actions."
+          echo "Kemungkinan:"
+          echo "  1. SSH key tidak valid — cek DEPLOY_SSH_KEY di Secrets"
+          echo "  2. Branch main memiliki conflict — resolve dulu"
+          echo "  3. Build gagal — cek npm errors di atas"

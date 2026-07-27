@@ -1,0 +1,52 @@
+; Contoh /etc/odoo/odoo.conf untuk PCV.
+;
+; Salin nilainya ke konfigurasi yang sudah ada di VM (App Catalog IDCloudHost
+; biasanya menaruhnya di /etc/odoo/odoo.conf atau /etc/odoo.conf), lalu:
+;   sudo systemctl restart odoo
+;
+; JANGAN commit file odoo.conf yang asli ke git — isinya password.
+
+[options]
+; ---- Kredensial ----------------------------------------------------------
+; Master password untuk create/drop/backup database lewat /web/database/manager.
+; WAJIB diganti dengan string acak panjang (mis. `openssl rand -base64 36`).
+admin_passwd = GANTI_DENGAN_PASSWORD_PANJANG_ACAK
+
+; ---- Database ------------------------------------------------------------
+db_host = False
+db_port = False
+db_user = odoo
+db_password = False
+; Sembunyikan daftar database dari publik + kunci ke satu database saja.
+list_db = False
+dbfilter = ^pcv$
+
+; ---- Jaringan ------------------------------------------------------------
+; Odoo hanya mendengar dari localhost; yang menghadap internet adalah Caddy.
+http_interface = 127.0.0.1
+http_port = 8069
+gevent_port = 8072
+
+; Percaya header X-Forwarded-* dari Caddy. Tanpa ini, URL yang dibuat Odoo
+; (link konfirmasi email, redirect payment gateway) memakai http:// + IP.
+proxy_mode = True
+
+; ---- Worker --------------------------------------------------------------
+; Rumus aman: workers = (jumlah vCPU * 2) + 1, tapi tiap worker ±150-250 MB.
+; VM 4 GB / 2 vCPU -> 2 worker + 1 cron sudah cukup untuk skala PCV.
+workers = 2
+max_cron_threads = 1
+limit_memory_soft = 671088640
+limit_memory_hard = 805306368
+limit_time_cpu = 120
+limit_time_real = 240
+
+; ---- Path & log ----------------------------------------------------------
+addons_path = /usr/lib/python3/dist-packages/odoo/addons,/opt/odoo/custom-addons
+data_dir = /var/lib/odoo
+logfile = /var/log/odoo/odoo.log
+log_level = warn
+
+; ---- Email keluar --------------------------------------------------------
+; Diisi lewat UI Odoo (Settings -> Technical -> Outgoing Mail Servers) supaya
+; password SMTP tersimpan terenkripsi di database, bukan plaintext di file ini.

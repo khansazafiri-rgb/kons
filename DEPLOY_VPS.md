@@ -1,5 +1,10 @@
 # Panduan Deploy PCV Classroom ke VPS (Hostinger KVM 1, Ubuntu 24.04)
 
+> **ARSIP.** Dokumen ini ditulis untuk VPS Hostinger. Untuk deployment baru di
+> IDCloudHost (termasuk pemasangan Odoo), pakai
+> [`DEPLOY_IDCLOUDHOST.md`](./DEPLOY_IDCLOUDHOST.md). File ini disimpan sebagai
+> rujukan selama server lama masih hidup.
+
 Arsitektur setelah deploy:
 
 ```
