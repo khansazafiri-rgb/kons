@@ -337,6 +337,9 @@ Atau pakai `deploy/update.sh` yang sudah ada di repo.
 - [ ] `admin_passwd` + `proxy_mode` + `list_db=False` di-set di Odoo
 - [ ] `ufw deny 8069/tcp` aktif di VM-2
 - [ ] `https://erp.pcvclassroom.id` HTTPS hijau, database `pcv` dibuat
+- [ ] Setelah database `pcv` dibuat, aktifkan proteksi IP untuk `/web/database/manager`
+      di `deploy/Caddyfile.odoo` (bagian `@dbmanager`, saat ini di-comment) — endpoint
+      itu bisa hapus seluruh database dan cuma dilindungi master password
 - [ ] API user `PCV Bridge` dibuat, key tersimpan di `pocketbase.env` (bukan di git)
 - [ ] Cron backup PocketBase + Odoo jalan, hasil backup diverifikasi sekali
 - [ ] Snapshot otomatis IDCloudHost aktif untuk kedua VM
