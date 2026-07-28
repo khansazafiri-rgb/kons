@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pasang Odoo 19 Community di Ubuntu 24.04.
+# Pasang Odoo 19 Community di Ubuntu 22.04/24.04.
 #
 # KAPAN DIPAKAI:
 #   - Opsi B: Odoo dijalankan di VM yang sama dengan PocketBase (VM >= 4 GB RAM), ATAU
@@ -27,9 +27,10 @@ apt-get install -y curl gnupg ca-certificates apt-transport-https \
   postgresql postgresql-client python3-pip
 
 echo "==> [2/6] Role PostgreSQL 'odoo'"
-# Odoo perlu CREATEDB untuk membuat database dari database manager.
+# Odoo cuma perlu CREATEDB untuk membuat database dari database manager —
+# JANGAN pakai -s (superuser), itu kasih akses ke semua database di server.
 if ! su - postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='odoo'\"" | grep -q 1; then
-  su - postgres -c "createuser -s odoo"
+  su - postgres -c "createuser -d odoo"
 fi
 
 echo "==> [3/6] Repo resmi Odoo ${ODOO_VERSION}"
@@ -64,6 +65,12 @@ fi
 chown odoo:odoo "$CONF"
 chmod 640 "$CONF"
 
+# Cadangan master password di file terkunci — jaga-jaga kalau scrollback
+# terminal hilang sebelum sempat dicatat manual.
+PWD_FILE=/root/.odoo-master-password
+echo "$MASTER_PWD" > "$PWD_FILE"
+chmod 600 "$PWD_FILE"
+
 echo "==> [6/6] Firewall + service"
 # Port Odoo tidak dibuka ke internet — akses lewat Caddy (lihat Caddyfile.odoo).
 if command -v ufw >/dev/null; then
@@ -86,7 +93,7 @@ cat <<EOF
 Odoo ${ODOO_VERSION} terpasang.
 
   Master password : ${MASTER_PWD}
-  (tersimpan juga di ${CONF} pada baris admin_passwd — CATAT SEKARANG)
+  (tersimpan juga di ${CONF} baris admin_passwd, dan di ${PWD_FILE} — CATAT SEKARANG)
 
 Langkah berikutnya:
   1. Pasang Caddy lalu:
