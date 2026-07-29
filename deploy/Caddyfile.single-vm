@@ -1,0 +1,68 @@
+# Caddyfile — SATU VM untuk web siswa + Odoo (Opsi B di DEPLOY_IDCLOUDHOST.md)
+#
+# Pakai file INI kalau Odoo dipasang di VM yang sama dengan PocketBase:
+#   sudo cp deploy/Caddyfile.single-vm /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# JANGAN pakai deploy/Caddyfile.odoo di setup satu-VM — file itu hanya berisi
+# blok erp.* saja, jadi kalau disalin ke /etc/caddy/Caddyfile ia MENIMPA config
+# web siswa dan pcvclassroom.com langsung mati.
+#
+# Prasyarat sebelum reload:
+#   - A record erp.pcvclassroom.com sudah mengarah ke IP VM ini
+#     (kalau belum, Caddy gagal ambil sertifikat untuk erp.* — web siswa tetap
+#     jalan, tapi log Caddy akan penuh percobaan ulang)
+#   - /etc/odoo/odoo.conf berisi proxy_mode=True, http_interface=127.0.0.1,
+#     list_db=False (lihat deploy/odoo.conf.example)
+
+# ───────────────────────── Web siswa + PocketBase ─────────────────────────
+pcvclassroom.com, www.pcvclassroom.com {
+	encode gzip
+
+	# API + realtime PocketBase
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8090
+	}
+
+	# Dashboard admin PocketBase (https://domainmu/_/)
+	handle /_/* {
+		reverse_proxy 127.0.0.1:8090
+	}
+
+	# Frontend React (hasil `npm run build` di apps/web)
+	handle {
+		root * /opt/pcv/kons/apps/web/dist
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# ───────────────────────────── Odoo (back office) ─────────────────────────
+erp.pcvclassroom.com {
+	encode gzip
+
+	# Bus/websocket Odoo (chat, notifikasi realtime) jalan di worker terpisah.
+	# Odoo 16+ memakai /websocket; /longpolling untuk versi lama.
+	handle /websocket {
+		reverse_proxy 127.0.0.1:8072
+	}
+	handle /longpolling/* {
+		reverse_proxy 127.0.0.1:8072
+	}
+
+	# Database manager hanya boleh dari IP kantor/rumah. Isi dengan IP publikmu
+	# lalu hapus tanda komentar — endpoint ini bisa drop seluruh database.
+	# @dbmanager {
+	# 	path /web/database/*
+	# 	not remote_ip 203.0.113.10
+	# }
+	# respond @dbmanager 403
+
+	# Aset statis Odoo aman di-cache lama karena URL-nya sudah ber-hash.
+	@assets path /web/assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	handle {
+		reverse_proxy 127.0.0.1:8069
+	}
+}

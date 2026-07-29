@@ -18,9 +18,9 @@ Odoo butuh PostgreSQL + worker Python — jauh lebih berat daripada PocketBase
 
 ```
                        ┌─ VM-1 "pcv-app"  (2 vCPU / 2 GB)
-Internet ──DNS──┤         Caddy + PocketBase + React  → pcvclassroom.id
+Internet ──DNS──┤         Caddy + PocketBase + React  → pcvclassroom.com
                        └─ VM-2 "pcv-odoo" (2 vCPU / 4 GB)
-                          Odoo + PostgreSQL           → erp.pcvclassroom.id
+                          Odoo + PostgreSQL           → erp.pcvclassroom.com
 ```
 
 - VM-2 dibuat lewat **App Catalog IDCloudHost (one-click deploy Odoo)** —
@@ -28,13 +28,17 @@ Internet ──DNS──┤         Caddy + PocketBase + React  → pcvclassroom
 - Kalau Odoo bermasalah, web siswa tetap hidup. Backup & restore terpisah.
 - Ini yang dipakai sebagai default di seluruh dokumen ini.
 
-### Opsi B — Satu VM (lebih hemat)
+### Opsi B — Satu VM (lebih hemat, TIDAK perlu bayar VM tambahan)
 
 Satu VPS **minimal 4 GB RAM / 2 vCPU / 80 GB disk** menjalankan Caddy +
 PocketBase + Odoo + PostgreSQL. Pakai `deploy/setup-odoo.sh` untuk memasang
 Odoo di VM yang sama. Cocok kalau trafik masih kecil dan mau hemat biaya.
 
 > Jangan pakai VPS 1 GB untuk Odoo. Odoo akan OOM saat instal modul.
+
+**Langkah lengkapnya ada di [§8 di bawah](#8-opsi-b--pasang-odoo-di-vm-yang-sama).**
+Bagian §1b, §2 (baris `erp`), dan §5 di dokumen ini ditulis untuk Opsi A —
+lewati kalau kamu pakai Opsi B.
 
 ---
 
@@ -73,7 +77,7 @@ database*, instalasi berhasil.
 
 ## 2. Arahkan DNS
 
-Di pengelola DNS domain (`pcvclassroom.id`), buat:
+Di pengelola DNS domain (`pcvclassroom.com`), buat:
 
 | Type | Name  | Value        | Keterangan            |
 |------|-------|--------------|-----------------------|
@@ -81,7 +85,7 @@ Di pengelola DNS domain (`pcvclassroom.id`), buat:
 | A    | `www` | IP VM-1      | opsional              |
 | A    | `erp` | IP VM-2      | Odoo (back office)    |
 
-Tunggu propagasi (cek `dig +short erp.pcvclassroom.id`). Caddy baru bisa
+Tunggu propagasi (cek `dig +short erp.pcvclassroom.com`). Caddy baru bisa
 menerbitkan sertifikat HTTPS setelah DNS mengarah dengan benar.
 
 ---
@@ -118,8 +122,8 @@ sudo cp /opt/pcv/kons/deploy/Caddyfile /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
-Buka `https://pcvclassroom.id` → aplikasi jalan. Dashboard PocketBase di
-`https://pcvclassroom.id/_/`.
+Buka `https://pcvclassroom.com` → aplikasi jalan. Dashboard PocketBase di
+`https://pcvclassroom.com/_/`.
 
 ---
 
@@ -143,7 +147,7 @@ sudo systemctl start pocketbase
 sudo journalctl -u pocketbase -f      # pastikan migration jalan tanpa error
 ```
 
-Cek `https://pcvclassroom.id/_/` → jumlah record `users`, `questions`,
+Cek `https://pcvclassroom.com/_/` → jumlah record `users`, `questions`,
 `ppt_files` harus sama dengan di server lama.
 
 **Kalau data lama ikut membawa settings terenkripsi** dan PocketBase menolak
@@ -224,11 +228,11 @@ cp /opt/pcv/kons/deploy/Caddyfile.odoo /etc/caddy/Caddyfile
 systemctl reload caddy
 ```
 
-Buka `https://erp.pcvclassroom.id` → halaman Odoo dengan HTTPS.
+Buka `https://erp.pcvclassroom.com` → halaman Odoo dengan HTTPS.
 
 ### 5d. Buat database Odoo
 
-Di `https://erp.pcvclassroom.id/web/database/manager`:
+Di `https://erp.pcvclassroom.com/web/database/manager`:
 
 - Master Password: yang kamu set di `admin_passwd`
 - Database Name: `pcv`
@@ -245,7 +249,7 @@ Daftar modul lengkap per kebutuhan PCV ada di `ODOO_INTEGRATION.md` §3.
 Odoo diakses aplikasi lewat External API. Jangan pakai akun admin.
 
 1. **Settings → Users & Companies → Users → New**
-   - Name: `PCV Bridge`, Login: `bridge@pcvclassroom.id`
+   - Name: `PCV Bridge`, Login: `bridge@pcvclassroom.com`
    - Access Rights: Sales `User: all documents`, Invoicing `Billing`, Contacts `User`
 2. Simpan, lalu buka **Preferences → Account Security → New API Key**,
    beri nama `pcv-app`, salin key-nya (hanya tampil sekali).
@@ -256,9 +260,9 @@ sudo nano /opt/pcv/pocketbase.env
 ```
 
 ```ini
-ODOO_URL=https://erp.pcvclassroom.id
+ODOO_URL=https://erp.pcvclassroom.com
 ODOO_DB=pcv
-ODOO_USER=bridge@pcvclassroom.id
+ODOO_USER=bridge@pcvclassroom.com
 ODOO_API_KEY=isi_api_key_dari_langkah_2
 ```
 
@@ -270,9 +274,9 @@ sudo systemctl restart pocketbase
 Uji koneksi dari VM-1:
 
 ```bash
-curl -s https://erp.pcvclassroom.id/web/session/authenticate \
+curl -s https://erp.pcvclassroom.com/web/session/authenticate \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","params":{"db":"pcv","login":"bridge@pcvclassroom.id","password":"API_KEY"}}' \
+  -d '{"jsonrpc":"2.0","params":{"db":"pcv","login":"bridge@pcvclassroom.com","password":"API_KEY"}}' \
   | head -c 300
 ```
 
@@ -332,11 +336,11 @@ Atau pakai `deploy/update.sh` yang sudah ada di repo.
 - [ ] DNS `@` dan `erp` diarahkan, propagasi selesai
 - [ ] `setup-vps.sh` jalan di VM-1, PocketBase `active (running)`
 - [ ] `pb_data` dari Hostinger ter-rsync, jumlah record cocok
-- [ ] Frontend ter-build, `https://pcvclassroom.id` bisa dibuka
+- [ ] Frontend ter-build, `https://pcvclassroom.com` bisa dibuka
 - [ ] Login siswa, buka PPT, kerjakan CBT, simpan soal di admin — semua OK
 - [ ] `admin_passwd` + `proxy_mode` + `list_db=False` di-set di Odoo
 - [ ] `ufw deny 8069/tcp` aktif di VM-2
-- [ ] `https://erp.pcvclassroom.id` HTTPS hijau, database `pcv` dibuat
+- [ ] `https://erp.pcvclassroom.com` HTTPS hijau, database `pcv` dibuat
 - [ ] Setelah database `pcv` dibuat, aktifkan proteksi IP untuk `/web/database/manager`
       di `deploy/Caddyfile.odoo` (bagian `@dbmanager`, saat ini di-comment) — endpoint
       itu bisa hapus seluruh database dan cuma dilindungi master password
@@ -347,11 +351,96 @@ Atau pakai `deploy/update.sh` yang sudah ada di repo.
 
 ---
 
+## 8. Opsi B — pasang Odoo di VM yang sama
+
+Dipakai kalau **tidak mau bayar VM kedua**. Odoo menumpang di VPS yang sudah
+menjalankan Caddy + PocketBase + React.
+
+### 8a. Pastikan VM sanggup
+
+```bash
+free -h        # butuh >= 4 GB total (kolom "Mem" baris "total")
+df -h /        # butuh sisa >= 20 GB di kolom "Avail"
+nproc          # idealnya >= 2
+```
+
+Kalau RAM di bawah 4 GB, **jangan dilanjutkan** — Odoo akan OOM saat instal
+modul dan bisa ikut menyeret PocketBase. Naikkan dulu spek VM di panel
+IDCloudHost, atau pakai Opsi A.
+
+### 8b. Backup dulu sebelum menyentuh apa pun
+
+```bash
+sudo /opt/pcv/kons/deploy/backup-pocketbase.sh
+```
+
+### 8c. Arahkan subdomain `erp`
+
+Di pengelola DNS domain, tambah **satu** record baru (VM-nya sama, jadi IP-nya
+sama dengan yang sudah ada):
+
+| Type | Name  | Value                | Keterangan          |
+|------|-------|----------------------|---------------------|
+| A    | `erp` | IP VM (sama dgn `@`) | Odoo (back office)  |
+
+Tunggu sampai `dig +short erp.pcvclassroom.com` menampilkan IP tersebut.
+Kalau belum, Caddy gagal menerbitkan sertifikat untuk `erp.*` di langkah 8e.
+
+### 8d. Pasang Odoo
+
+```bash
+sudo bash /opt/pcv/kons/deploy/setup-odoo.sh
+```
+
+Script ini memasang PostgreSQL + Odoo, membuat role DB `odoo` (tanpa
+superuser), menulis `/etc/odoo/odoo.conf` dari `odoo.conf.example` dengan
+master password acak, dan menyimpan salinan password di
+`/root/.odoo-master-password`. **Catat master password yang tampil di akhir.**
+
+Cek Odoo hidup:
+
+```bash
+systemctl status odoo
+```
+
+### 8e. Pasang Caddyfile gabungan
+
+Di setup satu VM, Caddy harus melayani **dua** domain sekaligus. Karena itu
+pakai `Caddyfile.single-vm` — bukan `Caddyfile.odoo` (yang isinya cuma blok
+`erp.*` dan akan mematikan web siswa):
+
+```bash
+sudo cp /opt/pcv/kons/deploy/Caddyfile.single-vm /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+sudo journalctl -u caddy -n 30 --no-pager   # pastikan sertifikat erp.* terbit
+```
+
+Cek kedua domain masih hidup:
+
+```bash
+curl -sI https://pcvclassroom.com | head -1      # harus 200
+curl -sI https://erp.pcvclassroom.com | head -1  # harus 200 / 303
+```
+
+> Mulai sekarang `deploy/update.sh` **tidak** menyentuh `/etc/caddy/Caddyfile`,
+> jadi config gabungan ini aman. Tapi kalau suatu saat kamu menyalin ulang
+> `deploy/Caddyfile` (yang hanya berisi web siswa) ke `/etc/caddy/Caddyfile`,
+> Odoo akan hilang dari Caddy — salin `Caddyfile.single-vm` lagi.
+
+### 8f. Lanjutkan ke §5d
+
+Buat database `pcv`, install modul, dan buat API user — langkahnya sama persis
+dengan Opsi A, cuma domainnya `erp.pcvclassroom.com` di VM yang sama.
+
+---
+
 ## Troubleshooting
 
 | Gejala | Cek |
 |---|---|
 | PocketBase gagal start | `journalctl -u pocketbase -f` |
+| Web siswa mati setelah pasang Odoo | `/etc/caddy/Caddyfile` ketimpa `Caddyfile.odoo`. Salin `deploy/Caddyfile.single-vm` lalu `systemctl reload caddy` |
+| `apt-get install odoo` gagal soal versi Python | Odoo 19 butuh Python baru. Turunkan `ODOO_VERSION` di `deploy/setup-odoo.sh` ke `18.0`, lalu jalankan ulang |
 | Caddy tidak dapat sertifikat | DNS belum propagasi, atau port 80 tertutup firewall |
 | Odoo 502 lewat Caddy | `systemctl status odoo`; pastikan `http_interface=127.0.0.1` dan Caddy proxy ke `127.0.0.1:8069` |
 | Link di email Odoo masih `http://IP` | `proxy_mode = True` belum di-set, atau Settings → General → Web Base URL salah |
