@@ -17,24 +17,57 @@ const sortManagers = (list) =>
 // Halaman "Tim Kami" — pengajar & manager dalam satu tempat.
 // Data diambil dari database (collection landing_team) supaya bisa dikelola
 // admin; kalau DB kosong/gagal pakai data bawaan team.js.
+//
+// Dua tingkat penyembunyian, keduanya diatur dari panel admin:
+//  - per orang  : landing_team.hidden = true
+//  - per section: landing_settings.hideTeachers / hideManagers = true
+//    (judul & deskripsi section ikut hilang — seolah section itu tidak ada)
 export default function TeamPage() {
   const [teachers, setTeachers] = useState(TEACHERS_FALLBACK);
   const [managers, setManagers] = useState(sortManagers(MANAGERS_FALLBACK));
+  const [hideTeachers, setHideTeachers] = useState(false);
+  const [hideManagers, setHideManagers] = useState(false);
 
   useEffect(() => {
     let alive = true;
     pb.collection('landing_team')
-      .getFullList({ sort: 'order', fields: 'kind,name,photo,bidang,achievements,category,quote,instagram,order' })
+      // Sengaja tanpa parameter `fields`: kolom hidden/extras baru ada setelah
+      // migrasi terbaru dijalankan, dan datanya cuma puluhan baris.
+      .getFullList({ sort: 'order' })
       .then((rows) => {
-        if (!alive) return;
-        const t = rows.filter((r) => r.kind === 'teacher');
-        const m = rows.filter((r) => r.kind === 'manager');
-        if (t.length) setTeachers(t);
-        if (m.length) setManagers(sortManagers(m));
+        if (!alive || !rows.length) return; // DB kosong → tetap pakai fallback
+        // Filter "hidden" dilakukan di sini (bukan di query) supaya kalau SEMUA
+        // orang disembunyikan, hasilnya tetap dianggap "DB ada isinya" dan tidak
+        // jatuh balik ke data bawaan team.js.
+        const visible = rows.filter((r) => !r.hidden);
+        setTeachers(visible.filter((r) => r.kind === 'teacher'));
+        setManagers(sortManagers(visible.filter((r) => r.kind === 'manager')));
       })
       .catch(() => {}); // biarkan pakai fallback
+
+    pb.collection('landing_settings')
+      .getFullList()
+      .then((rows) => {
+        if (!alive || !rows[0]) return;
+        setHideTeachers(!!rows[0].hideTeachers);
+        setHideManagers(!!rows[0].hideManagers);
+      })
+      .catch(() => {}); // collection belum ada → tampilkan semua
+
     return () => { alive = false; };
   }, []);
+
+  const showTeachers = !hideTeachers && teachers.length > 0;
+  const showManagers = !hideManagers && managers.length > 0;
+
+  const intro =
+    showTeachers && showManagers
+      ? 'Dari tentor peraih medali sampai tim manajemen yang menjalankan roda PCV — kenalan dulu sebelum belajar bareng.'
+      : showTeachers
+      ? 'Kenalan dulu dengan para tentor peraih medali yang akan menemanimu belajar di PCV.'
+      : showManagers
+      ? 'Kenalan dulu dengan tim di balik layar yang menjalankan roda PCV Classroom.'
+      : 'Profil tim PCV sedang kami perbarui. Sementara ini kamu bisa menghubungi admin untuk info lebih lanjut.';
 
   return (
     <LandingLayout>
@@ -44,48 +77,49 @@ export default function TeamPage() {
           <h1 className="font-display text-4xl font-semibold leading-tight mb-4">
             Orang-Orang di Balik PCV
           </h1>
-          <p className="text-stone-600 text-lg leading-relaxed">
-            Dari tentor peraih medali sampai tim manajemen yang menjalankan roda PCV —
-            kenalan dulu sebelum belajar bareng.
-          </p>
+          <p className="text-stone-600 text-lg leading-relaxed">{intro}</p>
         </motion.div>
       </section>
 
       {/* TIM PENGAJAR */}
-      <section id="teachers" className="bg-alba-100/70 border-y border-alba-200">
-        <div className="max-w-6xl mx-auto px-6 py-16">
+      {showTeachers && (
+        <section id="teachers" className="bg-alba-100/70 border-y border-alba-200">
+          <div className="max-w-6xl mx-auto px-6 py-16">
+            <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-10">
+              <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM PENGAJAR</p>
+              <h2 className="font-display text-3xl font-semibold mb-3">Diajar Langsung oleh Para Juara</h2>
+              <p className="text-stone-600 leading-relaxed">
+                Pengajar PCV adalah peraih medali olimpiade kedokteran — mereka tahu persis
+                cara belajar yang efektif untuk menembus kompetisi dan ujian.
+              </p>
+            </motion.div>
+            <Carousel>
+              {teachers.map((t, i) => (
+                <TeacherCard key={t.name + i} t={t} />
+              ))}
+            </Carousel>
+          </div>
+        </section>
+      )}
+
+      {/* TIM MANAGER */}
+      {showManagers && (
+        <section id="managers" className="max-w-6xl mx-auto px-6 py-16">
           <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-10">
-            <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM PENGAJAR</p>
-            <h2 className="font-display text-3xl font-semibold mb-3">Diajar Langsung oleh Para Juara</h2>
+            <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM MANAGER</p>
+            <h2 className="font-display text-3xl font-semibold mb-3">Struktur Kepengurusan PCV</h2>
             <p className="text-stone-600 leading-relaxed">
-              Pengajar PCV adalah peraih medali olimpiade kedokteran — mereka tahu persis
-              cara belajar yang efektif untuk menembus kompetisi dan ujian.
+              Tim di balik layar yang menjalankan PCV Classroom — dari kepemimpinan,
+              pengembangan, operasional, hingga pemasaran.
             </p>
           </motion.div>
           <Carousel>
-            {teachers.map((t, i) => (
-              <TeacherCard key={t.name + i} t={t} />
+            {managers.map((m, i) => (
+              <ManagerCard key={m.name + i} m={m} />
             ))}
           </Carousel>
-        </div>
-      </section>
-
-      {/* TIM MANAGER */}
-      <section id="managers" className="max-w-6xl mx-auto px-6 py-16">
-        <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-10">
-          <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM MANAGER</p>
-          <h2 className="font-display text-3xl font-semibold mb-3">Struktur Kepengurusan PCV</h2>
-          <p className="text-stone-600 leading-relaxed">
-            Tim di balik layar yang menjalankan PCV Classroom — dari kepemimpinan,
-            pengembangan, operasional, hingga pemasaran.
-          </p>
-        </motion.div>
-        <Carousel>
-          {managers.map((m, i) => (
-            <ManagerCard key={m.name + i} m={m} />
-          ))}
-        </Carousel>
-      </section>
+        </section>
+      )}
     </LandingLayout>
   );
 }
@@ -171,6 +205,24 @@ function ProfilePhoto({ photo, name, badge }) {
   );
 }
 
+// Deskripsi tambahan bebas di luar field bawaan — diisi admin per orang,
+// mis. { label: "Makanan Kesukaan", value: "Rawon" }. Berlaku untuk pengajar
+// maupun management.
+function ExtraInfo({ extras }) {
+  const list = (Array.isArray(extras) ? extras : []).filter((x) => x && (x.label || x.value));
+  if (!list.length) return null;
+  return (
+    <dl className="mt-4 pt-4 border-t border-alba-200 space-y-1.5">
+      {list.map((x, i) => (
+        <div key={i} className="flex gap-2 text-xs leading-relaxed">
+          {x.label && <dt className="font-bold text-stone-500 shrink-0">{x.label}:</dt>}
+          <dd className="text-stone-600 min-w-0">{x.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function TeacherCard({ t }) {
   return (
     <div className="group h-full rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
@@ -196,6 +248,8 @@ function TeacherCard({ t }) {
             </ul>
           </div>
         )}
+
+        <ExtraInfo extras={t.extras} />
 
         {t.instagram && (
           <a
@@ -225,6 +279,7 @@ function ManagerCard({ m }) {
         {m.quote && (
           <p className="text-sm text-stone-600 italic leading-relaxed mt-3">"{m.quote}"</p>
         )}
+        <ExtraInfo extras={m.extras} />
         {m.instagram && (
           <a
             href={m.instagram}

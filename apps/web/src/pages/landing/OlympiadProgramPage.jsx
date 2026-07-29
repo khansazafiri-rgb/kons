@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Award, Globe2, MessageCircle, Target, Trophy, Users } from 'lucide-react';
+import { Award, CalendarClock, Globe2, MessageCircle, Target, Trophy, Users } from 'lucide-react';
 import LandingLayout, { WA_CP, fadeUp } from './LandingLayout';
 
 // Daftar kesempatan olimpiade FK — dari materi promosi PCV (slide "Kesempatan
@@ -85,6 +85,19 @@ export default function OlympiadProgramPage() {
               Kalender kesempatan olimpiade FK sepanjang tahun — nasional maupun
               internasional. Pilih targetmu, kami siapkan pembinaannya.
             </p>
+          </motion.div>
+          {/* Penegasan bahwa kolom Timeline di tabel bawah sifatnya perkiraan */}
+          <motion.div {...fadeUp} className="mb-5 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/50 px-5 py-4">
+            <CalendarClock size={17} className="text-gold-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-display font-semibold text-stone-800">Estimasi Timeline</p>
+              <p className="text-sm text-stone-600 leading-relaxed mt-1">
+                Bulan pelaksanaan pada tabel di bawah adalah <b>perkiraan</b> berdasarkan
+                penyelenggaraan tahun-tahun sebelumnya. Jadwal resmi bisa bergeser, jadi
+                selalu cek pengumuman panitia masing-masing lomba. Kami bantu susun
+                rencana pembinaannya begitu tanggal pastinya keluar.
+              </p>
+            </div>
           </motion.div>
           <motion.div {...fadeUp} className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-x-auto">
             <table className="w-full text-sm min-w-[720px]">
