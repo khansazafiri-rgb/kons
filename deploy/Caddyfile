@@ -1,11 +1,12 @@
 # Caddyfile — PCV Classroom
 # Pasang: sudo cp deploy/Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy
 #
-# GANTI "pcvclassroom.id" dengan domainmu (atau pakai IP VPS sementara —
-# kalau pakai IP, ganti baris pertama jadi ":80" karena HTTPS butuh domain).
-# Caddy otomatis mengurus sertifikat HTTPS (Let's Encrypt) kalau pakai domain.
+# Domain: pcvclassroom.com (kalau ganti domain lagi nanti, ganti baris
+# pertama di bawah — atau pakai IP VPS sementara: ganti jadi ":80" karena
+# HTTPS butuh domain). Caddy otomatis mengurus sertifikat HTTPS (Let's Encrypt)
+# kalau pakai domain, ASALKAN A record domain sudah mengarah ke IP VPS ini.
 
-pcvclassroom.id {
+pcvclassroom.com, www.pcvclassroom.com {
 	encode gzip
 
 	# API + realtime PocketBase
