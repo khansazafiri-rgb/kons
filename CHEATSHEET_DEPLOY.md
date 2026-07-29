@@ -133,10 +133,82 @@ tanpa lewat SSH.
 - **Preview link WhatsApp di-cache.** Setelah judul/deskripsi web diubah,
   preview lama bisa bertahan berjam-jam. Untuk memaksa refresh: kirim
   link-nya dengan tambahan `?v=2` di belakang (mis.
-  `pcvclassroom.duckdns.org/?v=2`) — WhatsApp menganggapnya link baru.
+  `pcvclassroom.com/?v=2`) — WhatsApp menganggapnya link baru.
 - **Repo di VPS dimiliki user `pcv`.** Kalau menjalankan `git` manual,
   selalu pakai `sudo -u pcv git -C /opt/pcv/kons ...`, jangan sebagai root —
   kalau tidak akan muncul error *dubious ownership*.
-- **Kalau pindah ke domain `.com` nanti**, tiga tempat ini harus diganti:
-  `/etc/caddy/Caddyfile`, `deploy/Caddyfile` di repo, dan `og:url` + `og:image`
-  di `apps/web/index.html`.
+- **Domain resmi sekarang `pcvclassroom.com`** (sebelumnya pakai
+  `pcvclassroom.duckdns.org` sementara). Langkah pindahnya ada di bagian 7
+  di bawah — kalau ganti domain lagi nanti, ulangi pola yang sama.
+
+---
+
+## 7. Pindah ke domain baru (mis. baru beli `.com` di Hostinger)
+
+IP VPS: `103.217.226.232` (VPS `khansa` di IDCloudHost).
+
+### 7.1 Arahkan domain ke VPS (di Hostinger)
+
+Di panel Hostinger, buka **Domain → pcvclassroom.com → DNS/Nameserver**,
+lalu masuk ke tab **DNS record** (BUKAN tab "Child nameserver" — itu untuk
+kebutuhan lain, tidak dipakai di sini). Tambah/ubah:
+
+| Tipe  | Nama | Isi               | TTL       |
+|-------|------|-------------------|-----------|
+| A     | @    | `103.217.226.232` | (default) |
+| A     | www  | `103.217.226.232` | (default) |
+
+Kalau sudah ada A record lama (mis. mengarah ke parking page Hostinger),
+edit isinya jadi IP di atas — jangan tambah baris baru supaya tidak dobel.
+
+Tunggu propagasi DNS (biasanya menit, kadang sampai ±1 jam). Cek dari
+komputer sendiri:
+
+```bash
+dig +short pcvclassroom.com
+dig +short www.pcvclassroom.com
+```
+
+Lanjut ke langkah VPS begitu keduanya menampilkan `103.217.226.232`.
+
+### 7.2 Update kode di VPS
+
+```bash
+ssh -i ~/.ssh/id_ed25519 khansa@103.217.226.232
+sudo bash /opt/pcv/kons/deploy/update.sh
+```
+
+Ini menarik perubahan `deploy/Caddyfile` & `apps/web/index.html` yang sudah
+diganti ke `pcvclassroom.com`.
+
+### 7.3 Pasang Caddyfile baru & isi APP_URL
+
+```bash
+sudo cp /opt/pcv/kons/deploy/Caddyfile /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+Caddy otomatis mengurus sertifikat HTTPS (Let's Encrypt) untuk
+`pcvclassroom.com` dan `www.pcvclassroom.com` begitu DNS-nya sudah
+mengarah ke VPS ini — tidak perlu langkah manual tambahan.
+
+Lalu update `APP_URL` (dipakai untuk link di email reset password/notifikasi
+sign up):
+
+```bash
+sudo nano /opt/pcv/pocketbase.env
+# ubah baris APP_URL= jadi:
+# APP_URL=https://pcvclassroom.com
+sudo systemctl restart pocketbase
+```
+
+### 7.4 Cek hasilnya
+
+- Buka `https://pcvclassroom.com` → web tampil dengan gembok HTTPS.
+- Buka `https://pcvclassroom.com/_/` → dashboard admin PocketBase tampil.
+- Kirim link web ke WhatsApp → preview judul/gambar muncul benar (kalau
+  masih preview lama, pakai trik `?v=2` di bagian 6 di atas).
+
+Domain lama `pcvclassroom.duckdns.org` boleh dibiarkan (tidak akan
+mengarah ke mana-mana yang salah) atau dihapus dari DuckDNS kalau sudah
+tidak dipakai sama sekali.
