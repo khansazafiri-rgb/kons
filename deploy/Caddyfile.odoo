@@ -3,7 +3,7 @@
 # Pasang di VM-2 (VM hasil App Catalog IDCloudHost):
 #   sudo cp deploy/Caddyfile.odoo /etc/caddy/Caddyfile && sudo systemctl reload caddy
 #
-# GANTI "erp.pcvclassroom.id" dengan subdomain ERP-mu. Caddy mengurus HTTPS
+# GANTI "erp.pcvclassroom.com" dengan subdomain ERP-mu. Caddy mengurus HTTPS
 # (Let's Encrypt) otomatis selama A record sudah mengarah ke IP VM ini.
 #
 # Prasyarat di /etc/odoo/odoo.conf (lihat deploy/odoo.conf.example):
@@ -11,7 +11,7 @@
 #   http_interface  = 127.0.0.1   <- Odoo hanya mendengar localhost
 #   list_db         = False       <- daftar database tidak bocor ke publik
 
-erp.pcvclassroom.id {
+erp.pcvclassroom.com {
 	encode gzip
 
 	# Bus/websocket Odoo (chat, notifikasi realtime) jalan di worker terpisah.
