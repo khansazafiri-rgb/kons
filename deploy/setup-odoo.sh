@@ -96,9 +96,18 @@ Odoo ${ODOO_VERSION} terpasang.
   (tersimpan juga di ${CONF} baris admin_passwd, dan di ${PWD_FILE} — CATAT SEKARANG)
 
 Langkah berikutnya:
-  1. Pasang Caddy lalu:
-       cp ${REPO_DIR}/deploy/Caddyfile.odoo /etc/caddy/Caddyfile
-       # ganti domain erp.* di dalamnya lebih dulu
+  1. Pasang Caddyfile — PILIH SESUAI SETUP:
+
+     a) Odoo SATU VM bareng web siswa (Opsi B):
+          cp ${REPO_DIR}/deploy/Caddyfile.single-vm /etc/caddy/Caddyfile
+        File itu berisi blok web siswa DAN blok erp.* sekaligus.
+        JANGAN pakai Caddyfile.odoo di sini — isinya cuma blok erp.*,
+        web siswa akan ketimpa dan mati.
+
+     b) Odoo di VM terpisah (Opsi A):
+          cp ${REPO_DIR}/deploy/Caddyfile.odoo /etc/caddy/Caddyfile
+
+     Ganti domain erp.* di dalamnya kalau berbeda, lalu:
        systemctl reload caddy
   2. Buka https://erp.DOMAINMU/web/database/manager
      -> buat database bernama "pcv" (jangan centang Demo data)

@@ -28,13 +28,17 @@ Internet ──DNS──┤         Caddy + PocketBase + React  → pcvclassroom
 - Kalau Odoo bermasalah, web siswa tetap hidup. Backup & restore terpisah.
 - Ini yang dipakai sebagai default di seluruh dokumen ini.
 
-### Opsi B — Satu VM (lebih hemat)
+### Opsi B — Satu VM (lebih hemat, TIDAK perlu bayar VM tambahan)
 
 Satu VPS **minimal 4 GB RAM / 2 vCPU / 80 GB disk** menjalankan Caddy +
 PocketBase + Odoo + PostgreSQL. Pakai `deploy/setup-odoo.sh` untuk memasang
 Odoo di VM yang sama. Cocok kalau trafik masih kecil dan mau hemat biaya.
 
 > Jangan pakai VPS 1 GB untuk Odoo. Odoo akan OOM saat instal modul.
+
+**Langkah lengkapnya ada di [§8 di bawah](#8-opsi-b--pasang-odoo-di-vm-yang-sama).**
+Bagian §1b, §2 (baris `erp`), dan §5 di dokumen ini ditulis untuk Opsi A —
+lewati kalau kamu pakai Opsi B.
 
 ---
 
@@ -347,11 +351,96 @@ Atau pakai `deploy/update.sh` yang sudah ada di repo.
 
 ---
 
+## 8. Opsi B — pasang Odoo di VM yang sama
+
+Dipakai kalau **tidak mau bayar VM kedua**. Odoo menumpang di VPS yang sudah
+menjalankan Caddy + PocketBase + React.
+
+### 8a. Pastikan VM sanggup
+
+```bash
+free -h        # butuh >= 4 GB total (kolom "Mem" baris "total")
+df -h /        # butuh sisa >= 20 GB di kolom "Avail"
+nproc          # idealnya >= 2
+```
+
+Kalau RAM di bawah 4 GB, **jangan dilanjutkan** — Odoo akan OOM saat instal
+modul dan bisa ikut menyeret PocketBase. Naikkan dulu spek VM di panel
+IDCloudHost, atau pakai Opsi A.
+
+### 8b. Backup dulu sebelum menyentuh apa pun
+
+```bash
+sudo /opt/pcv/kons/deploy/backup-pocketbase.sh
+```
+
+### 8c. Arahkan subdomain `erp`
+
+Di pengelola DNS domain, tambah **satu** record baru (VM-nya sama, jadi IP-nya
+sama dengan yang sudah ada):
+
+| Type | Name  | Value                | Keterangan          |
+|------|-------|----------------------|---------------------|
+| A    | `erp` | IP VM (sama dgn `@`) | Odoo (back office)  |
+
+Tunggu sampai `dig +short erp.pcvclassroom.com` menampilkan IP tersebut.
+Kalau belum, Caddy gagal menerbitkan sertifikat untuk `erp.*` di langkah 8e.
+
+### 8d. Pasang Odoo
+
+```bash
+sudo bash /opt/pcv/kons/deploy/setup-odoo.sh
+```
+
+Script ini memasang PostgreSQL + Odoo, membuat role DB `odoo` (tanpa
+superuser), menulis `/etc/odoo/odoo.conf` dari `odoo.conf.example` dengan
+master password acak, dan menyimpan salinan password di
+`/root/.odoo-master-password`. **Catat master password yang tampil di akhir.**
+
+Cek Odoo hidup:
+
+```bash
+systemctl status odoo
+```
+
+### 8e. Pasang Caddyfile gabungan
+
+Di setup satu VM, Caddy harus melayani **dua** domain sekaligus. Karena itu
+pakai `Caddyfile.single-vm` — bukan `Caddyfile.odoo` (yang isinya cuma blok
+`erp.*` dan akan mematikan web siswa):
+
+```bash
+sudo cp /opt/pcv/kons/deploy/Caddyfile.single-vm /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+sudo journalctl -u caddy -n 30 --no-pager   # pastikan sertifikat erp.* terbit
+```
+
+Cek kedua domain masih hidup:
+
+```bash
+curl -sI https://pcvclassroom.com | head -1      # harus 200
+curl -sI https://erp.pcvclassroom.com | head -1  # harus 200 / 303
+```
+
+> Mulai sekarang `deploy/update.sh` **tidak** menyentuh `/etc/caddy/Caddyfile`,
+> jadi config gabungan ini aman. Tapi kalau suatu saat kamu menyalin ulang
+> `deploy/Caddyfile` (yang hanya berisi web siswa) ke `/etc/caddy/Caddyfile`,
+> Odoo akan hilang dari Caddy — salin `Caddyfile.single-vm` lagi.
+
+### 8f. Lanjutkan ke §5d
+
+Buat database `pcv`, install modul, dan buat API user — langkahnya sama persis
+dengan Opsi A, cuma domainnya `erp.pcvclassroom.com` di VM yang sama.
+
+---
+
 ## Troubleshooting
 
 | Gejala | Cek |
 |---|---|
 | PocketBase gagal start | `journalctl -u pocketbase -f` |
+| Web siswa mati setelah pasang Odoo | `/etc/caddy/Caddyfile` ketimpa `Caddyfile.odoo`. Salin `deploy/Caddyfile.single-vm` lalu `systemctl reload caddy` |
+| `apt-get install odoo` gagal soal versi Python | Odoo 19 butuh Python baru. Turunkan `ODOO_VERSION` di `deploy/setup-odoo.sh` ke `18.0`, lalu jalankan ulang |
 | Caddy tidak dapat sertifikat | DNS belum propagasi, atau port 80 tertutup firewall |
 | Odoo 502 lewat Caddy | `systemctl status odoo`; pastikan `http_interface=127.0.0.1` dan Caddy proxy ke `127.0.0.1:8069` |
 | Link di email Odoo masih `http://IP` | `proxy_mode = True` belum di-set, atau Settings → General → Web Base URL salah |

@@ -1,7 +1,12 @@
-# Caddyfile — VM Odoo (back office PCV)
+# Caddyfile — VM Odoo TERPISAH (Opsi A: arsitektur 2 VM)
 #
-# Pasang di VM-2 (VM hasil App Catalog IDCloudHost):
+# Pasang di VM-2 (VM khusus Odoo):
 #   sudo cp deploy/Caddyfile.odoo /etc/caddy/Caddyfile && sudo systemctl reload caddy
+#
+# ⚠️ JANGAN pakai file ini kalau Odoo satu VM dengan web siswa (Opsi B) —
+# isinya cuma blok erp.*, jadi menyalinnya ke /etc/caddy/Caddyfile akan
+# MENIMPA config web siswa dan pcvclassroom.com langsung mati.
+# Untuk satu VM, pakai deploy/Caddyfile.single-vm (berisi kedua blok).
 #
 # GANTI "erp.pcvclassroom.com" dengan subdomain ERP-mu. Caddy mengurus HTTPS
 # (Let's Encrypt) otomatis selama A record sudah mengarah ke IP VM ini.
