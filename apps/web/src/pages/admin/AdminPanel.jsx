@@ -2119,7 +2119,8 @@ function LandingPageManager() {
   const [error, setError] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [editing, setEditing] = useState(null); // id record, 'new', atau null
-  const EMPTY = { name: '', photo: '', bidang: '', achievements: '', category: MANAGER_CATEGORIES[0], quote: '', instagram: '' };
+  const [settings, setSettings] = useState(null); // record landing_settings (1 baris)
+  const EMPTY = { name: '', photo: '', bidang: '', achievements: '', category: MANAGER_CATEGORIES[0], quote: '', instagram: '', extras: [] };
   const [form, setForm] = useState(EMPTY);
 
   const load = () => {
@@ -2131,7 +2132,31 @@ function LandingPageManager() {
   };
   useEffect(() => { setEditing(null); setForm(EMPTY); setOkMsg(''); load(); }, [kind]);
 
-  const startNew = () => { setEditing('new'); setForm({ ...EMPTY }); setOkMsg(''); };
+  // Pengaturan tampil/sembunyi SELURUH section di landing page.
+  useEffect(() => {
+    pb.collection('landing_settings')
+      .getFullList()
+      .then((r) => setSettings(r[0] || null))
+      .catch(() => setSettings(null));
+  }, []);
+
+  const toggleSection = async (field) => {
+    if (!settings) {
+      setError('Pengaturan section belum tersedia — jalankan migrasi PocketBase terbaru (landing_settings) dulu.');
+      return;
+    }
+    setError('');
+    try {
+      const rec = await pb.collection('landing_settings').update(settings.id, { [field]: !settings[field] });
+      setSettings(rec);
+      const label = field === 'hideTeachers' ? 'Tim Pengajar' : 'Tim Management';
+      setOkMsg(rec[field] ? `Section ${label} disembunyikan dari landing page.` : `Section ${label} kembali ditampilkan.`);
+    } catch (e) {
+      setError('Gagal mengubah pengaturan: ' + (e?.message || '') + ' — pastikan Anda login sebagai admin.');
+    }
+  };
+
+  const startNew = () => { setEditing('new'); setForm({ ...EMPTY, extras: [] }); setOkMsg(''); };
   const startEdit = (r) => {
     setOkMsg('');
     setEditing(r.id);
@@ -2143,9 +2168,16 @@ function LandingPageManager() {
       category: r.category || MANAGER_CATEGORIES[0],
       quote: r.quote || '',
       instagram: r.instagram || '',
+      extras: Array.isArray(r.extras) ? r.extras.map((x) => ({ label: x?.label || '', value: x?.value || '' })) : [],
     });
   };
   const cancel = () => { setEditing(null); setForm(EMPTY); };
+
+  // Baris deskripsi tambahan (mis. "Makanan Kesukaan" → "Rawon").
+  const addExtra = () => setForm((f) => ({ ...f, extras: [...f.extras, { label: '', value: '' }] }));
+  const setExtra = (i, key, val) =>
+    setForm((f) => ({ ...f, extras: f.extras.map((x, j) => (j === i ? { ...x, [key]: val } : x)) }));
+  const removeExtra = (i) => setForm((f) => ({ ...f, extras: f.extras.filter((_, j) => j !== i) }));
 
   const save = async () => {
     if (!form.name.trim()) { setError('Nama wajib diisi.'); return; }
@@ -2155,6 +2187,9 @@ function LandingPageManager() {
       name: form.name.trim(),
       photo: form.photo.trim(),
       instagram: form.instagram.trim(),
+      extras: form.extras
+        .map((x) => ({ label: (x.label || '').trim(), value: (x.value || '').trim() }))
+        .filter((x) => x.label || x.value),
     };
     if (kind === 'teacher') {
       payload.bidang = form.bidang.trim();
@@ -2187,6 +2222,18 @@ function LandingPageManager() {
     if (!confirm(`Hapus "${r.name}" dari landing page? Tindakan ini tidak bisa dibatalkan.`)) return;
     try { await pb.collection('landing_team').delete(r.id); setOkMsg('Data dihapus.'); load(); }
     catch (e) { setError('Gagal menghapus: ' + (e?.message || '')); }
+  };
+
+  // Sembunyikan satu orang dari landing page tanpa menghapus datanya.
+  const toggleHidden = async (r) => {
+    setError('');
+    try {
+      await pb.collection('landing_team').update(r.id, { hidden: !r.hidden });
+      setOkMsg(r.hidden ? `"${r.name}" kembali ditampilkan.` : `"${r.name}" disembunyikan dari landing page.`);
+      load();
+    } catch (e) {
+      setError('Gagal mengubah tampilan: ' + (e?.message || '') + ' — pastikan migrasi PocketBase terbaru sudah dijalankan.');
+    }
   };
 
   // Pindahkan urutan tampil ke atas/bawah. Order ditulis ulang menjadi 1..n untuk
@@ -2237,6 +2284,46 @@ function LandingPageManager() {
         {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
       </div>
 
+      {/* Tampil/sembunyi SELURUH section di halaman "Tim Kami" */}
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <h3 className="font-bold text-maroon-600">Tampilkan Section di Halaman "Tim Kami"</h3>
+        <p className="text-sm text-stone-500 mt-1 leading-relaxed">
+          Kalau dimatikan, <b>seluruh section-nya hilang</b> dari landing page — termasuk judul dan
+          deskripsinya (mis. "Struktur Kepengurusan PCV"), seolah-olah section itu memang tidak pernah ada.
+          Datanya tetap aman tersimpan di sini dan bisa dinyalakan lagi kapan saja.
+        </p>
+        {!settings ? (
+          <p className="mt-3 text-sm text-stone-500 bg-alba-100 border border-alba-200 rounded-lg px-3 py-2">
+            Pengaturan belum tersedia. Jalankan migrasi PocketBase terbaru (<span className="font-mono text-xs">landing_settings</span>) lalu muat ulang halaman ini.
+          </p>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-3 mt-4">
+            {[['hideTeachers', 'Section Tim Pengajar'], ['hideManagers', 'Section Tim Management']].map(([field, label]) => {
+              const shown = !settings[field];
+              return (
+                <button
+                  key={field}
+                  onClick={() => toggleSection(field)}
+                  className={`flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                    shown ? 'border-green-300 bg-green-50' : 'border-alba-300 bg-alba-100'
+                  }`}
+                >
+                  <span>
+                    <span className="block text-sm font-bold text-stone-800">{label}</span>
+                    <span className={`block text-xs font-semibold mt-0.5 ${shown ? 'text-green-700' : 'text-stone-500'}`}>
+                      {shown ? 'Tampil di landing page' : 'Disembunyikan sepenuhnya'}
+                    </span>
+                  </span>
+                  <span className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-colors ${shown ? 'bg-green-600' : 'bg-alba-300'}`}>
+                    <span className={`block w-5 h-5 rounded-full bg-alba-50 shadow-sm transition-transform ${shown ? 'translate-x-5' : ''}`} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Form tambah/edit */}
       {editing !== null && (
         <div className="bg-alba-50 rounded-2xl border border-maroon-200 p-6 shadow-card space-y-3 animate-fade-in">
@@ -2268,6 +2355,27 @@ function LandingPageManager() {
 
           <input value={form.instagram} onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))} placeholder="Link Instagram (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
 
+          {/* Deskripsi tambahan bebas di luar field bawaan */}
+          <div className="rounded-lg border border-alba-200 bg-alba-100/50 p-3">
+            <p className="text-sm font-bold text-stone-700">Deskripsi Tambahan (opsional)</p>
+            <p className="text-[11px] text-stone-400 mt-0.5 mb-2.5">
+              Info bebas di luar kolom di atas — mis. judul &quot;Makanan Kesukaan&quot; dengan isi &quot;Rawon&quot;.
+              Tampil di kartu orang ini pada halaman &quot;Tim Kami&quot;.
+            </p>
+            <div className="space-y-2">
+              {form.extras.map((x, i) => (
+                <div key={i} className="flex gap-2">
+                  <input value={x.label} onChange={(e) => setExtra(i, 'label', e.target.value)} placeholder="Judul (mis. Makanan Kesukaan)" className="w-2/5 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                  <input value={x.value} onChange={(e) => setExtra(i, 'value', e.target.value)} placeholder="Isi (mis. Rawon)" className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                  <button onClick={() => removeExtra(i)} title="Hapus baris" className="shrink-0 rounded-lg border border-red-300 text-red-600 px-3 text-sm font-bold hover:bg-red-50">✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={addExtra} className="mt-2 rounded-lg border border-gold-200 text-gold-600 text-xs font-semibold px-3 py-1.5 hover:bg-gold-100">
+              + Tambah deskripsi
+            </button>
+          </div>
+
           <div className="flex gap-2 pt-1">
             <button onClick={cancel} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal</button>
             <button onClick={save} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-6 py-2">Simpan</button>
@@ -2277,9 +2385,12 @@ function LandingPageManager() {
 
       {/* Daftar data */}
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 shadow-card space-y-2">
-        <p className="text-xs text-stone-400 px-1">Total {isTeacher ? 'pengajar' : 'management'}: {rows.length}. Panah ↑ ↓ mengatur urutan tampil.</p>
+        <p className="text-xs text-stone-400 px-1">
+          Total {isTeacher ? 'pengajar' : 'management'}: {rows.length}. Panah ↑ ↓ mengatur urutan tampil.
+          Tombol <b>Sembunyikan</b> membuat satu orang hilang dari landing page tanpa menghapus datanya.
+        </p>
         {rows.map((r, i) => (
-          <div key={r.id} className="flex items-center gap-2.5 rounded-lg border border-alba-200 px-2 py-2">
+          <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-2 py-2 ${r.hidden ? 'border-alba-200 bg-alba-100/70 opacity-70' : 'border-alba-200'}`}>
             <div className="flex flex-col shrink-0">
               <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
               <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
@@ -2295,12 +2406,23 @@ function LandingPageManager() {
                 dll) baru terlihat saat menekan "Edit". min-w-0 + truncate agar
                 nama panjang tidak mendorong tombol keluar layar. */}
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-stone-800 truncate">{r.name}</p>
+              <p className="font-semibold text-sm text-stone-800 truncate">
+                {r.name}
+                {r.hidden && <span className="ml-2 align-middle text-[10px] font-bold text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Disembunyikan</span>}
+              </p>
               {!isTeacher && r.category && (
                 <p className="text-[11px] text-stone-400 truncate">{r.category}</p>
               )}
             </div>
-            <div className="flex gap-2 shrink-0">
+            <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+              <button
+                onClick={() => toggleHidden(r)}
+                className={`text-xs font-semibold rounded-full border px-3 py-1.5 ${
+                  r.hidden ? 'border-green-300 text-green-700 hover:bg-green-50' : 'border-alba-300 text-stone-600 hover:bg-alba-100'
+                }`}
+              >
+                {r.hidden ? 'Tampilkan' : 'Sembunyikan'}
+              </button>
               <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Edit</button>
               <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50">Hapus</button>
             </div>
