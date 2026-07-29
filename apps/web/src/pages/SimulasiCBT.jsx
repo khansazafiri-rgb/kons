@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, Lock, Timer, Trophy } from 'lucide-react';
+import { BookOpen, ListChecks, Lock, Timer, Trophy } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -105,6 +105,17 @@ export default function SimulasiCBT() {
      alert(`Belum ada soal CBT tahun ${year} untuk mata kuliah ini. Silakan pilih tahun lain.`);
      return;
    }
+
+   // Review pembahasan: buka kunci jawaban + alasannya tanpa perlu pernah
+   // mengerjakan tryout ini. Tidak ada attempt yang dibuat/ditimpa.
+   if (mode === 'review') {
+     setCompletedAttempt(null);
+     setAttemptId(null);
+     setQuestions(qs);
+     setReviewing(true);
+     return;
+   }
+
    // Kalau tahun ini sudah pernah dituntaskan, tawarkan review dulu (jangan
    // langsung buat attempt baru) supaya jawaban lama tidak tertimpa.
    if (user) {
@@ -320,7 +331,7 @@ export default function SimulasiCBT() {
 
          <div ref={modeRef} className="scroll-mt-24">
            <label className="block text-sm font-bold text-stone-700 mb-2">3. Pilih Mode Ujian</label>
-           <div className="grid sm:grid-cols-2 gap-4">
+           <div className="grid sm:grid-cols-3 gap-4">
              <button
                onClick={() => { setMode('simulasi'); scrollToRef(startRef); }}
                className={`rounded-xl border-2 p-5 text-left transition-all ${
@@ -347,7 +358,21 @@ export default function SimulasiCBT() {
                  <BookOpen size={17} />
                </span>
                <p className={`text-sm font-bold mb-1 ${mode === 'learning' ? 'text-maroon-700' : 'text-stone-700'}`}>Mode Learning</p>
-               <p className="text-xs text-stone-500 leading-relaxed">Bebas waktu, langsung lihat pembahasan setiap kali menjawab.</p>
+               <p className="text-xs text-stone-500 leading-relaxed">Bebas waktu, jawaban bisa diganti-ganti, lalu tekan &quot;Cek Jawaban&quot; untuk lihat pembahasannya.</p>
+             </button>
+             <button
+               onClick={() => { setMode('review'); scrollToRef(startRef); }}
+               className={`rounded-xl border-2 p-5 text-left transition-all ${
+                 mode === 'review'
+                   ? 'border-maroon-600 bg-maroon-50'
+                   : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+               }`}
+             >
+               <span className={`inline-flex w-9 h-9 rounded-lg items-center justify-center mb-3 ${mode === 'review' ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100 text-stone-500'}`}>
+                 <ListChecks size={17} />
+               </span>
+               <p className={`text-sm font-bold mb-1 ${mode === 'review' ? 'text-maroon-700' : 'text-stone-700'}`}>Review Pembahasan</p>
+               <p className="text-xs text-stone-500 leading-relaxed">Langsung baca soal, kunci jawaban, dan pembahasannya — tanpa harus mengerjakan dulu.</p>
              </button>
            </div>
          </div>
@@ -358,7 +383,7 @@ export default function SimulasiCBT() {
              onClick={start}
              className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
            >
-             Mulai Ujian Sekarang
+             {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Ujian Sekarang'}
            </button>
          </div>
        </div>

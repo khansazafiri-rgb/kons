@@ -153,19 +153,24 @@ export default function QuestionRunner({
  const q = qs[idx];
  const selected = answers[q?.id];
  const qIsIsian = isIsian(q);
- const revealAnswer = mode === 'learning' && (qIsIsian ? checked.has(q?.id) : selected !== undefined);
+ // Mode learning: jawaban baru dibuka SETELAH siswa menekan "Cek Jawaban".
+ // Sebelum dicek, jawaban masih bebas diganti-ganti (berlaku MCQ maupun isian).
+ const isChecked = checked.has(q?.id);
+ const revealAnswer = mode === 'learning' && isChecked;
+ // MCQ wajib pilih opsi dulu; isian boleh dicek kapan saja (seperti sebelumnya).
+ const canCheck = qIsIsian || selected !== undefined;
  const showImage = q?.imageUrl && (String(q?.qtype || '').includes('img') || true);
 
  const choose = useCallback((optIdx) => {
    if (submitted || !q || isIsian(q)) return;
-   if (mode === 'learning' && answers[q.id] !== undefined) return;
+   if (mode === 'learning' && checked.has(q.id)) return; // sudah dicek → dikunci
    if (optIdx >= (q.options || []).length) return;
    setAnswers((a) => {
      const newAnswers = { ...a, [q.id]: optIdx };
      if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
      return newAnswers;
    });
- }, [submitted, mode, answers, q, onAnswerChange, retryRound]);
+ }, [submitted, mode, checked, q, onAnswerChange, retryRound]);
 
  const typeIsian = (label, value) => {
    if (submitted || !q) return;
@@ -320,14 +325,20 @@ export default function QuestionRunner({
  // MODE REVIEW: buka langsung semua soal + jawaban tersimpan dalam satu halaman
  // (dipakai kalau siswa membuka BAB/tryout yang sudah pernah diselesaikan).
  if (mode === 'review') {
+   // Tanpa jawaban tersimpan → murni "review pembahasan" (belum pernah dikerjakan).
+   const adaJawaban = qs.some((qq) => isQuestionAnswered(qq, answers[qq.id]));
    return (
      <ReviewSheet
        qs={qs}
        answers={answers}
        onBack={onExit}
        backLabel="Keluar"
-       title="Review Jawaban"
-       subtitle="Semua soal & jawabanmu ditampilkan di sini. Tinggal scroll untuk melihat mana yang benar dan salah beserta pembahasannya."
+       title={adaJawaban ? 'Review Jawaban' : 'Review Pembahasan'}
+       subtitle={
+         adaJawaban
+           ? 'Semua soal & jawabanmu ditampilkan di sini. Tinggal scroll untuk melihat mana yang benar dan salah beserta pembahasannya.'
+           : 'Semua soal ditampilkan lengkap dengan kunci jawaban dan alasannya. Cocok untuk belajar dulu sebelum mengerjakan soalnya.'
+       }
      />
    );
  }
@@ -463,14 +474,6 @@ export default function QuestionRunner({
                </div>
              );
            })}
-           {mode === 'learning' && !checked.has(q.id) && !submitted && (
-             <button
-               onClick={() => setChecked((c) => new Set(c).add(q.id))}
-               className="rounded-full bg-maroon-600 text-alba-50 px-6 py-2.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
-             >
-               Cek Jawaban
-             </button>
-           )}
          </div>
        ) : (
          /* ===== TIPE MCQ ===== */
@@ -488,7 +491,7 @@ export default function QuestionRunner({
                <div key={i} className="flex flex-col">
                  <button
                    onClick={() => choose(i)}
-                   disabled={submitted || (mode === 'learning' && selected !== undefined)}
+                   disabled={submitted || (mode === 'learning' && isChecked)}
                    className={`w-full text-left rounded-xl border-2 px-4 py-3 text-sm transition-all duration-200 ${cls} ${!show && !isSelected ? 'hover:border-maroon-300' : ''}`}
                  >
                    <div className="flex gap-3 items-start">
@@ -531,6 +534,19 @@ export default function QuestionRunner({
          </div>
        )}
 
+       {/* Mode learning: jawaban masih bisa diganti selama belum ditekan "Cek Jawaban" */}
+       {mode === 'learning' && !submitted && (
+         <p className={`text-xs font-semibold mb-4 rounded-xl px-4 py-2.5 border ${
+           isChecked
+             ? 'text-stone-500 bg-alba-100/70 border-alba-200'
+             : 'text-maroon-700 bg-maroon-50 border-maroon-100'
+         }`}>
+           {isChecked
+             ? 'Jawaban soal ini sudah dicek. Lanjut ke soal berikutnya, atau pakai "Ulangi Soal yang Salah" setelah submit untuk mencoba lagi.'
+             : 'Santai saja — jawabanmu masih bisa diganti-ganti. Kalau sudah mantap, tekan "Cek Jawaban" untuk melihat benar/salah beserta alasannya.'}
+         </p>
+       )}
+
        {/* Kontrol navigasi */}
        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
          <button
@@ -561,6 +577,17 @@ export default function QuestionRunner({
              >
                <Flag size={13} />
                Ragu
+             </button>
+           )}
+           {mode === 'learning' && !submitted && (
+             <button
+               onClick={() => setChecked((c) => new Set(c).add(q.id))}
+               disabled={isChecked || !canCheck}
+               title={isChecked ? 'Jawaban soal ini sudah dicek' : 'Lihat benar/salah beserta pembahasannya'}
+               className="inline-flex items-center gap-1.5 rounded-full border border-green-600 bg-green-50 text-green-800 hover:bg-green-100 disabled:opacity-40 disabled:hover:bg-green-50 px-4 py-2.5 text-sm font-bold transition-colors"
+             >
+               <CheckCircle2 size={14} />
+               {isChecked ? 'Sudah Dicek' : 'Cek Jawaban'}
              </button>
            )}
          </div>
@@ -790,12 +817,18 @@ function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
  const correct = list.filter((qq) => isQuestionCorrect(qq, answers[qq.id])).length;
  const score = total ? Math.round((correct / total) * 100) : 0;
 
+ // Kalau tidak ada satu pun jawaban tersimpan, ini murni "review pembahasan":
+ // tidak ada skor & tidak ada label benar/salah — langsung kunci jawaban + alasannya.
+ const pembahasanOnly = !list.some((qq) => isQuestionAnswered(qq, answers[qq.id]));
+
  return (
    <div className="max-w-3xl mx-auto animate-fade-in">
      <div className="sticky top-0 z-10 -mx-2 px-2 py-3 bg-alba-50/95 backdrop-blur border-b border-alba-200 flex items-center justify-between gap-3 mb-6">
        <div>
          <h2 className="font-display text-xl font-semibold text-stone-800">{title}</h2>
-         <p className="text-xs text-stone-500">Benar {correct} dari {total} soal · Nilai {score}</p>
+         <p className="text-xs text-stone-500">
+           {pembahasanOnly ? `${total} soal · kunci jawaban & pembahasan lengkap` : `Benar ${correct} dari ${total} soal · Nilai ${score}`}
+         </p>
        </div>
        <button
          onClick={onBack}
@@ -809,7 +842,7 @@ function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
 
      <div className="space-y-5">
        {list.map((qq, i) => (
-         <QuestionReviewCard key={qq.id || i} q={qq} ans={answers[qq.id]} index={i} />
+         <QuestionReviewCard key={qq.id || i} q={qq} ans={answers[qq.id]} index={i} pembahasanOnly={pembahasanOnly} />
        ))}
      </div>
 
@@ -826,17 +859,23 @@ function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
 }
 
 // Satu kartu soal versi baca-saja untuk halaman review.
-function QuestionReviewCard({ q, ans, index }) {
+function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
  const qq = normalizeQuestion(q);
  const isian = isIsian(qq);
  const answered = isQuestionAnswered(qq, ans);
  const correct = isQuestionCorrect(qq, ans);
 
  return (
-   <div className={`rounded-2xl border bg-alba-50 shadow-card p-5 md:p-6 ${correct ? 'border-green-200' : 'border-maroon-200'}`}>
+   <div className={`rounded-2xl border bg-alba-50 shadow-card p-5 md:p-6 ${
+     pembahasanOnly ? 'border-alba-200' : correct ? 'border-green-200' : 'border-maroon-200'
+   }`}>
      <div className="flex items-center justify-between gap-3 mb-3">
        <span className="text-sm font-bold text-stone-500">Soal {index + 1}</span>
-       {answered ? (
+       {pembahasanOnly ? (
+         <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-500 bg-alba-100 border border-alba-200 rounded-full px-3 py-1">
+           <ListChecks size={13} /> Pembahasan
+         </span>
+       ) : answered ? (
          correct ? (
            <span className="inline-flex items-center gap-1 text-xs font-bold text-green-800 bg-green-50 border border-green-200 rounded-full px-3 py-1">
              <CheckCircle2 size={13} /> Benar
@@ -868,10 +907,12 @@ function QuestionReviewCard({ q, ans, index }) {
                  <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-[11px] font-bold mr-2">{sub.label}</span>
                  {sub.question}
                </p>
-               <p className={`text-sm ${ok ? 'text-green-800' : 'text-maroon-700'}`}>
-                 Jawabanmu: <span className="font-semibold">{userText || '—'}</span> {ok ? '✅' : '❌'}
-               </p>
-               {!ok && (
+               {!pembahasanOnly && (
+                 <p className={`text-sm ${ok ? 'text-green-800' : 'text-maroon-700'}`}>
+                   Jawabanmu: <span className="font-semibold">{userText || '—'}</span> {ok ? '✅' : '❌'}
+                 </p>
+               )}
+               {(pembahasanOnly || !ok) && (
                  <p className="text-xs text-stone-600 mt-1">
                    Jawaban benar: <span className="font-semibold">{(sub.validAnswers || []).join(' | ')}</span>
                  </p>
@@ -883,7 +924,7 @@ function QuestionReviewCard({ q, ans, index }) {
      ) : (
        <div className="space-y-2">
          {(qq.options || []).map((opt, i) => {
-           const isSelected = ans === i;
+           const isSelected = !pembahasanOnly && ans === i;
            let cls = 'border-alba-200';
            if (opt.correct) cls = 'border-green-500 bg-green-50';
            else if (isSelected && !opt.correct) cls = 'border-maroon-500 bg-maroon-50';
@@ -898,7 +939,7 @@ function QuestionReviewCard({ q, ans, index }) {
                    {isSelected && <span className="ml-2 text-[11px] font-bold text-stone-500">(jawabanmu)</span>}
                  </span>
                </div>
-               {opt.explanation && (opt.correct || isSelected) && (
+               {opt.explanation && (pembahasanOnly || opt.correct || isSelected) && (
                  <p className={`mt-2 ml-9 text-xs leading-relaxed ${opt.correct ? 'text-green-900' : 'text-stone-600'}`}>
                    <span className="font-bold">{opt.correct ? 'Alasan benar: ' : 'Mengapa salah: '}</span>{opt.explanation}
                  </p>

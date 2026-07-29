@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ClipboardList, History, Lock, Search } from 'lucide-react';
+import { BookOpen, ClipboardList, History, Lock, PencilLine, Search } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +13,7 @@ export default function CicilBelajar() {
  const [subjectId, setSubjectId] = useState(params.get('subject') || '');
  const [chapters, setChapters] = useState([]);
  const [chapterId, setChapterId] = useState(params.get('chapter') || '');
+ const [mode, setMode] = useState(''); // 'kerjakan' | 'review'
  const [questions, setQuestions] = useState(null);
  const [priorProgress, setPriorProgress] = useState(null);
  const [resume, setResume] = useState(null);
@@ -24,10 +25,11 @@ export default function CicilBelajar() {
 
  // Auto-scroll: begitu memilih, layar mengikuti ke bagian yang baru terbuka.
  const babSectionRef = useRef(null);
+ const modeRef = useRef(null);
  const startBtnRef = useRef(null);
  const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
  const pickSubject = (id) => { setSubjectId(id); scrollToRef(babSectionRef); };
- const pickChapter = (id) => { setChapterId(id); scrollToRef(startBtnRef); };
+ const pickChapter = (id) => { setChapterId(id); scrollToRef(modeRef); };
 
  // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
  useEffect(() => {
@@ -94,7 +96,7 @@ export default function CicilBelajar() {
  }, [chapters, search]);
 
  const openChapter = async () => {
-   if (!chapterId) return;
+   if (!chapterId || !mode) return;
    if (enrolled && subjectId && !enrolled.includes(subjectId)) {
      alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
      return;
@@ -109,6 +111,14 @@ export default function CicilBelajar() {
      return;
    }
    setQuestions(qs);
+
+   // Review pembahasan: langsung buka kunci jawaban + alasannya, tanpa perlu
+   // pernah mengerjakan BAB ini. Progress lama sengaja tidak disentuh.
+   if (mode === 'review') {
+     setPriorProgress(null);
+     setResume('review');
+     return;
+   }
 
    if (user) {
      const existing = await pb
@@ -265,7 +275,7 @@ export default function CicilBelajar() {
          CICIL BELAJAR
        </p>
        <h1 className="font-display text-3xl font-semibold mb-2">Latihan Soal per BAB</h1>
-       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap.</p>
+       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap — atau langsung baca pembahasannya dulu.</p>
 
        {enrolled && enrolled.length === 0 && (
          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
@@ -346,13 +356,47 @@ export default function CicilBelajar() {
            </div>
          )}
 
+         <div ref={modeRef} className="scroll-mt-24">
+           <label className="block text-sm font-bold text-stone-700 mb-2">3. Mau Ngapain di BAB Ini?</label>
+           <div className="grid sm:grid-cols-2 gap-4">
+             <button
+               onClick={() => { setMode('kerjakan'); scrollToRef(startBtnRef); }}
+               className={`rounded-xl border-2 p-5 text-left transition-all ${
+                 mode === 'kerjakan'
+                   ? 'border-maroon-600 bg-maroon-50'
+                   : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+               }`}
+             >
+               <span className={`inline-flex w-9 h-9 rounded-lg items-center justify-center mb-3 ${mode === 'kerjakan' ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100 text-stone-500'}`}>
+                 <PencilLine size={17} />
+               </span>
+               <p className={`text-sm font-bold mb-1 ${mode === 'kerjakan' ? 'text-maroon-700' : 'text-stone-700'}`}>Kerjakan Soal</p>
+               <p className="text-xs text-stone-500 leading-relaxed">Jawab satu per satu. Jawaban bebas diganti sampai kamu menekan &quot;Cek Jawaban&quot;.</p>
+             </button>
+             <button
+               onClick={() => { setMode('review'); scrollToRef(startBtnRef); }}
+               className={`rounded-xl border-2 p-5 text-left transition-all ${
+                 mode === 'review'
+                   ? 'border-maroon-600 bg-maroon-50'
+                   : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+               }`}
+             >
+               <span className={`inline-flex w-9 h-9 rounded-lg items-center justify-center mb-3 ${mode === 'review' ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100 text-stone-500'}`}>
+                 <BookOpen size={17} />
+               </span>
+               <p className={`text-sm font-bold mb-1 ${mode === 'review' ? 'text-maroon-700' : 'text-stone-700'}`}>Review Pembahasan</p>
+               <p className="text-xs text-stone-500 leading-relaxed">Langsung baca soal, kunci jawaban, dan pembahasannya — tanpa harus mengerjakan dulu.</p>
+             </button>
+           </div>
+         </div>
+
          <div ref={startBtnRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
-             disabled={!chapterId}
+             disabled={!chapterId || !mode}
              onClick={openChapter}
              className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
            >
-             Mulai Latihan Sekarang
+             {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Latihan Sekarang'}
            </button>
          </div>
        </div>
