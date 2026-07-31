@@ -5,6 +5,7 @@ import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
+import { touchActivity } from '@/lib/activityLog';
 
 export default function CicilBelajar() {
  const { user, role } = useAuth();
@@ -167,6 +168,10 @@ export default function CicilBelajar() {
      await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score, status: 'completed' });
    }
    await bumpStreak(pb, user); // streak belajar harian 🔥
+   // Jejak untuk "last activity" di Dashboard Activity admin.
+   const namaBab = chapters.find((c) => c.id === chapterId)?.title || '';
+   const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
+   touchActivity(pb, user, `Mengerjakan latihan ${namaMk}${namaBab ? ` — BAB ${namaBab}` : ''} (nilai ${score})`);
  };
 
  // Layar Peringatan Resume Pengerjaan

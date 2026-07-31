@@ -8,8 +8,10 @@ import ChapterManager from '@/components/ChapterManager';
 import { MANAGER_CATEGORIES } from '@/data/team';
 import { STUDENT_TYPES, studentTypeLabel, studentTypeShort } from '@/lib/studentType';
 import { SIGNUP_TEXT_GROUPS, resolveSignupTexts } from '@/lib/signupContent';
+import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
+import DashboardActivity from '@/pages/admin/DashboardActivity';
 
-const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
 export default function AdminPanel() {
   const [tab, setTab] = useState('Pengajar');
   const { user, isAuthed } = useAuth();
@@ -43,6 +45,7 @@ export default function AdminPanel() {
         <div>
           {tab === 'Pengajar' && <Pengajar />}
           {tab === 'Siswa' && <StudentCards adminMode />}
+          {tab === 'Dashboard Activity' && <DashboardActivity />}
           {tab === 'Edit Soal' && <EditSoalHub />}
           {/* Admin bisa upload PPT untuk SEMUA mata kuliah (allowedSubjectIds=null) */}
           {tab === 'PPT Mata Kuliah' && <PPTUpload allowedSubjectIds={null} />}
@@ -955,6 +958,7 @@ async function bulkDeleteQuestions({ ids, setStatus }) {
 // allowedSubjectIds: teacher hanya melihat mata kuliah ajarnya
 // ==========================================
 export function EditSoal({ allowedSubjectIds = null }) {
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [chapterId, setChapterId] = useState('');
@@ -968,6 +972,10 @@ export function EditSoal({ allowedSubjectIds = null }) {
   const [soalRefresh, setSoalRefresh] = useState(0); // memaksa ChapterManager memuat ulang jumlah soal per BAB
   const [moveItems, setMoveItems] = useState(null);  // soal yang akan dikirim ke Simulasi CBT
   const [moveMsg, setMoveMsg] = useState('');
+  const [chapterTitle, setChapterTitle] = useState(''); // untuk keterangan di riwayat aktivitas
+
+  const subjectLabel = () => subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
+  const chapterLabel = () => chapterTitle || 'BAB';
 
   const loadSubjects = () => pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
     setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
@@ -979,6 +987,10 @@ export function EditSoal({ allowedSubjectIds = null }) {
   useEffect(() => { loadSubjects(); }, []);
   useEffect(() => { setChapterId(''); }, [subjectId]);
   useEffect(() => { if (chapterId) loadQuestions(chapterId); else setQuestions([]); }, [chapterId]);
+  useEffect(() => {
+    if (!chapterId) return setChapterTitle('');
+    pb.collection('chapters').getOne(chapterId).then((c) => setChapterTitle(c?.title || '')).catch(() => setChapterTitle(''));
+  }, [chapterId]);
 
   const addSubject = async () => {
     if (!newSubjectName.trim()) return;
@@ -998,11 +1010,24 @@ export function EditSoal({ allowedSubjectIds = null }) {
       ...payloadFromForm(form),
     };
 
+    const where = `${subjectLabel()} · ${chapterLabel()}`;
     if (editingId) {
-      await pb.collection('questions').update(editingId, payload);
+      const saved = await pb.collection('questions').update(editingId, payload);
+      logActivity(pb, user, {
+        section: 'soal_ubah',
+        summary: `Mengubah soal latihan di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     } else {
       payload.order = questions.length + 1;
-      await pb.collection('questions').create(payload);
+      const saved = await pb.collection('questions').create(payload);
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Menambah soal latihan di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     }
 
     setForm(EMPTY_FORM);
@@ -1043,7 +1068,14 @@ export function EditSoal({ allowedSubjectIds = null }) {
         options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
       }),
     });
-    if (ok) onDone?.();
+    if (ok) {
+      onDone?.();
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Import massal ${items.length} soal latihan ke ${subjectLabel()} · ${chapterLabel()}`,
+        targetLabel: chapterLabel(),
+      });
+    }
     reloadQuestions(chapterId);
   };
 
@@ -1093,6 +1125,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
             onEdit={startEdit}
             onReload={() => reloadQuestions(chapterId)}
             onMoveToSimulasi={(items) => { setMoveMsg(''); setMoveItems(items); }}
+            whereLabel={`${subjectLabel()} · ${chapterLabel()}`}
           />
         </div>
       )}
@@ -1164,7 +1197,8 @@ function Highlight({ text, terms }) {
 // onReload dipanggil setelah hapus agar daftar disegarkan.
 // onMoveToSimulasi: hanya diisi oleh Edit Soal Cicil Belajar. Kalau kosong,
 // tombol "→ Simulasi" tidak muncul (mis. saat dipakai di Edit Simulasi CBT).
-function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToSimulasi = null }) {
+function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToSimulasi = null, whereLabel = '' }) {
+  const { user } = useAuth();
   const [selected, setSelected] = useState(() => new Set());
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1203,8 +1237,17 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToS
   const deleteOne = async (id) => {
     if (!confirm('Yakin ingin menghapus soal ini?')) return;
     setBusy(true);
+    // Salin isinya SEBELUM dihapus supaya riwayat masih bisa menampilkan
+    // soal apa yang hilang.
+    const doomed = questions.find((q) => q.id === id);
     try {
       await pb.collection('questions').delete(id);
+      logActivity(pb, user, {
+        section: 'soal_hapus',
+        summary: `Menghapus 1 soal${whereLabel ? ` di ${whereLabel}` : ''}`,
+        targetLabel: shorten(doomed?.text, 200),
+        detail: questionSnapshot(doomed),
+      });
     } catch (e) {
       setStatus('❌ Gagal menghapus: ' + (e?.message || ''));
     }
@@ -1217,7 +1260,14 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToS
     if (ids.length === 0) return;
     if (!confirm(`Hapus ${ids.length} soal terpilih sekaligus? Tindakan ini tidak bisa dibatalkan.`)) return;
     setBusy(true);
+    const doomed = questions.filter((q) => ids.includes(q.id));
     await bulkDeleteQuestions({ ids, setStatus });
+    logActivity(pb, user, {
+      section: 'soal_hapus',
+      summary: `Menghapus ${ids.length} soal sekaligus${whereLabel ? ` di ${whereLabel}` : ''}`,
+      targetLabel: doomed.map((q) => shorten(q.text, 60)).slice(0, 3).join(' · '),
+      detail: doomed.slice(0, 10).map(questionSnapshot),
+    });
     setSelected(new Set());
     setBusy(false);
     onReload?.();
@@ -1353,6 +1403,7 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToS
 const CBT_YEARS = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
 
 function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone }) {
+  const { user } = useAuth();
   const [year, setYear] = useState('');
   const [mode, setMode] = useState('copy'); // 'copy' | 'move'
   const [busy, setBusy] = useState(false);
@@ -1398,6 +1449,14 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
       return;
     }
     setBusy(false);
+    if (ok > 0) {
+      logActivity(pb, user, {
+        section: 'soal_pindah',
+        summary: `${mode === 'move' ? 'Memindahkan' : 'Menyalin'} ${ok} soal ke Simulasi CBT ${subjectName || ''} tahun ${year}`,
+        targetLabel: items.map((q) => shorten(q.text, 60)).slice(0, 3).join(' · '),
+        detail: items.slice(0, 10).map(questionSnapshot),
+      });
+    }
     if (failed.length) {
       setStatus(`Selesai sebagian: ${ok} berhasil, ${failed.length} gagal.\n` + failed.join('\n'));
     } else {
@@ -1542,6 +1601,7 @@ function PreviewModal({ previewData, onClose }) {
 // EDIT SOAL SIMULASI CBT (mata kuliah → tahun, TANPA BAB — sesuai PRD)
 // ==========================================
 export function EditSimulasi({ allowedSubjectIds = null }) {
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [year, setYear] = useState('');
@@ -1577,11 +1637,24 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       ...payloadFromForm(form),
     };
 
+    const where = `Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`.trim();
     if (editingId) {
-      await pb.collection('questions').update(editingId, payload);
+      const saved = await pb.collection('questions').update(editingId, payload);
+      logActivity(pb, user, {
+        section: 'soal_ubah',
+        summary: `Mengubah soal di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     } else {
       payload.order = questions.length + 1;
-      await pb.collection('questions').create(payload);
+      const saved = await pb.collection('questions').create(payload);
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Menambah soal di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     }
 
     setForm(EMPTY_FORM);
@@ -1620,7 +1693,14 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
         options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
       }),
     });
-    if (ok) onDone?.();
+    if (ok) {
+      onDone?.();
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Import massal ${items.length} soal ke Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`,
+        targetLabel: `Simulasi CBT ${year}`,
+      });
+    }
     loadQuestions();
   };
 
@@ -1659,6 +1739,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
             onPreview={setPreviewData}
             onEdit={startEdit}
             onReload={loadQuestions}
+            whereLabel={`Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`.trim()}
           />
         </div>
       )}
@@ -1676,6 +1757,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 // 1. pilihkan mata kuliah lewat chip di kartu, 2. klik "ACC" -> akun aktif dan
 // email notifikasi terkirim otomatis (hook PocketBase), atau "Tolak" -> hapus.
 function PendingSignups() {
+  const { user: admin } = useAuth();
   const [pending, setPending] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [busyId, setBusyId] = useState(null);
@@ -1722,6 +1804,11 @@ function PendingSignups() {
       await pb.collection('users').update(u.id, { signupPending: false, disabled: false });
       setPending((prev) => prev.filter((x) => x.id !== u.id));
       setMsg(`${u.name || u.userId} di-ACC. Email notifikasi dikirim ke ${u.email}.`);
+      logActivity(pb, admin, {
+        section: 'akun',
+        summary: `Meng-ACC pendaftaran ${u.name || u.userId}`,
+        targetLabel: u.email || u.userId,
+      });
     } catch (e) {
       setMsg(`Gagal ACC: ${e?.message || ''}`);
     } finally {
@@ -1736,6 +1823,11 @@ function PendingSignups() {
       await pb.collection('users').delete(u.id);
       setPending((prev) => prev.filter((x) => x.id !== u.id));
       setMsg(`Pendaftaran ${u.name || u.userId} dihapus.`);
+      logActivity(pb, admin, {
+        section: 'akun',
+        summary: `Menolak pendaftaran ${u.name || u.userId}`,
+        targetLabel: u.email || u.userId,
+      });
     } catch (e) {
       setMsg(`Gagal menghapus: ${e?.message || ''}`);
     } finally {
@@ -1974,6 +2066,7 @@ function SignupSettings() {
 }
 
 function TambahAkun() {
+  const { user: admin } = useAuth();
   const [form, setForm] = useState({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student', studentType: 'reguler' });
   const [msg, setMsg] = useState('');
   const [msgOk, setMsgOk] = useState(false);
@@ -2014,6 +2107,11 @@ function TambahAkun() {
       const label = form.role === 'student' ? studentTypeLabel(form.studentType) : 'teacher';
       setMsg(`Akun ${label} berhasil dibuat. Buka tab ${form.role === 'student' ? 'Siswa' : 'Pengajar'} untuk memilihkan mata kuliahnya.`);
       setMsgOk(true);
+      logActivity(pb, admin, {
+        section: 'akun',
+        summary: `Membuat akun ${label} baru: ${form.name || form.userId}`,
+        targetLabel: form.userId,
+      });
       setForm({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student', studentType: 'reguler' });
     } catch (err) {
       // tampilkan detail error per field supaya ketahuan persis salahnya di mana

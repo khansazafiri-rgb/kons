@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
 import ChapterManager from '@/components/ChapterManager';
+import { useAuth } from '@/context/AuthContext';
+import { logActivity } from '@/lib/activityLog';
 
 const MAX_PDF_SIZE = 100 * 1024 * 1024; // sesuai ppt_files.file maxSize (100MB)
 
@@ -8,9 +10,11 @@ const MAX_PDF_SIZE = 100 * 1024 * 1024; // sesuai ppt_files.file maxSize (100MB)
 // - allowedSubjectIds = null  -> tampilkan SEMUA mata kuliah (mode admin)
 // - allowedSubjectIds = [...] -> batasi ke mata kuliah ajar (mode teacher)
 export default function PPTUpload({ allowedSubjectIds = null }) {
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [chapterId, setChapterId] = useState('');
+  const [chapterTitle, setChapterTitle] = useState(''); // untuk keterangan di riwayat aktivitas
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [msg, setMsg] = useState('');
@@ -51,11 +55,13 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
 
   useEffect(() => {
     setExistingFile(null);
+    setChapterTitle('');
     if (!chapterId) return;
     pb.collection('ppt_files')
       .getFullList({ filter: `chapter = '${chapterId}'` })
       .then((res) => setExistingFile(res[0] || null))
       .catch(() => setExistingFile(null));
+    pb.collection('chapters').getOne(chapterId).then((c) => setChapterTitle(c?.title || '')).catch(() => {});
   }, [chapterId]);
 
   const handleFileChange = (e) => {
@@ -108,13 +114,29 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
       fd.append('chapter', chapterId);
       fd.append('file', file);
 
+      const subjectLabel = subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
+      const where = `${subjectLabel} · ${chapterTitle || 'BAB'}`;
       const existing = await pb.collection('ppt_files').getFullList({ filter: `chapter = '${chapterId}'` });
       if (existing[0]) {
+        const before = existing[0].file || '(tanpa nama)';
         await pb.collection('ppt_files').update(existing[0].id, fd);
         setMsg('PDF berhasil diperbarui.');
+        // Sebutkan nama file lama → baru, sesuai permintaan di riwayat aktivitas.
+        logActivity(pb, user, {
+          section: 'ppt_tambah',
+          summary: `Mengganti PPT di ${where}: "${before}" → "${file.name}"`,
+          targetLabel: where,
+          detail: { subject: subjectLabel, chapter: chapterTitle, from: before, to: file.name },
+        });
       } else {
         await pb.collection('ppt_files').create(fd);
         setMsg('PDF berhasil diupload.');
+        logActivity(pb, user, {
+          section: 'ppt_tambah',
+          summary: `Mengupload PPT "${file.name}" di ${where}`,
+          targetLabel: where,
+          detail: { subject: subjectLabel, chapter: chapterTitle, to: file.name },
+        });
       }
       setMsgType('success');
       setFile(null);
