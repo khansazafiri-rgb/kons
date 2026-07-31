@@ -8,8 +8,10 @@ import ChapterManager from '@/components/ChapterManager';
 import { MANAGER_CATEGORIES } from '@/data/team';
 import { STUDENT_TYPES, studentTypeLabel, studentTypeShort } from '@/lib/studentType';
 import { SIGNUP_TEXT_GROUPS, resolveSignupTexts } from '@/lib/signupContent';
+import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
+import DashboardActivity from '@/pages/admin/DashboardActivity';
 
-const TABS = ['Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
 export default function AdminPanel() {
   const [tab, setTab] = useState('Pengajar');
   const { user, isAuthed } = useAuth();
@@ -43,6 +45,7 @@ export default function AdminPanel() {
         <div>
           {tab === 'Pengajar' && <Pengajar />}
           {tab === 'Siswa' && <StudentCards adminMode />}
+          {tab === 'Dashboard Activity' && <DashboardActivity />}
           {tab === 'Edit Soal' && <EditSoalHub />}
           {/* Admin bisa upload PPT untuk SEMUA mata kuliah (allowedSubjectIds=null) */}
           {tab === 'PPT Mata Kuliah' && <PPTUpload allowedSubjectIds={null} />}
@@ -134,7 +137,7 @@ function Pengajar() {
       {teachers.map((t) => (
         <div key={t.id} className="border border-alba-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <p className="font-semibold">{t.name} <span className="text-xs text-stone-400">(ID: {t.userId || '-'} · {t.email})</span></p>
+            <p className="font-semibold">{t.name} <span className="text-xs text-stone-400">(Login ID: {t.userId || '-'} · {t.email})</span></p>
             <div className="flex gap-2">
               <button onClick={() => resetDevice(t)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1 hover:bg-gold-100">Reset Device</button>
               <button onClick={() => disable(t)} className="text-xs font-semibold rounded-full border px-3 py-1">{t.disabled ? 'Aktifkan' : 'Nonaktifkan'}</button>
@@ -168,6 +171,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
   const [progressRows, setProgressRows] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
 
   const load = async () => {
     setError('');
@@ -219,9 +223,35 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
   };
 
   // Siswa yang tampil: teacher hanya melihat siswa yang mengambil mata kuliah ajarnya
-  const visibleStudents = subjectScope
+  const scopedStudents = subjectScope
     ? students.filter((s) => relevantSubjectsOf(s).length > 0)
     : students;
+
+  // Pencarian siswa — penting begitu jumlah siswa sudah ratusan. Semua kata
+  // pencarian harus cocok (AND), dicari di nama, Login ID, email, asal kuliah,
+  // dan nama mata kuliah yang diambil.
+  const terms = useMemo(
+    () => query.trim().toLowerCase().split(/\s+/).filter(Boolean),
+    [query]
+  );
+  const visibleStudents = useMemo(() => {
+    if (!terms.length) return scopedStudents;
+    return scopedStudents.filter((s) => {
+      const hay = [
+        s.name,
+        s.userId,
+        s.email,
+        s.asalKuliah,
+        studentTypeLabel(s.studentType),
+        ...relevantSubjectsOf(s).map((id) => subjectName[id]),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopedStudents, terms, subjectName]);
 
   const [enrollError, setEnrollError] = useState('');
   const toggleEnroll = async (s, subId) => {
@@ -294,11 +324,31 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="font-display text-lg font-semibold">Daftar Siswa</h2>
         <span className="rounded-full bg-maroon-50 border border-maroon-100 text-maroon-700 text-sm font-bold px-4 py-1.5">
-          Total Siswa: {visibleStudents.length}
+          {terms.length ? `${visibleStudents.length} dari ${scopedStudents.length} siswa` : `Total Siswa: ${scopedStudents.length}`}
         </span>
       </div>
       {error && (
         <div className="text-sm bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-2">{error}</div>
+      )}
+
+      {scopedStudents.length > 0 && (
+        <div className="relative">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari siswa… (nama, Login ID, email, asal kuliah, mata kuliah)"
+            className="w-full rounded-lg border border-alba-300 bg-alba-50 pl-9 pr-20 py-2.5 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400 hover:text-maroon-600"
+            >
+              hapus
+            </button>
+          )}
+        </div>
       )}
 
       {visibleStudents.map((s) => {
@@ -349,7 +399,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                 )}
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                  <MiniField label="ID User" value={s.userId} />
+                  <MiniField label="Login ID" value={s.userId} />
                   <MiniField label="Gmail" value={s.email} />
                   <MiniField label="Semester" value={s.semester} />
                   <MiniField label="Asal kuliah" value={s.asalKuliah} />
@@ -415,7 +465,10 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
           </div>
         );
       })}
-      {visibleStudents.length === 0 && <p className="text-sm text-stone-400">Belum ada siswa{subjectScope ? ' yang mengambil mata kuliah ajarmu' : ''}.</p>}
+      {scopedStudents.length === 0 && <p className="text-sm text-stone-400">Belum ada siswa{subjectScope ? ' yang mengambil mata kuliah ajarmu' : ''}.</p>}
+      {scopedStudents.length > 0 && visibleStudents.length === 0 && (
+        <p className="text-sm text-stone-400">Tidak ada siswa yang cocok dengan "{query}".</p>
+      )}
     </div>
   );
 }
@@ -905,6 +958,7 @@ async function bulkDeleteQuestions({ ids, setStatus }) {
 // allowedSubjectIds: teacher hanya melihat mata kuliah ajarnya
 // ==========================================
 export function EditSoal({ allowedSubjectIds = null }) {
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [chapterId, setChapterId] = useState('');
@@ -916,6 +970,12 @@ export function EditSoal({ allowedSubjectIds = null }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [bulkStatus, setBulkStatus] = useState('');
   const [soalRefresh, setSoalRefresh] = useState(0); // memaksa ChapterManager memuat ulang jumlah soal per BAB
+  const [moveItems, setMoveItems] = useState(null);  // soal yang akan dikirim ke Simulasi CBT
+  const [moveMsg, setMoveMsg] = useState('');
+  const [chapterTitle, setChapterTitle] = useState(''); // untuk keterangan di riwayat aktivitas
+
+  const subjectLabel = () => subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
+  const chapterLabel = () => chapterTitle || 'BAB';
 
   const loadSubjects = () => pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
     setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
@@ -927,6 +987,10 @@ export function EditSoal({ allowedSubjectIds = null }) {
   useEffect(() => { loadSubjects(); }, []);
   useEffect(() => { setChapterId(''); }, [subjectId]);
   useEffect(() => { if (chapterId) loadQuestions(chapterId); else setQuestions([]); }, [chapterId]);
+  useEffect(() => {
+    if (!chapterId) return setChapterTitle('');
+    pb.collection('chapters').getOne(chapterId).then((c) => setChapterTitle(c?.title || '')).catch(() => setChapterTitle(''));
+  }, [chapterId]);
 
   const addSubject = async () => {
     if (!newSubjectName.trim()) return;
@@ -946,11 +1010,24 @@ export function EditSoal({ allowedSubjectIds = null }) {
       ...payloadFromForm(form),
     };
 
+    const where = `${subjectLabel()} · ${chapterLabel()}`;
     if (editingId) {
-      await pb.collection('questions').update(editingId, payload);
+      const saved = await pb.collection('questions').update(editingId, payload);
+      logActivity(pb, user, {
+        section: 'soal_ubah',
+        summary: `Mengubah soal latihan di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     } else {
       payload.order = questions.length + 1;
-      await pb.collection('questions').create(payload);
+      const saved = await pb.collection('questions').create(payload);
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Menambah soal latihan di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     }
 
     setForm(EMPTY_FORM);
@@ -991,7 +1068,14 @@ export function EditSoal({ allowedSubjectIds = null }) {
         options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
       }),
     });
-    if (ok) onDone?.();
+    if (ok) {
+      onDone?.();
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Import massal ${items.length} soal latihan ke ${subjectLabel()} · ${chapterLabel()}`,
+        targetLabel: chapterLabel(),
+      });
+    }
     reloadQuestions(chapterId);
   };
 
@@ -1030,17 +1114,30 @@ export function EditSoal({ allowedSubjectIds = null }) {
 
           <BulkImport onImport={importBulk} status={bulkStatus} />
 
+          {moveMsg && (
+            <p className="text-xs bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2">{moveMsg}</p>
+          )}
+
           <QuestionList
             title="Daftar Soal di Bab Ini"
             questions={questions}
             onPreview={setPreviewData}
             onEdit={startEdit}
             onReload={() => reloadQuestions(chapterId)}
+            onMoveToSimulasi={(items) => { setMoveMsg(''); setMoveItems(items); }}
+            whereLabel={`${subjectLabel()} · ${chapterLabel()}`}
           />
         </div>
       )}
 
       <PreviewModal previewData={previewData} onClose={() => setPreviewData(null)} />
+      <MoveToSimulasiModal
+        items={moveItems}
+        subjectId={subjectId}
+        subjectName={subjects.find((s) => s.id === subjectId)?.name}
+        onClose={() => setMoveItems(null)}
+        onDone={(msg) => { setMoveItems(null); setMoveMsg(msg); reloadQuestions(chapterId); }}
+      />
     </div>
   );
 }
@@ -1098,7 +1195,10 @@ function Highlight({ text, terms }) {
 // Daftar soal dengan PENCARIAN + fitur PILIH BANYAK lalu hapus sekaligus.
 // Dipakai bersama oleh EditSoal (Cicil Belajar) & EditSimulasi (CBT).
 // onReload dipanggil setelah hapus agar daftar disegarkan.
-function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
+// onMoveToSimulasi: hanya diisi oleh Edit Soal Cicil Belajar. Kalau kosong,
+// tombol "→ Simulasi" tidak muncul (mis. saat dipakai di Edit Simulasi CBT).
+function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToSimulasi = null, whereLabel = '' }) {
+  const { user } = useAuth();
   const [selected, setSelected] = useState(() => new Set());
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1137,8 +1237,17 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
   const deleteOne = async (id) => {
     if (!confirm('Yakin ingin menghapus soal ini?')) return;
     setBusy(true);
+    // Salin isinya SEBELUM dihapus supaya riwayat masih bisa menampilkan
+    // soal apa yang hilang.
+    const doomed = questions.find((q) => q.id === id);
     try {
       await pb.collection('questions').delete(id);
+      logActivity(pb, user, {
+        section: 'soal_hapus',
+        summary: `Menghapus 1 soal${whereLabel ? ` di ${whereLabel}` : ''}`,
+        targetLabel: shorten(doomed?.text, 200),
+        detail: questionSnapshot(doomed),
+      });
     } catch (e) {
       setStatus('❌ Gagal menghapus: ' + (e?.message || ''));
     }
@@ -1151,7 +1260,14 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
     if (ids.length === 0) return;
     if (!confirm(`Hapus ${ids.length} soal terpilih sekaligus? Tindakan ini tidak bisa dibatalkan.`)) return;
     setBusy(true);
+    const doomed = questions.filter((q) => ids.includes(q.id));
     await bulkDeleteQuestions({ ids, setStatus });
+    logActivity(pb, user, {
+      section: 'soal_hapus',
+      summary: `Menghapus ${ids.length} soal sekaligus${whereLabel ? ` di ${whereLabel}` : ''}`,
+      targetLabel: doomed.map((q) => shorten(q.text, 60)).slice(0, 3).join(' · '),
+      detail: doomed.slice(0, 10).map(questionSnapshot),
+    });
     setSelected(new Set());
     setBusy(false);
     onReload?.();
@@ -1172,6 +1288,15 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
               <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 cursor-pointer accent-maroon-600" />
               Pilih semua{terms.length ? ' hasil cari' : ''}
             </label>
+            {onMoveToSimulasi && (
+              <button
+                onClick={() => onMoveToSimulasi(filtered.filter((q) => selected.has(q.id)))}
+                disabled={selected.size === 0 || busy}
+                className="text-xs font-bold rounded-lg border border-maroon-300 text-maroon-600 px-3 py-1.5 hover:bg-maroon-50 disabled:opacity-40"
+              >
+                → Simulasi ({selected.size})
+              </button>
+            )}
             <button
               onClick={deleteSelected}
               disabled={selected.size === 0 || busy}
@@ -1242,9 +1367,18 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
                 </ul>
               )}
             </div>
-            <div className="flex gap-3 shrink-0">
+            <div className="flex flex-wrap gap-3 shrink-0 justify-end">
               <button onClick={() => onPreview(q)} className="text-xs text-maroon-600 hover:underline font-semibold">Preview</button>
               <button onClick={() => onEdit(q)} className="text-xs text-gold-600 hover:underline font-semibold">Edit</button>
+              {onMoveToSimulasi && (
+                <button
+                  onClick={() => onMoveToSimulasi([q])}
+                  title="Salin / pindahkan soal ini ke bank soal Simulasi CBT"
+                  className="text-xs text-maroon-600 hover:underline font-semibold"
+                >
+                  → Simulasi
+                </button>
+              )}
               <button onClick={() => deleteOne(q.id)} className="text-xs text-red-600 hover:underline font-semibold">Hapus</button>
             </div>
           </div>
@@ -1259,6 +1393,144 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload }) {
   );
 }
 
+
+// ==========================================
+// PINDAH / SALIN SOAL CICIL BELAJAR -> BANK SOAL SIMULASI CBT
+// Mata kuliah otomatis mengikuti mata kuliah soal asal; admin cukup memilih
+// tahun angkatannya. Default "salin" supaya soal latihan di BAB tidak hilang
+// dari siswa tanpa sengaja — "pindahkan" tersedia kalau memang diinginkan.
+// ==========================================
+const CBT_YEARS = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
+
+function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone }) {
+  const { user } = useAuth();
+  const [year, setYear] = useState('');
+  const [mode, setMode] = useState('copy'); // 'copy' | 'move'
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
+
+  if (!items || items.length === 0) return null;
+
+  const run = async () => {
+    if (!year) { setStatus('⚠️ Pilih tahun angkatan dulu.'); return; }
+    setBusy(true);
+    setStatus('');
+    let ok = 0;
+    const failed = [];
+    try {
+      // Nomor urut lanjut dari soal CBT yang sudah ada di tahun tersebut.
+      const existing = await pb.collection('questions').getFullList({
+        filter: `subject = '${subjectId}' && type = 'cbt' && year = ${Number(year)}`,
+        fields: 'id',
+      });
+      let order = existing.length;
+
+      for (const q of items) {
+        try {
+          await pb.collection('questions').create({
+            subject: q.subject || subjectId,
+            chapter: '',           // soal CBT tidak terikat BAB
+            type: 'cbt',
+            year: Number(year),
+            text: q.text || '',
+            hint: q.hint || '',
+            options: packOptions(q), // qtype/imageUrl/subQuestions ikut terbawa
+            order: ++order,
+          });
+          if (mode === 'move') await pb.collection('questions').delete(q.id);
+          ok += 1;
+        } catch (e) {
+          failed.push(stripHtml(q.text).slice(0, 40) + ' — ' + (e?.message || 'gagal'));
+        }
+      }
+    } catch (e) {
+      setStatus('❌ Gagal menyiapkan: ' + (e?.message || ''));
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    if (ok > 0) {
+      logActivity(pb, user, {
+        section: 'soal_pindah',
+        summary: `${mode === 'move' ? 'Memindahkan' : 'Menyalin'} ${ok} soal ke Simulasi CBT ${subjectName || ''} tahun ${year}`,
+        targetLabel: items.map((q) => shorten(q.text, 60)).slice(0, 3).join(' · '),
+        detail: items.slice(0, 10).map(questionSnapshot),
+      });
+    }
+    if (failed.length) {
+      setStatus(`Selesai sebagian: ${ok} berhasil, ${failed.length} gagal.\n` + failed.join('\n'));
+    } else {
+      onDone?.(`✅ ${ok} soal ${mode === 'move' ? 'dipindahkan' : 'disalin'} ke Simulasi CBT ${subjectName || ''} tahun ${year}.`);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-alba-50 rounded-2xl w-full max-w-lg p-6 shadow-card-hover space-y-4" onClick={(e) => e.stopPropagation()}>
+        <div>
+          <h3 className="font-display text-lg font-semibold text-maroon-700">Kirim ke Simulasi CBT</h3>
+          <p className="text-sm text-stone-500 mt-1 leading-relaxed">
+            {items.length === 1 ? '1 soal' : `${items.length} soal`} akan masuk ke bank soal Simulasi CBT
+            mata kuliah <b>{subjectName || 'ini'}</b> — mata kuliah otomatis mengikuti soal asal.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-stone-700 mb-2">Tahun angkatan tujuan</label>
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            {CBT_YEARS.map((y) => (
+              <button
+                key={y}
+                onClick={() => setYear(String(y))}
+                className={`rounded-lg border px-2 py-2 text-sm font-bold transition-colors ${
+                  year === String(y)
+                    ? 'border-maroon-600 bg-maroon-600 text-alba-50'
+                    : 'border-alba-300 text-stone-600 hover:border-maroon-400'
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-stone-700 mb-2">Soal aslinya diapakan?</label>
+          <div className="grid sm:grid-cols-2 gap-2">
+            <button
+              onClick={() => setMode('copy')}
+              className={`rounded-lg border-2 px-3 py-2.5 text-left transition-colors ${mode === 'copy' ? 'border-maroon-600 bg-maroon-50' : 'border-alba-300 hover:border-maroon-300'}`}
+            >
+              <span className="block text-sm font-bold text-stone-800">Salin</span>
+              <span className="block text-[11px] text-stone-500 mt-0.5">Soal tetap ada di BAB ini</span>
+            </button>
+            <button
+              onClick={() => setMode('move')}
+              className={`rounded-lg border-2 px-3 py-2.5 text-left transition-colors ${mode === 'move' ? 'border-maroon-600 bg-maroon-50' : 'border-alba-300 hover:border-maroon-300'}`}
+            >
+              <span className="block text-sm font-bold text-stone-800">Pindahkan</span>
+              <span className="block text-[11px] text-stone-500 mt-0.5">Dihapus dari BAB ini</span>
+            </button>
+          </div>
+          {mode === 'move' && (
+            <p className="mt-2 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              Soal akan hilang dari latihan Cicil Belajar BAB ini. Progres siswa yang sudah mengerjakan tidak ikut terhapus.
+            </p>
+          )}
+        </div>
+
+        {status && <p className="text-xs whitespace-pre-wrap bg-alba-100 border border-alba-200 rounded-lg px-3 py-2 text-stone-600">{status}</p>}
+
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose} disabled={busy} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto disabled:opacity-50">Batal</button>
+          <button onClick={run} disabled={busy || !year} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-6 py-2 disabled:opacity-40">
+            {busy ? 'Memproses…' : mode === 'move' ? 'Pindahkan' : 'Salin'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PreviewModal({ previewData, onClose }) {
   if (!previewData) return null;
@@ -1329,6 +1601,7 @@ function PreviewModal({ previewData, onClose }) {
 // EDIT SOAL SIMULASI CBT (mata kuliah → tahun, TANPA BAB — sesuai PRD)
 // ==========================================
 export function EditSimulasi({ allowedSubjectIds = null }) {
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
   const [year, setYear] = useState('');
@@ -1364,11 +1637,24 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       ...payloadFromForm(form),
     };
 
+    const where = `Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`.trim();
     if (editingId) {
-      await pb.collection('questions').update(editingId, payload);
+      const saved = await pb.collection('questions').update(editingId, payload);
+      logActivity(pb, user, {
+        section: 'soal_ubah',
+        summary: `Mengubah soal di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     } else {
       payload.order = questions.length + 1;
-      await pb.collection('questions').create(payload);
+      const saved = await pb.collection('questions').create(payload);
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Menambah soal di ${where}`,
+        targetLabel: shorten(form.text, 200),
+        detail: questionSnapshot(saved),
+      });
     }
 
     setForm(EMPTY_FORM);
@@ -1407,7 +1693,14 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
         options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
       }),
     });
-    if (ok) onDone?.();
+    if (ok) {
+      onDone?.();
+      logActivity(pb, user, {
+        section: 'soal_tambah',
+        summary: `Import massal ${items.length} soal ke Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`,
+        targetLabel: `Simulasi CBT ${year}`,
+      });
+    }
     loadQuestions();
   };
 
@@ -1446,6 +1739,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
             onPreview={setPreviewData}
             onEdit={startEdit}
             onReload={loadQuestions}
+            whereLabel={`Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`.trim()}
           />
         </div>
       )}
@@ -1463,6 +1757,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 // 1. pilihkan mata kuliah lewat chip di kartu, 2. klik "ACC" -> akun aktif dan
 // email notifikasi terkirim otomatis (hook PocketBase), atau "Tolak" -> hapus.
 function PendingSignups() {
+  const { user: admin } = useAuth();
   const [pending, setPending] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [busyId, setBusyId] = useState(null);
@@ -1509,6 +1804,11 @@ function PendingSignups() {
       await pb.collection('users').update(u.id, { signupPending: false, disabled: false });
       setPending((prev) => prev.filter((x) => x.id !== u.id));
       setMsg(`${u.name || u.userId} di-ACC. Email notifikasi dikirim ke ${u.email}.`);
+      logActivity(pb, admin, {
+        section: 'akun',
+        summary: `Meng-ACC pendaftaran ${u.name || u.userId}`,
+        targetLabel: u.email || u.userId,
+      });
     } catch (e) {
       setMsg(`Gagal ACC: ${e?.message || ''}`);
     } finally {
@@ -1523,6 +1823,11 @@ function PendingSignups() {
       await pb.collection('users').delete(u.id);
       setPending((prev) => prev.filter((x) => x.id !== u.id));
       setMsg(`Pendaftaran ${u.name || u.userId} dihapus.`);
+      logActivity(pb, admin, {
+        section: 'akun',
+        summary: `Menolak pendaftaran ${u.name || u.userId}`,
+        targetLabel: u.email || u.userId,
+      });
     } catch (e) {
       setMsg(`Gagal menghapus: ${e?.message || ''}`);
     } finally {
@@ -1761,6 +2066,7 @@ function SignupSettings() {
 }
 
 function TambahAkun() {
+  const { user: admin } = useAuth();
   const [form, setForm] = useState({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student', studentType: 'reguler' });
   const [msg, setMsg] = useState('');
   const [msgOk, setMsgOk] = useState(false);
@@ -1768,7 +2074,7 @@ function TambahAkun() {
     e.preventDefault();
     setMsg('');
     if (!form.userId.trim()) {
-      setMsg('ID User wajib diisi — dipakai siswa/pengajar untuk login.');
+      setMsg('Login ID wajib diisi — dipakai siswa/pengajar untuk login.');
       setMsgOk(false);
       return;
     }
@@ -1801,6 +2107,11 @@ function TambahAkun() {
       const label = form.role === 'student' ? studentTypeLabel(form.studentType) : 'teacher';
       setMsg(`Akun ${label} berhasil dibuat. Buka tab ${form.role === 'student' ? 'Siswa' : 'Pengajar'} untuk memilihkan mata kuliahnya.`);
       setMsgOk(true);
+      logActivity(pb, admin, {
+        section: 'akun',
+        summary: `Membuat akun ${label} baru: ${form.name || form.userId}`,
+        targetLabel: form.userId,
+      });
       setForm({ userId: '', name: '', email: '', password: '', semester: '', asalKuliah: '', role: 'student', studentType: 'reguler' });
     } catch (err) {
       // tampilkan detail error per field supaya ketahuan persis salahnya di mana
@@ -1822,7 +2133,7 @@ function TambahAkun() {
       <h2 className="font-display text-lg font-semibold mb-4">Tambah Akun</h2>
       <form onSubmit={submit} className="space-y-3">
         <div>
-          <input required value={form.userId} onChange={(e) => setForm((f) => ({ ...f, userId: e.target.value }))} placeholder="ID User (untuk login)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+          <input required value={form.userId} onChange={(e) => setForm((f) => ({ ...f, userId: e.target.value }))} placeholder="Login ID (untuk login)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
           <p className="text-[11px] text-stone-400 mt-1">Dipakai siswa/pengajar untuk login (bukan email).</p>
         </div>
         <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />

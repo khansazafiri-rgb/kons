@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FileText, Lock } fro
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
+import { touchActivity } from '@/lib/activityLog';
 
 export default function PembelajaranPPT() {
  const [params] = useSearchParams();
@@ -65,6 +66,8 @@ export default function PembelajaranPPT() {
      } else {
        await pb.collection('materi_progress').create({ owner: user.id, chapter: chapterId, completed: true });
      }
+     // Jejak untuk "last activity" di Dashboard Activity admin.
+     touchActivity(pb, user, `Membaca materi PPT BAB ${chapter?.title || ''}`.trim());
    }
  };
 

@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Login memakai "ID User" (field userId) atau email — keduanya didukung
+  // Login memakai "Login ID" (field userId) atau email — keduanya didukung
   // oleh identityFields di PocketBase. Parameter dinamai `identity`.
   const login = async (identity, password) => {
     await pb.collection('users').authWithPassword(identity, password);

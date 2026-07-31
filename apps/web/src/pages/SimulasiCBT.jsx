@@ -4,6 +4,7 @@ import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
+import { touchActivity } from '@/lib/activityLog';
 
 const years = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
 
@@ -176,6 +177,9 @@ export default function SimulasiCBT() {
      await pb.collection('cbt_attempts').update(attemptId, { answers, score, status: 'completed' });
    }
    await bumpStreak(pb, user); // streak belajar harian 🔥
+   // Jejak untuk "last activity" di Dashboard Activity admin.
+   const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
+   touchActivity(pb, user, `Mengerjakan Simulasi CBT ${namaMk} tahun ${year} (nilai ${score})`);
  };
 
  const exit = async () => {

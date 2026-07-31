@@ -28,7 +28,7 @@ onRecordCreateRequest((e) => {
         "<p>Ada pendaftaran siswa baru di web sign up:</p>" +
         "<ul>" +
         "<li><b>Nama:</b> " + e.record.getString("name") + "</li>" +
-        "<li><b>ID User:</b> " + e.record.getString("userId") + "</li>" +
+        "<li><b>Login ID:</b> " + e.record.getString("userId") + "</li>" +
         "<li><b>Email:</b> " + e.record.getString("email") + "</li>" +
         "<li><b>Tipe:</b> " + (LABEL[e.record.getString("studentType")] || "Student - Reguler") + "</li>" +
         "<li><b>Semester:</b> " + e.record.getInt("semester") + "</li>" +
@@ -64,7 +64,7 @@ onRecordUpdateRequest((e) => {
           "akan terdaftar otomatis.";
 
     const settings = e.app.settings();
-    const appUrl = (settings.meta.appURL || "https://pcvclassroom.id").replace(/\/+$/, "");
+    const appUrl = (settings.meta.appURL || "https://pcvclassroom.com").replace(/\/+$/, "");
     const message = new MailerMessage({
       from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
       to: [{ address: email }],
@@ -74,7 +74,7 @@ onRecordUpdateRequest((e) => {
         "<p>Selamat! Pendaftaranmu di PCV Classroom sudah di-ACC admin. " +
         "Website siswa sekarang sudah bisa kamu akses:</p>" +
         "<p><a href=\"" + appUrl + "/login\">" + appUrl + "/login</a></p>" +
-        "<p>Masuk menggunakan <b>ID User</b> dan <b>password</b> yang kamu isi saat mendaftar.</p>" +
+        "<p>Masuk menggunakan <b>Login ID</b> dan <b>password</b> yang kamu isi saat mendaftar.</p>" +
         "<p><b>Penting soal device:</b> " + deviceNote + " " +
         "Kalau nanti ingin ganti device, hubungi admin lewat WhatsApp: " +
         "<a href=\"https://wa.me/6282257238650\">wa.me/6282257238650</a>.</p>" +
