@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, GraduationCap, IdCard, KeyRound, Mail, School, UserRound } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, GraduationCap, IdCard, Info, KeyRound, Mail, School, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { resolveSignupTexts } from '@/lib/signupContent';
+import { FK_INDONESIA, FK_LAINNYA } from '@/data/fakultasKedokteran';
 
 // Halaman pendaftaran siswa (Sign Up).
 // Alur: pendaftar mengisi form -> akun dibuat dengan role student, status
@@ -17,14 +18,20 @@ export default function SignupPage() {
   const [settings, setSettings] = useState(null); // record signup_settings
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [form, setForm] = useState({
-    studentType: 'reguler',
+    // Sengaja KOSONG: pendaftar harus memilih programnya sendiri, jadi tidak ada
+    // tombol yang sudah tersorot merah begitu halaman dibuka.
+    studentType: '',
     userId: '',
     name: '',
     email: '',
     password: '',
+    passwordConfirm: '',
     semester: '',
-    asalKuliah: '',
+    asalKuliah: '',        // hasil pilihan dropdown (atau FK_LAINNYA)
+    asalKuliahLainnya: '', // isian bebas kalau memilih "Lainnya"
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -40,11 +47,28 @@ export default function SignupPage() {
   const t = resolveSignupTexts(settings?.texts);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  // Nama kampus yang benar-benar disimpan: hasil dropdown, atau isian bebas
+  // kalau pendaftar memilih "Lainnya".
+  const asalKuliahFinal =
+    form.asalKuliah === FK_LAINNYA ? form.asalKuliahLainnya.trim() : form.asalKuliah;
+
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!form.studentType) {
+      setError('Pilih dulu program yang kamu ambil.');
+      return;
+    }
     if (form.password.length < 8) {
       setError('Password minimal 8 karakter.');
+      return;
+    }
+    if (form.password !== form.passwordConfirm) {
+      setError('Password dan ulangi password belum sama. Cek lagi ya.');
+      return;
+    }
+    if (!asalKuliahFinal) {
+      setError('Asal kuliah wajib diisi.');
       return;
     }
     setLoading(true);
@@ -57,7 +81,7 @@ export default function SignupPage() {
         password: form.password,
         passwordConfirm: form.password,
         semester: form.semester ? Number(form.semester) : null,
-        asalKuliah: form.asalKuliah,
+        asalKuliah: asalKuliahFinal,
         studentType: form.studentType,
         role: 'student',
         // Akun menunggu ACC admin: belum bisa login sampai disetujui.
@@ -161,10 +185,10 @@ export default function SignupPage() {
                         type="button"
                         key={p.value}
                         onClick={() => setForm((f) => ({ ...f, studentType: p.value }))}
-                        className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                        className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-colors ${
                           form.studentType === p.value
                             ? 'border-maroon-600 bg-maroon-50 text-maroon-700'
-                            : 'border-alba-300 text-stone-600 hover:border-maroon-300'
+                            : 'border-alba-300 bg-alba-50 text-stone-600 hover:border-maroon-300'
                         }`}
                       >
                         {p.label}
@@ -178,6 +202,7 @@ export default function SignupPage() {
                     <IdCard size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
                     <input type="text" required autoCapitalize="none" autoCorrect="off" value={form.userId} onChange={set('userId')} className={inputCls} placeholder={t.placeholderUserId} />
                   </div>
+                  {t.hintUserId && <p className="text-[11px] text-stone-400 mt-1">{t.hintUserId}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelName}</label>
@@ -192,30 +217,86 @@ export default function SignupPage() {
                     <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
                     <input type="email" required value={form.email} onChange={set('email')} className={inputCls} placeholder={t.placeholderEmail} />
                   </div>
-                  <p className="text-[11px] text-stone-400 mt-1">{t.hintEmail}</p>
+                  {/* Keterangan email sengaja dibuat menonjol (kotak, bukan teks
+                      abu kecil) — sebelumnya sering terlewat pendaftar. */}
+                  <p className="mt-2 flex items-start gap-2 text-xs text-maroon-700 bg-maroon-50 border border-maroon-100 rounded-xl px-3 py-2 leading-relaxed">
+                    <Info size={14} className="shrink-0 mt-0.5" />
+                    {t.hintEmail}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelPassword}</label>
+                  <PasswordInput
+                    value={form.password}
+                    onChange={set('password')}
+                    show={showPassword}
+                    onToggle={() => setShowPassword((s) => !s)}
+                    placeholder={t.placeholderPassword}
+                    inputCls={inputCls}
+                    minLength={8}
+                  />
+                  {t.hintPassword && <p className="text-[11px] text-stone-400 mt-1">{t.hintPassword}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelPasswordConfirm}</label>
+                  <PasswordInput
+                    value={form.passwordConfirm}
+                    onChange={set('passwordConfirm')}
+                    show={showPasswordConfirm}
+                    onToggle={() => setShowPasswordConfirm((s) => !s)}
+                    placeholder={t.placeholderPasswordConfirm}
+                    inputCls={inputCls}
+                    mismatch={form.passwordConfirm.length > 0 && form.password !== form.passwordConfirm}
+                  />
+                  {form.passwordConfirm.length > 0 && (
+                    form.password === form.passwordConfirm ? (
+                      <p className="text-[11px] font-semibold text-green-700 mt-1 flex items-center gap-1">
+                        <CheckCircle2 size={12} /> Password sudah sama.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] font-semibold text-maroon-600 mt-1">Password belum sama.</p>
+                    )
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelSemester}</label>
                   <div className="relative">
-                    <KeyRound size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-                    <input type="password" required minLength={8} value={form.password} onChange={set('password')} className={inputCls} placeholder={t.placeholderPassword} />
+                    <GraduationCap size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <input type="number" min="1" max="14" required value={form.semester} onChange={set('semester')} className={inputCls} placeholder={t.placeholderSemester} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelSemester}</label>
-                    <div className="relative">
-                      <GraduationCap size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-                      <input type="number" min="1" max="14" required value={form.semester} onChange={set('semester')} className={inputCls} placeholder={t.placeholderSemester} />
-                    </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelAsalKuliah}</label>
+                  <div className="relative">
+                    <School size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 z-10" />
+                    <select
+                      required
+                      value={form.asalKuliah}
+                      onChange={set('asalKuliah')}
+                      className={`${inputCls} appearance-none pr-10 ${form.asalKuliah ? '' : 'text-stone-400'}`}
+                    >
+                      <option value="">{t.placeholderAsalKuliah}</option>
+                      {FK_INDONESIA.map((g) => (
+                        <optgroup key={g.group} label={g.group}>
+                          {g.items.map((nama) => <option key={nama} value={nama}>{nama}</option>)}
+                        </optgroup>
+                      ))}
+                      <option value={FK_LAINNYA}>{t.optionAsalKuliahLainnya}</option>
+                    </select>
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-xs">▾</span>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelAsalKuliah}</label>
-                    <div className="relative">
-                      <School size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-                      <input type="text" required value={form.asalKuliah} onChange={set('asalKuliah')} className={inputCls} placeholder={t.placeholderAsalKuliah} />
-                    </div>
-                  </div>
+                  {/* Daftar kampus tidak mungkin selalu lengkap — beri jalan keluar
+                      supaya pendaftar dari FK baru tetap bisa mendaftar. */}
+                  {form.asalKuliah === FK_LAINNYA && (
+                    <input
+                      type="text"
+                      required
+                      value={form.asalKuliahLainnya}
+                      onChange={set('asalKuliahLainnya')}
+                      className={`${inputCls} pl-4 mt-2`}
+                      placeholder={t.placeholderAsalKuliahLainnya}
+                    />
+                  )}
                 </div>
 
                 {error && (
@@ -237,6 +318,35 @@ export default function SignupPage() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Kolom password dengan ikon mata untuk mengintip apa yang sudah diketik —
+// mengurangi salah ketik sebelum akun terlanjur dibuat.
+function PasswordInput({ value, onChange, show, onToggle, placeholder, inputCls, minLength, mismatch = false }) {
+  return (
+    <div className="relative">
+      <KeyRound size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+      <input
+        type={show ? 'text' : 'password'}
+        required
+        minLength={minLength}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={`${inputCls} pr-11 ${mismatch ? 'border-maroon-400' : ''}`}
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        tabIndex={-1}
+        aria-label={show ? 'Sembunyikan password' : 'Lihat password'}
+        title={show ? 'Sembunyikan password' : 'Lihat password'}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-maroon-600 transition-colors p-1"
+      >
+        {show ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
     </div>
   );
 }

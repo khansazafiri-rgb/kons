@@ -49,7 +49,7 @@ function ProfilPengajar() {
     <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-3 shadow-card">
       <h2 className="font-display text-lg font-semibold">Profil Pengajar</h2>
       <div className="grid sm:grid-cols-2 gap-4 pt-2">
-        <ProfField label="ID User" value={user?.userId} />
+        <ProfField label="Login ID" value={user?.userId} />
         <ProfField label="Nama" value={user?.name} />
         <ProfField label="Gmail" value={user?.email} />
         <ProfField label="Semester" value={user?.semester} />

@@ -76,7 +76,7 @@ export default function ProfilePage() {
            {(
              <>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                 <Field label="ID User" value={user?.userId} />
+                 <Field label="Login ID" value={user?.userId} />
                  <Field label="Nama" value={user?.name} />
                  <Field label="Gmail" value={user?.email} />
                  <Field label="Tipe Akun" value={roleLabel(user)} className="capitalize" />
