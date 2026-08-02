@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FileText, Lock, PlayCircle } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -47,7 +47,7 @@ export default function PembelajaranPPT() {
      .catch(() => setFileUrl(''));
  }, [chapterId, denied]);
 
- // Auto-buka materi di tab baru sekali saja saat file siap — hanya bila belum
+ // Auto-buka materi di tab baru sekali saja saat file siap - hanya bila belum
  // dibukakan dari halaman daftar (akses langsung via URL / setelah "Lanjut").
  useEffect(() => {
    if (!fileUrl || autoOpenedRef.current) return;
@@ -137,6 +137,29 @@ export default function PembelajaranPPT() {
            </div>
          )}
        </div>
+
+       {/* Video penjelasan (link Google Drive per BAB, diisi admin/pengajar
+           di tempat yang sama dengan upload PPT) */}
+       {chapter?.videoUrl && (
+         <div className="mt-6 bg-alba-50 rounded-2xl border border-maroon-100 shadow-card p-6 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+           <span className="w-12 h-12 rounded-2xl bg-maroon-50 border border-maroon-100 text-maroon-600 flex items-center justify-center shrink-0">
+             <PlayCircle size={24} />
+           </span>
+           <div className="flex-1">
+             <h2 className="font-display font-semibold text-stone-800">Video Penjelasan BAB Ini</h2>
+             <p className="text-sm text-stone-600 mt-0.5">Tonton penjelasan materinya langsung dari tentor lewat Google Drive.</p>
+           </div>
+           <a
+             href={chapter.videoUrl}
+             target="_blank"
+             rel="noopener noreferrer"
+             className="inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 font-bold px-6 py-3 shadow-card hover:bg-maroon-700 transition-colors shrink-0"
+           >
+             Tonton Video
+             <ExternalLink size={14} />
+           </a>
+         </div>
+       )}
 
        {/* "Pencet jika sudah selesai" tetap ada di bawah → lanjut ke latihan soal */}
        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">

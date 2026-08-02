@@ -11,12 +11,12 @@ const FEATURES = [
   {
     icon: BookOpenText,
     title: 'Perdalam Materi',
-    desc: 'PPT high-yield per topik yang sudah distandarisasi tentor — baca ringkas, fokus ke materi yang sering keluar.',
+    desc: 'PPT high-yield per topik yang sudah distandarisasi tentor. Baca ringkas, fokus ke materi yang sering keluar.',
   },
   {
     icon: ClipboardList,
     title: 'Cicil Belajar per BAB',
-    desc: 'Latihan soal yang terpisah otomatis per BAB. Jawab, langsung dapat pembahasan tiap opsi — termasuk soal essai bergambar yang dinilai otomatis.',
+    desc: 'Latihan soal yang terpisah otomatis per BAB. Jawab, langsung dapat pembahasan tiap opsi, termasuk soal essai bergambar yang dinilai otomatis.',
   },
   {
     icon: Timer,
@@ -26,7 +26,7 @@ const FEATURES = [
   {
     icon: CalendarClock,
     title: 'Reminder Ujian',
-    desc: 'Countdown jadwal ujian tiap mata kuliah tampil di beranda — biar persiapanmu selalu terukur.',
+    desc: 'Countdown jadwal ujian tiap mata kuliah tampil di beranda, biar persiapanmu selalu terukur.',
   },
 ];
 
@@ -47,7 +47,7 @@ export default function StudentWebPage() {
           </h1>
           <p className="text-stone-600 text-lg leading-relaxed">
             Student Web adalah rumah belajar mandirimu: materi high-yield, latihan soal
-            per BAB, dan simulasi CBT dalam satu tempat — pendamping kelas PCV yang bisa
+            per BAB, dan simulasi CBT dalam satu tempat, pendamping kelas PCV yang bisa
             diakses kapan pun.
           </p>
         </motion.div>
@@ -95,7 +95,7 @@ export default function StudentWebPage() {
           <h2 className="font-display text-3xl font-semibold mb-3">Intip Student Web dalam 30 Detik</h2>
           <p className="text-stone-600 leading-relaxed">
             Video berjalan otomatis saat terlihat di layarmu. Klik tombol di pojok untuk
-            menonton layar penuh — klik lagi untuk kembali.
+            menonton layar penuh, klik lagi untuk kembali.
           </p>
         </motion.div>
         <TourVideo />
@@ -114,7 +114,7 @@ export default function StudentWebPage() {
                 </li>
                 <li className="flex gap-2.5 items-start">
                   <UserPlus size={16} className="text-gold-400 shrink-0 mt-0.5" />
-                  Belum punya akun? Daftar lewat tombol Sign Up di halaman login — admin
+                  Belum punya akun? Daftar lewat tombol Sign Up di halaman login, admin
                   akan meng-ACC dan mengirim notifikasi ke emailmu.
                 </li>
                 <li className="flex gap-2.5 items-start">
@@ -194,7 +194,7 @@ function TourVideo() {
       <iframe
         ref={frameRef}
         src="/tour.html"
-        title="PCV Classroom — Cinematic Tour"
+        title="PCV Classroom - Cinematic Tour"
         allow="autoplay; fullscreen"
         allowFullScreen
         className="absolute inset-0 w-full h-full border-0"

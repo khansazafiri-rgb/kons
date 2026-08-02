@@ -156,7 +156,7 @@ export default function ProfilePage() {
              {[...attempts].reverse().map((a) => (
                <div key={a.id} className="flex items-center justify-between rounded-xl bg-alba-100/60 px-4 py-2.5 text-sm">
                  <span className="text-stone-700 font-medium">
-                   {(subjectNames[a.subject] || 'Mata kuliah')} — {a.year || '-'}
+                   {(subjectNames[a.subject] || 'Mata kuliah')} - {a.year || '-'}
                    <span className="text-stone-400 text-xs ml-2">{String(a.created).slice(0, 10)}</span>
                  </span>
                  <span className={`font-bold ${a.score >= 80 ? 'text-green-800' : a.score >= 60 ? 'text-gold-600' : 'text-maroon-600'}`}>

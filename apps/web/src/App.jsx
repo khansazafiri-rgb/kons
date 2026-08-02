@@ -16,6 +16,7 @@ import PerdalamMateri from './pages/PerdalamMateri';
 import PembelajaranPPT from './pages/PembelajaranPPT';
 import CicilBelajar from './pages/CicilBelajar';
 import SimulasiCBT from './pages/SimulasiCBT';
+import BankSoal from './pages/BankSoal';
 import AdminPanel from './pages/admin/AdminPanel';
 import TeacherPanel from './pages/teacher/TeacherPanel';
 
@@ -38,6 +39,9 @@ function App() {
          <Route path="/pembelajaran-ppt" element={<ProtectedRoute><PembelajaranPPT /></ProtectedRoute>} />
          <Route path="/cicil-belajar" element={<ProtectedRoute><CicilBelajar /></ProtectedRoute>} />
          <Route path="/simulasi-test" element={<ProtectedRoute><SimulasiCBT /></ProtectedRoute>} />
+         {/* Bank Soal: disiapkan tapi tersembunyi - halaman memblokir diri
+             sendiri selama saklar showBankSoal di landing_settings masih mati */}
+         <Route path="/bank-soal" element={<ProtectedRoute><BankSoal /></ProtectedRoute>} />
          <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminPanel /></ProtectedRoute>} />
          <Route path="/teacher" element={<ProtectedRoute roles={['teacher']}><TeacherPanel /></ProtectedRoute>} />
        </Routes>

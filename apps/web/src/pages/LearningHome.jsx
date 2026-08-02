@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, BookOpenText, ClipboardList, History, Timer, CalendarClock } from 'lucide-react';
+import { ArrowRight, BookOpenText, ClipboardList, History, Library, Timer, CalendarClock } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -22,7 +22,7 @@ const cards = [
  {
    icon: Timer,
    title: 'CBT Test',
-   desc: 'Kerjakan soal-soal angkatan sebelumnya sesuai dengan bab yang kamu pilih.',
+   desc: 'Kerjakan paket-paket soal tryout dengan mode simulasi ujian atau mode belajar santai.',
    to: '/simulasi-test',
  },
 ];
@@ -32,6 +32,47 @@ export default function LearningHome() {
  const { user, role } = useAuth();
  const [resumeList, setResumeList] = useState([]);
  const [exams, setExams] = useState([]);
+ const [kelas, setKelas] = useState(null); // record classes milik siswa (jadwal kelas reguler)
+ const [showBank, setShowBank] = useState(false); // saklar fitur Bank Soal (landing_settings)
+
+ // Kartu Bank Soal baru muncul kalau admin sudah merilis fiturnya.
+ useEffect(() => {
+   let alive = true;
+   pb.collection('landing_settings')
+     .getFullList()
+     .then((rows) => { if (alive) setShowBank(!!rows[0]?.showBankSoal); })
+     .catch(() => {});
+   return () => { alive = false; };
+ }, []);
+
+ const menuCards = showBank
+   ? [...cards, {
+       icon: Library,
+       title: 'Bank Soal',
+       desc: 'Latihan bebas dari kumpulan soal berjumlah besar per mata kuliah dan BAB.',
+       to: '/bank-soal',
+     }]
+   : cards;
+
+ // Jadwal kelas reguler siswa: server menyinkronkan Google Calendar tiap kelas
+ // ke classes.scheduleCache; di sini tinggal menampilkan 7 hari ke depan.
+ useEffect(() => {
+   let alive = true;
+   if (!user?.kelas) { setKelas(null); return; }
+   pb.collection('classes').getOne(user.kelas)
+     .then((k) => { if (alive) setKelas(k); })
+     .catch(() => { if (alive) setKelas(null); });
+   return () => { alive = false; };
+ }, [user?.kelas]);
+
+ const WIB_OFFSET_MS = 7 * 3600000;
+ const wibDate = (iso) => new Date(new Date(iso).getTime() + WIB_OFFSET_MS).toISOString().slice(0, 10);
+ const wibTime = (iso) => new Date(new Date(iso).getTime() + WIB_OFFSET_MS).toISOString().slice(11, 16);
+ const todayWib = wibDate(new Date().toISOString());
+ const tomorrowWib = wibDate(new Date(Date.now() + 86400000).toISOString());
+ const classEvents = (Array.isArray(kelas?.scheduleCache) ? kelas.scheduleCache : [])
+   .filter((ev) => ev?.start && wibDate(ev.start) >= todayWib)
+   .slice(0, 6);
 
  // Reminder ujian: ambil jadwal ujian mendatang lalu tampilkan countdown di
  // beranda. Untuk SISWA, hanya jadwal dari mata kuliah yang ia ambil yang
@@ -95,7 +136,7 @@ export default function LearningHome() {
          <p className="text-stone-600 mb-10">Pilih menu yang ingin kamu kerjakan hari ini.</p>
        </motion.div>
 
-       {/* Reminder Ujian — countdown menuju ujian terdekat */}
+       {/* Reminder Ujian - countdown menuju ujian terdekat */}
        {exams.length > 0 && (
          <motion.div
            initial={{ opacity: 0, y: 12 }}
@@ -131,7 +172,40 @@ export default function LearningHome() {
          </motion.div>
        )}
 
-       {/* Lanjutkan Belajar */}
+       {/* Jadwal Kelas Reguler - sinkron dari Google Calendar kelas */}
+      {kelas && classEvents.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.04 }}
+          className="mb-10 rounded-2xl border border-alba-200 bg-alba-100/60 p-6"
+        >
+          <p className="flex items-center gap-2 text-sm font-bold text-stone-700 mb-1">
+            <CalendarClock size={16} className="text-maroon-600" />
+            Jadwal Kelasmu
+          </p>
+          <p className="text-xs text-stone-500 mb-4">{kelas.name}</p>
+          <div className="flex flex-wrap gap-3">
+            {classEvents.map((ev, i) => {
+              const d = wibDate(ev.start);
+              const isToday = d === todayWib;
+              const isTomorrow = d === tomorrowWib;
+              return (
+                <div key={i} className={`rounded-xl border px-5 py-3 ${isToday || isTomorrow ? 'bg-maroon-50 border-maroon-200' : 'bg-alba-50 border-alba-200'}`}>
+                  <p className="font-display font-semibold text-stone-800 leading-tight">{ev.title}</p>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    {isToday ? 'Hari ini' : isTomorrow ? 'Besok' : new Date(ev.start).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Jakarta' })}
+                    {!ev.allDay && ` · ${wibTime(ev.start)} WIB`}
+                    {ev.location ? ` · ${ev.location}` : ''}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Lanjutkan Belajar */}
        {resumeList.length > 0 && (
          <motion.div
            initial={{ opacity: 0, y: 12 }}
@@ -141,7 +215,7 @@ export default function LearningHome() {
          >
            <p className="flex items-center gap-2 text-sm font-bold text-gold-600 mb-4">
              <History size={16} />
-             Lanjutkan Belajar — latihan yang belum kamu selesaikan
+             Lanjutkan Belajar - latihan yang belum kamu selesaikan
            </p>
            <div className="flex flex-wrap gap-3">
              {resumeList.map((r) => (
@@ -158,8 +232,8 @@ export default function LearningHome() {
          </motion.div>
        )}
 
-       <div className="grid md:grid-cols-3 gap-6">
-         {cards.map((c, i) => (
+       <div className={`grid gap-6 ${menuCards.length > 3 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
+         {menuCards.map((c, i) => (
            <motion.div
              key={c.title}
              initial={{ opacity: 0, y: 16 }}

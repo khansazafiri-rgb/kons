@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, GraduationCap, IdCard, Info, KeyRound, Mail, School, UserRound } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, GraduationCap, IdCard, Info, KeyRound, Mail, Phone, School, UserRound } from 'lucide-react';
 import { Logo } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { resolveSignupTexts } from '@/lib/signupContent';
@@ -13,7 +13,7 @@ import { FK_INDONESIA, FK_LAINNYA } from '@/data/fakultasKedokteran';
 //
 // SELURUH teks halaman ini bisa diedit admin (collection signup_settings,
 // lihat lib/signupContent.js). Tipe siswa dari sign up hanya "reguler" atau
-// "private" — tipe "web" khusus dibuat admin.
+// "private" - tipe "web" khusus dibuat admin.
 export default function SignupPage() {
   const [settings, setSettings] = useState(null); // record signup_settings
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -24,6 +24,7 @@ export default function SignupPage() {
     userId: '',
     name: '',
     email: '',
+    phone: '',
     password: '',
     passwordConfirm: '',
     semester: '',
@@ -71,12 +72,18 @@ export default function SignupPage() {
       setError('Asal kuliah wajib diisi.');
       return;
     }
+    const phoneDigits = form.phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      setError('Nomor WhatsApp tidak valid. Tulis seperti 08123456789.');
+      return;
+    }
     setLoading(true);
     try {
       await pb.collection('users').create({
         userId: form.userId.trim(),
         name: form.name,
         email: form.email,
+        phone: form.phone.trim(),
         emailVisibility: true,
         password: form.password,
         passwordConfirm: form.password,
@@ -98,7 +105,7 @@ export default function SignupPage() {
           .map(([field, info]) => `${field}: ${info?.message || 'tidak valid'}`)
           .join(' | ');
       }
-      setError(detail ? `Gagal mendaftar — ${detail}` : `Gagal mendaftar: ${err?.message || 'coba lagi'}`);
+      setError(detail ? `Gagal mendaftar - ${detail}` : `Gagal mendaftar: ${err?.message || 'coba lagi'}`);
     } finally {
       setLoading(false);
     }
@@ -115,7 +122,7 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-alba-50 grid lg:grid-cols-[1.1fr_1fr]">
-      {/* Panel kiri — brand maroon */}
+      {/* Panel kiri - brand maroon */}
       <div className="hidden lg:flex flex-col justify-between bg-maroon-texture text-alba-50 p-12">
         <Logo size="md" light />
         <div>
@@ -134,7 +141,7 @@ export default function SignupPage() {
         <p className="text-xs text-alba-200/70">© {new Date().getFullYear()} {t.sideFooter}</p>
       </div>
 
-      {/* Panel kanan — form */}
+      {/* Panel kanan - form */}
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <Link to="/login" className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-maroon-600 mb-8 transition-colors">
@@ -218,11 +225,19 @@ export default function SignupPage() {
                     <input type="email" required value={form.email} onChange={set('email')} className={inputCls} placeholder={t.placeholderEmail} />
                   </div>
                   {/* Keterangan email sengaja dibuat menonjol (kotak, bukan teks
-                      abu kecil) — sebelumnya sering terlewat pendaftar. */}
+                      abu kecil) - sebelumnya sering terlewat pendaftar. */}
                   <p className="mt-2 flex items-start gap-2 text-xs text-maroon-700 bg-maroon-50 border border-maroon-100 rounded-xl px-3 py-2 leading-relaxed">
                     <Info size={14} className="shrink-0 mt-0.5" />
                     {t.hintEmail}
                   </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelPhone}</label>
+                  <div className="relative">
+                    <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <input type="tel" required value={form.phone} onChange={set('phone')} className={inputCls} placeholder={t.placeholderPhone} />
+                  </div>
+                  {t.hintPhone && <p className="text-[11px] text-stone-400 mt-1">{t.hintPhone}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1.5 text-stone-700">{t.labelPassword}</label>
@@ -285,7 +300,7 @@ export default function SignupPage() {
                     </select>
                     <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-xs">▾</span>
                   </div>
-                  {/* Daftar kampus tidak mungkin selalu lengkap — beri jalan keluar
+                  {/* Daftar kampus tidak mungkin selalu lengkap - beri jalan keluar
                       supaya pendaftar dari FK baru tetap bisa mendaftar. */}
                   {form.asalKuliah === FK_LAINNYA && (
                     <input
@@ -322,7 +337,7 @@ export default function SignupPage() {
   );
 }
 
-// Kolom password dengan ikon mata untuk mengintip apa yang sudah diketik —
+// Kolom password dengan ikon mata untuk mengintip apa yang sudah diketik -
 // mengurangi salah ketik sebelum akun terlanjur dibuat.
 function PasswordInput({ value, onChange, show, onToggle, placeholder, inputCls, minLength, mismatch = false }) {
   return (

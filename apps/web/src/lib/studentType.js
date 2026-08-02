@@ -1,7 +1,7 @@
 // Tiga tipe akun siswa. Tipe menentukan berapa device yang boleh dipakai
 // untuk login dengan akun yang sama.
 //
-// Catatan: tipe "web" TIDAK tersedia di halaman Sign Up publik — akun Student
+// Catatan: tipe "web" TIDAK tersedia di halaman Sign Up publik - akun Student
 // - Web dibuat admin (nanti otomatis lewat pembelian akses via Odoo).
 export const STUDENT_TYPES = [
   {

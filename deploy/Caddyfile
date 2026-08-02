@@ -6,7 +6,15 @@
 # HTTPS butuh domain). Caddy otomatis mengurus sertifikat HTTPS (Let's Encrypt)
 # kalau pakai domain, ASALKAN A record domain sudah mengarah ke IP VPS ini.
 
-pcvclassroom.com, www.pcvclassroom.com {
+# www DIALIHKAN ke domain utama (redirect permanen). Kalau www dilayani sebagai
+# situs terpisah, browser menganggapnya origin berbeda: localStorage (termasuk
+# sesi login + device ID) tidak dibagi, sehingga siswa yang login lewat
+# www.pcvclassroom.com dianggap "device lain" saat membuka pcvclassroom.com.
+www.pcvclassroom.com {
+	redir https://pcvclassroom.com{uri} permanent
+}
+
+pcvclassroom.com {
 	encode gzip
 
 	# API + realtime PocketBase

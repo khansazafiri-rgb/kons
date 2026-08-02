@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BookOpen, ClipboardList, History, Lock, PencilLine, Search } from 'lucide-react';
+import { BookOpen, ClipboardList, History, Lock, PencilLine } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
+import ChapterSelect from '@/components/ChapterSelect';
 import { touchActivity } from '@/lib/activityLog';
 
 export default function CicilBelajar() {
@@ -18,19 +19,17 @@ export default function CicilBelajar() {
  const [questions, setQuestions] = useState(null);
  const [priorProgress, setPriorProgress] = useState(null);
  const [resume, setResume] = useState(null);
- const [search, setSearch] = useState('');
  const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
 
- // Auto-scroll: begitu memilih, layar mengikuti ke bagian yang baru terbuka.
+ // Auto-scroll ringan: begitu memilih mata kuliah, layar turun ke langkah
+ // berikutnya. Pemilihan BAB kini berupa dropdown ringkas, jadi langkah 2-3
+ // dan tombol mulai selalu terlihat berdekatan tanpa scroll panjang.
  const babSectionRef = useRef(null);
- const modeRef = useRef(null);
- const startBtnRef = useRef(null);
  const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
- const pickSubject = (id) => { setSubjectId(id); scrollToRef(babSectionRef); };
- const pickChapter = (id) => { setChapterId(id); scrollToRef(modeRef); };
+ const pickSubject = (id) => { setSubjectId(id); setChapterId(''); scrollToRef(babSectionRef); };
 
  // Pembatasan akses mata kuliah untuk siswa (fresh dari server)
  useEffect(() => {
@@ -89,12 +88,6 @@ export default function CicilBelajar() {
    let filter = `subject = '${subjectId}' && hidden != true`;
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then(setChapters);
  }, [subjectId]);
-
- const visibleChapters = useMemo(() => {
-   const q = search.trim().toLowerCase();
-   if (!q) return chapters;
-   return chapters.filter((c) => c.title.toLowerCase().includes(q));
- }, [chapters, search]);
 
  const openChapter = async () => {
    if (!chapterId || !mode) return;
@@ -171,7 +164,7 @@ export default function CicilBelajar() {
    // Jejak untuk "last activity" di Dashboard Activity admin.
    const namaBab = chapters.find((c) => c.id === chapterId)?.title || '';
    const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
-   touchActivity(pb, user, `Mengerjakan latihan ${namaMk}${namaBab ? ` — BAB ${namaBab}` : ''} (nilai ${score})`);
+   touchActivity(pb, user, `Mengerjakan latihan ${namaMk}${namaBab ? ` - BAB ${namaBab}` : ''} (nilai ${score})`);
  };
 
  // Layar Peringatan Resume Pengerjaan
@@ -280,7 +273,7 @@ export default function CicilBelajar() {
          CICIL BELAJAR
        </p>
        <h1 className="font-display text-3xl font-semibold mb-2">Latihan Soal per BAB</h1>
-       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap — atau langsung baca pembahasannya dulu.</p>
+       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap, atau langsung baca pembahasannya dulu.</p>
 
        {enrolled && enrolled.length === 0 && (
          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
@@ -324,86 +317,70 @@ export default function CicilBelajar() {
          </div>
 
          {subjectId && (
-           <div ref={babSectionRef} className="animate-fade-in scroll-mt-24">
-             <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih BAB Pembelajaran</label>
-             {chapters.length > 6 && (
-               <div className="relative mb-3">
-                 <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-                 <input
-                   value={search}
-                   onChange={(e) => setSearch(e.target.value)}
-                   placeholder={`Cari di ${chapters.length} BAB...`}
-                   className="w-full rounded-xl border border-alba-300 bg-alba-50 pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-                 />
-               </div>
-             )}
-             <div className="grid gap-2 max-h-72 overflow-y-auto scrollbar-thin pr-1 pb-2">
-               {visibleChapters.map((c) => (
+           <div ref={babSectionRef} className="animate-fade-in scroll-mt-24 space-y-6">
+             <div>
+               <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih BAB Pembelajaran</label>
+               <ChapterSelect
+                 chapters={chapters}
+                 value={chapterId}
+                 onChange={setChapterId}
+                 doneIds={doneChapters}
+                 placeholder="Pilih BAB yang mau kamu kerjakan..."
+               />
+             </div>
+
+             <div>
+               <label className="block text-sm font-bold text-stone-700 mb-2">3. Mau Ngapain di BAB Ini?</label>
+               <div className="grid sm:grid-cols-2 gap-4">
                  <button
-                   key={c.id}
-                   onClick={() => pickChapter(c.id)}
-                   className={`flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-                     chapterId === c.id
-                       ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
-                       : 'border-alba-200 text-stone-700 hover:border-maroon-200 hover:bg-alba-100/60'
+                   onClick={() => setMode('kerjakan')}
+                   className={`rounded-xl border-2 p-4 text-left transition-all ${
+                     mode === 'kerjakan'
+                       ? 'border-maroon-600 bg-maroon-50'
+                       : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
                  >
-                   <span>{c.title}</span>
-                   {doneChapters.has(c.id) && <span className="text-[10px] font-bold text-green-800 bg-green-50 border border-green-200 rounded-full px-2.5 py-0.5 shrink-0">Selesai</span>}
+                   <span className="flex items-center gap-2.5 mb-1.5">
+                     <span className={`inline-flex w-8 h-8 rounded-lg items-center justify-center ${mode === 'kerjakan' ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100 text-stone-500'}`}>
+                       <PencilLine size={15} />
+                     </span>
+                     <span className={`text-sm font-bold ${mode === 'kerjakan' ? 'text-maroon-700' : 'text-stone-700'}`}>Kerjakan Soal</span>
+                   </span>
+                   <p className="text-xs text-stone-500 leading-relaxed">Jawab satu per satu. Jawaban bebas diganti sampai kamu menekan &quot;Cek Jawaban&quot;.</p>
                  </button>
-               ))}
-               {visibleChapters.length === 0 && (
-                 <p className="text-sm text-stone-400 px-1 py-2">
-                   {chapters.length === 0 ? 'Belum ada BAB tersedia.' : 'Tidak ada BAB yang cocok dengan pencarian.'}
-                 </p>
+                 <button
+                   onClick={() => setMode('review')}
+                   className={`rounded-xl border-2 p-4 text-left transition-all ${
+                     mode === 'review'
+                       ? 'border-maroon-600 bg-maroon-50'
+                       : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
+                   }`}
+                 >
+                   <span className="flex items-center gap-2.5 mb-1.5">
+                     <span className={`inline-flex w-8 h-8 rounded-lg items-center justify-center ${mode === 'review' ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100 text-stone-500'}`}>
+                       <BookOpen size={15} />
+                     </span>
+                     <span className={`text-sm font-bold ${mode === 'review' ? 'text-maroon-700' : 'text-stone-700'}`}>Review Pembahasan</span>
+                   </span>
+                   <p className="text-xs text-stone-500 leading-relaxed">Langsung baca soal, kunci jawaban, dan pembahasannya tanpa harus mengerjakan dulu.</p>
+                 </button>
+               </div>
+             </div>
+
+             <div className="pt-4 border-t border-alba-200">
+               <button
+                 disabled={!chapterId || !mode}
+                 onClick={openChapter}
+                 className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
+               >
+                 {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Latihan Sekarang'}
+               </button>
+               {(!chapterId || !mode) && (
+                 <p className="text-[11px] text-stone-400 mt-2 text-center">Pilih BAB dan mode dulu untuk memulai.</p>
                )}
              </div>
            </div>
          )}
-
-         <div ref={modeRef} className="scroll-mt-24">
-           <label className="block text-sm font-bold text-stone-700 mb-2">3. Mau Ngapain di BAB Ini?</label>
-           <div className="grid sm:grid-cols-2 gap-4">
-             <button
-               onClick={() => { setMode('kerjakan'); scrollToRef(startBtnRef); }}
-               className={`rounded-xl border-2 p-5 text-left transition-all ${
-                 mode === 'kerjakan'
-                   ? 'border-maroon-600 bg-maroon-50'
-                   : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
-               }`}
-             >
-               <span className={`inline-flex w-9 h-9 rounded-lg items-center justify-center mb-3 ${mode === 'kerjakan' ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100 text-stone-500'}`}>
-                 <PencilLine size={17} />
-               </span>
-               <p className={`text-sm font-bold mb-1 ${mode === 'kerjakan' ? 'text-maroon-700' : 'text-stone-700'}`}>Kerjakan Soal</p>
-               <p className="text-xs text-stone-500 leading-relaxed">Jawab satu per satu. Jawaban bebas diganti sampai kamu menekan &quot;Cek Jawaban&quot;.</p>
-             </button>
-             <button
-               onClick={() => { setMode('review'); scrollToRef(startBtnRef); }}
-               className={`rounded-xl border-2 p-5 text-left transition-all ${
-                 mode === 'review'
-                   ? 'border-maroon-600 bg-maroon-50'
-                   : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
-               }`}
-             >
-               <span className={`inline-flex w-9 h-9 rounded-lg items-center justify-center mb-3 ${mode === 'review' ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100 text-stone-500'}`}>
-                 <BookOpen size={17} />
-               </span>
-               <p className={`text-sm font-bold mb-1 ${mode === 'review' ? 'text-maroon-700' : 'text-stone-700'}`}>Review Pembahasan</p>
-               <p className="text-xs text-stone-500 leading-relaxed">Langsung baca soal, kunci jawaban, dan pembahasannya — tanpa harus mengerjakan dulu.</p>
-             </button>
-           </div>
-         </div>
-
-         <div ref={startBtnRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
-           <button
-             disabled={!chapterId || !mode}
-             onClick={openChapter}
-             className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
-           >
-             {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Latihan Sekarang'}
-           </button>
-         </div>
        </div>
      </div>
    </div>

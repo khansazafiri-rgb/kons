@@ -7,7 +7,7 @@
 // supaya perilaku ML di web identik dengan yang divalidasi di pptparser.
 
 // ----------------------------------------------------------------------------
-// Util teks (port text.mjs) — normalisasi, tokenisasi + stopword, pembersih isi.
+// Util teks (port text.mjs) - normalisasi, tokenisasi + stopword, pembersih isi.
 // ----------------------------------------------------------------------------
 const STOPWORDS = new Set([
   // inggris
@@ -118,7 +118,7 @@ export function buildIndex(docs) {
 }
 
 // Skor satu dokumen terhadap term kueri. Term yang TIDAK ada di dokumen ini
-// dilewati (if (!tf) continue) — inilah inti pencocokan yang benar.
+// dilewati (if (!tf) continue) - inilah inti pencocokan yang benar.
 function scoreDoc(p, queryTf, idf, avgLen) {
   let score = 0;
   const matched = [];
@@ -273,10 +273,10 @@ function severityLabel(wrong, accuracy) {
 function buildSummary(weakest, unclassified, total) {
   if (weakest.length === 0) return 'Tidak ada kelemahan menonjol terdeteksi dari soal yang bisa dipetakan.';
   const lines = weakest.map((t) => {
-    const range = t.slideStart ? ` (buka slide ${t.slideStart}–${t.slideEnd})` : '';
-    return `• ${t.chapterTitle} — ${t.topic}: ${t.wrong}/${t.attempted} salah${range}`;
+    const range = t.slideStart ? ` (buka slide ${t.slideStart}-${t.slideEnd})` : '';
+    return `• ${t.chapterTitle} - ${t.topic}: ${t.wrong}/${t.attempted} salah${range}`;
   });
   let s = `Fokus perbaikan:\n${lines.join('\n')}`;
-  if (unclassified) s += `\n(${unclassified} dari ${total} soal belum bisa dipetakan otomatis — materinya mungkin belum diunggah.)`;
+  if (unclassified) s += `\n(${unclassified} dari ${total} soal belum bisa dipetakan otomatis - materinya mungkin belum diunggah.)`;
   return s;
 }

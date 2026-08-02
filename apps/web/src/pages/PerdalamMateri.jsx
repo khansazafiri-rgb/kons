@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpenText, CheckCircle2, Lock, Search } from 'lucide-react';
+import { BookOpenText, Lock } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
+import ChapterSelect from '@/components/ChapterSelect';
 
 export default function PerdalamMateri() {
  const { user, role } = useAuth();
@@ -14,16 +15,14 @@ export default function PerdalamMateri() {
  const [chapterId, setChapterId] = useState('');
  const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
  const [doneChapters, setDoneChapters] = useState(new Set());
- const [search, setSearch] = useState('');
  const [enrolled, setEnrolled] = useState(null); // null=tanpa batasan, []=belum dipilihkan, [..]=boleh
  const [pptUrl, setPptUrl] = useState(''); // URL PPT BAB terpilih (di-prefetch agar bisa dibuka saat klik "Pelajari")
 
- // Auto-scroll mengikuti pilihan
+ // Auto-scroll ringan: pilih mata kuliah -> turun ke pemilih BAB. BAB kini
+ // berupa dropdown ringkas sehingga tombol "Pelajari" selalu terlihat.
  const babSectionRef = useRef(null);
- const startBtnRef = useRef(null);
  const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
  const pickSubject = (id) => { setSubjectId(id); scrollToRef(babSectionRef); };
- const pickChapter = (id) => { setChapterId(id); scrollToRef(startBtnRef); };
 
  // Pembatasan akses: siswa hanya bisa membuka mata kuliah yang dipilihkan admin.
  // Diambil FRESH dari server (bukan dari sesi login yang bisa basi).
@@ -76,7 +75,6 @@ export default function PerdalamMateri() {
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
      setChapters(chs);
      setChapterId('');
-     setSearch('');
    });
  }, [subjectId]);
 
@@ -92,13 +90,6 @@ export default function PerdalamMateri() {
      .catch(() => { if (alive) setPptUrl(''); });
    return () => { alive = false; };
  }, [chapterId]);
-
- // Pencarian BAB — penting untuk mata kuliah dengan 30+ BAB seperti Anatomi
- const visibleChapters = useMemo(() => {
-   const q = search.trim().toLowerCase();
-   if (!q) return chapters;
-   return chapters.filter((c) => c.title.toLowerCase().includes(q));
- }, [chapters, search]);
 
  const start = () => {
    if (!subjectId || !chapterId) return;
@@ -171,54 +162,27 @@ export default function PerdalamMateri() {
          </div>
 
          {subjectId && (
-           <div ref={babSectionRef} className="animate-fade-in scroll-mt-24">
-             <label className="block text-sm font-bold text-stone-700 mb-2">2. BAB</label>
-             {chapters.length > 6 && (
-               <div className="relative mb-3">
-                 <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-                 <input
-                   value={search}
-                   onChange={(e) => setSearch(e.target.value)}
-                   placeholder={`Cari di ${chapters.length} BAB...`}
-                   className="w-full rounded-xl border border-alba-300 bg-alba-50 pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:border-maroon-400 focus:ring-4 focus:ring-maroon-600/10 transition"
-                 />
-               </div>
-             )}
-             <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto scrollbar-thin pr-1">
-               {visibleChapters.map((c) => {
-                 const isDone = doneChapters.has(c.id);
-                 return (
-                   <button
-                     key={c.id}
-                     onClick={() => pickChapter(c.id)}
-                     className={`flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
-                       chapterId === c.id
-                         ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
-                         : 'border-alba-200 text-stone-700 hover:border-maroon-200 hover:bg-alba-100/60'
-                     }`}
-                   >
-                     <span>{c.title}</span>
-                     {isDone && <CheckCircle2 size={16} className="text-maroon-400 shrink-0" title="Sudah selesai dibaca" />}
-                   </button>
-                 );
-               })}
-               {visibleChapters.length === 0 && (
-                 <p className="text-sm text-stone-400 px-1 py-2">
-                   {chapters.length === 0 ? 'Belum ada BAB tersedia.' : 'Tidak ada BAB yang cocok dengan pencarian.'}
-                 </p>
-               )}
+           <div ref={babSectionRef} className="animate-fade-in scroll-mt-24 space-y-6">
+             <div>
+               <label className="block text-sm font-bold text-stone-700 mb-2">2. BAB</label>
+               <ChapterSelect
+                 chapters={chapters}
+                 value={chapterId}
+                 onChange={setChapterId}
+                 doneIds={doneChapters}
+                 placeholder="Pilih BAB yang mau kamu pelajari..."
+               />
              </div>
+
+             <button
+               disabled={!subjectId || !chapterId}
+               onClick={start}
+               className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card disabled:opacity-40 hover:bg-maroon-700 transition-colors"
+             >
+               Pelajari
+             </button>
            </div>
          )}
-
-         <button
-           ref={startBtnRef}
-           disabled={!subjectId || !chapterId}
-           onClick={start}
-           className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card disabled:opacity-40 hover:bg-maroon-700 transition-colors scroll-mt-24"
-         >
-           Pelajari
-         </button>
        </div>
      </div>
    </div>

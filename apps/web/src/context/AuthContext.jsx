@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Login memakai "Login ID" (field userId) atau email — keduanya didukung
+  // Login memakai "Login ID" (field userId) atau email - keduanya didukung
   // oleh identityFields di PocketBase. Parameter dinamai `identity`.
   const login = async (identity, password) => {
     await pb.collection('users').authWithPassword(identity, password);
@@ -54,8 +54,8 @@ export function AuthProvider({ children }) {
           pb.authStore.clear();
           throw new Error(
             limit > 1
-              ? `Akun ini sudah dipakai di ${limit} device. Hubungi admin untuk reset device.`
-              : 'Akun ini sudah login di device lain. Hubungi admin untuk reset device.',
+              ? `Akun ini sedang login di ${limit} device. Logout dulu dari salah satu device, atau hubungi admin untuk reset device.`
+              : 'Akun ini sedang login di device lain. Logout dulu dari device tersebut, atau hubungi admin untuk reset device.',
           );
         }
         const updated = [...devices, deviceId];
@@ -65,7 +65,24 @@ export function AuthProvider({ children }) {
     return record;
   };
 
-  const logout = () => {
+  // Logout MELEPAS slot device: setelah logout, akun bisa dipakai login dari
+  // device lain (sesuai alur yang diminta). Kalau pelepasan gagal (mis. offline),
+  // sesi lokal tetap dibersihkan; slot bisa dilepas admin lewat Reset Device.
+  const logout = async () => {
+    const record = pb.authStore.record;
+    try {
+      if (record && deviceLimitFor(record) !== Infinity) {
+        const deviceId = getDeviceId();
+        const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
+        if (devices.includes(deviceId)) {
+          await pb.collection('users').update(record.id, {
+            deviceIds: devices.filter((d) => d !== deviceId),
+          });
+        }
+      }
+    } catch (_) {
+      // dibiarkan: logout lokal tetap jalan
+    }
     pb.authStore.clear();
   };
 

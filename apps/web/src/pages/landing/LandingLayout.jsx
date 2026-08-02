@@ -65,7 +65,7 @@ export default function LandingLayout({ children }) {
         </div>
       </header>
 
-      {/* Drawer navigasi (HP/tablet) — shelf dari kanan */}
+      {/* Drawer navigasi (HP/tablet) - shelf dari kanan */}
       {drawer && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-stone-900/40" onClick={() => setDrawer(false)} />
@@ -108,7 +108,7 @@ export default function LandingLayout({ children }) {
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-sm text-stone-500">
           <div>
             <p className="font-display font-semibold text-stone-700">Primus Coltus Virtus.</p>
-            <p className="text-xs mt-0.5">Prime in Cultivating Virtue — Bimbel Kedokteran Ter-Worth It</p>
+            <p className="text-xs mt-0.5">Prime in Cultivating Virtue - Bimbel Kedokteran Ter-Worth It</p>
           </div>
           <div className="flex items-center gap-4">
             <a

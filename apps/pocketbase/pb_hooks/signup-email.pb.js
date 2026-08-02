@@ -5,7 +5,7 @@
 // 2. Saat admin meng-ACC (signupPending true -> false) -> kabari pendaftar
 //    bahwa web sudah bisa diakses, beserta aturan jumlah device.
 //
-// CATATAN: tiap handler PocketBase dijalankan terisolasi — tidak bisa memakai
+// CATATAN: tiap handler PocketBase dijalankan terisolasi - tidak bisa memakai
 // variabel dari luar fungsi, jadi tabel label sengaja ditulis di dalam.
 // Kegagalan kirim email tidak boleh menggagalkan operasinya sendiri, jadi
 // semua pengiriman dibungkus try/catch.
@@ -79,7 +79,7 @@ onRecordUpdateRequest((e) => {
         "Kalau nanti ingin ganti device, hubungi admin lewat WhatsApp: " +
         "<a href=\"https://wa.me/6282257238650\">wa.me/6282257238650</a>.</p>" +
         "<p>Selamat belajar, Sobat PCV!</p>" +
-        "<p>&mdash; PCV Classroom &middot; Primus Coltus Virtus</p>",
+        "<p>- PCV Classroom &middot; Primus Coltus Virtus</p>",
     });
     e.app.newMailClient().send(message);
   } catch (err) {

@@ -1,5 +1,5 @@
 /*
- PCV CLASSROOM — Design tokens
+ PCV CLASSROOM - Design tokens
  Palet: "Alba" (warm ivory) + Maroon #8E0100
 */
 @tailwind base;
@@ -14,7 +14,7 @@ body {
 
 @layer base {
  :root {
-   /* Alba — latar ivory hangat */
+   /* Alba - latar ivory hangat */
    --background: 40 60% 98%;
    --foreground: 20 14% 12%;
    --card: 40 60% 99%;

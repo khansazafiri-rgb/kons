@@ -193,7 +193,7 @@ export default function QuestionRunner({
    });
  }, [q, submitted]);
 
- // Shortcut keyboard: ← → pindah soal, A–E pilih jawaban (MCQ), R tandai ragu-ragu
+ // Shortcut keyboard: ← → pindah soal, A-E pilih jawaban (MCQ), R tandai ragu-ragu
  useEffect(() => {
    const handler = (e) => {
      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -299,7 +299,7 @@ export default function QuestionRunner({
    finish();
  };
 
- // FITUR: ulangi hanya soal yang salah — belajar 2x lebih efisien
+ // FITUR: ulangi hanya soal yang salah - belajar 2x lebih efisien
  const retryWrong = () => {
    if (!wrongQuestions.length) return;
    setQs(wrongQuestions);
@@ -543,7 +543,7 @@ export default function QuestionRunner({
          }`}>
            {isChecked
              ? 'Jawaban soal ini sudah dicek. Lanjut ke soal berikutnya, atau pakai "Ulangi Soal yang Salah" setelah submit untuk mencoba lagi.'
-             : 'Santai saja — jawabanmu masih bisa diganti-ganti. Kalau sudah mantap, tekan "Cek Jawaban" untuk melihat benar/salah beserta alasannya.'}
+             : 'Santai saja, jawabanmu masih bisa diganti-ganti. Kalau sudah mantap, tekan "Cek Jawaban" untuk melihat benar/salah beserta alasannya.'}
          </p>
        )}
 
@@ -611,11 +611,11 @@ export default function QuestionRunner({
        </div>
 
        <p className="mt-4 text-[11px] text-stone-400 hidden md:block">
-         Shortcut: <Kbd>←</Kbd> <Kbd>→</Kbd> pindah soal · <Kbd>A</Kbd>–<Kbd>E</Kbd> pilih jawaban · <Kbd>R</Kbd> tandai ragu
+         Shortcut: <Kbd>←</Kbd> <Kbd>→</Kbd> pindah soal · <Kbd>A</Kbd>-<Kbd>E</Kbd> pilih jawaban · <Kbd>R</Kbd> tandai ragu
        </p>
      </div>
 
-     {/* NAVIGATOR SOAL — seperti CBT sungguhan */}
+     {/* NAVIGATOR SOAL - seperti CBT sungguhan */}
      <aside className="lg:sticky lg:top-24 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-5 order-first lg:order-none">
        <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">Navigasi Soal</p>
        <div className="grid grid-cols-8 lg:grid-cols-5 gap-1.5">
@@ -671,7 +671,7 @@ function ScoreRing({ score }) {
 }
 
 // ==========================================================================
-// HALAMAN HASIL (setelah submit) — terpisah dari halaman soal, mirip cek skor
+// HALAMAN HASIL (setelah submit) - terpisah dari halaman soal, mirip cek skor
 // Google Form: tampil skor dulu, lalu tombol "Review Jawaban Saya!".
 // ==========================================================================
 function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
@@ -684,7 +684,7 @@ function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode
          <ScoreRing score={score} />
        </div>
        <h2 className="font-display text-2xl font-semibold text-stone-800 mb-1">
-         {score >= 80 ? 'Kerja bagus — pertahankan!' : score >= 60 ? 'Sudah lumayan, sedikit lagi!' : 'Jangan menyerah, ulangi materinya ya.'}
+         {score >= 80 ? 'Kerja bagus, pertahankan!' : score >= 60 ? 'Sudah lumayan, sedikit lagi!' : 'Jangan menyerah, ulangi materinya ya.'}
        </h2>
        <p className="text-sm text-stone-500 mb-8">
          Kamu menjawab benar <strong className="text-maroon-600">{correct}</strong> dari <strong>{total}</strong> soal.
@@ -723,14 +723,14 @@ function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode
                <div className="flex items-start justify-between gap-3 mb-2">
                  <div>
                    <p className="font-bold text-maroon-800 text-sm">
-                     {i + 1}. {topic.chapterTitle} — <span className="text-maroon-600">{topic.topic}</span>
+                     {i + 1}. {topic.chapterTitle} - <span className="text-maroon-600">{topic.topic}</span>
                    </p>
                    <p className="text-xs text-stone-600 mt-1">
                      {topic.wrong} dari {topic.attempted} salah · Akurasi: {Math.round(topic.accuracy * 100)}%
                    </p>
                    {topic.slideStart && (
                      <p className="text-xs text-maroon-600 font-semibold mt-2">
-                       📌 Buka Slide {topic.slideStart}–{topic.slideEnd} untuk review
+                       📌 Buka Slide {topic.slideStart}-{topic.slideEnd} untuk review
                      </p>
                    )}
                  </div>
@@ -808,7 +808,7 @@ function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode
 }
 
 // ==========================================================================
-// HALAMAN REVIEW — semua soal + jawaban dalam satu halaman (benar/salah),
+// HALAMAN REVIEW - semua soal + jawaban dalam satu halaman (benar/salah),
 // dipakai setelah submit ("Review Jawaban Saya!") maupun mode="review".
 // ==========================================================================
 function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
@@ -818,7 +818,7 @@ function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
  const score = total ? Math.round((correct / total) * 100) : 0;
 
  // Kalau tidak ada satu pun jawaban tersimpan, ini murni "review pembahasan":
- // tidak ada skor & tidak ada label benar/salah — langsung kunci jawaban + alasannya.
+ // tidak ada skor & tidak ada label benar/salah - langsung kunci jawaban + alasannya.
  const pembahasanOnly = !list.some((qq) => isQuestionAnswered(qq, answers[qq.id]));
 
  return (
@@ -909,7 +909,7 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
                </p>
                {!pembahasanOnly && (
                  <p className={`text-sm ${ok ? 'text-green-800' : 'text-maroon-700'}`}>
-                   Jawabanmu: <span className="font-semibold">{userText || '—'}</span> {ok ? '✅' : '❌'}
+                   Jawabanmu: <span className="font-semibold">{userText || '-'}</span> {ok ? '✅' : '❌'}
                  </p>
                )}
                {(pembahasanOnly || !ok) && (

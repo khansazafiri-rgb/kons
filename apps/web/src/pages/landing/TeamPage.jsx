@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Award, Briefcase, ChevronLeft, ChevronRight, Instagram, Trophy, UserRound } from 'lucide-react';
 import LandingLayout, { fadeUp } from './LandingLayout';
 import { TEACHERS as TEACHERS_FALLBACK, MANAGERS as MANAGERS_FALLBACK, MANAGER_CATEGORIES } from '@/data/team';
+import AchievementsSection from '@/components/landing/AchievementsSection';
 import pb from '@/lib/pocketbaseClient';
 
 // Urutkan manager sesuai jabatan (Executive Board dulu, dst) lalu urutan simpan,
@@ -14,14 +15,14 @@ const sortManagers = (list) =>
       ((a.order ?? 0) - (b.order ?? 0))
   );
 
-// Halaman "Tim Kami" — pengajar & manager dalam satu tempat.
+// Halaman "Tim Kami" - pengajar & manager dalam satu tempat.
 // Data diambil dari database (collection landing_team) supaya bisa dikelola
 // admin; kalau DB kosong/gagal pakai data bawaan team.js.
 //
 // Dua tingkat penyembunyian, keduanya diatur dari panel admin:
 //  - per orang  : landing_team.hidden = true
 //  - per section: landing_settings.hideTeachers / hideManagers = true
-//    (judul & deskripsi section ikut hilang — seolah section itu tidak ada)
+//    (judul & deskripsi section ikut hilang - seolah section itu tidak ada)
 export default function TeamPage() {
   const [teachers, setTeachers] = useState(TEACHERS_FALLBACK);
   const [managers, setManagers] = useState(sortManagers(MANAGERS_FALLBACK));
@@ -62,7 +63,7 @@ export default function TeamPage() {
 
   const intro =
     showTeachers && showManagers
-      ? 'Dari tentor peraih medali sampai tim manajemen yang menjalankan roda PCV — kenalan dulu sebelum belajar bareng.'
+      ? 'Dari tentor peraih medali sampai tim manajemen yang menjalankan roda PCV. Kenalan dulu sebelum belajar bareng.'
       : showTeachers
       ? 'Kenalan dulu dengan para tentor peraih medali yang akan menemanimu belajar di PCV.'
       : showManagers
@@ -89,7 +90,7 @@ export default function TeamPage() {
               <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM PENGAJAR</p>
               <h2 className="font-display text-3xl font-semibold mb-3">Diajar Langsung oleh Para Juara</h2>
               <p className="text-stone-600 leading-relaxed">
-                Pengajar PCV adalah peraih medali olimpiade kedokteran — mereka tahu persis
+                Pengajar PCV adalah peraih medali olimpiade kedokteran, mereka tahu persis
                 cara belajar yang efektif untuk menembus kompetisi dan ujian.
               </p>
             </motion.div>
@@ -109,7 +110,7 @@ export default function TeamPage() {
             <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">TIM MANAGER</p>
             <h2 className="font-display text-3xl font-semibold mb-3">Struktur Kepengurusan PCV</h2>
             <p className="text-stone-600 leading-relaxed">
-              Tim di balik layar yang menjalankan PCV Classroom — dari kepemimpinan,
+              Tim di balik layar yang menjalankan PCV Classroom: dari kepemimpinan,
               pengembangan, operasional, hingga pemasaran.
             </p>
           </motion.div>
@@ -120,6 +121,12 @@ export default function TeamPage() {
           </Carousel>
         </section>
       )}
+
+      {/* PRESTASI RECENT - foto + deskripsi prestasi pengajar & siswa,
+          dikelola admin di Dashboard Admin → Landing Page → Prestasi */}
+      <div className="bg-alba-100/70 border-t border-alba-200">
+        <AchievementsSection />
+      </div>
     </LandingLayout>
   );
 }
@@ -205,7 +212,7 @@ function ProfilePhoto({ photo, name, badge }) {
   );
 }
 
-// Deskripsi tambahan bebas di luar field bawaan — diisi admin per orang,
+// Deskripsi tambahan bebas di luar field bawaan - diisi admin per orang,
 // mis. { label: "Makanan Kesukaan", value: "Rawon" }. Berlaku untuk pengajar
 // maupun management.
 function ExtraInfo({ extras }) {

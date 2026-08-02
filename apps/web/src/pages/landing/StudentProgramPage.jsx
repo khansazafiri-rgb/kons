@@ -28,7 +28,7 @@ const FEATURES = [
   {
     icon: Users,
     title: 'Kelas Privat',
-    desc: 'Sesi 1-on-1 atau grup kecil — jadwal dan topik menyesuaikan kebutuhanmu sepenuhnya.',
+    desc: 'Sesi 1-on-1 atau grup kecil - jadwal dan topik menyesuaikan kebutuhanmu sepenuhnya.',
   },
 ];
 
@@ -46,7 +46,7 @@ export default function StudentProgramPage() {
           <p className="text-stone-600 text-lg leading-relaxed mb-4">
             Student Program PCV terbuka untuk mahasiswa kedokteran dari kampus mana pun.
             Karena basis pengajar dan manajemen kami mayoritas berasal dari FK UNAIR,
-            program kami memang paling berkembang di sana — tapi Sobat PCV kami tersebar
+            program kami memang paling berkembang di sana - tapi Sobat PCV kami tersebar
             dari UNPAD, UNAND, ITS, FIKKIA, sampai UPH.
           </p>
           <div className="flex flex-wrap gap-2.5 mt-6">
@@ -89,7 +89,7 @@ export default function StudentProgramPage() {
               simulasi CBT.
             </p>
             <ul className="space-y-2 text-sm text-alba-100">
-              {['Kelas mengikuti jadwal blok & ujian FK UNAIR', 'Web siswa: materi + latihan CBT per BAB', 'Tentor lintas angkatan FK UNAIR \'18–\'24'].map((t) => (
+              {['Kelas mengikuti jadwal blok & ujian FK UNAIR', 'Web siswa: materi + latihan CBT per BAB', 'Tentor lintas angkatan FK UNAIR \'18-\'24'].map((t) => (
                 <li key={t} className="flex gap-2.5 items-start">
                   <CheckCircle2 size={16} className="text-gold-400 shrink-0 mt-0.5" /> {t}
                 </li>
@@ -166,7 +166,7 @@ export default function StudentProgramPage() {
         <motion.div {...fadeUp}>
           <h2 className="font-display text-2xl font-semibold mb-3">Tertarik ikut Student Program?</h2>
           <p className="text-stone-600 mb-6 max-w-xl mx-auto">
-            Dari FK mana pun kamu berasal, hubungi admin PCV — kami bantu carikan
+            Dari FK mana pun kamu berasal, hubungi admin PCV - kami bantu carikan
             kelas dan tentor yang pas.
           </p>
           <a
