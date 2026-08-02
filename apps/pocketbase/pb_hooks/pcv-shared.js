@@ -69,6 +69,52 @@ function sendWA(app, rawPhone, message) {
 }
 
 // ---------------------------------------------------------------------------
+// Template pesan WhatsApp.
+// Teks bawaan di bawah HARUS sama dengan web/src/lib/waTemplates.js. Hasil edit
+// admin disimpan di wa_settings.templates dan menimpa teks bawaan ini.
+// ---------------------------------------------------------------------------
+
+const WA_TEMPLATE_DEFAULTS = {
+  nudge:
+    "Halo {nama}! Semangat terus belajarnya di PCV Classroom. " +
+    "Terakhir kamu aktif {jeda} ({aktivitas}). " +
+    "Yuk lanjut lagi pelan-pelan di {link}",
+  accApproved:
+    "Halo {nama}! Pendaftaranmu di PCV Classroom sudah di-ACC admin. " +
+    "Web siswa sudah bisa kamu akses di {link} memakai Login ID dan password " +
+    "yang kamu isi saat mendaftar. Selamat belajar!",
+  deviceReset:
+    "Halo {nama}! Device untuk akun PCV Classroom kamu sudah direset admin. " +
+    "Sekarang kamu bisa login lagi dari device yang kamu pakai.",
+  classReminder:
+    "Halo {nama}! Reminder dari PCV Classroom: besok ada jadwal kelas {kelas}.\n" +
+    "{jadwal}\n\nSampai ketemu di kelas!",
+  examReminder:
+    "Halo {nama}! Pengingat dari PCV Classroom: {ujian} tinggal {sisa}. " +
+    "Yuk mantapkan lagi latihannya di {link}",
+};
+
+// Rakit isi pesan dari template yang tersimpan (atau bawaan), lalu ganti
+// {placeholder} dengan nilainya. Placeholder tanpa nilai dihapus.
+function waMessage(app, key, vars) {
+  let text = WA_TEMPLATE_DEFAULTS[key] || "";
+  try {
+    const cfg = app.findRecordsByFilter("wa_settings", "id != ''", "", 1, 0)[0];
+    if (cfg) {
+      const saved = cfg.get("templates");
+      if (saved && typeof saved === "object" && typeof saved[key] === "string" && saved[key].trim()) {
+        text = saved[key];
+      }
+    }
+  } catch (_) {}
+  const v = vars || {};
+  return String(text)
+    .replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? String(v[k]) : ""))
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+// ---------------------------------------------------------------------------
 // Parser iCal pragmatis untuk kalender kelas Google.
 // Mendukung: event sekali jalan, RRULE FREQ=WEEKLY/DAILY (INTERVAL, BYDAY,
 // UNTIL, COUNT), EXDATE, dan override RECURRENCE-ID. Zona waktu di-handle
@@ -277,7 +323,9 @@ function refreshClassSchedules(app) {
     try {
       const res = $http.send({ url: src.getString("icalUrl"), method: "GET", timeout: 60 });
       if (res.statusCode !== 200) throw new Error("HTTP " + res.statusCode);
-      const events = expandIcs(res.body ? toString(res.body) : "", now - DAY_MS, now + 14 * DAY_MS);
+      // Jendela cukup lebar (seminggu ke belakang, dua bulan ke depan) supaya
+      // tampilan kalender bulanan di web siswa tidak setengah kosong.
+      const events = expandIcs(res.body ? toString(res.body) : "", now - 7 * DAY_MS, now + 60 * DAY_MS);
       const cls = app.findRecordById("classes", classId);
       cls.set("scheduleCache", events);
       cls.set("scheduleFetchedAt", new Date().toISOString());
@@ -293,6 +341,8 @@ function refreshClassSchedules(app) {
 module.exports = {
   normalizePhone,
   sendWA,
+  waMessage,
+  WA_TEMPLATE_DEFAULTS,
   expandIcs,
   wibDateString,
   wibTimeString,

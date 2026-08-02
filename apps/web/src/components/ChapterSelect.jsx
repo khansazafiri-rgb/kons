@@ -11,11 +11,19 @@ import { Check, ChevronDown, Search } from 'lucide-react';
 // - onChange   : (id) => void
 // - doneIds    : Set id BAB yang sudah dituntaskan (badge "Selesai"), opsional
 // - placeholder: teks tombol saat belum ada yang dipilih
-export default function ChapterSelect({ chapters, value, onChange, doneIds, placeholder = 'Pilih BAB...' }) {
+// - openSignal : nilai yang berubah (mis. id mata kuliah) untuk MEMBUKA panel
+//                otomatis. Dipakai supaya begitu mata kuliah dipilih, daftar
+//                BAB langsung muncul dan tidak terlewat oleh siswa.
+export default function ChapterSelect({ chapters, value, onChange, doneIds, placeholder = 'Pilih BAB...', openSignal }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const rootRef = useRef(null);
   const searchRef = useRef(null);
+
+  // Buka otomatis tiap kali openSignal berubah (mata kuliah baru dipilih).
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal]);
 
   const selected = chapters.find((c) => c.id === value) || null;
 
@@ -87,7 +95,9 @@ export default function ChapterSelect({ chapters, value, onChange, doneIds, plac
               />
             </div>
           )}
-          <div className="max-h-64 overflow-y-auto scrollbar-thin p-1.5">
+          {/* Tiap BAB tampil sebagai KOTAK tersendiri (bukan baris menu polos)
+              dan daftarnya bisa di-scroll sampai bawah, seperti versi awal. */}
+          <div className="max-h-72 overflow-y-auto scrollbar-thin p-2 grid gap-2">
             {visible.map((c) => {
               const active = c.id === value;
               return (
@@ -95,18 +105,20 @@ export default function ChapterSelect({ chapters, value, onChange, doneIds, plac
                   key={c.id}
                   type="button"
                   onClick={() => pick(c.id)}
-                  className={`w-full flex items-center justify-between gap-3 text-left rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                    active ? 'bg-maroon-600 text-alba-50 font-semibold' : 'text-stone-700 hover:bg-maroon-50 hover:text-maroon-700'
+                  className={`w-full flex items-center justify-between gap-3 text-left rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                    active
+                      ? 'border-maroon-600 bg-maroon-50 text-maroon-700 font-semibold'
+                      : 'border-alba-200 text-stone-700 hover:border-maroon-200 hover:bg-alba-100/60'
                   }`}
                 >
-                  <span className="truncate">{c.title}</span>
+                  <span>{c.title}</span>
                   <span className="flex items-center gap-2 shrink-0">
                     {doneIds?.has(c.id) && (
-                      <span className={`text-[10px] font-bold rounded-full px-2 py-0.5 border ${active ? 'text-alba-50 border-alba-50/40' : 'text-green-800 bg-green-50 border-green-200'}`}>
+                      <span className="text-[10px] font-bold rounded-full px-2.5 py-0.5 border text-green-800 bg-green-50 border-green-200">
                         Selesai
                       </span>
                     )}
-                    {active && <Check size={14} />}
+                    {active && <Check size={15} className="text-maroon-600" />}
                   </span>
                 </button>
               );

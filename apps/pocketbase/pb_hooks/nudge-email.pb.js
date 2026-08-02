@@ -172,16 +172,16 @@ routerAdd("POST", "/api/pcv/nudge", (e) => {
   // ---- 5. Kirim juga versi singkatnya ke WhatsApp (kalau gateway aktif) ---
   let waInfo = "";
   try {
-    const { sendWA } = require(`${__hooks}/pcv-shared.js`);
+    const shared = require(`${__hooks}/pcv-shared.js`);
     const phone = target.getString("phone");
     if (phone) {
-      const teksWa =
-        "Halo " + nama + "! Semangat terus belajarnya di PCV Classroom 💪 " +
-        (lastText && jedaKalimat
-          ? "Terakhir kamu aktif " + jedaKalimat + ": " + lastText + ". "
-          : "Kami belum melihat aktivitasmu akhir-akhir ini, yuk mulai dari satu BAB dulu. ") +
-        "Cek juga email kamu untuk detailnya ya!";
-      if (sendWA(e.app, phone, teksWa)) waInfo = " + WA ke " + phone;
+      const teksWa = shared.waMessage(e.app, "nudge", {
+        nama: nama,
+        jeda: jedaKalimat || "beberapa waktu lalu",
+        aktivitas: lastText || "belum ada jejak aktivitas",
+        link: appUrl + "/login",
+      });
+      if (shared.sendWA(e.app, phone, teksWa)) waInfo = " + WA ke " + phone;
     }
   } catch (err) {
     console.log("nudge-email: WA gagal:", err);

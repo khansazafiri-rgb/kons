@@ -110,7 +110,7 @@ export default function PerdalamMateri() {
  };
 
  return (
-   <div className="min-h-screen bg-alba-50">
+   <div className="min-h-screen bg-paper">
      <Header />
      <div className="max-w-3xl mx-auto px-6 py-14">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
@@ -170,6 +170,7 @@ export default function PerdalamMateri() {
                  value={chapterId}
                  onChange={setChapterId}
                  doneIds={doneChapters}
+                 openSignal={subjectId}
                  placeholder="Pilih BAB yang mau kamu pelajari..."
                />
              </div>

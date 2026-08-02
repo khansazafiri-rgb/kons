@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Award, ImageOff } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
+import { achievementPhotoSrc } from '@/lib/photoSrc';
 import { fadeUp } from '@/pages/landing/LandingLayout';
 
 // Section "Prestasi Terbaru" (foto + deskripsi) - datanya dikelola admin di
@@ -12,16 +13,17 @@ import { fadeUp } from '@/pages/landing/LandingLayout';
 // - fallbackItems : daftar {title, who} lama (teks saja) yang dipakai kalau
 //                   collection masih kosong, supaya section tidak mendadak hilang
 
-const photoSrc = (rec) => (rec.photo ? pb.files.getURL(rec, rec.photo) : (rec.photoUrl || ''));
-
 const CATEGORY_LABEL = { pengajar: 'Pengajar', siswa: 'Sobat PCV' };
 
+// Kartu prestasi. Foto TIDAK di-crop: tingginya mengikuti rasio asli gambar,
+// jadi piala/medali/wajah di tepi foto tidak pernah terpotong. Konsekuensinya
+// tinggi kartu bisa berbeda-beda, dan itu memang disengaja.
 function AchievementCard({ rec }) {
   const [imgFail, setImgFail] = useState(false);
-  const src = photoSrc(rec);
+  const src = achievementPhotoSrc(rec);
   return (
-    <div className="group rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
-      <div className="relative aspect-[4/3] bg-alba-200 overflow-hidden">
+    <div className="group rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all">
+      <div className="relative bg-alba-100">
         {src && !imgFail ? (
           <img
             src={src}
@@ -29,10 +31,10 @@ function AchievementCard({ rec }) {
             referrerPolicy="no-referrer"
             loading="lazy"
             onError={() => setImgFail(true)}
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
+            className="w-full h-auto block"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-alba-400">
+          <div className="w-full py-16 flex items-center justify-center text-alba-400">
             <ImageOff size={30} />
           </div>
         )}
@@ -90,7 +92,9 @@ export default function AchievementsSection({ limit, fallbackItems = [] }) {
           ))}
         </motion.div>
       ) : (
-        <motion.div {...fadeUp} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        // items-start: tiap kartu memakai tinggi alaminya sendiri, tidak
+        // dipaksa seragam, supaya foto tidak perlu dipotong.
+        <motion.div {...fadeUp} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
           {list.map((rec) => <AchievementCard key={rec.id} rec={rec} />)}
         </motion.div>
       )}

@@ -9,7 +9,9 @@ import { MANAGER_CATEGORIES } from '@/data/team';
 import { STUDENT_TYPES, studentTypeLabel, studentTypeShort } from '@/lib/studentType';
 import { SIGNUP_TEXT_GROUPS, resolveSignupTexts } from '@/lib/signupContent';
 import { LANDING_TEXT_GROUPS, resolveLandingTexts } from '@/lib/landingContent';
+import { WA_TEMPLATES, resolveWaTemplates } from '@/lib/waTemplates';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
+import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 
 const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page'];
@@ -2578,6 +2580,7 @@ function TeamManager() {
   const [settings, setSettings] = useState(null); // record landing_settings (1 baris)
   const EMPTY = { name: '', photo: '', bidang: '', achievements: '', category: MANAGER_CATEGORIES[0], quote: '', instagram: '', extras: [] };
   const [form, setForm] = useState(EMPTY);
+  const [file, setFile] = useState(null); // foto yang diupload (opsional)
 
   const load = () => {
     setError('');
@@ -2612,10 +2615,11 @@ function TeamManager() {
     }
   };
 
-  const startNew = () => { setEditing('new'); setForm({ ...EMPTY, extras: [] }); setOkMsg(''); };
+  const startNew = () => { setEditing('new'); setForm({ ...EMPTY, extras: [] }); setFile(null); setOkMsg(''); };
   const startEdit = (r) => {
     setOkMsg('');
     setEditing(r.id);
+    setFile(null);
     setForm({
       name: r.name || '',
       photo: r.photo || '',
@@ -2627,7 +2631,7 @@ function TeamManager() {
       extras: Array.isArray(r.extras) ? r.extras.map((x) => ({ label: x?.label || '', value: x?.value || '' })) : [],
     });
   };
-  const cancel = () => { setEditing(null); setForm(EMPTY); };
+  const cancel = () => { setEditing(null); setForm(EMPTY); setFile(null); };
 
   // Baris deskripsi tambahan (mis. "Makanan Kesukaan" → "Rawon").
   const addExtra = () => setForm((f) => ({ ...f, extras: [...f.extras, { label: '', value: '' }] }));
@@ -2658,13 +2662,26 @@ function TeamManager() {
       payload.bidang = '';
       payload.achievements = [];
     }
+
+    // Kalau ada foto yang diupload, kirim sebagai FormData (field json harus
+    // di-stringify dulu supaya tetap terbaca sebagai array/objek oleh server).
+    const body = () => {
+      if (!file) return payload;
+      const fd = new FormData();
+      Object.entries(payload).forEach(([k, v]) => {
+        fd.append(k, typeof v === 'object' ? JSON.stringify(v) : v);
+      });
+      fd.append('photoFile', file);
+      return fd;
+    };
+
     try {
       if (editing === 'new') {
         payload.order = rows.length ? Math.max(...rows.map((r) => r.order ?? 0)) + 1 : 0;
-        await pb.collection('landing_team').create(payload);
+        await pb.collection('landing_team').create(body());
         setOkMsg('Data baru ditambahkan.');
       } else {
-        await pb.collection('landing_team').update(editing, payload);
+        await pb.collection('landing_team').update(editing, body());
         setOkMsg('Perubahan disimpan.');
       }
       cancel();
@@ -2785,10 +2802,24 @@ function TeamManager() {
         <div className="bg-alba-50 rounded-2xl border border-maroon-200 p-6 shadow-card space-y-3 animate-fade-in">
           <h3 className="font-bold text-maroon-600">{editing === 'new' ? `Tambah ${isTeacher ? 'Pengajar' : 'Management'} Baru` : 'Edit Data'}</h3>
           <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama lengkap" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
-          <div>
-            <input value={form.photo} onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))} placeholder="Link foto (Google Drive)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+
+          {/* Foto: upload langsung ATAU tempel link lh3, sama seperti poster & prestasi */}
+          <div className="rounded-lg border border-alba-200 bg-alba-100/50 p-3 space-y-2.5">
+            <p className="text-sm font-bold text-stone-700">Foto</p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-500 mb-1">Upload dari perangkat (JPG/PNG/WebP, maks 10MB)</label>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
+                {file && <p className="text-[11px] text-green-700 mt-1 truncate">Akan diupload: {file.name}</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-stone-500 mb-1">Atau link foto Google Drive (format lh3)</label>
+                <input value={form.photo} onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))} placeholder="https://lh3.googleusercontent.com/d/FILE_ID" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+              </div>
+            </div>
+            <p className="text-[11px] text-stone-400">Kalau keduanya diisi, foto yang diupload yang dipakai.</p>
             {form.photo && !form.photo.includes('FILE_ID') && (
-              <img src={form.photo} alt="Preview foto" referrerPolicy="no-referrer" className="mt-2 h-28 w-24 object-cover rounded-lg border border-alba-200" onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = ''; }} />
+              <img src={form.photo} alt="Preview foto" referrerPolicy="no-referrer" className="h-28 w-24 object-cover rounded-lg border border-alba-200" onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = ''; }} />
             )}
           </div>
 
@@ -2852,8 +2883,8 @@ function TeamManager() {
               <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
             </div>
             <div className="w-10 h-12 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
-              {r.photo && !r.photo.includes('FILE_ID') ? (
-                <img src={r.photo} alt={r.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+              {teamPhotoSrc(r) ? (
+                <img src={teamPhotoSrc(r)} alt={r.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
               ) : (
                 <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
               )}
@@ -3090,6 +3121,8 @@ function KelasReminder() {
 function WaSettings() {
   const [rec, setRec] = useState(null);
   const [form, setForm] = useState({ enabled: false, provider: 'fonnte', apiToken: '', apiUrl: '' });
+  const [templates, setTemplates] = useState(() => resolveWaTemplates(null));
+  const [openTpl, setOpenTpl] = useState(WA_TEMPLATES[0].key);
   const [testPhone, setTestPhone] = useState('');
   const [msg, setMsg] = useState('');
   const [msgOk, setMsgOk] = useState(false);
@@ -3101,6 +3134,7 @@ function WaSettings() {
       .then((r) => {
         setRec(r);
         setForm({ enabled: !!r.enabled, provider: r.provider || 'fonnte', apiToken: r.apiToken || '', apiUrl: r.apiUrl || '' });
+        setTemplates(resolveWaTemplates(r.templates));
       })
       .catch(() => setMsg('Pengaturan WA belum ada di database (migrasi PocketBase terbaru belum jalan?).'));
   }, []);
@@ -3109,7 +3143,7 @@ function WaSettings() {
     if (!rec) return;
     setBusy('save'); setMsg('');
     try {
-      const updated = await pb.collection('wa_settings').update(rec.id, form);
+      const updated = await pb.collection('wa_settings').update(rec.id, { ...form, templates });
       setRec(updated);
       setMsg(form.enabled ? 'Tersimpan. Notifikasi WA AKTIF.' : 'Tersimpan. Notifikasi WA masih nonaktif.');
       setMsgOk(true);
@@ -3199,6 +3233,71 @@ function WaSettings() {
         </button>
       </div>
 
+      {/* Template pesan: dipakai pengiriman otomatis DAN tombol "Kirim WA"
+          di Dashboard Activity, jadi teksnya selalu konsisten. */}
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <h3 className="font-bold text-maroon-600 mb-1">Template Pesan</h3>
+        <p className="text-xs text-stone-500 mb-4 leading-relaxed">
+          Isi tiap pesan bisa kamu ubah sendiri. Tulisan dalam kurung kurawal seperti{' '}
+          <span className="font-mono">{'{nama}'}</span> otomatis diganti datanya saat pesan dikirim.
+          Kolom yang dikosongkan kembali memakai teks bawaan.
+        </p>
+        <div className="space-y-2">
+          {WA_TEMPLATES.map((t) => {
+            const expanded = openTpl === t.key;
+            return (
+              <div key={t.key} className="rounded-xl border border-alba-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenTpl(expanded ? '' : t.key)}
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-sm font-bold transition-colors ${
+                    expanded ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100/60 text-stone-700 hover:bg-maroon-50'
+                  }`}
+                >
+                  <span className="text-left">{t.label}</span>
+                  <span className="text-xs font-semibold shrink-0">{expanded ? '▲ tutup' : '▼ ubah'}</span>
+                </button>
+                {expanded && (
+                  <div className="p-4 space-y-2 bg-alba-50">
+                    <p className="text-[11px] text-stone-500">{t.desc}</p>
+                    <textarea
+                      rows={4}
+                      value={templates[t.key] ?? ''}
+                      onChange={(e) => setTemplates((prev) => ({ ...prev, [t.key]: e.target.value }))}
+                      className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 focus:outline-none focus:border-maroon-400"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-bold text-stone-500">Isian otomatis:</span>
+                      {t.placeholders.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setTemplates((prev) => ({ ...prev, [t.key]: (prev[t.key] || '') + ' ' + p }))}
+                          title="Klik untuk menyisipkan"
+                          className="font-mono text-[11px] rounded-full border border-alba-300 px-2.5 py-1 text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setTemplates((prev) => ({ ...prev, [t.key]: t.default }))}
+                        className="ml-auto text-[11px] font-semibold text-stone-400 hover:text-maroon-600"
+                      >
+                        kembalikan bawaan
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-stone-400 mt-3">
+          Perubahan template ikut tersimpan lewat tombol <b>Simpan Pengaturan</b> di atas.
+        </p>
+      </div>
+
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
         <h3 className="font-bold text-maroon-600 mb-1">Tes Kirim</h3>
         <p className="text-xs text-stone-500 mb-3">Simpan pengaturan dulu, lalu kirim pesan tes ke nomormu sendiri untuk memastikan gateway tersambung.</p>
@@ -3227,8 +3326,6 @@ function WaSettings() {
 // Tiap poster: gambar (upload atau link lh3), deskripsi, countdown penutupan
 // pendaftaran, contact person (kosong = tidak tampil), dan link daftar.
 // ==========================================
-const posterThumb = (r) => (r.image ? pb.files.getURL(r, r.image) : (r.imageUrl || ''));
-
 function PosterManager() {
   const [rows, setRows] = useState([]);
   const [editing, setEditing] = useState(null); // id | 'new' | null
@@ -3371,8 +3468,8 @@ function PosterManager() {
               <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▼</button>
             </div>
             <div className="w-12 h-14 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
-              {posterThumb(r) ? (
-                <img src={posterThumb(r)} alt={r.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+              {posterImageSrc(r) ? (
+                <img src={posterImageSrc(r)} alt={r.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
               ) : (
                 <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
               )}
@@ -3543,8 +3640,6 @@ function OlympiadManager() {
 // LANDING PAGE: PRESTASI - prestasi recent pengajar & siswa (foto + deskripsi)
 // untuk halaman Tim Kami dan beranda (collection landing_achievements).
 // ==========================================
-const achievementThumb = (r) => (r.photo ? pb.files.getURL(r, r.photo) : (r.photoUrl || ''));
-
 function AchievementManager() {
   const [rows, setRows] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -3668,8 +3763,8 @@ function AchievementManager() {
               <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▼</button>
             </div>
             <div className="w-14 h-11 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
-              {achievementThumb(r) ? (
-                <img src={achievementThumb(r)} alt={r.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+              {achievementPhotoSrc(r) ? (
+                <img src={achievementPhotoSrc(r)} alt={r.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
               ) : (
                 <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
               )}

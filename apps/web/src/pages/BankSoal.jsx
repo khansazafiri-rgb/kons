@@ -75,7 +75,7 @@ export default function BankSoal() {
 
   if (!enabled) {
     return (
-      <div className="min-h-screen bg-alba-50">
+      <div className="min-h-screen bg-grid-soft">
         <Header />
         <div className="max-w-md mx-auto px-6 py-24 text-center">
           <div className="w-16 h-16 bg-maroon-50 text-maroon-600 rounded-full flex items-center justify-center mx-auto mb-5 border border-maroon-100">
@@ -90,7 +90,7 @@ export default function BankSoal() {
 
   if (questions) {
     return (
-      <div className="min-h-screen bg-alba-50">
+      <div className="min-h-screen bg-grid-soft">
         <Header />
         <div className="max-w-5xl mx-auto px-6 py-10">
           <QuestionRunner
@@ -106,7 +106,7 @@ export default function BankSoal() {
   }
 
   return (
-    <div className="min-h-screen bg-alba-50">
+    <div className="min-h-screen bg-grid-soft">
       <Header />
       <div className="max-w-3xl mx-auto px-6 py-14">
         <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
@@ -143,6 +143,7 @@ export default function BankSoal() {
                   chapters={chapters}
                   value={chapterId}
                   onChange={setChapterId}
+                  openSignal={subjectId}
                   placeholder="Semua BAB"
                 />
               </div>

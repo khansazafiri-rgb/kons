@@ -145,6 +145,82 @@ body {
    background-image: radial-gradient(rgba(253, 251, 247, 0.22) 1.2px, transparent 1.2px);
    background-size: 20px 20px;
  }
+
+ /* ===== Latar bertekstur untuk halaman web siswa =====
+    Tiap halaman memakai varian berbeda supaya tidak terasa seragam, tapi
+    semuanya bertumpu pada palet Alba + Maroon yang sama. Semua sangat samar
+    (opacity efektif < 5%) agar teks tetap nyaman dibaca. */
+
+ /* Serat kertas: dipakai di halaman yang isinya banyak dibaca (jadwal, materi) */
+ .bg-paper {
+   background-color: #FDFBF7;
+   background-image:
+     repeating-linear-gradient(90deg, rgba(142, 1, 0, 0.022) 0 1px, transparent 1px 3px),
+     repeating-linear-gradient(0deg, rgba(142, 1, 0, 0.016) 0 1px, transparent 1px 4px);
+ }
+ /* Kisi halus: memberi kesan "papan kerja" untuk halaman latihan soal */
+ .bg-grid-soft {
+   background-color: #FDFBF7;
+   background-image:
+     linear-gradient(rgba(142, 1, 0, 0.045) 1px, transparent 1px),
+     linear-gradient(90deg, rgba(142, 1, 0, 0.045) 1px, transparent 1px);
+   background-size: 30px 30px;
+ }
+ /* Garis diagonal: untuk halaman tryout/simulasi, terasa lebih "bergerak" */
+ .bg-diagonal-soft {
+   background-color: #FDFBF7;
+   background-image: repeating-linear-gradient(
+     135deg,
+     rgba(142, 1, 0, 0.03) 0 1px,
+     transparent 1px 14px
+   );
+ }
+ /* Sapuan lembut dari sudut: untuk beranda siswa */
+ .bg-glow-soft {
+   background-color: #FDFBF7;
+   background-image:
+     radial-gradient(ellipse 70% 55% at 8% -5%, rgba(142, 1, 0, 0.07), transparent 60%),
+     radial-gradient(ellipse 50% 45% at 100% 0%, rgba(201, 162, 39, 0.10), transparent 62%);
+ }
+ /* Versi gelap dari keempat pola di atas: latar polos supaya tetap terbaca */
+ .dark .bg-paper,
+ .dark .bg-grid-soft,
+ .dark .bg-diagonal-soft,
+ .dark .bg-glow-soft {
+   background-color: hsl(20 15% 8%);
+   background-image: none;
+ }
+
+ /* Garis aksen tipis di sisi kiri kartu, penanda kategori tanpa ikon */
+ .edge-maroon { box-shadow: inset 3px 0 0 0 #8E0100; }
+ .edge-gold { box-shadow: inset 3px 0 0 0 #C9A227; }
+
+ /* Hiasan pojok kanan atas kartu menu. Tiga varian dipakai bergiliran supaya
+    deretan kartu tidak tampak seragam. */
+ .texture-corner-maroon {
+   background-image: repeating-linear-gradient(
+     -45deg,
+     rgba(142, 1, 0, 0.07) 0 2px,
+     transparent 2px 9px
+   );
+   -webkit-mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 72%);
+   mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 72%);
+ }
+ .texture-corner-gold {
+   background-image: repeating-linear-gradient(
+     45deg,
+     rgba(201, 162, 39, 0.16) 0 2px,
+     transparent 2px 9px
+   );
+   -webkit-mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 72%);
+   mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 72%);
+ }
+ .texture-corner-dots {
+   background-image: radial-gradient(rgba(142, 1, 0, 0.14) 1.3px, transparent 1.3px);
+   background-size: 11px 11px;
+   -webkit-mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%);
+   mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%);
+ }
  /* Scrollbar tipis untuk daftar BAB yang panjang */
  .scrollbar-thin::-webkit-scrollbar {
    width: 6px;
