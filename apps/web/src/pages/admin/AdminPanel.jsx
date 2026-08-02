@@ -3007,11 +3007,22 @@ function KelasReminder() {
     setBusy('refresh'); setError(''); setOkMsg('');
     try {
       const res = await pb.send('/api/pcv/class-schedule/refresh', { method: 'POST' });
-      const parts = Object.entries(res?.summary || {}).map(([id, v]) => {
-        const nama = classes.find((c) => c.id === id)?.name || id;
-        return `${nama}: ${typeof v === 'number' ? v + ' jadwal' : v}`;
-      });
-      setOkMsg(parts.length ? 'Jadwal di-refresh. ' + parts.join(' | ') : 'Tidak ada kelas dengan secret iCal untuk di-refresh.');
+      const entries = Object.entries(res?.summary || {});
+      if (!entries.length) {
+        setOkMsg('Tidak ada kelas dengan secret iCal untuk di-refresh.');
+      } else {
+        // Server mengirim diagnosa per kelas; tampilkan apa adanya supaya kalau
+        // hasilnya kosong, alasannya langsung kelihatan.
+        const parts = entries.map(([id, v]) => {
+          const nama = classes.find((c) => c.id === id)?.name || id;
+          if (v && typeof v === 'object') {
+            if (v.error) return `${nama}: GAGAL - ${v.error}`;
+            return `${nama}: ${v.events} jadwal masuk rentang (dari ${v.vevents ?? '?'} jadwal di kalender, ${v.bytes ?? '?'} byte terunduh)`;
+          }
+          return `${nama}: ${v}`;
+        });
+        setOkMsg('Hasil refresh — ' + parts.join(' | '));
+      }
       await load();
     } catch (e) {
       setError('Gagal refresh: ' + (e?.message || ''));
@@ -3082,15 +3093,39 @@ function KelasReminder() {
                   {busy === 'ical:' + c.id ? '…' : 'Simpan iCal'}
                 </button>
               </div>
-              <p className={`text-xs mt-2 ${sources[c.id] && c.scheduleFetchedAt && cache.length === 0 ? 'text-gold-600 font-semibold' : 'text-stone-400'}`}>
-                {sources[c.id]
-                  ? `Jadwal tersinkron: ${cache.length} agenda (7 hari lalu s/d 60 hari ke depan)` +
-                    (c.scheduleFetchedAt ? ` · terakhir ditarik ${String(c.scheduleFetchedAt).slice(0, 16).replace('T', ' ')} UTC` : '')
-                  : 'Belum ada secret iCal, jadwal & reminder kelas ini belum aktif.'}
-                {sources[c.id] && c.scheduleFetchedAt && cache.length === 0 && (
-                  <> — kosong terus setelah beberapa kali refresh biasanya berarti link iCal-nya salah atau kalendernya memang tidak ada jadwal di rentang ini. Cek lagi link-nya di Google Calendar.</>
-                )}
-              </p>
+              {/* Status hasil sinkronisasi terakhir. Disimpan di database, jadi
+                  alasan "kenapa kosong" tetap bisa dibaca kapan saja, bukan cuma
+                  sekilas setelah menekan tombol refresh. */}
+              {!sources[c.id] ? (
+                <p className="text-xs text-stone-400 mt-2">
+                  Belum ada secret iCal, jadwal &amp; reminder kelas ini belum aktif.
+                </p>
+              ) : (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-stone-500">
+                    <b>{cache.length}</b> jadwal siap tampil di web siswa
+                    {c.scheduleFetchedAt && (
+                      <> · terakhir ditarik {String(c.scheduleFetchedAt).slice(0, 16).replace('T', ' ')} UTC</>
+                    )}
+                  </p>
+                  {c.scheduleStatus && (
+                    <p className={`text-xs rounded-lg px-3 py-2 leading-relaxed ${
+                      c.scheduleStatus.startsWith('GAGAL')
+                        ? 'bg-red-50 border border-red-200 text-red-600'
+                        : c.scheduleStatus.startsWith('KOSONG')
+                        ? 'bg-gold-100/70 border border-gold-200 text-gold-700'
+                        : 'bg-green-50 border border-green-200 text-green-800'
+                    }`}>
+                      {c.scheduleStatus}
+                    </p>
+                  )}
+                  {!c.scheduleStatus && c.scheduleFetchedAt && (
+                    <p className="text-xs text-stone-400">
+                      Tekan &quot;Refresh Jadwal Sekarang&quot; untuk melihat keterangan hasil sinkronisasi.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
