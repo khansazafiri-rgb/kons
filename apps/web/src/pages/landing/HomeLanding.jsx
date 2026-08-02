@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight, BookOpenText, FlaskConical, GraduationCap, Instagram, MapPin,
-  Medal, MessageCircle, Mic, Package, Quote, Sparkles, Star, Trophy, Users,
+  ArrowRight, BookOpenText, CalendarClock, Flame, FlaskConical, GraduationCap,
+  Instagram, MapPin, Medal, MessageCircle, Mic, Package, Quote, Sparkles, Star,
+  Trophy, Users,
 } from 'lucide-react';
 import LandingLayout, { WA_CP, IG_URL, fadeUp } from './LandingLayout';
 import PostersSection from '@/components/landing/PostersSection';
 import AchievementsSection from '@/components/landing/AchievementsSection';
+import { PCV_LOGO_URL, PCV_LOGO_LOCAL } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { resolveLandingTexts } from '@/lib/landingContent';
 
@@ -16,11 +18,9 @@ import { resolveLandingTexts } from '@/lib/landingContent';
 // Landing Page → Teks Landing (landing_settings.texts). Poster, prestasi, dan
 // tabel lomba juga dikelola dari sana.
 //
-// SLOT FOOTAGE: taruh file video/foto pembelajaran PCV di apps/web/public/footage/
-// dengan nama di bawah - begitu filenya ada, otomatis tampil (tanpa ubah kode):
-//   - hero.mp4        : video latar hero (landscape, 10-25 detik, tanpa audio penting)
-//   - hero-poster.jpg : gambar pengganti sebelum video termuat
-//   - kelas-1.jpg, kelas-2.jpg, kelas-3.jpg : foto suasana kelas (landscape)
+// Desain SENGAJA tanpa foto/footage: seluruh visual hero dibangun dari tekstur
+// CSS (bg-maroon-weave, texture-noise, texture-dots di index.css) plus kartu
+// fitur produk, jadi tidak bergantung pada aset foto dari luar.
 
 const PROGRAMS = [
   { icon: GraduationCap, title: 'Kelas Akademik', desc: 'Pendampingan materi preklinik per semester, sistematis bareng tentor yang sudah melewati blok yang sama.' },
@@ -73,38 +73,23 @@ function SectionTitle({ eyebrow, title, sub }) {
   );
 }
 
-// Video latar hero. Diam-diam menghilang kalau file footage belum ada,
-// menyisakan latar tekstur maroon (jadi aman dipakai sebelum footage dikirim).
-function HeroVideo() {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
+// Baris fitur kecil di panel hero: cuplikan apa yang didapat Sobat PCV.
+function HeroFeatureRow({ icon: Icon, title, sub }) {
   return (
-    <video
-      autoPlay
-      muted
-      loop
-      playsInline
-      poster="/footage/hero-poster.jpg"
-      onError={() => setFailed(true)}
-      className="absolute inset-0 w-full h-full object-cover"
-    >
-      <source src="/footage/hero.mp4" type="video/mp4" onError={() => setFailed(true)} />
-    </video>
-  );
-}
-
-// Foto suasana kelas; slot menghilang kalau file-nya belum ada.
-function FootageImg({ src, alt, className }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
-  return (
-    <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} className={className} />
+    <div className="flex items-center gap-3.5 rounded-2xl border border-alba-50/15 bg-alba-50/5 px-5 py-3.5">
+      <span className="w-9 h-9 rounded-xl bg-gold-400/90 text-maroon-900 flex items-center justify-center shrink-0">
+        <Icon size={16} />
+      </span>
+      <span>
+        <span className="block text-sm font-bold leading-tight">{title}</span>
+        <span className="block text-xs text-alba-200 mt-0.5">{sub}</span>
+      </span>
+    </div>
   );
 }
 
 export default function HomeLanding() {
   const [t, setT] = useState(() => resolveLandingTexts(null));
-  const [footageOk, setFootageOk] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -112,23 +97,22 @@ export default function HomeLanding() {
       .getFullList()
       .then((rows) => { if (alive && rows[0]) setT(resolveLandingTexts(rows[0].texts)); })
       .catch(() => {});
-    // Cek sekali apakah footage strip kelas tersedia (untuk mengatur grid-nya).
-    const img = new Image();
-    img.onload = () => { if (alive) setFootageOk(true); };
-    img.src = '/footage/kelas-1.jpg';
     return () => { alive = false; };
   }, []);
 
   return (
     <LandingLayout>
-      {/* HERO - latar video footage pembelajaran (fallback: tekstur maroon) */}
-      <section className="relative bg-maroon-texture text-alba-50 overflow-hidden">
-        <HeroVideo />
-        {/* Lapisan gelap supaya teks tetap terbaca di atas video */}
-        <div className="absolute inset-0 bg-gradient-to-r from-maroon-900/85 via-maroon-900/70 to-maroon-900/40" aria-hidden />
+      {/* HERO - visual dibangun murni dari tekstur CSS, tanpa foto/footage */}
+      <section className="relative bg-maroon-weave text-alba-50 overflow-hidden">
+        {/* Butiran noise tipis supaya bidang maroon tidak datar */}
+        <div className="absolute inset-0 texture-noise opacity-[0.05] pointer-events-none" aria-hidden />
+        {/* Aksen dekoratif: lingkaran garis besar + medan titik ivory */}
+        <div className="absolute -top-40 -right-40 w-[34rem] h-[34rem] rounded-full border border-alba-50/10 pointer-events-none" aria-hidden />
+        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full border border-gold-400/20 pointer-events-none" aria-hidden />
+        <div className="absolute bottom-0 left-1/2 w-72 h-40 texture-dots opacity-25 pointer-events-none" aria-hidden />
 
-        <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-20">
-          <motion.div {...fadeUp} className="max-w-2xl">
+        <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-20 grid lg:grid-cols-[1.15fr_1fr] gap-14 items-center">
+          <motion.div {...fadeUp}>
             <p className="inline-flex items-center gap-2 text-gold-200 font-bold tracking-[0.18em] text-xs mb-6 border border-alba-50/25 bg-alba-50/10 backdrop-blur rounded-full px-4 py-1.5">
               {t.heroBadge}
             </p>
@@ -167,6 +151,48 @@ export default function HomeLanding() {
               <Stat value={t.stat3Value} label={t.stat3Label} />
             </div>
           </motion.div>
+
+          {/* Panel identitas + cuplikan fitur, dengan kartu kecil "mengambang".
+              Semuanya elemen UI, bukan foto, jadi tetap tajam di semua layar. */}
+          <motion.div
+            {...fadeUp}
+            transition={{ ...fadeUp.transition, delay: 0.12 }}
+            className="relative hidden lg:block"
+          >
+            <div className="absolute -top-6 -left-6 w-24 h-24 texture-dots opacity-40 rounded-2xl" aria-hidden />
+
+            <div className="relative rounded-[2rem] border border-alba-50/15 bg-alba-50/[0.06] backdrop-blur-sm p-8 shadow-card-hover">
+              <div className="absolute inset-0 texture-noise opacity-[0.06] rounded-[2rem] pointer-events-none" aria-hidden />
+              <div className="relative flex items-center gap-4 pb-6 border-b border-alba-50/15">
+                <img
+                  src={PCV_LOGO_URL}
+                  onError={(e) => { e.currentTarget.src = PCV_LOGO_LOCAL; }}
+                  referrerPolicy="no-referrer"
+                  alt="Logo PCV"
+                  className="w-16 h-16 rounded-2xl object-cover shadow-card"
+                />
+                <div>
+                  <p className="font-display text-xl font-semibold leading-tight">Primus Coltus Virtus</p>
+                  <p className="text-alba-200 text-xs mt-1">Prime in Cultivating Virtue</p>
+                </div>
+              </div>
+              <div className="relative mt-6 space-y-3">
+                <HeroFeatureRow icon={BookOpenText} title="Materi + video per BAB" sub="PPT simplifikasi tentor, tinggal buka dan pelajari" />
+                <HeroFeatureRow icon={CalendarClock} title="Reminder ujian & kelas" sub="Countdown ujian dan pengingat jadwal kelasmu" />
+                <HeroFeatureRow icon={Trophy} title="Tryout CBT per paket" sub="Simulasi ujian dengan timer, skor, dan pembahasan" />
+              </div>
+            </div>
+
+            {/* Kartu mengambang: rasa produknya langsung kelihatan */}
+            <div className="absolute -right-4 -top-5 rotate-3 rounded-2xl bg-alba-50 text-stone-800 shadow-card-hover px-5 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-maroon-500">Reminder Ujian</p>
+              <p className="font-display font-bold text-sm">UTB Kardio · <span className="text-maroon-600">5 hari lagi</span></p>
+            </div>
+            <div className="absolute -left-7 -bottom-5 -rotate-2 rounded-2xl bg-gold-400 text-maroon-900 shadow-card-hover px-5 py-3 flex items-center gap-2">
+              <Flame size={16} />
+              <p className="font-display font-bold text-sm">Streak belajar 12 hari</p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -202,9 +228,12 @@ export default function HomeLanding() {
         </div>
       </section>
 
-      {/* ABOUT PCV - kredensial tentor + strip footage kelas */}
-      <section className="bg-maroon-texture">
-        <div className="max-w-6xl mx-auto px-6 py-20 text-alba-50">
+      {/* ABOUT PCV - kredensial tentor, dengan aksen tekstur (tanpa foto) */}
+      <section className="relative bg-maroon-weave overflow-hidden">
+        <div className="absolute inset-0 texture-noise opacity-[0.05] pointer-events-none" aria-hidden />
+        <div className="absolute top-10 -left-20 w-64 h-64 rounded-full border border-alba-50/10 pointer-events-none" aria-hidden />
+        <div className="absolute -bottom-10 -right-10 w-56 h-40 texture-dots opacity-20 pointer-events-none" aria-hidden />
+        <div className="relative max-w-6xl mx-auto px-6 py-20 text-alba-50">
           <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-12">
             <p className="text-gold-200 font-bold tracking-[0.2em] text-xs mb-3">ABOUT PCV</p>
             <h2 className="font-display text-3xl font-semibold mb-3">
@@ -215,15 +244,6 @@ export default function HomeLanding() {
               dengan rekam jejak nyata.
             </p>
           </motion.div>
-
-          {/* Strip footage suasana kelas - otomatis tampil begitu file footage ada */}
-          {footageOk && (
-            <motion.div {...fadeUp} className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-12">
-              <FootageImg src="/footage/kelas-1.jpg" alt="Suasana kelas PCV" className="rounded-2xl w-full h-44 object-cover" />
-              <FootageImg src="/footage/kelas-2.jpg" alt="Suasana kelas PCV" className="rounded-2xl w-full h-44 object-cover" />
-              <FootageImg src="/footage/kelas-3.jpg" alt="Suasana kelas PCV" className="rounded-2xl w-full h-44 object-cover hidden md:block" />
-            </motion.div>
-          )}
 
           <motion.div {...fadeUp} className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
             {TENTOR_POINTS.map((p) => (
