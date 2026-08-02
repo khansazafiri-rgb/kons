@@ -28,7 +28,7 @@ export default function LoginPage() {
 
  return (
    <div className="min-h-screen bg-alba-50 grid lg:grid-cols-[1.1fr_1fr]">
-     {/* Panel kiri — brand maroon (disembunyikan di layar kecil) */}
+     {/* Panel kiri - brand maroon (disembunyikan di layar kecil) */}
      <div className="hidden lg:flex flex-col justify-between bg-maroon-texture text-alba-50 p-12">
        <Logo size="md" light />
        <div>
@@ -48,10 +48,10 @@ export default function LoginPage() {
            ))}
          </ul>
        </div>
-       <p className="text-xs text-alba-200/70">© {new Date().getFullYear()} PCV Classroom — Bimbel Ter-Worth It</p>
+       <p className="text-xs text-alba-200/70">© {new Date().getFullYear()} PCV Classroom - Bimbel Ter-Worth It</p>
      </div>
 
-     {/* Panel kanan — form login */}
+     {/* Panel kanan - form login */}
      <div className="flex items-center justify-center px-6 py-12">
        <div className="w-full max-w-md">
          <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-maroon-600 mb-8 transition-colors">
@@ -121,7 +121,7 @@ export default function LoginPage() {
            to="/signup"
            className="block w-full text-center rounded-xl border-2 border-maroon-600 font-bold py-3 text-sm text-maroon-600 hover:bg-maroon-600 hover:text-alba-50 transition-colors"
          >
-           Sign Up — Daftar Akun Baru
+           Sign Up - Daftar Akun Baru
          </Link>
 
          <p className="text-xs text-stone-500 mt-8 leading-relaxed bg-alba-100/70 border border-alba-200 rounded-xl px-4 py-3">

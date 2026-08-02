@@ -98,7 +98,7 @@ export const TEACHERS = [
     name: "dr. Ali Mustofa",
     photo: "https://lh3.googleusercontent.com/d/1sW5SJ3zV9tQtfLbljbeMKcDiMrPIIvFO",
     bidang: "Olimpiade Bidang Digestif, All Basic Medical Science, All Clinical Medicine",
-    achievements: ["1st Winner IMO Gastroenterology Branch 2023, Indonesia", "10+ Publications and Scientific Essay Competitions", "Faculty of Medicine Universitas Airlangga: Cardiovascular Research Team—Research Assistant"],
+    achievements: ["1st Winner IMO Gastroenterology Branch 2023, Indonesia", "10+ Publications and Scientific Essay Competitions", "Faculty of Medicine Universitas Airlangga: Cardiovascular Research Team-Research Assistant"],
     instagram: "https://instagram.com/ali.mustofa._",
   },
   {
@@ -287,7 +287,7 @@ export const TEACHERS = [
     name: "Nazwa Febry Savira S.Ked",
     photo: "https://lh3.googleusercontent.com/d/11yhSSq7fpMq_MxNnzCrim9gKuQDtKapJ",
     bidang: "Olimpiade Bidang Infeksi Tropis, All Basic Medical Science, All Clinical Medicine",
-    achievements: ["Bronze Individual Medalist of the 15th Siriraj International Medical Microbiology, Parasitology, and Microbiology Competition (SIMPIC) in Mahidol, Thailand", "1st Winner in the Anatomy Poster Contest, Respiratory Category—“Breathe Easy: Understanding Upper Respiratory Tract Problems” at the “Anatomy The Movies” event hosted by the Faculty of Medicine and Dentistry, Gadjah Mada University, in 2024", "Top 10 Batch Faculty of Medicine Universitas Airlangga Batch 2022 Subprogram II"],
+    achievements: ["Bronze Individual Medalist of the 15th Siriraj International Medical Microbiology, Parasitology, and Microbiology Competition (SIMPIC) in Mahidol, Thailand", "1st Winner in the Anatomy Poster Contest, Respiratory Category-“Breathe Easy: Understanding Upper Respiratory Tract Problems” at the “Anatomy The Movies” event hosted by the Faculty of Medicine and Dentistry, Gadjah Mada University, in 2024", "Top 10 Batch Faculty of Medicine Universitas Airlangga Batch 2022 Subprogram II"],
     instagram: "https://instagram.com/nzsavira",
   },
   {
@@ -455,7 +455,7 @@ export const TEACHERS = [
     name: "Nabilah Najmul Ummah",
     photo: "https://lh3.googleusercontent.com/d/1PUg9a7ojaoh9BDLGz6AUh-vKvpLlCmRq",
     bidang: "All Basic Medical Science",
-    achievements: ["Finalist Scientific Essay RETINA – Universitas Wijaya Kusuma Surabaya"],
+    achievements: ["Finalist Scientific Essay RETINA - Universitas Wijaya Kusuma Surabaya"],
     instagram: "https://instagram.com/nabilah.najmul",
   },
   {

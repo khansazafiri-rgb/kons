@@ -16,7 +16,13 @@
 #     list_db=False (lihat deploy/odoo.conf.example)
 
 # ───────────────────────── Web siswa + PocketBase ─────────────────────────
-pcvclassroom.com, www.pcvclassroom.com {
+# www dialihkan ke domain utama supaya sesi login (localStorage) tidak terpecah
+# menjadi dua origin berbeda — lihat penjelasan di deploy/Caddyfile.
+www.pcvclassroom.com {
+	redir https://pcvclassroom.com{uri} permanent
+}
+
+pcvclassroom.com {
 	encode gzip
 
 	# API + realtime PocketBase

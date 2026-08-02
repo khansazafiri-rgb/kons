@@ -184,3 +184,11 @@ Folder: `apps/web/src/pages/`
 - **Auto-scroll** (`CicilBelajar.jsx`, `PerdalamMateri.jsx`, `SimulasiCBT.jsx`): setelah user memilih mata kuliah/BAB/tahun/mode, halaman otomatis `scrollIntoView({ behavior: 'smooth' })` ke section berikutnya.
 - **Validasi upload file** (`TeacherPanel.jsx`): PDF only, maksimal 100MB, pesan error jelas dalam Bahasa Indonesia.
 - **Device limit** (`context/AuthContext.jsx`): admin tanpa batas device, teacher/student maksimal 3 device — bukan elemen visual, tapi memengaruhi alur UX login.
+
+## Aturan Penulisan Teks (PRD v9)
+
+- JANGAN memakai em-dash (karakter strip panjang) di teks yang tampil ke user.
+  Gunakan koma, titik, titik dua, atau tanda hubung biasa (-). Em-dash dianggap
+  ciri tulisan AI oleh user dan sudah di-banned dari seluruh copy web ini.
+- PCV berbasis di Surabaya. Jangan menulis afiliasi institusional PCV dengan
+  FK UNAIR (menyebut program/kurikulum untuk mahasiswa FK UNAIR tetap boleh).

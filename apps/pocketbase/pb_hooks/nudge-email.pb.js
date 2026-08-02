@@ -1,6 +1,6 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// Endpoint email penyemangat personal — dipakai tombol "Kirim Email" di tab
+// Endpoint email penyemangat personal - dipakai tombol "Kirim Email" di tab
 // Dashboard Activity panel admin.
 //
 //   POST /api/pcv/nudge   body: { "userId": "<id record users>" }
@@ -13,7 +13,7 @@
 // Isinya: sapaan + penyemangat, kapan terakhir mereka aktif & ngapain, lalu
 // hitung mundur ujian terdekat dari mata kuliah yang mereka ambil.
 //
-// CATATAN: handler PocketBase berjalan terisolasi — semua helper harus
+// CATATAN: handler PocketBase berjalan terisolasi - semua helper harus
 // didefinisikan DI DALAM fungsi, tidak bisa mengambil variabel dari luar.
 
 routerAdd("POST", "/api/pcv/nudge", (e) => {
@@ -51,7 +51,7 @@ routerAdd("POST", "/api/pcv/nudge", (e) => {
     lastAt = target.get("lastActivityAt");
   } catch (_) {}
 
-  // "3 hari lalu" / "2 minggu lalu" — dihitung dari selisih hari.
+  // "3 hari lalu" / "2 minggu lalu" - dihitung dari selisih hari.
   let jedaKalimat = "";
   let hariSejakAktif = -1;
   if (lastAt) {
@@ -75,13 +75,13 @@ routerAdd("POST", "/api/pcv/nudge", (e) => {
   } else {
     blokAktivitas =
       "<p style=\"background:#F7F1E6;border:1px solid #E4D9C4;border-radius:12px;padding:12px 16px\">" +
-      "Kami belum melihat aktivitasmu di web akhir-akhir ini. Yuk mulai dari satu BAB dulu — " +
+      "Kami belum melihat aktivitasmu di web akhir-akhir ini. Yuk mulai dari satu BAB dulu - " +
       "nggak perlu langsung banyak.</p>";
   }
 
   // ---- 3. Hitung mundur ujian terdekat ----------------------------------
   // Hanya ujian dari mata kuliah yang diambil user ini (disimpan di
-  // teachingSubjects — untuk siswa artinya mata kuliah yang boleh diakses).
+  // teachingSubjects - untuk siswa artinya mata kuliah yang boleh diakses).
   let blokUjian = "";
   try {
     const subjectIds = target.get("teachingSubjects") || [];
@@ -122,7 +122,7 @@ routerAdd("POST", "/api/pcv/nudge", (e) => {
           const u = mendatang[i];
           const sisaTeks = u.sisa === 0 ? "HARI INI" : u.sisa === 1 ? "besok" : u.sisa + " hari lagi";
           baris +=
-            "<li><b>" + u.nama + "</b>" + (u.mk ? " — " + u.mk : "") +
+            "<li><b>" + u.nama + "</b>" + (u.mk ? " - " + u.mk : "") +
             " · <span style=\"color:#8E0100;font-weight:bold\">" + sisaTeks + "</span></li>";
         }
         blokUjian =
@@ -160,7 +160,7 @@ routerAdd("POST", "/api/pcv/nudge", (e) => {
         "padding:12px 24px;border-radius:999px;font-weight:bold;display:inline-block\">Buka PCV Classroom</a>" +
         "</p>" +
         "<p style=\"color:#78716c;font-size:13px;margin-top:24px\">" +
-        "&mdash; PCV Classroom &middot; Primus Coltus Virtus</p>" +
+        "- PCV Classroom &middot; Primus Coltus Virtus</p>" +
         "</div>",
     });
     e.app.newMailClient().send(message);
@@ -169,5 +169,23 @@ routerAdd("POST", "/api/pcv/nudge", (e) => {
     return e.json(500, { message: "Email gagal dikirim: " + err });
   }
 
-  return e.json(200, { message: "Email terkirim ke " + email, to: email });
+  // ---- 5. Kirim juga versi singkatnya ke WhatsApp (kalau gateway aktif) ---
+  let waInfo = "";
+  try {
+    const { sendWA } = require(`${__hooks}/pcv-shared.js`);
+    const phone = target.getString("phone");
+    if (phone) {
+      const teksWa =
+        "Halo " + nama + "! Semangat terus belajarnya di PCV Classroom 💪 " +
+        (lastText && jedaKalimat
+          ? "Terakhir kamu aktif " + jedaKalimat + ": " + lastText + ". "
+          : "Kami belum melihat aktivitasmu akhir-akhir ini, yuk mulai dari satu BAB dulu. ") +
+        "Cek juga email kamu untuk detailnya ya!";
+      if (sendWA(e.app, phone, teksWa)) waInfo = " + WA ke " + phone;
+    }
+  } catch (err) {
+    console.log("nudge-email: WA gagal:", err);
+  }
+
+  return e.json(200, { message: "Email terkirim ke " + email + waInfo, to: email });
 });

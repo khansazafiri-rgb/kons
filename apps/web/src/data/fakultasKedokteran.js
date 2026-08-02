@@ -1,4 +1,4 @@
-// Daftar Fakultas Kedokteran di Indonesia — dipakai untuk dropdown "Asal Kuliah"
+// Daftar Fakultas Kedokteran di Indonesia - dipakai untuk dropdown "Asal Kuliah"
 // di halaman Sign Up.
 //
 // Dikelompokkan per jenis (Negeri / Swasta / Kedinasan) supaya dropdown-nya
@@ -6,7 +6,7 @@
 // dipakai mahasiswa ("FK UNAIR", bukan "Fakultas Kedokteran Universitas
 // Airlangga") supaya cocok dengan cara siswa menyebut kampusnya.
 //
-// Daftar ini TIDAK dijamin lengkap/mutakhir — FK baru bermunculan tiap tahun.
+// Daftar ini TIDAK dijamin lengkap/mutakhir - FK baru bermunculan tiap tahun.
 // Karena itu halaman Sign Up selalu menyediakan opsi "Lainnya" yang membuka
 // isian bebas, jadi pendaftar dari kampus yang belum terdaftar tetap bisa
 // mendaftar tanpa harus menunggu daftar ini diperbarui.
@@ -15,7 +15,7 @@ export const FK_LAINNYA = '__lainnya__';
 
 export const FK_INDONESIA = [
   {
-    group: 'PTN — Sumatera',
+    group: 'PTN - Sumatera',
     items: [
       'FK Universitas Syiah Kuala (Banda Aceh)',
       'FK Universitas Malikussaleh (Lhokseumawe)',
@@ -31,7 +31,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTN — Jawa',
+    group: 'PTN - Jawa',
     items: [
       'FK Universitas Indonesia (Jakarta)',
       'FK UPN Veteran Jakarta (Jakarta)',
@@ -53,7 +53,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTN — Bali, NTB, NTT',
+    group: 'PTN - Bali, NTB, NTT',
     items: [
       'FK Universitas Udayana (Denpasar)',
       'FK Universitas Mataram (Mataram)',
@@ -61,7 +61,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTN — Kalimantan',
+    group: 'PTN - Kalimantan',
     items: [
       'FK Universitas Tanjungpura (Pontianak)',
       'FK Universitas Palangka Raya (Palangka Raya)',
@@ -71,7 +71,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTN — Sulawesi',
+    group: 'PTN - Sulawesi',
     items: [
       'FK Universitas Hasanuddin (Makassar)',
       'FK Universitas Sam Ratulangi (Manado)',
@@ -82,7 +82,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTN — Maluku & Papua',
+    group: 'PTN - Maluku & Papua',
     items: [
       'FK Universitas Pattimura (Ambon)',
       'FK Universitas Khairun (Ternate)',
@@ -91,7 +91,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTS — Jakarta, Bogor, Depok, Tangerang, Bekasi',
+    group: 'PTS - Jakarta, Bogor, Depok, Tangerang, Bekasi',
     items: [
       'FK Universitas Trisakti (Jakarta)',
       'FK Universitas Tarumanagara (Jakarta)',
@@ -109,7 +109,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTS — Jawa Barat & Banten',
+    group: 'PTS - Jawa Barat & Banten',
     items: [
       'FK Universitas Kristen Maranatha (Bandung)',
       'FK Universitas Islam Bandung (Bandung)',
@@ -119,7 +119,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTS — Jawa Tengah & DIY',
+    group: 'PTS - Jawa Tengah & DIY',
     items: [
       'FK Universitas Islam Sultan Agung (Semarang)',
       'FK Universitas Muhammadiyah Semarang (Semarang)',
@@ -134,7 +134,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTS — Jawa Timur',
+    group: 'PTS - Jawa Timur',
     items: [
       'FK Universitas Katolik Widya Mandala (Surabaya)',
       'FK Universitas Hang Tuah (Surabaya)',
@@ -149,7 +149,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTS — Sumatera',
+    group: 'PTS - Sumatera',
     items: [
       'FK Universitas Baiturrahmah (Padang)',
       'FK Universitas Abulyatama (Aceh Besar)',
@@ -164,7 +164,7 @@ export const FK_INDONESIA = [
     ],
   },
   {
-    group: 'PTS — Bali, Kalimantan, Sulawesi, Timur',
+    group: 'PTS - Bali, Kalimantan, Sulawesi, Timur',
     items: [
       'FK Universitas Warmadewa (Denpasar)',
       'FK Universitas Muhammadiyah Banjarmasin (Banjarmasin)',

@@ -6,8 +6,9 @@ import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import { touchActivity } from '@/lib/activityLog';
 
-const years = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
-
+// Soal simulasi dikelompokkan per "Paket" (Paket 1, 2, 3, ...) - bukan lagi
+// per tahun angkatan. Field database-nya tetap bernama `year`, hanya isinya
+// kini nomor paket. Paket baru ditambahkan admin lewat tab Edit Soal.
 export default function SimulasiCBT() {
  const { user, role } = useAuth();
  const [subjects, setSubjects] = useState([]);
@@ -103,7 +104,7 @@ export default function SimulasiCBT() {
      expand: 'chapter',
    });
    if (qs.length === 0) {
-     alert(`Belum ada soal CBT tahun ${year} untuk mata kuliah ini. Silakan pilih tahun lain.`);
+     alert(`Belum ada soal untuk Paket ${year} di mata kuliah ini. Silakan pilih paket lain.`);
      return;
    }
 
@@ -179,7 +180,7 @@ export default function SimulasiCBT() {
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
    const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
-   touchActivity(pb, user, `Mengerjakan Simulasi CBT ${namaMk} tahun ${year} (nilai ${score})`);
+   touchActivity(pb, user, `Mengerjakan Simulasi CBT ${namaMk} Paket ${year} (nilai ${score})`);
  };
 
  const exit = async () => {
@@ -256,8 +257,8 @@ export default function SimulasiCBT() {
          <Timer size={14} />
          SIMULASI CBT TEST
        </p>
-       <h1 className="font-display text-3xl font-semibold mb-2">Tryout Soal Angkatan</h1>
-       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah, tahun angkatan, dan mode ujian untuk memulai tryout.</p>
+       <h1 className="font-display text-3xl font-semibold mb-2">Tryout Paket Soal</h1>
+       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah, paket soal, dan mode ujian untuk memulai tryout.</p>
 
        {enrolled && enrolled.length === 0 && (
          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
@@ -287,7 +288,7 @@ export default function SimulasiCBT() {
                  >
                    <div className="flex items-center justify-between gap-2 mb-2">
                      <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
-                     {<span className="text-[11px] font-bold text-maroon-500">{done}/{avail} thn</span>}
+                     {<span className="text-[11px] font-bold text-maroon-500">{done}/{avail} paket</span>}
                    </div>
                    {(
                      <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
@@ -305,31 +306,32 @@ export default function SimulasiCBT() {
 
          {subjectId && (
            <div ref={yearRef} className="animate-fade-in scroll-mt-24">
-             <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih Tahun Angkatan</label>
-             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-               {years.map((y) => {
-                 const has = availOfSubject.has(y);
-                 const done = doneOfSubject.has(y);
-                 return (
-                   <button
-                     key={y}
-                     onClick={() => { setYear(String(y)); scrollToRef(modeRef); }}
-                     className={`relative rounded-xl border px-2 py-2.5 text-sm font-bold transition-all ${
-                       year === String(y)
-                         ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
-                         : has
-                         ? 'border-maroon-200 text-maroon-700 bg-maroon-50/50 hover:border-maroon-400'
-                         : 'border-alba-200 text-stone-400 hover:border-alba-300'
-                     }`}
-                     title={has ? (done ? 'Tersedia — sudah pernah kamu kerjakan' : 'Soal tersedia') : 'Belum ada soal tahun ini'}
-                   >
-                     {y}
-                     {done && <span className="absolute -top-1.5 -right-1.5 text-[10px]">✅</span>}
-                   </button>
-                 );
-               })}
-             </div>
-             <p className="text-[11px] text-stone-400 mt-2">Tahun dengan warna maroon muda = sudah ada soalnya · ✅ = pernah kamu tuntaskan</p>
+             <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih Paket Soal</label>
+             {availOfSubject.size === 0 ? (
+               <p className="text-sm text-stone-400">Belum ada paket soal untuk mata kuliah ini.</p>
+             ) : (
+               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                 {[...availOfSubject].sort((a, b) => a - b).map((p) => {
+                   const done = doneOfSubject.has(p);
+                   return (
+                     <button
+                       key={p}
+                       onClick={() => { setYear(String(p)); scrollToRef(modeRef); }}
+                       className={`relative rounded-xl border px-2 py-2.5 text-sm font-bold transition-all ${
+                         year === String(p)
+                           ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
+                           : 'border-maroon-200 text-maroon-700 bg-maroon-50/50 hover:border-maroon-400'
+                       }`}
+                       title={done ? 'Sudah pernah kamu kerjakan' : 'Soal tersedia'}
+                     >
+                       Paket {p}
+                       {done && <span className="absolute -top-1.5 -right-1.5 text-[10px]">✅</span>}
+                     </button>
+                   );
+                 })}
+               </div>
+             )}
+             <p className="text-[11px] text-stone-400 mt-2">✅ = paket yang pernah kamu tuntaskan</p>
            </div>
          )}
 
@@ -348,7 +350,7 @@ export default function SimulasiCBT() {
                  <Timer size={17} />
                </span>
                <p className={`text-sm font-bold mb-1 ${mode === 'simulasi' ? 'text-maroon-700' : 'text-stone-700'}`}>Mode Simulasi</p>
-               <p className="text-xs text-stone-500 leading-relaxed">Pakai timer (1 menit/soal), jawaban dinilai di akhir — seperti ujian sungguhan.</p>
+               <p className="text-xs text-stone-500 leading-relaxed">Pakai timer (1 menit/soal), jawaban dinilai di akhir - seperti ujian sungguhan.</p>
              </button>
              <button
                onClick={() => { setMode('learning'); scrollToRef(startRef); }}
@@ -376,7 +378,7 @@ export default function SimulasiCBT() {
                  <ListChecks size={17} />
                </span>
                <p className={`text-sm font-bold mb-1 ${mode === 'review' ? 'text-maroon-700' : 'text-stone-700'}`}>Review Pembahasan</p>
-               <p className="text-xs text-stone-500 leading-relaxed">Langsung baca soal, kunci jawaban, dan pembahasannya — tanpa harus mengerjakan dulu.</p>
+               <p className="text-xs text-stone-500 leading-relaxed">Langsung baca soal, kunci jawaban, dan pembahasannya - tanpa harus mengerjakan dulu.</p>
              </button>
            </div>
          </div>

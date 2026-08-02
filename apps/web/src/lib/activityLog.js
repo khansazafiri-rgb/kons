@@ -1,15 +1,15 @@
 // Pencatat aktivitas untuk tab "Dashboard Activity" di panel admin.
 //
 // Dua hal yang dicatat:
-//   1. Baris riwayat di collection `activity_log` — siapa mengubah apa, kapan.
+//   1. Baris riwayat di collection `activity_log` - siapa mengubah apa, kapan.
 //      Hanya admin & teacher yang boleh menulis ke sini (lihat API rule).
 //   2. Jejak "terakhir ngapain" di record user itu sendiri
-//      (users.lastActivityAt / lastActivityText) — dipakai untuk daftar siapa
+//      (users.lastActivityAt / lastActivityText) - dipakai untuk daftar siapa
 //      yang sedang aktif, dan untuk isi email penyemangat.
 //
 // PRINSIP: pencatatan TIDAK BOLEH menggagalkan aksi utamanya. Kalau menulis log
 // gagal (koleksi belum dimigrasi, rule menolak, jaringan putus), fungsi di sini
-// diam saja — soal yang barusan disimpan tetap tersimpan.
+// diam saja - soal yang barusan disimpan tetap tersimpan.
 
 // Label section yang dipakai di UI. Kunci harus sama dengan values field
 // `section` di migration 1785000000_activity_log.js.
@@ -39,7 +39,7 @@ export const shorten = (v, max = 120) => {
 };
 
 // Ringkas satu soal jadi objek kecil untuk preview di halaman riwayat.
-// Sengaja TIDAK menyimpan seluruh record — cukup yang perlu dilihat kembali.
+// Sengaja TIDAK menyimpan seluruh record - cukup yang perlu dilihat kembali.
 export function questionSnapshot(q) {
   if (!q) return null;
   const opt = q.options;
@@ -65,7 +65,7 @@ export function questionSnapshot(q) {
 }
 
 // Tulis satu baris riwayat + perbarui jejak aktivitas pelakunya.
-// Dipanggil tanpa await di pemanggilnya (fire and forget) — lihat catatan di atas.
+// Dipanggil tanpa await di pemanggilnya (fire and forget) - lihat catatan di atas.
 export async function logActivity(pb, user, { section = 'lainnya', summary, targetLabel = '', detail = null } = {}) {
   if (!pb || !user?.id || !summary) return;
   const when = new Date().toISOString();
@@ -80,7 +80,7 @@ export async function logActivity(pb, user, { section = 'lainnya', summary, targ
       detail,
     });
   } catch (_) {
-    // Riwayat gagal ditulis — abaikan, aksi utama tetap dianggap berhasil.
+    // Riwayat gagal ditulis - abaikan, aksi utama tetap dianggap berhasil.
   }
   await touchActivity(pb, user, summary, when);
 }
@@ -95,7 +95,7 @@ export async function touchActivity(pb, user, text, when = new Date().toISOStrin
       lastActivityText: shorten(text, 300),
     });
   } catch (_) {
-    // Abaikan — jejak aktivitas bukan data kritis.
+    // Abaikan - jejak aktivitas bukan data kritis.
   }
 }
 

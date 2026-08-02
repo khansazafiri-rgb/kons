@@ -8,10 +8,11 @@ import ChapterManager from '@/components/ChapterManager';
 import { MANAGER_CATEGORIES } from '@/data/team';
 import { STUDENT_TYPES, studentTypeLabel, studentTypeShort } from '@/lib/studentType';
 import { SIGNUP_TEXT_GROUPS, resolveSignupTexts } from '@/lib/signupContent';
+import { LANDING_TEXT_GROUPS, resolveLandingTexts } from '@/lib/landingContent';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'PPT Mata Kuliah', 'Tambah Akun', 'Jadwal Ujian', 'Landing Page'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page'];
 export default function AdminPanel() {
   const [tab, setTab] = useState('Pengajar');
   const { user, isAuthed } = useAuth();
@@ -47,8 +48,8 @@ export default function AdminPanel() {
           {tab === 'Siswa' && <StudentCards adminMode />}
           {tab === 'Dashboard Activity' && <DashboardActivity />}
           {tab === 'Edit Soal' && <EditSoalHub />}
-          {/* Admin bisa upload PPT untuk SEMUA mata kuliah (allowedSubjectIds=null) */}
-          {tab === 'PPT Mata Kuliah' && <PPTUpload allowedSubjectIds={null} />}
+          {/* Admin bisa upload PPT + link video untuk SEMUA mata kuliah (allowedSubjectIds=null) */}
+          {tab === 'Perdalam Materi' && <PPTUpload allowedSubjectIds={null} />}
           {tab === 'Tambah Akun' && (
             <div className="space-y-6">
               <PendingSignups />
@@ -57,6 +58,8 @@ export default function AdminPanel() {
             </div>
           )}
           {tab === 'Jadwal Ujian' && <JadwalUjian />}
+          {tab === 'Kelas & Reminder' && <KelasReminder />}
+          {tab === 'Notifikasi WA' && <WaSettings />}
           {tab === 'Landing Page' && <LandingPageManager />}
         </div>
       </div>
@@ -116,7 +119,7 @@ function Pengajar() {
       load();
     }
   };
-  // FITUR: reset device — mengosongkan daftar device agar user bisa login di HP/laptop baru
+  // FITUR: reset device - mengosongkan daftar device agar user bisa login di HP/laptop baru
   const resetDevice = async (t) => {
     if (!t?.id) return;
     if (!confirm(`Reset device untuk ${t.name}? Ia akan bisa login lagi di device baru.`)) return;
@@ -159,7 +162,7 @@ function Pengajar() {
 }
 
 // ==========================================
-// TAB SISWA — kartu siswa dengan progres & detail (dipakai admin & teacher)
+// TAB SISWA - kartu siswa dengan progres & detail (dipakai admin & teacher)
 // adminMode=true  : semua siswa, bisa pilih mata kuliah, nonaktif/hapus/reset device
 // subjectScope    : (teacher) hanya siswa yang mengambil mata kuliah ajar & progres
 //                   dihitung dari mata kuliah ajar itu saja
@@ -169,6 +172,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
   const [subjects, setSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [progressRows, setProgressRows] = useState([]);
+  const [classes, setClasses] = useState([]); // kelas reguler (untuk reminder H-1)
   const [openId, setOpenId] = useState(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -176,16 +180,18 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
   const load = async () => {
     setError('');
     try {
-      const [st, subs, chs, prog] = await Promise.all([
+      const [st, subs, chs, prog, cls] = await Promise.all([
         pb.collection('users').getFullList({ filter: "role = 'student'" }),
         pb.collection('subjects').getFullList({ sort: 'order', fields: 'id,name' }),
         pb.collection('chapters').getFullList({ fields: 'id,subject,title' }),
         pb.collection('soal_progress').getFullList({ filter: "status = 'completed'", fields: 'owner,chapter,updated' }).catch(() => []),
+        pb.collection('classes').getFullList({ sort: 'order', filter: 'hidden != true' }).catch(() => []),
       ]);
       setStudents(st);
       setSubjects(subs);
       setChapters(chs);
       setProgressRows(prog);
+      setClasses(cls);
     } catch (err) {
       setError('Gagal memuat data siswa: ' + (err?.message || ''));
     }
@@ -227,7 +233,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     ? students.filter((s) => relevantSubjectsOf(s).length > 0)
     : students;
 
-  // Pencarian siswa — penting begitu jumlah siswa sudah ratusan. Semua kata
+  // Pencarian siswa - penting begitu jumlah siswa sudah ratusan. Semua kata
   // pencarian harus cocok (AND), dicari di nama, Login ID, email, asal kuliah,
   // dan nama mata kuliah yang diambil.
   const terms = useMemo(
@@ -308,6 +314,28 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     catch (err) { setError('Gagal mereset device: ' + (err?.message || '')); }
   };
   // Ganti tipe siswa (menentukan batas device: reguler/private 1, web 2).
+  // Pilihkan kelas reguler siswa (dipakai jadwal kelas + reminder H-1).
+  const changeKelas = async (s, kelasId) => {
+    const next = s.kelas === kelasId ? '' : kelasId; // klik kelas aktif = lepaskan
+    setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, kelas: next } : u)));
+    try {
+      await pb.collection('users').update(s.id, { kelas: next });
+    } catch (e) {
+      setEnrollError('Gagal menyimpan kelas: ' + (e?.message || ''));
+      load();
+    }
+  };
+
+  // Simpan nomor WA siswa (untuk siswa lama yang mendaftar sebelum ada kolomnya).
+  const savePhone = async (s, phone) => {
+    try {
+      await pb.collection('users').update(s.id, { phone: phone.trim() });
+      setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, phone: phone.trim() } : u)));
+    } catch (e) {
+      setEnrollError('Gagal menyimpan nomor WA: ' + (e?.message || ''));
+    }
+  };
+
   const changeStudentType = async (s, studentType) => {
     setError('');
     setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, studentType } : u)));
@@ -357,7 +385,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
         const open = openId === s.id;
         return (
           <div key={s.id} className={`border rounded-xl transition-all ${open ? 'border-maroon-200 shadow-card' : 'border-alba-200'}`}>
-            {/* Kartu ringkas — klik untuk membuka detail */}
+            {/* Kartu ringkas - klik untuk membuka detail */}
             <button onClick={() => setOpenId(open ? null : s.id)} className="w-full text-left p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap mb-1.5">
                 <p className="font-bold text-sm text-stone-800">
@@ -403,8 +431,36 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                   <MiniField label="Gmail" value={s.email} />
                   <MiniField label="Semester" value={s.semester} />
                   <MiniField label="Asal kuliah" value={s.asalKuliah} />
+                  <MiniField label="No. WA" value={s.phone} />
                   <MiniField label="Aktif sampai" value={s.activeUntil ? String(s.activeUntil).slice(0, 10) : '-'} />
                 </div>
+
+                {adminMode && classes.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                      Kelas reguler (jadwal & reminder H-1) - klik lagi untuk melepas
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {classes.map((k) => (
+                        <button
+                          key={k.id}
+                          onClick={() => changeKelas(s, k.id)}
+                          className={`text-xs rounded-full px-3 py-1 border transition-colors ${
+                            s.kelas === k.id
+                              ? 'bg-maroon-600 text-alba-50 border-maroon-600'
+                              : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'
+                          }`}
+                        >
+                          {k.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {adminMode && (
+                  <PhoneEditor initial={s.phone || ''} onSave={(v) => savePhone(s, v)} />
+                )}
 
                 <div>
                   <p className="text-xs font-bold text-green-800 uppercase tracking-wider mb-2">✅ BAB sudah dikerjakan ({st.doneList.length})</p>
@@ -482,9 +538,34 @@ function MiniField({ label, value }) {
   );
 }
 
+// Editor nomor WA siswa: dipakai untuk melengkapi nomor siswa lama yang
+// mendaftar sebelum kolom nomor WA ada di form Sign Up.
+function PhoneEditor({ initial, onSave }) {
+  const [value, setValue] = useState(initial);
+  useEffect(() => { setValue(initial); }, [initial]);
+  const dirty = value.trim() !== (initial || '');
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Nomor WA siswa (08xxxxxxxxxx)"
+        className="flex-1 min-w-0 max-w-xs rounded-lg border border-alba-300 px-3 py-1.5 text-xs bg-alba-50"
+      />
+      <button
+        onClick={() => onSave(value)}
+        disabled={!dirty}
+        className="text-xs font-semibold rounded-full border border-maroon-300 text-maroon-600 px-3 py-1.5 hover:bg-maroon-50 disabled:opacity-40"
+      >
+        Simpan No. WA
+      </button>
+    </div>
+  );
+}
+
 // ==========================================
-// EDIT SOAL — HUB: pilih dulu mau edit Cicil Belajar atau Simulasi CBT
-// (workflow sesuai PRD: CBT tidak lewat BAB, langsung mata kuliah → tahun)
+// EDIT SOAL - HUB: pilih dulu mau edit Cicil Belajar atau Simulasi CBT
+// (workflow sesuai PRD: CBT tidak lewat BAB, langsung mata kuliah → paket)
 // ==========================================
 export function EditSoalHub({ allowedSubjectIds = null }) {
   const [mode, setMode] = useState(null);
@@ -503,7 +584,7 @@ export function EditSoalHub({ allowedSubjectIds = null }) {
           <button onClick={() => setMode('cbt')} className="rounded-xl border-2 border-alba-200 hover:border-maroon-400 hover:bg-maroon-50 p-6 text-left transition-all">
             <p className="text-2xl mb-2">⏱️</p>
             <p className="font-bold text-stone-800 mb-1">Soal Simulasi CBT</p>
-            <p className="text-xs text-stone-500 leading-relaxed">Soal UTB/UAB per tahun. Alur: pilih mata kuliah → pilih tahun → edit soal (tanpa BAB).</p>
+            <p className="text-xs text-stone-500 leading-relaxed">Soal UTB/UAB per paket. Alur: pilih mata kuliah, pilih paket, lalu edit soal (tanpa BAB).</p>
           </button>
         </div>
       </div>
@@ -604,7 +685,7 @@ function payloadFromForm(form) {
   };
 }
 
-// Form soal bersama (dipakai EditSoal & EditSimulasi) — mendukung 4 tipe:
+// Form soal bersama (dipakai EditSoal & EditSimulasi) - mendukung 4 tipe:
 // MCQ Biasa, MCQ Bergambar, Isian, Isian Bergambar
 function QuestionForm({ form, setForm }) {
   const isian = isIsianType(form.qtype);
@@ -652,7 +733,7 @@ function QuestionForm({ form, setForm }) {
               <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
               <div className="flex-1 space-y-2">
                 <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
-                <input value={sq.validAnswers} onChange={(e) => updateSub(i, 'validAnswers', e.target.value)} placeholder='Jawaban benar — pisahkan alternatif dengan "/" (mis. Striated duct / Duktus striata)' className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50" />
+                <input value={sq.validAnswers} onChange={(e) => updateSub(i, 'validAnswers', e.target.value)} placeholder='Jawaban benar - pisahkan alternatif dengan "/" (mis. Striated duct / Duktus striata)' className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50" />
               </div>
               {form.subQuestions.length > 1 && (
                 <button onClick={() => setForm((f) => ({ ...f, subQuestions: f.subQuestions.filter((_, idx) => idx !== i) }))} className="text-red-600 text-xs font-bold px-1 mt-2">✕</button>
@@ -786,7 +867,7 @@ function BulkImport({ onImport, status }) {
     <div className="pt-6 mt-4 border-t border-alba-200 space-y-3">
       <h4 className="font-semibold text-sm text-stone-600">📋 Import Banyak Soal Sekaligus (Paste dari Gemini)</h4>
 
-      <p className="text-xs font-bold text-stone-500">Langkah 1 — Pilih tipe soal yang mau kamu import:</p>
+      <p className="text-xs font-bold text-stone-500">Langkah 1 - Pilih tipe soal yang mau kamu import:</p>
       <div className="flex flex-wrap gap-2">
         {Object.entries(TYPE_LABEL).map(([key, name]) => (
           <button
@@ -803,13 +884,13 @@ function BulkImport({ onImport, status }) {
         ))}
       </div>
 
-      <p className="text-xs font-bold text-stone-500 pt-1">Langkah 2 — Buat datanya dengan Gemini:</p>
+      <p className="text-xs font-bold text-stone-500 pt-1">Langkah 2 - Buat datanya dengan Gemini:</p>
       <button onClick={copyPrompt} className={`text-xs font-semibold rounded-lg border px-4 py-2 transition-colors ${copied ? 'bg-green-50 border-green-200 text-green-800' : 'border-gold-200 bg-gold-100/50 text-gold-600 hover:bg-gold-100'}`}>
-        {copied ? '✅ Prompt tersalin — tempel di Gemini!' : `📄 Salin prompt Gemini untuk ${TYPE_LABEL[qtype]}`}
+        {copied ? '✅ Prompt tersalin - tempel di Gemini!' : `📄 Salin prompt Gemini untuk ${TYPE_LABEL[qtype]}`}
       </button>
       <p className="text-[11px] text-stone-400">Tempel prompt itu di Gemini bersama soal-soalmu → salin array hasilnya → tempel di kotak bawah.</p>
 
-      <p className="text-xs font-bold text-stone-500 pt-1">Langkah 3 — Tempel hasilnya lalu import (akan dicek sesuai tipe <span className="text-maroon-600">{TYPE_LABEL[qtype]}</span>):</p>
+      <p className="text-xs font-bold text-stone-500 pt-1">Langkah 3 - Tempel hasilnya lalu import (akan dicek sesuai tipe <span className="text-maroon-600">{TYPE_LABEL[qtype]}</span>):</p>
       <textarea
         value={bulkText}
         onChange={(e) => setBulkText(e.target.value)}
@@ -825,7 +906,7 @@ function BulkImport({ onImport, status }) {
   );
 }
 
-// parser untuk import massal — tipe soal DITENTUKAN oleh pilihan user (qtype),
+// parser untuk import massal - tipe soal DITENTUKAN oleh pilihan user (qtype),
 // lalu isi datanya divalidasi agar sesuai dengan tipe tersebut.
 function parseBulkItems(bulkText, qtype) {
   // eslint-disable-next-line no-new-func
@@ -861,7 +942,7 @@ function parseBulkItems(bulkText, qtype) {
 // Buat banyak soal sekaligus dengan tahan-banting: retry saat kena batas
 // kecepatan server (429) atau gangguan jaringan sesaat (502/503), plus jeda
 // kecil antar-soal supaya tidak menabrak rate limit. Dipakai BERSAMA oleh
-// EditSoal (Cicil Belajar) & EditSimulasi (CBT) agar keduanya SAMA andalnya —
+// EditSoal (Cicil Belajar) & EditSimulasi (CBT) agar keduanya SAMA andalnya -
 // sebelumnya import di Simulasi tidak punya retry sehingga sering "gagal di
 // tengah jalan" saat soalnya banyak.
 async function bulkCreateQuestions({ items, buildPayload, startOrder, setStatus }) {
@@ -888,7 +969,7 @@ async function bulkCreateQuestions({ items, buildPayload, startOrder, setStatus 
           await sleep(1500 * (attempt + 1)); // gangguan jaringan sesaat
           continue;
         }
-        throw e; // error lain (data tidak valid / izin) — jangan diulang
+        throw e; // error lain (data tidak valid / izin) - jangan diulang
       }
     }
     throw lastErr;
@@ -928,7 +1009,7 @@ async function bulkDeleteQuestions({ ids, setStatus }) {
       } catch (e) {
         lastErr = e;
         const status = e?.status;
-        if (status === 404) return; // sudah tidak ada — anggap berhasil
+        if (status === 404) return; // sudah tidak ada - anggap berhasil
         if (status === 429) { await sleep(3000 * (attempt + 1)); continue; }
         if (status === 0 || status === 502 || status === 503) { await sleep(1500 * (attempt + 1)); continue; }
         throw e;
@@ -1147,12 +1228,12 @@ function QtypeBadge({ qtype }) {
   return <span className="inline-block mr-2 text-[10px] font-bold uppercase bg-alba-200 text-stone-600 rounded px-1.5 py-0.5">{label}</span>;
 }
 
-// Teks soal disimpan sebagai HTML (field editor) — buang tag-nya supaya bisa
+// Teks soal disimpan sebagai HTML (field editor) - buang tag-nya supaya bisa
 // dicari & ditampilkan sebagai teks biasa di daftar.
 const stripHtml = (v) => String(v || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
 // Semua teks yang bisa dicari dari satu soal. Untuk soal ISIAN, teks utamanya
-// sering hanya "Perhatikan gambar berikut" — pertanyaan aslinya ada di
+// sering hanya "Perhatikan gambar berikut" - pertanyaan aslinya ada di
 // subQuestions, jadi bagian itu ikut dikumpulkan di sini.
 function searchableParts(q) {
   const parts = [stripHtml(q.text), stripHtml(q.hint)];
@@ -1358,7 +1439,7 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToS
                         <Highlight text={stripHtml(sq.question)} terms={terms} />
                         {(sq.validAnswers || []).length > 0 && (
                           <span className="text-green-700 font-semibold">
-                            {' '}— <Highlight text={(sq.validAnswers || []).join(' | ')} terms={terms} />
+                            {' '}- <Highlight text={(sq.validAnswers || []).join(' | ')} terms={terms} />
                           </span>
                         )}
                       </span>
@@ -1397,28 +1478,40 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToS
 // ==========================================
 // PINDAH / SALIN SOAL CICIL BELAJAR -> BANK SOAL SIMULASI CBT
 // Mata kuliah otomatis mengikuti mata kuliah soal asal; admin cukup memilih
-// tahun angkatannya. Default "salin" supaya soal latihan di BAB tidak hilang
-// dari siswa tanpa sengaja — "pindahkan" tersedia kalau memang diinginkan.
+// nomor Paket tujuannya. Default "salin" supaya soal latihan di BAB tidak
+// hilang dari siswa tanpa sengaja; "pindahkan" tersedia kalau memang diinginkan.
 // ==========================================
-const CBT_YEARS = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
-
 function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone }) {
   const { user } = useAuth();
-  const [year, setYear] = useState('');
+  const [year, setYear] = useState(''); // nomor paket tujuan
+  const [pakets, setPakets] = useState([]);
   const [mode, setMode] = useState('copy'); // 'copy' | 'move'
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
 
+  // Paket yang sudah ada di mata kuliah tujuan.
+  useEffect(() => {
+    if (!subjectId) return;
+    pb.collection('questions')
+      .getFullList({ filter: `subject = '${subjectId}' && type = 'cbt'`, fields: 'year' })
+      .then((rows) => {
+        const set = new Set(rows.map((r) => r.year).filter((y) => y > 0));
+        setPakets([...set].sort((a, b) => a - b));
+      })
+      .catch(() => setPakets([]));
+  }, [subjectId]);
+
   if (!items || items.length === 0) return null;
+  const nextPaket = pakets.length ? Math.max(...pakets) + 1 : 1;
 
   const run = async () => {
-    if (!year) { setStatus('⚠️ Pilih tahun angkatan dulu.'); return; }
+    if (!year) { setStatus('⚠️ Pilih paket tujuan dulu.'); return; }
     setBusy(true);
     setStatus('');
     let ok = 0;
     const failed = [];
     try {
-      // Nomor urut lanjut dari soal CBT yang sudah ada di tahun tersebut.
+      // Nomor urut lanjut dari soal CBT yang sudah ada di paket tersebut.
       const existing = await pb.collection('questions').getFullList({
         filter: `subject = '${subjectId}' && type = 'cbt' && year = ${Number(year)}`,
         fields: 'id',
@@ -1440,7 +1533,7 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
           if (mode === 'move') await pb.collection('questions').delete(q.id);
           ok += 1;
         } catch (e) {
-          failed.push(stripHtml(q.text).slice(0, 40) + ' — ' + (e?.message || 'gagal'));
+          failed.push(stripHtml(q.text).slice(0, 40) + ' - ' + (e?.message || 'gagal'));
         }
       }
     } catch (e) {
@@ -1452,7 +1545,7 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
     if (ok > 0) {
       logActivity(pb, user, {
         section: 'soal_pindah',
-        summary: `${mode === 'move' ? 'Memindahkan' : 'Menyalin'} ${ok} soal ke Simulasi CBT ${subjectName || ''} tahun ${year}`,
+        summary: `${mode === 'move' ? 'Memindahkan' : 'Menyalin'} ${ok} soal ke Simulasi CBT ${subjectName || ''} Paket ${year}`,
         targetLabel: items.map((q) => shorten(q.text, 60)).slice(0, 3).join(' · '),
         detail: items.slice(0, 10).map(questionSnapshot),
       });
@@ -1460,7 +1553,7 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
     if (failed.length) {
       setStatus(`Selesai sebagian: ${ok} berhasil, ${failed.length} gagal.\n` + failed.join('\n'));
     } else {
-      onDone?.(`✅ ${ok} soal ${mode === 'move' ? 'dipindahkan' : 'disalin'} ke Simulasi CBT ${subjectName || ''} tahun ${year}.`);
+      onDone?.(`✅ ${ok} soal ${mode === 'move' ? 'dipindahkan' : 'disalin'} ke Simulasi CBT ${subjectName || ''} Paket ${year}.`);
     }
   };
 
@@ -1471,24 +1564,24 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
           <h3 className="font-display text-lg font-semibold text-maroon-700">Kirim ke Simulasi CBT</h3>
           <p className="text-sm text-stone-500 mt-1 leading-relaxed">
             {items.length === 1 ? '1 soal' : `${items.length} soal`} akan masuk ke bank soal Simulasi CBT
-            mata kuliah <b>{subjectName || 'ini'}</b> — mata kuliah otomatis mengikuti soal asal.
+            mata kuliah <b>{subjectName || 'ini'}</b> - mata kuliah otomatis mengikuti soal asal.
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-stone-700 mb-2">Tahun angkatan tujuan</label>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-            {CBT_YEARS.map((y) => (
+          <label className="block text-sm font-bold text-stone-700 mb-2">Paket tujuan</label>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {pakets.concat([nextPaket]).map((p) => (
               <button
-                key={y}
-                onClick={() => setYear(String(y))}
+                key={p}
+                onClick={() => setYear(String(p))}
                 className={`rounded-lg border px-2 py-2 text-sm font-bold transition-colors ${
-                  year === String(y)
+                  year === String(p)
                     ? 'border-maroon-600 bg-maroon-600 text-alba-50'
                     : 'border-alba-300 text-stone-600 hover:border-maroon-400'
                 }`}
               >
-                {y}
+                {p === nextPaket && !pakets.includes(p) ? `+ Paket ${p} (baru)` : `Paket ${p}`}
               </button>
             ))}
           </div>
@@ -1598,26 +1691,44 @@ function PreviewModal({ previewData, onClose }) {
 }
 
 // ==========================================
-// EDIT SOAL SIMULASI CBT (mata kuliah → tahun, TANPA BAB — sesuai PRD)
+// EDIT SOAL SIMULASI CBT (mata kuliah → Paket, TANPA BAB - sesuai PRD)
+// Soal dikelompokkan per "Paket 1..N" (field database tetap `year`).
+// Paket baru dibuat dengan memilih "+ Paket baru" lalu menyimpan soal pertama.
 // ==========================================
 export function EditSimulasi({ allowedSubjectIds = null }) {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
   const [subjectId, setSubjectId] = useState('');
-  const [year, setYear] = useState('');
+  const [year, setYear] = useState(''); // nomor paket terpilih
   const [questions, setQuestions] = useState([]);
+  const [pakets, setPakets] = useState([]); // nomor paket yang sudah ada soalnya
 
   const [editingId, setEditingId] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [bulkStatus, setBulkStatus] = useState('');
-  const years = Array.from({ length: 2026 - 2016 + 1 }, (_, i) => 2016 + i);
 
   useEffect(() => {
     pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
       setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
     });
   }, []);
+
+  // Daftar paket yang sudah ada untuk mata kuliah terpilih.
+  useEffect(() => {
+    setYear('');
+    setPakets([]);
+    if (!subjectId) return;
+    pb.collection('questions')
+      .getFullList({ filter: `subject = '${subjectId}' && type = 'cbt'`, fields: 'year' })
+      .then((rows) => {
+        const set = new Set(rows.map((r) => r.year).filter((y) => y > 0));
+        setPakets([...set].sort((a, b) => a - b));
+      })
+      .catch(() => setPakets([]));
+  }, [subjectId]);
+
+  const nextPaket = pakets.length ? Math.max(...pakets) + 1 : 1;
 
   const loadQuestions = () => {
     if (subjectId && year) {
@@ -1637,7 +1748,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       ...payloadFromForm(form),
     };
 
-    const where = `Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`.trim();
+    const where = `Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`.trim();
     if (editingId) {
       const saved = await pb.collection('questions').update(editingId, payload);
       logActivity(pb, user, {
@@ -1667,11 +1778,11 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
     setEditingId(q.id);
   };
 
-  // Import massal soal CBT — kini memakai helper yang SAMA dengan Cicil Belajar
+  // Import massal soal CBT - kini memakai helper yang SAMA dengan Cicil Belajar
   // (retry saat rate limit + jeda antar-soal), jadi tidak lagi "gagal di tengah
   // jalan" ketika soalnya banyak.
   const importBulk = async (bulkText, qtype, onDone) => {
-    if (!subjectId || !year) { setBulkStatus('⚠️ Pilih mata kuliah dan tahun dulu.'); return; }
+    if (!subjectId || !year) { setBulkStatus('⚠️ Pilih mata kuliah dan paket dulu.'); return; }
     let items;
     try {
       items = parseBulkItems(bulkText, qtype);
@@ -1697,8 +1808,8 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       onDone?.();
       logActivity(pb, user, {
         section: 'soal_tambah',
-        summary: `Import massal ${items.length} soal ke Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`,
-        targetLabel: `Simulasi CBT ${year}`,
+        summary: `Import massal ${items.length} soal ke Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`,
+        targetLabel: `Simulasi CBT Paket ${year}`,
       });
     }
     loadQuestions();
@@ -1707,22 +1818,26 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
   return (
     <div className="space-y-6">
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT (UTB/UAB per Tahun)</h2>
+        <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT (per Paket)</h2>
         <div className="flex gap-4 flex-col sm:flex-row">
           <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
             <option value="">Pilih mata kuliah...</option>
             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={year} onChange={(e) => setYear(e.target.value)} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
-            <option value="">Pilih tahun angkatan...</option>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          <select value={year} onChange={(e) => setYear(e.target.value)} disabled={!subjectId} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50 disabled:opacity-50">
+            <option value="">Pilih paket...</option>
+            {pakets.map((p) => <option key={p} value={p}>Paket {p}</option>)}
+            <option value={nextPaket}>+ Paket baru (Paket {nextPaket})</option>
           </select>
         </div>
+        <p className="text-xs text-stone-400">
+          Paket baru otomatis muncul di web siswa begitu soal pertamanya tersimpan.
+        </p>
       </div>
 
       {subjectId && year && (
         <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
-          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : `Tambah Soal Simulasi (${year})`}</h3>
+          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : `Tambah Soal Simulasi (Paket ${year})`}</h3>
           <QuestionForm form={form} setForm={setForm} />
 
           <div className="flex gap-2 pt-2">
@@ -1734,12 +1849,12 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
           <BulkImport onImport={importBulk} status={bulkStatus} />
 
           <QuestionList
-            title={`Daftar Soal CBT ${year}`}
+            title={`Daftar Soal CBT Paket ${year}`}
             questions={questions}
             onPreview={setPreviewData}
             onEdit={startEdit}
             onReload={loadQuestions}
-            whereLabel={`Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} ${year}`.trim()}
+            whereLabel={`Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`.trim()}
           />
         </div>
       )}
@@ -1844,7 +1959,7 @@ function PendingSignups() {
         )}
       </div>
       <p className="text-xs text-stone-500 mb-4">
-        Pilihkan mata kuliah dulu, lalu klik <b>ACC</b> — siswa otomatis menerima email
+        Pilihkan mata kuliah dulu, lalu klik <b>ACC</b> - siswa otomatis menerima email
         bahwa web sudah bisa diakses.
       </p>
       {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2 mb-4">{msg}</p>}
@@ -1858,7 +1973,7 @@ function PendingSignups() {
                 <div>
                   <p className="font-semibold">{u.name} <span className="text-stone-400 font-normal">({u.userId})</span></p>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    {u.email} · Semester {u.semester || '—'} · {u.asalKuliah || '—'}
+                    {u.email} · WA {u.phone || '-'} · Semester {u.semester || '-'} · {u.asalKuliah || '-'}
                   </p>
                   <label className="inline-flex items-center gap-2 mt-2 text-xs">
                     <span className="font-bold text-stone-500">Tipe:</span>
@@ -1916,7 +2031,7 @@ function PendingSignups() {
   );
 }
 
-// Pengaturan halaman Sign Up — admin bisa membuka/menutup pendaftaran DAN
+// Pengaturan halaman Sign Up - admin bisa membuka/menutup pendaftaran DAN
 // mengedit SELURUH teks yang tampil di halaman /signup (judul, langkah-langkah,
 // label tiap kolom, placeholder, teks tombol, pesan sukses, sampai pesan saat
 // pendaftaran ditutup). Daftar teksnya didefinisikan di lib/signupContent.js,
@@ -2074,7 +2189,7 @@ function TambahAkun() {
     e.preventDefault();
     setMsg('');
     if (!form.userId.trim()) {
-      setMsg('Login ID wajib diisi — dipakai siswa/pengajar untuk login.');
+      setMsg('Login ID wajib diisi - dipakai siswa/pengajar untuk login.');
       setMsgOk(false);
       return;
     }
@@ -2097,7 +2212,7 @@ function TambahAkun() {
         role: form.role,
         // Tipe siswa menentukan batas device (reguler/private 1, web 2).
         studentType: form.role === 'student' ? form.studentType : '',
-        // CATATAN: "verified" sengaja TIDAK dikirim — PocketBase menolak akun
+        // CATATAN: "verified" sengaja TIDAK dikirim - PocketBase menolak akun
         // non-superuser men-set verified (error "Values don't match").
         deviceIds: [],
         // akun baru sengaja "bersih": belum ada mata kuliah sampai admin memilihkannya.
@@ -2181,7 +2296,7 @@ function TambahAkun() {
 // TAB JADWAL UJIAN + URUTAN MATA KULIAH
 // Admin mengatur: (1) urutan mata kuliah yang tampil di "Cicil Belajar" &
 // "Perdalam Materi", dan (2) jadwal ujian tiap mata kuliah (bisa LEBIH DARI SATU
-// per mata kuliah — mis. UTB 1 & UTB 2 dalam satu blok) yang dipakai untuk
+// per mata kuliah - mis. UTB 1 & UTB 2 dalam satu blok) yang dipakai untuk
 // countdown di beranda siswa. Tiap jadwal bisa ditambah, diedit, dan dihapus.
 // Data jadwal disimpan di collection terpisah "exam_schedules".
 // ==========================================
@@ -2229,7 +2344,7 @@ function JadwalUjian() {
   }, [schedules]);
 
   // Pindahkan mata kuliah ke atas/bawah. Order ditulis ulang menjadi 1..n untuk
-  // semua yang berubah — tahan terhadap order lama yang duplikat/kosong (0),
+  // semua yang berubah - tahan terhadap order lama yang duplikat/kosong (0),
   // yang bikin metode tukar dua nilai jadi no-op.
   const move = async (index, dir) => {
     const target = index + dir;
@@ -2348,7 +2463,7 @@ function JadwalUjian() {
                 </span>
               </div>
 
-              {/* Daftar jadwal ujian yang sudah ada — bisa diedit / dihapus */}
+              {/* Daftar jadwal ujian yang sudah ada - bisa diedit / dihapus */}
               <div className="mt-3 pl-0 md:pl-[4.25rem] space-y-2">
                 {list.map((sched) => {
                   const d = editDraft[sched.id] || {};
@@ -2421,10 +2536,40 @@ function JadwalUjian() {
 }
 
 // ==========================================
-// TAB LANDING PAGE — kelola data Tim Pengajar & Management yang tampil di
-// halaman depan (collection landing_team). Bisa tambah, edit, hapus, urutkan.
+// TAB LANDING PAGE - hub semua konten landing page yang bisa diedit admin:
+// Tim (pengajar & management), Poster & Info, Tabel Lomba, Prestasi, dan
+// Teks Landing. Tiap bagian punya sub-tab sendiri.
 // ==========================================
 function LandingPageManager() {
+  const [sub, setSub] = useState('Tim');
+  const SUBS = ['Tim', 'Poster & Info', 'Tabel Lomba', 'Prestasi', 'Teks & Fitur'];
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap gap-2">
+        {SUBS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSub(s)}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              sub === s ? 'bg-maroon-600 text-alba-50' : 'border border-alba-300 text-stone-600 hover:bg-maroon-50'
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      {sub === 'Tim' && <TeamManager />}
+      {sub === 'Poster & Info' && <PosterManager />}
+      {sub === 'Tabel Lomba' && <OlympiadManager />}
+      {sub === 'Prestasi' && <AchievementManager />}
+      {sub === 'Teks & Fitur' && <LandingTextEditor />}
+    </div>
+  );
+}
+
+// Kelola data Tim Pengajar & Management yang tampil di halaman depan
+// (collection landing_team). Bisa tambah, edit, hapus, urutkan.
+function TeamManager() {
   const [kind, setKind] = useState('teacher'); // 'teacher' | 'manager'
   const [rows, setRows] = useState([]);
   const [error, setError] = useState('');
@@ -2453,7 +2598,7 @@ function LandingPageManager() {
 
   const toggleSection = async (field) => {
     if (!settings) {
-      setError('Pengaturan section belum tersedia — jalankan migrasi PocketBase terbaru (landing_settings) dulu.');
+      setError('Pengaturan section belum tersedia - jalankan migrasi PocketBase terbaru (landing_settings) dulu.');
       return;
     }
     setError('');
@@ -2463,7 +2608,7 @@ function LandingPageManager() {
       const label = field === 'hideTeachers' ? 'Tim Pengajar' : 'Tim Management';
       setOkMsg(rec[field] ? `Section ${label} disembunyikan dari landing page.` : `Section ${label} kembali ditampilkan.`);
     } catch (e) {
-      setError('Gagal mengubah pengaturan: ' + (e?.message || '') + ' — pastikan Anda login sebagai admin.');
+      setError('Gagal mengubah pengaturan: ' + (e?.message || '') + ' - pastikan Anda login sebagai admin.');
     }
   };
 
@@ -2525,7 +2670,7 @@ function LandingPageManager() {
       cancel();
       load();
     } catch (e) {
-      setError('Gagal menyimpan: ' + (e?.message || '') + ' — pastikan Anda login sebagai admin.');
+      setError('Gagal menyimpan: ' + (e?.message || '') + ' - pastikan Anda login sebagai admin.');
     }
   };
 
@@ -2543,12 +2688,12 @@ function LandingPageManager() {
       setOkMsg(r.hidden ? `"${r.name}" kembali ditampilkan.` : `"${r.name}" disembunyikan dari landing page.`);
       load();
     } catch (e) {
-      setError('Gagal mengubah tampilan: ' + (e?.message || '') + ' — pastikan migrasi PocketBase terbaru sudah dijalankan.');
+      setError('Gagal mengubah tampilan: ' + (e?.message || '') + ' - pastikan migrasi PocketBase terbaru sudah dijalankan.');
     }
   };
 
   // Pindahkan urutan tampil ke atas/bawah. Order ditulis ulang menjadi 1..n untuk
-  // semua yang berubah — tahan terhadap order lama yang duplikat/kosong (0).
+  // semua yang berubah - tahan terhadap order lama yang duplikat/kosong (0).
   const move = async (index, dir) => {
     const target = index + dir;
     if (target < 0 || target >= rows.length) return;
@@ -2599,7 +2744,7 @@ function LandingPageManager() {
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
         <h3 className="font-bold text-maroon-600">Tampilkan Section di Halaman "Tim Kami"</h3>
         <p className="text-sm text-stone-500 mt-1 leading-relaxed">
-          Kalau dimatikan, <b>seluruh section-nya hilang</b> dari landing page — termasuk judul dan
+          Kalau dimatikan, <b>seluruh section-nya hilang</b> dari landing page - termasuk judul dan
           deskripsinya (mis. "Struktur Kepengurusan PCV"), seolah-olah section itu memang tidak pernah ada.
           Datanya tetap aman tersimpan di sini dan bisa dinyalakan lagi kapan saja.
         </p>
@@ -2651,7 +2796,7 @@ function LandingPageManager() {
             <>
               <textarea value={form.bidang} onChange={(e) => setForm((f) => ({ ...f, bidang: e.target.value }))} placeholder="Bidang (mis. Olimpiade Bidang Anatomi, All Basic Medical Science)" rows={2} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
               <div>
-                <textarea value={form.achievements} onChange={(e) => setForm((f) => ({ ...f, achievements: e.target.value }))} placeholder={"Prestasi — satu baris satu prestasi\nContoh:\nGold Medalist SIMPIC 2023\n1st Winner RMO 2022"} rows={4} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                <textarea value={form.achievements} onChange={(e) => setForm((f) => ({ ...f, achievements: e.target.value }))} placeholder={"Prestasi - satu baris satu prestasi\nContoh:\nGold Medalist SIMPIC 2023\n1st Winner RMO 2022"} rows={4} className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
                 <p className="text-[11px] text-stone-400 mt-1">Satu baris = satu prestasi. Yang tampil di kartu maksimal 3 teratas.</p>
               </div>
             </>
@@ -2670,7 +2815,7 @@ function LandingPageManager() {
           <div className="rounded-lg border border-alba-200 bg-alba-100/50 p-3">
             <p className="text-sm font-bold text-stone-700">Deskripsi Tambahan (opsional)</p>
             <p className="text-[11px] text-stone-400 mt-0.5 mb-2.5">
-              Info bebas di luar kolom di atas — mis. judul &quot;Makanan Kesukaan&quot; dengan isi &quot;Rawon&quot;.
+              Info bebas di luar kolom di atas - mis. judul &quot;Makanan Kesukaan&quot; dengan isi &quot;Rawon&quot;.
               Tampil di kartu orang ini pada halaman &quot;Tim Kami&quot;.
             </p>
             <div className="space-y-2">
@@ -2741,6 +2886,927 @@ function LandingPageManager() {
         ))}
         {rows.length === 0 && <p className="text-sm text-stone-400 px-1 py-2">Belum ada data.</p>}
       </div>
+    </div>
+  );
+}
+
+// ==========================================
+// TAB KELAS & REMINDER - daftar kelas reguler (nama diambil dari Google
+// Calendar admin), secret iCal per kelas untuk sinkronisasi jadwal, dan
+// reminder H-1 otomatis (email + WA) yang dikirim server tiap sore.
+// ==========================================
+function KelasReminder() {
+  const [classes, setClasses] = useState([]);
+  const [sources, setSources] = useState({}); // { classId: record class_sources }
+  const [drafts, setDrafts] = useState({});   // { classId: icalUrl yang sedang diketik }
+  const [newName, setNewName] = useState('');
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [okMsg, setOkMsg] = useState('');
+
+  const load = async () => {
+    setError('');
+    try {
+      const [cls, srcs] = await Promise.all([
+        pb.collection('classes').getFullList({ sort: 'order' }),
+        pb.collection('class_sources').getFullList(),
+      ]);
+      setClasses(cls);
+      const map = {};
+      srcs.forEach((s) => { map[s.class] = s; });
+      setSources(map);
+      const d = {};
+      cls.forEach((c) => { d[c.id] = map[c.id]?.icalUrl || ''; });
+      setDrafts(d);
+    } catch (e) {
+      setError('Gagal memuat data kelas: ' + (e?.message || '') + ' (pastikan migrasi PocketBase terbaru sudah jalan)');
+    }
+  };
+  useEffect(() => { load(); }, []);
+
+  const addClass = async () => {
+    if (!newName.trim()) return;
+    setBusy('add'); setError(''); setOkMsg('');
+    try {
+      await pb.collection('classes').create({
+        name: newName.trim(),
+        order: classes.length ? Math.max(...classes.map((c) => c.order ?? 0)) + 1 : 1,
+      });
+      setNewName('');
+      setOkMsg('Kelas ditambahkan.');
+      await load();
+    } catch (e) {
+      setError('Gagal menambah kelas: ' + (e?.message || ''));
+    } finally { setBusy(''); }
+  };
+
+  const removeClass = async (c) => {
+    if (!confirm(`Hapus kelas "${c.name}"? Siswa yang terdaftar di kelas ini akan kehilangan kelasnya.`)) return;
+    try { await pb.collection('classes').delete(c.id); setOkMsg('Kelas dihapus.'); await load(); }
+    catch (e) { setError('Gagal menghapus: ' + (e?.message || '')); }
+  };
+
+  const toggleHidden = async (c) => {
+    try { await pb.collection('classes').update(c.id, { hidden: !c.hidden }); await load(); }
+    catch (e) { setError('Gagal mengubah: ' + (e?.message || '')); }
+  };
+
+  const saveIcal = async (c) => {
+    const url = (drafts[c.id] || '').trim();
+    setBusy('ical:' + c.id); setError(''); setOkMsg('');
+    try {
+      const existing = sources[c.id];
+      if (existing && !url) {
+        await pb.collection('class_sources').delete(existing.id);
+        setOkMsg(`Secret iCal kelas "${c.name}" dihapus.`);
+      } else if (existing) {
+        await pb.collection('class_sources').update(existing.id, { icalUrl: url });
+        setOkMsg(`Secret iCal kelas "${c.name}" diperbarui.`);
+      } else if (url) {
+        await pb.collection('class_sources').create({ class: c.id, icalUrl: url });
+        setOkMsg(`Secret iCal kelas "${c.name}" tersimpan. Tekan "Refresh Jadwal Sekarang" untuk menarik jadwalnya.`);
+      }
+      await load();
+    } catch (e) {
+      setError('Gagal menyimpan iCal: ' + (e?.message || ''));
+    } finally { setBusy(''); }
+  };
+
+  const refreshNow = async () => {
+    setBusy('refresh'); setError(''); setOkMsg('');
+    try {
+      const res = await pb.send('/api/pcv/class-schedule/refresh', { method: 'POST' });
+      const parts = Object.entries(res?.summary || {}).map(([id, v]) => {
+        const nama = classes.find((c) => c.id === id)?.name || id;
+        return `${nama}: ${typeof v === 'number' ? v + ' jadwal' : v}`;
+      });
+      setOkMsg(parts.length ? 'Jadwal di-refresh. ' + parts.join(' | ') : 'Tidak ada kelas dengan secret iCal untuk di-refresh.');
+      await load();
+    } catch (e) {
+      setError('Gagal refresh: ' + (e?.message || ''));
+    } finally { setBusy(''); }
+  };
+
+  const inputCls = 'rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50';
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <h2 className="font-display text-lg font-semibold text-maroon-600">Kelas Reguler & Reminder H-1</h2>
+        <div className="text-sm text-stone-500 mt-1 leading-relaxed space-y-2">
+          <p>
+            Daftar kelas di sini dipakai untuk memilihkan <b>kelas tiap siswa</b> (di tab Siswa),
+            menampilkan <b>jadwal kelas</b> di beranda siswa, dan mengirim <b>reminder otomatis H-1</b> tiap sore
+            (pukul 17.00 WIB) lewat email dan WhatsApp ke semua siswa kelas itu.
+          </p>
+          <p>
+            Cara mengambil <b>secret iCal</b>: buka Google Calendar di laptop, arahkan kursor ke nama kalender kelas,
+            klik titik tiga, pilih <b>Setelan dan berbagi</b>, gulir ke bagian <b>Integrasikan kalender</b>, lalu salin
+            <b> Alamat rahasia dalam format iCal</b> dan tempel di kolom bawah. Kalender tetap privat.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button
+            onClick={refreshNow}
+            disabled={busy === 'refresh'}
+            className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-4 py-2 disabled:opacity-50"
+          >
+            {busy === 'refresh' ? 'Menarik jadwal…' : 'Refresh Jadwal Sekarang'}
+          </button>
+        </div>
+        {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 whitespace-pre-wrap">{error}</p>}
+        {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
+      </div>
+
+      <div className="space-y-3">
+        {classes.map((c) => {
+          const cache = Array.isArray(c.scheduleCache) ? c.scheduleCache : [];
+          const dirty = (drafts[c.id] ?? '') !== (sources[c.id]?.icalUrl || '');
+          return (
+            <div key={c.id} className={`bg-alba-50 rounded-2xl border p-4 ${c.hidden ? 'border-alba-200 opacity-70' : 'border-alba-200'}`}>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="font-semibold text-stone-800">
+                  {c.name}
+                  {c.hidden && <span className="ml-2 text-[10px] font-bold text-stone-500 bg-alba-200 rounded-full px-2 py-0.5 align-middle">Nonaktif</span>}
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => toggleHidden(c)} className="text-xs font-semibold rounded-full border border-alba-300 text-stone-600 px-3 py-1.5 hover:bg-alba-100">
+                    {c.hidden ? 'Aktifkan' : 'Nonaktifkan'}
+                  </button>
+                  <button onClick={() => removeClass(c)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50">Hapus</button>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col md:flex-row gap-2">
+                <input
+                  value={drafts[c.id] ?? ''}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                  placeholder="Tempel secret iCal di sini (https://calendar.google.com/calendar/ical/.../basic.ics)"
+                  className={`${inputCls} flex-1 min-w-0 font-mono text-xs`}
+                />
+                <button
+                  onClick={() => saveIcal(c)}
+                  disabled={busy === 'ical:' + c.id || !dirty}
+                  className="shrink-0 rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4 py-2 disabled:opacity-40"
+                >
+                  {busy === 'ical:' + c.id ? '…' : 'Simpan iCal'}
+                </button>
+              </div>
+              <p className="text-xs text-stone-400 mt-2">
+                {sources[c.id]
+                  ? `Jadwal tersinkron: ${cache.length} agenda 14 hari ke depan` +
+                    (c.scheduleFetchedAt ? ` (terakhir ditarik ${String(c.scheduleFetchedAt).slice(0, 16).replace('T', ' ')} UTC)` : '')
+                  : 'Belum ada secret iCal, jadwal & reminder kelas ini belum aktif.'}
+              </p>
+            </div>
+          );
+        })}
+        {classes.length === 0 && !error && <p className="text-sm text-stone-400">Belum ada kelas.</p>}
+      </div>
+
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 flex flex-col sm:flex-row gap-2">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder='Nama kelas baru, contoh: "[FIKKIA] Semester 1 Ganjil 26/27"'
+          className={`${inputCls} flex-1 min-w-0`}
+        />
+        <button
+          onClick={addClass}
+          disabled={busy === 'add' || !newName.trim()}
+          className="shrink-0 rounded-lg border border-maroon-300 text-maroon-600 text-sm font-semibold px-4 py-2 hover:bg-maroon-50 disabled:opacity-40"
+        >
+          + Tambah Kelas
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// TAB NOTIFIKASI WA - konfigurasi gateway WhatsApp. Selama belum di-enable,
+// semua notifikasi WA (ACC akun, reset device, nudge, reminder H-1) otomatis
+// dilewati tanpa mengganggu email yang sudah jalan.
+// ==========================================
+function WaSettings() {
+  const [rec, setRec] = useState(null);
+  const [form, setForm] = useState({ enabled: false, provider: 'fonnte', apiToken: '', apiUrl: '' });
+  const [testPhone, setTestPhone] = useState('');
+  const [msg, setMsg] = useState('');
+  const [msgOk, setMsgOk] = useState(false);
+  const [busy, setBusy] = useState('');
+
+  useEffect(() => {
+    pb.collection('wa_settings')
+      .getFirstListItem('id != ""')
+      .then((r) => {
+        setRec(r);
+        setForm({ enabled: !!r.enabled, provider: r.provider || 'fonnte', apiToken: r.apiToken || '', apiUrl: r.apiUrl || '' });
+      })
+      .catch(() => setMsg('Pengaturan WA belum ada di database (migrasi PocketBase terbaru belum jalan?).'));
+  }, []);
+
+  const save = async () => {
+    if (!rec) return;
+    setBusy('save'); setMsg('');
+    try {
+      const updated = await pb.collection('wa_settings').update(rec.id, form);
+      setRec(updated);
+      setMsg(form.enabled ? 'Tersimpan. Notifikasi WA AKTIF.' : 'Tersimpan. Notifikasi WA masih nonaktif.');
+      setMsgOk(true);
+    } catch (e) {
+      setMsg('Gagal menyimpan: ' + (e?.message || ''));
+      setMsgOk(false);
+    } finally { setBusy(''); }
+  };
+
+  const test = async () => {
+    setBusy('test'); setMsg('');
+    try {
+      const res = await pb.send('/api/pcv/wa-test', { method: 'POST', body: { phone: testPhone } });
+      setMsg(res?.message || 'Pesan tes dikirim.');
+      setMsgOk(true);
+    } catch (e) {
+      setMsg(e?.response?.message || e?.message || 'Gagal mengirim pesan tes.');
+      setMsgOk(false);
+    } finally { setBusy(''); }
+  };
+
+  const inputCls = 'w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50';
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <h2 className="font-display text-lg font-semibold text-maroon-600">Notifikasi WhatsApp</h2>
+        <div className="text-sm text-stone-500 mt-1 leading-relaxed space-y-2">
+          <p>
+            Kalau diaktifkan, siswa otomatis menerima WA (dari nomor admin PCV) saat: akun <b>di-ACC</b>,
+            <b> device direset</b>, <b>email penyemangat</b> dikirim, dan <b>reminder kelas H-1</b>. Nomor WA siswa
+            diambil dari kolom baru di form Sign Up (siswa lama bisa diisikan lewat tab Siswa).
+          </p>
+          <p>
+            Cara paling mudah: daftar di <b>fonnte.com</b>, hubungkan nomor <b>0823-4283-1513</b> dengan scan QR,
+            salin <b>API token</b>-nya ke kolom di bawah, lalu centang aktif. Provider lain juga didukung.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card space-y-4">
+        <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3">
+          <input
+            type="checkbox"
+            checked={form.enabled}
+            onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
+            className="w-4 h-4 accent-maroon-600"
+          />
+          <span className="text-sm font-semibold">{form.enabled ? 'Notifikasi WA AKTIF' : 'Notifikasi WA NONAKTIF'}</span>
+        </label>
+
+        <div>
+          <label className="block text-xs font-bold text-stone-500 mb-1.5">Provider gateway</label>
+          <select value={form.provider} onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))} className={inputCls}>
+            <option value="fonnte">Fonnte (fonnte.com)</option>
+            <option value="wablas">Wablas (wablas.com)</option>
+            <option value="custom">Custom (endpoint sendiri)</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-stone-500 mb-1.5">API Token</label>
+          <input
+            value={form.apiToken}
+            onChange={(e) => setForm((f) => ({ ...f, apiToken: e.target.value }))}
+            placeholder="Token dari dashboard provider"
+            className={`${inputCls} font-mono text-xs`}
+          />
+        </div>
+
+        {form.provider !== 'fonnte' && (
+          <div>
+            <label className="block text-xs font-bold text-stone-500 mb-1.5">
+              {form.provider === 'wablas' ? 'Base URL Wablas (contoh: https://sby.wablas.com)' : 'Endpoint kirim pesan (POST JSON {target, message, token})'}
+            </label>
+            <input
+              value={form.apiUrl}
+              onChange={(e) => setForm((f) => ({ ...f, apiUrl: e.target.value }))}
+              placeholder="https://…"
+              className={`${inputCls} font-mono text-xs`}
+            />
+          </div>
+        )}
+
+        <button onClick={save} disabled={busy === 'save' || !rec} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-5 py-2.5 disabled:opacity-50">
+          {busy === 'save' ? 'Menyimpan…' : 'Simpan Pengaturan'}
+        </button>
+      </div>
+
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <h3 className="font-bold text-maroon-600 mb-1">Tes Kirim</h3>
+        <p className="text-xs text-stone-500 mb-3">Simpan pengaturan dulu, lalu kirim pesan tes ke nomormu sendiri untuk memastikan gateway tersambung.</p>
+        <div className="flex gap-2">
+          <input
+            value={testPhone}
+            onChange={(e) => setTestPhone(e.target.value)}
+            placeholder="08xxxxxxxxxx"
+            className={`${inputCls} flex-1 min-w-0`}
+          />
+          <button onClick={test} disabled={busy === 'test' || !testPhone.trim()} className="shrink-0 rounded-lg border border-maroon-300 text-maroon-600 text-sm font-semibold px-4 py-2 hover:bg-maroon-50 disabled:opacity-40">
+            {busy === 'test' ? 'Mengirim…' : 'Kirim Tes'}
+          </button>
+        </div>
+      </div>
+
+      {msg && (
+        <p className={`text-sm rounded-lg px-3 py-2 ${msgOk ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-600'}`}>{msg}</p>
+      )}
+    </div>
+  );
+}
+
+// ==========================================
+// LANDING PAGE: POSTER & INFO - poster event/promo di beranda landing.
+// Tiap poster: gambar (upload atau link lh3), deskripsi, countdown penutupan
+// pendaftaran, contact person (kosong = tidak tampil), dan link daftar.
+// ==========================================
+const posterThumb = (r) => (r.image ? pb.files.getURL(r, r.image) : (r.imageUrl || ''));
+
+function PosterManager() {
+  const [rows, setRows] = useState([]);
+  const [editing, setEditing] = useState(null); // id | 'new' | null
+  const EMPTY = { title: '', description: '', deadline: '', contactPerson: '', registerUrl: '', imageUrl: '' };
+  const [form, setForm] = useState(EMPTY);
+  const [file, setFile] = useState(null);
+  const [error, setError] = useState('');
+  const [okMsg, setOkMsg] = useState('');
+
+  const load = () =>
+    pb.collection('landing_posters').getFullList({ sort: 'order' })
+      .then(setRows)
+      .catch((e) => setError('Gagal memuat: ' + (e?.message || '') + ' (migrasi PocketBase terbaru belum jalan?)'));
+  useEffect(() => { load(); }, []);
+
+  const startNew = () => { setEditing('new'); setForm(EMPTY); setFile(null); setOkMsg(''); };
+  const startEdit = (r) => {
+    setEditing(r.id);
+    setFile(null);
+    setOkMsg('');
+    setForm({
+      title: r.title || '',
+      description: r.description || '',
+      deadline: r.deadline ? String(r.deadline).slice(0, 10) : '',
+      contactPerson: r.contactPerson || '',
+      registerUrl: r.registerUrl || '',
+      imageUrl: r.imageUrl || '',
+    });
+  };
+
+  const save = async () => {
+    if (!form.title.trim()) { setError('Judul poster wajib diisi.'); return; }
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('title', form.title.trim());
+      fd.append('description', form.description);
+      fd.append('deadline', form.deadline ? `${form.deadline} 23:59:59` : '');
+      fd.append('contactPerson', form.contactPerson.trim());
+      fd.append('registerUrl', form.registerUrl.trim());
+      fd.append('imageUrl', form.imageUrl.trim());
+      if (file) fd.append('image', file);
+      if (editing === 'new') {
+        fd.append('order', rows.length ? Math.max(...rows.map((r) => r.order ?? 0)) + 1 : 1);
+        await pb.collection('landing_posters').create(fd);
+        setOkMsg('Poster ditambahkan.');
+      } else {
+        await pb.collection('landing_posters').update(editing, fd);
+        setOkMsg('Poster tersimpan.');
+      }
+      setEditing(null);
+      setForm(EMPTY);
+      setFile(null);
+      load();
+    } catch (e) {
+      setError('Gagal menyimpan: ' + (e?.message || ''));
+    }
+  };
+
+  const remove = async (r) => {
+    if (!confirm(`Hapus poster "${r.title}"?`)) return;
+    try { await pb.collection('landing_posters').delete(r.id); load(); }
+    catch (e) { setError('Gagal menghapus: ' + (e?.message || '')); }
+  };
+  const toggleHidden = async (r) => {
+    try { await pb.collection('landing_posters').update(r.id, { hidden: !r.hidden }); load(); }
+    catch (e) { setError('Gagal mengubah: ' + (e?.message || '')); }
+  };
+  const move = async (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= rows.length) return;
+    const reordered = [...rows];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setRows(reordered);
+    try {
+      await Promise.all(
+        reordered.map((r, i) => (r.order === i + 1 ? null : pb.collection('landing_posters').update(r.id, { order: i + 1 }))).filter(Boolean),
+      );
+      load();
+    } catch (e) { setError('Gagal mengubah urutan: ' + (e?.message || '')); load(); }
+  };
+
+  const inputCls = 'w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50';
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-maroon-600">Poster Info & Event</h2>
+            <p className="text-sm text-stone-500 mt-1 leading-relaxed max-w-xl">
+              Tampil di beranda landing sebagai section &quot;Info &amp; Event&quot;. Countdown mengikuti tanggal
+              penutupan pendaftaran; contact person yang dikosongkan otomatis tidak ditampilkan.
+            </p>
+          </div>
+          <button onClick={startNew} className="rounded-lg bg-gold-400 hover:bg-gold-600 text-alba-50 text-sm font-semibold px-4 py-2">+ Tambah Poster</button>
+        </div>
+        {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+        {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
+      </div>
+
+      {editing !== null && (
+        <div className="bg-alba-50 rounded-2xl border border-maroon-200 p-6 shadow-card space-y-3 animate-fade-in">
+          <h3 className="font-bold text-maroon-600">{editing === 'new' ? 'Tambah Poster Baru' : 'Edit Poster'}</h3>
+          <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Judul (mis. Open Registration Kelas Reguler Ganjil)" className={inputCls} />
+          <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Deskripsi singkat di samping poster" rows={3} className={inputCls} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">Pendaftaran ditutup tanggal (untuk countdown, boleh kosong)</label>
+              <input type="date" value={form.deadline} onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">Contact person (kosong = tidak tampil)</label>
+              <input value={form.contactPerson} onChange={(e) => setForm((f) => ({ ...f, contactPerson: e.target.value }))} placeholder="mis. Khansa 0823-4283-1513" className={inputCls} />
+            </div>
+          </div>
+          <input value={form.registerUrl} onChange={(e) => setForm((f) => ({ ...f, registerUrl: e.target.value }))} placeholder="Link tombol Daftar (boleh kosong)" className={inputCls} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">Upload gambar poster (JPG/PNG/WebP, maks 10MB)</label>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">Atau link foto Google Drive (format lh3)</label>
+              <input value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} placeholder="https://lh3.googleusercontent.com/d/FILE_ID" className={inputCls} />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => { setEditing(null); setForm(EMPTY); setFile(null); }} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal</button>
+            <button onClick={save} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-6 py-2">Simpan</button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 shadow-card space-y-2">
+        {rows.map((r, i) => (
+          <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-2 py-2 ${r.hidden ? 'border-alba-200 bg-alba-100/70 opacity-70' : 'border-alba-200'}`}>
+            <div className="flex flex-col shrink-0">
+              <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▲</button>
+              <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▼</button>
+            </div>
+            <div className="w-12 h-14 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
+              {posterThumb(r) ? (
+                <img src={posterThumb(r)} alt={r.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+              ) : (
+                <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-stone-800 truncate">
+                {r.title}
+                {r.hidden && <span className="ml-2 align-middle text-[10px] font-bold text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Disembunyikan</span>}
+              </p>
+              <p className="text-[11px] text-stone-400 truncate">
+                {r.deadline ? `Countdown s/d ${String(r.deadline).slice(0, 10)}` : 'Tanpa countdown'}
+                {r.contactPerson ? ` · CP: ${r.contactPerson}` : ' · Tanpa CP'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+              <button onClick={() => toggleHidden(r)} className={`text-xs font-semibold rounded-full border px-3 py-1.5 ${r.hidden ? 'border-green-300 text-green-700 hover:bg-green-50' : 'border-alba-300 text-stone-600 hover:bg-alba-100'}`}>
+                {r.hidden ? 'Tampilkan' : 'Sembunyikan'}
+              </button>
+              <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Edit</button>
+              <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50">Hapus</button>
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-sm text-stone-400 px-1 py-2">Belum ada poster. Selama kosong, section &quot;Info &amp; Event&quot; tidak muncul di landing page.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// LANDING PAGE: TABEL LOMBA - baris tabel "Olimpiade yang Bisa Kami Bantu"
+// di halaman Olympiad Program (collection landing_olympiads).
+// ==========================================
+function OlympiadManager() {
+  const [rows, setRows] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const EMPTY = { level: 'N', name: '', host: '', location: '', timeframe: '' };
+  const [form, setForm] = useState(EMPTY);
+  const [error, setError] = useState('');
+  const [okMsg, setOkMsg] = useState('');
+
+  const load = () =>
+    pb.collection('landing_olympiads').getFullList({ sort: 'order' })
+      .then(setRows)
+      .catch((e) => setError('Gagal memuat: ' + (e?.message || '') + ' (migrasi PocketBase terbaru belum jalan?)'));
+  useEffect(() => { load(); }, []);
+
+  const startNew = () => { setEditing('new'); setForm(EMPTY); setOkMsg(''); };
+  const startEdit = (r) => {
+    setEditing(r.id);
+    setOkMsg('');
+    setForm({ level: r.level || 'N', name: r.name || '', host: r.host || '', location: r.location || '', timeframe: r.timeframe || '' });
+  };
+
+  const save = async () => {
+    if (!form.name.trim()) { setError('Nama lomba wajib diisi.'); return; }
+    setError('');
+    try {
+      const payload = { ...form, name: form.name.trim() };
+      if (editing === 'new') {
+        payload.order = rows.length ? Math.max(...rows.map((r) => r.order ?? 0)) + 1 : 1;
+        await pb.collection('landing_olympiads').create(payload);
+        setOkMsg('Lomba ditambahkan.');
+      } else {
+        await pb.collection('landing_olympiads').update(editing, payload);
+        setOkMsg('Perubahan tersimpan.');
+      }
+      setEditing(null); setForm(EMPTY); load();
+    } catch (e) { setError('Gagal menyimpan: ' + (e?.message || '')); }
+  };
+
+  const remove = async (r) => {
+    if (!confirm(`Hapus "${r.name}" dari tabel lomba?`)) return;
+    try { await pb.collection('landing_olympiads').delete(r.id); load(); }
+    catch (e) { setError('Gagal menghapus: ' + (e?.message || '')); }
+  };
+  const toggleHidden = async (r) => {
+    try { await pb.collection('landing_olympiads').update(r.id, { hidden: !r.hidden }); load(); }
+    catch (e) { setError('Gagal mengubah: ' + (e?.message || '')); }
+  };
+  const move = async (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= rows.length) return;
+    const reordered = [...rows];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setRows(reordered);
+    try {
+      await Promise.all(
+        reordered.map((r, i) => (r.order === i + 1 ? null : pb.collection('landing_olympiads').update(r.id, { order: i + 1 }))).filter(Boolean),
+      );
+      load();
+    } catch (e) { setError('Gagal mengubah urutan: ' + (e?.message || '')); load(); }
+  };
+
+  const inputCls = 'w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50';
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-maroon-600">Tabel Lomba (Olympiad Program)</h2>
+            <p className="text-sm text-stone-500 mt-1 leading-relaxed max-w-xl">
+              Isi tabel &quot;Olimpiade yang Bisa Kami Bantu&quot; di halaman Olympiad Program.
+            </p>
+          </div>
+          <button onClick={startNew} className="rounded-lg bg-gold-400 hover:bg-gold-600 text-alba-50 text-sm font-semibold px-4 py-2">+ Tambah Lomba</button>
+        </div>
+        {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+        {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
+      </div>
+
+      {editing !== null && (
+        <div className="bg-alba-50 rounded-2xl border border-maroon-200 p-6 shadow-card space-y-3 animate-fade-in">
+          <h3 className="font-bold text-maroon-600">{editing === 'new' ? 'Tambah Lomba' : 'Edit Lomba'}</h3>
+          <div className="grid sm:grid-cols-[10rem_1fr] gap-3">
+            <select value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} className={inputCls}>
+              <option value="N">Nasional</option>
+              <option value="I">Internasional</option>
+            </select>
+            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Nama lomba" className={inputCls} />
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <input value={form.host} onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))} placeholder="Pelaksana" className={inputCls} />
+            <input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} placeholder="Lokasi" className={inputCls} />
+            <input value={form.timeframe} onChange={(e) => setForm((f) => ({ ...f, timeframe: e.target.value }))} placeholder="Timeline (mis. Maret)" className={inputCls} />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => { setEditing(null); setForm(EMPTY); }} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal</button>
+            <button onClick={save} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-6 py-2">Simpan</button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 shadow-card space-y-2">
+        {rows.map((r, i) => (
+          <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-2 py-2 ${r.hidden ? 'border-alba-200 bg-alba-100/70 opacity-70' : 'border-alba-200'}`}>
+            <div className="flex flex-col shrink-0">
+              <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▲</button>
+              <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▼</button>
+            </div>
+            <span className={`shrink-0 text-[10px] font-bold rounded-full px-2 py-0.5 border ${r.level === 'I' ? 'bg-gold-100 border-gold-200 text-gold-600' : 'bg-maroon-50 border-maroon-100 text-maroon-600'}`}>
+              {r.level === 'I' ? 'Intl' : 'Nas'}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-stone-800 truncate">
+                {r.name}
+                {r.hidden && <span className="ml-2 align-middle text-[10px] font-bold text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Disembunyikan</span>}
+              </p>
+              <p className="text-[11px] text-stone-400 truncate">{[r.host, r.location, r.timeframe].filter(Boolean).join(' · ')}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+              <button onClick={() => toggleHidden(r)} className={`text-xs font-semibold rounded-full border px-3 py-1.5 ${r.hidden ? 'border-green-300 text-green-700 hover:bg-green-50' : 'border-alba-300 text-stone-600 hover:bg-alba-100'}`}>
+                {r.hidden ? 'Tampilkan' : 'Sembunyikan'}
+              </button>
+              <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Edit</button>
+              <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50">Hapus</button>
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-sm text-stone-400 px-1 py-2">Belum ada data. Halaman landing memakai daftar bawaan sampai tabel ini diisi.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// LANDING PAGE: PRESTASI - prestasi recent pengajar & siswa (foto + deskripsi)
+// untuk halaman Tim Kami dan beranda (collection landing_achievements).
+// ==========================================
+const achievementThumb = (r) => (r.photo ? pb.files.getURL(r, r.photo) : (r.photoUrl || ''));
+
+function AchievementManager() {
+  const [rows, setRows] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const EMPTY = { category: 'pengajar', title: '', description: '', photoUrl: '' };
+  const [form, setForm] = useState(EMPTY);
+  const [file, setFile] = useState(null);
+  const [error, setError] = useState('');
+  const [okMsg, setOkMsg] = useState('');
+
+  const load = () =>
+    pb.collection('landing_achievements').getFullList({ sort: 'order' })
+      .then(setRows)
+      .catch((e) => setError('Gagal memuat: ' + (e?.message || '') + ' (migrasi PocketBase terbaru belum jalan?)'));
+  useEffect(() => { load(); }, []);
+
+  const startNew = () => { setEditing('new'); setForm(EMPTY); setFile(null); setOkMsg(''); };
+  const startEdit = (r) => {
+    setEditing(r.id);
+    setFile(null);
+    setOkMsg('');
+    setForm({ category: r.category || 'pengajar', title: r.title || '', description: r.description || '', photoUrl: r.photoUrl || '' });
+  };
+
+  const save = async () => {
+    if (!form.title.trim()) { setError('Judul prestasi wajib diisi.'); return; }
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('category', form.category);
+      fd.append('title', form.title.trim());
+      fd.append('description', form.description);
+      fd.append('photoUrl', form.photoUrl.trim());
+      if (file) fd.append('photo', file);
+      if (editing === 'new') {
+        fd.append('order', rows.length ? Math.max(...rows.map((r) => r.order ?? 0)) + 1 : 1);
+        await pb.collection('landing_achievements').create(fd);
+        setOkMsg('Prestasi ditambahkan.');
+      } else {
+        await pb.collection('landing_achievements').update(editing, fd);
+        setOkMsg('Perubahan tersimpan.');
+      }
+      setEditing(null); setForm(EMPTY); setFile(null); load();
+    } catch (e) { setError('Gagal menyimpan: ' + (e?.message || '')); }
+  };
+
+  const remove = async (r) => {
+    if (!confirm(`Hapus prestasi "${r.title}"?`)) return;
+    try { await pb.collection('landing_achievements').delete(r.id); load(); }
+    catch (e) { setError('Gagal menghapus: ' + (e?.message || '')); }
+  };
+  const toggleHidden = async (r) => {
+    try { await pb.collection('landing_achievements').update(r.id, { hidden: !r.hidden }); load(); }
+    catch (e) { setError('Gagal mengubah: ' + (e?.message || '')); }
+  };
+  const move = async (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= rows.length) return;
+    const reordered = [...rows];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    setRows(reordered);
+    try {
+      await Promise.all(
+        reordered.map((r, i) => (r.order === i + 1 ? null : pb.collection('landing_achievements').update(r.id, { order: i + 1 }))).filter(Boolean),
+      );
+      load();
+    } catch (e) { setError('Gagal mengubah urutan: ' + (e?.message || '')); load(); }
+  };
+
+  const inputCls = 'w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50';
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-maroon-600">Prestasi Recent (Pengajar & Siswa)</h2>
+            <p className="text-sm text-stone-500 mt-1 leading-relaxed max-w-xl">
+              Tampil sebagai kartu foto + deskripsi di halaman <b>Tim Kami</b> dan section
+              &quot;Recent Achievement&quot; di beranda landing.
+            </p>
+          </div>
+          <button onClick={startNew} className="rounded-lg bg-gold-400 hover:bg-gold-600 text-alba-50 text-sm font-semibold px-4 py-2">+ Tambah Prestasi</button>
+        </div>
+        {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+        {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
+      </div>
+
+      {editing !== null && (
+        <div className="bg-alba-50 rounded-2xl border border-maroon-200 p-6 shadow-card space-y-3 animate-fade-in">
+          <h3 className="font-bold text-maroon-600">{editing === 'new' ? 'Tambah Prestasi' : 'Edit Prestasi'}</h3>
+          <div className="grid sm:grid-cols-[10rem_1fr] gap-3">
+            <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className={inputCls}>
+              <option value="pengajar">Pengajar</option>
+              <option value="siswa">Siswa</option>
+            </select>
+            <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} placeholder="Judul prestasi (mis. Gold Medalist SIMPIC 2026)" className={inputCls} />
+          </div>
+          <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Deskripsi singkat (nama, asal, cerita singkat)" rows={2} className={inputCls} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">Upload foto (JPG/PNG/WebP, maks 10MB)</label>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">Atau link foto Google Drive (format lh3)</label>
+              <input value={form.photoUrl} onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))} placeholder="https://lh3.googleusercontent.com/d/FILE_ID" className={inputCls} />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => { setEditing(null); setForm(EMPTY); setFile(null); }} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal</button>
+            <button onClick={save} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-6 py-2">Simpan</button>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 shadow-card space-y-2">
+        {rows.map((r, i) => (
+          <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-2 py-2 ${r.hidden ? 'border-alba-200 bg-alba-100/70 opacity-70' : 'border-alba-200'}`}>
+            <div className="flex flex-col shrink-0">
+              <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▲</button>
+              <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▼</button>
+            </div>
+            <div className="w-14 h-11 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
+              {achievementThumb(r) ? (
+                <img src={achievementThumb(r)} alt={r.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+              ) : (
+                <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-stone-800 truncate">
+                {r.title}
+                {r.hidden && <span className="ml-2 align-middle text-[10px] font-bold text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Disembunyikan</span>}
+              </p>
+              <p className="text-[11px] text-stone-400 truncate">{r.category === 'siswa' ? 'Siswa' : 'Pengajar'}{r.description ? ` · ${r.description}` : ''}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+              <button onClick={() => toggleHidden(r)} className={`text-xs font-semibold rounded-full border px-3 py-1.5 ${r.hidden ? 'border-green-300 text-green-700 hover:bg-green-50' : 'border-alba-300 text-stone-600 hover:bg-alba-100'}`}>
+                {r.hidden ? 'Tampilkan' : 'Sembunyikan'}
+              </button>
+              <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Edit</button>
+              <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50">Hapus</button>
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && <p className="text-sm text-stone-400 px-1 py-2">Belum ada prestasi. Beranda memakai daftar teks bawaan sampai bagian ini diisi.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// LANDING PAGE: TEKS & FITUR - teks utama landing (hero, statistik, CTA) yang
+// disimpan di landing_settings.texts, plus saklar fitur web siswa (Bank Soal).
+// ==========================================
+function LandingTextEditor() {
+  const [rec, setRec] = useState(null);
+  const [texts, setTexts] = useState(() => resolveLandingTexts(null));
+  const [showBankSoal, setShowBankSoal] = useState(false);
+  const [openGroup, setOpenGroup] = useState(LANDING_TEXT_GROUPS[0].group);
+  const [msg, setMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    pb.collection('landing_settings')
+      .getFullList()
+      .then((rows) => {
+        if (!rows[0]) { setMsg('Pengaturan landing belum ada (migrasi landing_settings belum jalan).'); return; }
+        setRec(rows[0]);
+        setTexts(resolveLandingTexts(rows[0].texts));
+        setShowBankSoal(!!rows[0].showBankSoal);
+      })
+      .catch((e) => setMsg('Gagal memuat: ' + (e?.message || '')));
+  }, []);
+
+  const setText = (key, value) => setTexts((t) => ({ ...t, [key]: value }));
+  const resetOne = (key) => setText(key, resolveLandingTexts(null)[key]);
+
+  const save = async () => {
+    if (!rec) return;
+    setSaving(true); setMsg('');
+    try {
+      const updated = await pb.collection('landing_settings').update(rec.id, { texts, showBankSoal });
+      setRec(updated);
+      setMsg('✅ Tersimpan. Buka halaman depan untuk melihat hasilnya.');
+    } catch (e) {
+      setMsg('❌ Gagal menyimpan: ' + (e?.message || ''));
+    } finally { setSaving(false); }
+  };
+
+  const inputCls = 'w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 focus:outline-none focus:border-maroon-400';
+
+  return (
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6">
+      <h2 className="font-display text-lg font-semibold mb-1">Teks Landing & Fitur</h2>
+      <p className="text-xs text-stone-500 mb-4">
+        Teks utama halaman depan (hero, statistik, ajakan bergabung) bisa diubah dari sini.
+        Kolom yang dikosongkan otomatis kembali ke teks bawaan.
+      </p>
+
+      {/* Saklar fitur Bank Soal: disiapkan tapi default tersembunyi */}
+      <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 mb-4">
+        <input
+          type="checkbox"
+          checked={showBankSoal}
+          onChange={(e) => setShowBankSoal(e.target.checked)}
+          className="w-4 h-4 accent-maroon-600"
+        />
+        <span className="text-sm font-semibold">
+          {showBankSoal ? 'Bank Soal DITAMPILKAN di web siswa' : 'Bank Soal disembunyikan (belum dirilis)'}
+        </span>
+        <span className="text-xs text-stone-500">fitur baru: bank soal per mata kuliah/BAB</span>
+      </label>
+
+      <div className="space-y-2">
+        {LANDING_TEXT_GROUPS.map((g) => {
+          const expanded = openGroup === g.group;
+          return (
+            <div key={g.group} className="rounded-xl border border-alba-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setOpenGroup(expanded ? '' : g.group)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold transition-colors ${
+                  expanded ? 'bg-maroon-600 text-alba-50' : 'bg-alba-100/60 text-stone-700 hover:bg-maroon-50'
+                }`}
+              >
+                <span>{g.group}</span>
+                <span className="text-xs font-semibold">{expanded ? '▲ tutup' : `▼ ${g.fields.length} teks`}</span>
+              </button>
+              {expanded && (
+                <div className="p-4 space-y-4 bg-alba-50">
+                  {g.fields.map((f) => (
+                    <div key={f.key}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-bold text-stone-600">{f.label}</label>
+                        <button type="button" onClick={() => resetOne(f.key)} className="text-[11px] font-semibold text-stone-400 hover:text-maroon-600">
+                          kembalikan bawaan
+                        </button>
+                      </div>
+                      {f.type === 'textarea' ? (
+                        <textarea rows={3} value={texts[f.key] ?? ''} onChange={(e) => setText(f.key, e.target.value)} className={inputCls} />
+                      ) : (
+                        <input value={texts[f.key] ?? ''} onChange={(e) => setText(f.key, e.target.value)} className={inputCls} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3 mt-5">
+        <button onClick={save} disabled={saving || !rec} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-5 py-2.5 disabled:opacity-50">
+          {saving ? 'Menyimpan…' : 'Simpan Semua Perubahan'}
+        </button>
+        <a href="/" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-maroon-600 hover:underline">
+          Lihat landing page ↗
+        </a>
+      </div>
+      {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2 mt-3">{msg}</p>}
     </div>
   );
 }

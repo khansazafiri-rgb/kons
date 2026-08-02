@@ -3,7 +3,7 @@
 // Halaman /signup membaca teks dari sini (sudah digabung dengan hasil edit
 // admin), dan editor di Dashboard Admin membangun form-nya otomatis dari
 // daftar SIGNUP_TEXT_GROUPS di bawah. Jadi untuk menambah teks yang bisa
-// diedit admin, cukup tambahkan satu baris di sini — tanpa migration dan
+// diedit admin, cukup tambahkan satu baris di sini - tanpa migration dan
 // tanpa mengubah halaman admin.
 
 export const SIGNUP_TEXT_GROUPS = [
@@ -13,8 +13,8 @@ export const SIGNUP_TEXT_GROUPS = [
       { key: 'sideHeadline', label: 'Judul besar', type: 'textarea', default: 'Daftar Jadi Sobat PCV' },
       { key: 'sideStep1', label: 'Langkah 1', type: 'text', default: 'Isi form pendaftaran di samping' },
       { key: 'sideStep2', label: 'Langkah 2', type: 'text', default: 'Admin memilihkan mata kuliahmu lalu meng-ACC' },
-      { key: 'sideStep3', label: 'Langkah 3', type: 'text', default: 'Notifikasi ACC dikirim ke emailmu — langsung bisa login' },
-      { key: 'sideFooter', label: 'Teks paling bawah', type: 'text', default: 'PCV Classroom — Bimbel Ter-Worth It' },
+      { key: 'sideStep3', label: 'Langkah 3', type: 'text', default: 'Notifikasi ACC dikirim ke email dan WhatsApp-mu, langsung bisa login' },
+      { key: 'sideFooter', label: 'Teks paling bawah', type: 'text', default: 'PCV Classroom. Bimbel Ter-Worth It' },
     ],
   },
   {
@@ -44,6 +44,9 @@ export const SIGNUP_TEXT_GROUPS = [
       { key: 'placeholderPassword', label: 'Placeholder Password', type: 'text', default: 'Minimal 8 karakter' },
       { key: 'labelPasswordConfirm', label: 'Label Konfirmasi Password', type: 'text', default: 'Ulangi Password' },
       { key: 'placeholderPasswordConfirm', label: 'Placeholder Konfirmasi Password', type: 'text', default: 'Ketik ulang password yang sama' },
+      { key: 'labelPhone', label: 'Label Nomor WhatsApp', type: 'text', default: 'Nomor WhatsApp' },
+      { key: 'placeholderPhone', label: 'Placeholder Nomor WhatsApp', type: 'text', default: '08xxxxxxxxxx' },
+      { key: 'hintPhone', label: 'Keterangan di bawah Nomor WhatsApp', type: 'text', default: 'Notifikasi penting (ACC akun, reminder kelas) juga dikirim ke WhatsApp-mu.' },
       { key: 'labelSemester', label: 'Label Semester', type: 'text', default: 'Semester' },
       { key: 'placeholderSemester', label: 'Placeholder Semester', type: 'text', default: '1' },
       { key: 'labelAsalKuliah', label: 'Label Asal Kuliah', type: 'text', default: 'Asal Kuliah' },
@@ -57,7 +60,7 @@ export const SIGNUP_TEXT_GROUPS = [
     fields: [
       { key: 'submitLabel', label: 'Teks tombol daftar', type: 'text', default: 'Daftar Sekarang' },
       { key: 'submitLoading', label: 'Teks tombol saat mengirim', type: 'text', default: 'Mengirim…' },
-      { key: 'footerNote', label: 'Catatan di bawah tombol', type: 'textarea', default: 'Setelah mendaftar, akunmu menunggu ACC admin. Semua akun dari sign up otomatis ber-role student — akun teacher hanya dibuat manual oleh admin.' },
+      { key: 'footerNote', label: 'Catatan di bawah tombol', type: 'textarea', default: 'Setelah mendaftar, akunmu menunggu ACC admin. Semua akun dari sign up otomatis ber-role student - akun teacher hanya dibuat manual oleh admin.' },
     ],
   },
   {

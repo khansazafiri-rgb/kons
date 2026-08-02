@@ -4,7 +4,7 @@ import { Flame, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 // Logo asli PCV, dari link Google Drive. Kalau link gagal dimuat, jatuh ke
-// salinan lokal gambar yang sama di public/ — jadi logo PCV selalu tampil.
+// salinan lokal gambar yang sama di public/ - jadi logo PCV selalu tampil.
 export const PCV_LOGO_URL = 'https://lh3.googleusercontent.com/d/1lhXOXrxkfutAv0d13IBZoqYsJMmis5Ex';
 export const PCV_LOGO_LOCAL = '/logo-pcv.png';
 
@@ -42,7 +42,7 @@ export async function bumpStreak(pb, user) {
    const streak = last === yesterday ? (user.streak || 0) + 1 : 1;
    await pb.collection('users').update(user.id, { streak, lastActive: today });
  } catch (e) {
-   /* field belum ada di schema — abaikan */
+   /* field belum ada di schema - abaikan */
  }
 }
 
@@ -80,8 +80,10 @@ export default function Header() {
    localStorage.setItem('pcv_theme', dark ? 'dark' : 'light');
  }, [dark]);
 
- const doLogout = () => {
-   logout();
+ const doLogout = async () => {
+   // Tunggu slot device dilepas dulu supaya akun langsung bisa dipakai login
+   // dari device lain begitu halaman login terbuka.
+   await logout();
    navigate('/login');
  };
 

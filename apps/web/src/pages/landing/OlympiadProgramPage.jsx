@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Award, CalendarClock, Globe2, MessageCircle, Target, Trophy, Users } from 'lucide-react';
 import LandingLayout, { WA_CP, fadeUp } from './LandingLayout';
+import pb from '@/lib/pocketbaseClient';
 
-// Daftar kesempatan olimpiade FK — dari materi promosi PCV (slide "Kesempatan
-// Olimpiade FK"). Tingkat: N = Nasional, I = Internasional.
+// Daftar kesempatan olimpiade FK. Tingkat: N = Nasional, I = Internasional.
+// Data aslinya kini dikelola admin di Dashboard Admin → Landing Page → Tabel
+// Lomba (collection landing_olympiads); daftar di bawah hanya fallback selama
+// database belum terisi/terjangkau.
 const OLYMPIADS = [
   ['N', 'Baiturrahmah Medical Olympiad (BMO)', 'Universitas Baiturrahmah', 'Padang, Indonesia', 'Januari'],
-  ['N', 'An Adventure Towards The Human Body (AORTA)', 'Universitas Hasanuddin', 'Makassar, Indonesia', 'Januari–Februari'],
+  ['N', 'An Adventure Towards The Human Body (AORTA)', 'Universitas Hasanuddin', 'Makassar, Indonesia', 'Januari-Februari'],
   ['I', 'Siriraj International Medical Microbiology, Parasitology, and Immunology Competition (SIMPIC)', 'Siriraj Hospital Mahidol University', 'Bangkok, Thailand', 'Maret'],
   ['I', 'USIM International Microbiology Quiz Competition (IMICROBE)', 'Universiti Sains Islam Malaysia', 'Nilai, Malaysia', 'April'],
   ['N', 'Homeostasis', 'Universitas Hasanuddin', 'Makassar, Indonesia', 'April'],
@@ -37,7 +40,7 @@ const WINNERS = [
   {
     name: 'Deva Fitra Firdausa Anwar, S.Ked',
     origin: "FK UNAIR '22",
-    wins: ['Juara 1 IMPhO 2023', '1st Runner Up CMU-IMC 2023, Thailand', '2 Gold & 1 Silver RMO-IMO Muskuloskeletal 2024–2025'],
+    wins: ['Juara 1 IMPhO 2023', '1st Runner Up CMU-IMC 2023, Thailand', '2 Gold & 1 Silver RMO-IMO Muskuloskeletal 2024-2025'],
   },
   {
     name: 'dr. Achmad Rifai',
@@ -53,12 +56,26 @@ const WINNERS = [
 
 // Pola pembinaan yang dipakai para pemenang di kelas olimpiade PCV.
 const METHODS = [
-  { icon: Target, t: 'Pendalaman materi terarah', d: 'Fokus ke cabang lombamu — materi disusun dari basic sampai clinical oleh tentor yang pernah menang di cabang itu.' },
+  { icon: Target, t: 'Pendalaman materi terarah', d: 'Fokus ke cabang lombamu - materi disusun dari basic sampai clinical oleh tentor yang pernah menang di cabang itu.' },
   { icon: Trophy, t: 'Drill soal skala kompetisi', d: 'Latihan dan tryout dengan tipe soal yang meniru babak lomba aslinya, lengkap dengan pembahasan.' },
-  { icon: Users, t: 'Bimbingan komunikatif', d: 'Kelas privat/grup kecil yang interaktif — bebas bertanya, ada kuis kecil tiap akhir pertemuan.' },
+  { icon: Users, t: 'Bimbingan komunikatif', d: 'Kelas privat/grup kecil yang interaktif - bebas bertanya, ada kuis kecil tiap akhir pertemuan.' },
 ];
 
 export default function OlympiadProgramPage() {
+  const [rows, setRows] = useState(OLYMPIADS);
+
+  useEffect(() => {
+    let alive = true;
+    pb.collection('landing_olympiads')
+      .getFullList({ filter: 'hidden != true', sort: 'order' })
+      .then((recs) => {
+        if (!alive || !recs.length) return;
+        setRows(recs.map((r) => [r.level, r.name, r.host, r.location, r.timeframe]));
+      })
+      .catch(() => {}); // collection belum ada → pakai fallback
+    return () => { alive = false; };
+  }, []);
+
   return (
     <LandingLayout>
       {/* Intro */}
@@ -70,7 +87,7 @@ export default function OlympiadProgramPage() {
           </h1>
           <p className="text-stone-600 text-lg leading-relaxed">
             Kelas Olimpiade PCV menyiapkanmu menembus olimpiade kedokteran nasional dan
-            internasional — dari pemilihan cabang, pendalaman materi, sampai simulasi
+            internasional: dari pemilihan cabang, pendalaman materi, sampai simulasi
             soal berskala kompetisi.
           </p>
         </motion.div>
@@ -82,7 +99,7 @@ export default function OlympiadProgramPage() {
           <motion.div {...fadeUp} className="mb-8">
             <h2 className="font-display text-2xl font-semibold mb-2">Olimpiade yang Bisa Kami Bantu</h2>
             <p className="text-stone-600 max-w-2xl">
-              Kalender kesempatan olimpiade FK sepanjang tahun — nasional maupun
+              Kalender kesempatan olimpiade FK sepanjang tahun, nasional maupun
               internasional. Pilih targetmu, kami siapkan pembinaannya.
             </p>
           </motion.div>
@@ -111,7 +128,7 @@ export default function OlympiadProgramPage() {
                 </tr>
               </thead>
               <tbody>
-                {OLYMPIADS.map(([lvl, lomba, host, loc, time], i) => (
+                {rows.map(([lvl, lomba, host, loc, time], i) => (
                   <tr key={lomba} className={i % 2 ? 'bg-alba-100/60' : ''}>
                     <td className="px-5 py-3">
                       {lvl === 'I' ? (
@@ -142,7 +159,7 @@ export default function OlympiadProgramPage() {
           <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">BELAJAR DARI PEMENANG</p>
           <h2 className="font-display text-3xl font-semibold mb-3">Pembinamu Sudah Pernah Menang</h2>
           <p className="text-stone-600 leading-relaxed">
-            Tentor olimpiade PCV adalah peraih medali di kompetisi yang jadi targetmu —
+            Tentor olimpiade PCV adalah peraih medali di kompetisi yang jadi targetmu,
             mereka tahu persis pola soal, ritme lomba, dan cara mempersiapkannya.
           </p>
         </motion.div>
@@ -184,7 +201,7 @@ export default function OlympiadProgramPage() {
         <div className="max-w-6xl mx-auto px-6 py-16 text-center text-alba-50">
           <h2 className="font-display text-3xl font-semibold mb-3">Siap Berburu Medali?</h2>
           <p className="text-alba-200 mb-8 max-w-xl mx-auto">
-            Ceritakan target olimpiademu ke admin — kami pasangkan dengan tentor pembina
+            Ceritakan target olimpiademu ke admin, kami pasangkan dengan tentor pembina
             yang paling relevan.
           </p>
           <a

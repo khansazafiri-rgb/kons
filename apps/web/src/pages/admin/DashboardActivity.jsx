@@ -14,7 +14,7 @@ import {
 // TAB "DASHBOARD ACTIVITY"
 //
 // Dua bagian:
-//   1. Kartu ringkas jumlah pengajar & siswa yang aktif — diklik untuk melihat
+//   1. Kartu ringkas jumlah pengajar & siswa yang aktif - diklik untuk melihat
 //      siapa saja beserta aktivitas terakhirnya, lengkap dengan tombol kirim
 //      email penyemangat per orang.
 //   2. Riwayat perubahan web (collection activity_log): siapa mengubah apa,
@@ -31,7 +31,7 @@ export default function DashboardActivity() {
           <Activity size={19} /> Dashboard Activity
         </h2>
         <p className="text-sm text-stone-500 mt-1 leading-relaxed">
-          Pantau siapa yang aktif dan apa saja yang berubah di web — siapa mengubahnya, kapan, dan isi perubahannya.
+          Pantau siapa yang aktif dan apa saja yang berubah di web: siapa mengubahnya, kapan, dan isi perubahannya.
         </p>
         <div className="flex flex-wrap gap-2 mt-4">
           {[['orang', 'Akun Aktif'], ['riwayat', 'Riwayat Perubahan']].map(([k, label]) => (
@@ -54,7 +54,7 @@ export default function DashboardActivity() {
 }
 
 // ==========================================================================
-// BAGIAN 1 — AKUN AKTIF + KIRIM EMAIL PENYEMANGAT
+// BAGIAN 1 - AKUN AKTIF + KIRIM EMAIL PENYEMANGAT
 // ==========================================================================
 function AkunAktif() {
   const [users, setUsers] = useState([]);
@@ -266,7 +266,7 @@ function BarisOrang({ u, ujian, subjectName }) {
           </p>
           {ujian && (
             <p className="text-[11px] text-maroon-600 font-semibold mt-1">
-              📅 {ujian.examName}{subjectName[ujian.subject] ? ` — ${subjectName[ujian.subject]}` : ''} ·{' '}
+              📅 {ujian.examName}{subjectName[ujian.subject] ? ` - ${subjectName[ujian.subject]}` : ''} ·{' '}
               {ujian.sisa === 0 ? 'HARI INI' : ujian.sisa === 1 ? 'besok' : `${ujian.sisa} hari lagi`}
             </p>
           )}
@@ -286,7 +286,7 @@ function BarisOrang({ u, ujian, subjectName }) {
 }
 
 // ==========================================================================
-// BAGIAN 2 — RIWAYAT PERUBAHAN WEB
+// BAGIAN 2 - RIWAYAT PERUBAHAN WEB
 // ==========================================================================
 function RiwayatPerubahan() {
   const [rows, setRows] = useState([]);
@@ -307,7 +307,7 @@ function RiwayatPerubahan() {
     } catch (e) {
       setError(
         e?.status === 404
-          ? 'Collection activity_log belum ada — jalankan migrasi PocketBase terbaru dulu.'
+          ? 'Collection activity_log belum ada - jalankan migrasi PocketBase terbaru dulu.'
           : 'Gagal memuat riwayat: ' + (e?.message || '')
       );
     }
@@ -455,7 +455,7 @@ function BarisRiwayat({ r, onPreview }) {
   );
 }
 
-// Preview isi perubahan — untuk soal, tampilkan pertanyaan + pilihan/kunci.
+// Preview isi perubahan - untuk soal, tampilkan pertanyaan + pilihan/kunci.
 function PreviewRiwayat({ data, onClose }) {
   const items = Array.isArray(data.detail) ? data.detail : [data.detail];
   return (
@@ -503,7 +503,7 @@ function PreviewRiwayat({ data, onClose }) {
                         <p key={j} className="text-xs bg-alba-50 border border-alba-200 rounded-lg px-3 py-1.5 text-stone-600">
                           <span className="font-bold mr-1.5">{s.label}.</span>{s.question}
                           {s.validAnswers?.length > 0 && (
-                            <span className="text-green-800 font-semibold"> — {s.validAnswers.join(' | ')}</span>
+                            <span className="text-green-800 font-semibold"> - {s.validAnswers.join(' | ')}</span>
                           )}
                         </p>
                       ))}
