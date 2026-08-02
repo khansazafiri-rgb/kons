@@ -3082,11 +3082,14 @@ function KelasReminder() {
                   {busy === 'ical:' + c.id ? '…' : 'Simpan iCal'}
                 </button>
               </div>
-              <p className="text-xs text-stone-400 mt-2">
+              <p className={`text-xs mt-2 ${sources[c.id] && c.scheduleFetchedAt && cache.length === 0 ? 'text-gold-600 font-semibold' : 'text-stone-400'}`}>
                 {sources[c.id]
-                  ? `Jadwal tersinkron: ${cache.length} agenda 14 hari ke depan` +
-                    (c.scheduleFetchedAt ? ` (terakhir ditarik ${String(c.scheduleFetchedAt).slice(0, 16).replace('T', ' ')} UTC)` : '')
+                  ? `Jadwal tersinkron: ${cache.length} agenda (7 hari lalu s/d 60 hari ke depan)` +
+                    (c.scheduleFetchedAt ? ` · terakhir ditarik ${String(c.scheduleFetchedAt).slice(0, 16).replace('T', ' ')} UTC` : '')
                   : 'Belum ada secret iCal, jadwal & reminder kelas ini belum aktif.'}
+                {sources[c.id] && c.scheduleFetchedAt && cache.length === 0 && (
+                  <> — kosong terus setelah beberapa kali refresh biasanya berarti link iCal-nya salah atau kalendernya memang tidak ada jadwal di rentang ini. Cek lagi link-nya di Google Calendar.</>
+                )}
               </p>
             </div>
           );

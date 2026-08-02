@@ -323,9 +323,14 @@ function refreshClassSchedules(app) {
     try {
       const res = $http.send({ url: src.getString("icalUrl"), method: "GET", timeout: 60 });
       if (res.statusCode !== 200) throw new Error("HTTP " + res.statusCode);
+      // PENTING: body respons PocketBase JSVM ada di field `raw`, BUKAN `body`
+      // (`.body` selalu undefined). Salah nama field ini bikin expandIcs selalu
+      // menerima string kosong -> jadwal selalu kosong walau link iCal benar
+      // dan fetch-nya sendiri berhasil (statusCode 200, jadi tidak error).
+      //
       // Jendela cukup lebar (seminggu ke belakang, dua bulan ke depan) supaya
       // tampilan kalender bulanan di web siswa tidak setengah kosong.
-      const events = expandIcs(res.body ? toString(res.body) : "", now - 7 * DAY_MS, now + 60 * DAY_MS);
+      const events = expandIcs(res.raw || "", now - 7 * DAY_MS, now + 60 * DAY_MS);
       const cls = app.findRecordById("classes", classId);
       cls.set("scheduleCache", events);
       cls.set("scheduleFetchedAt", new Date().toISOString());
