@@ -148,7 +148,8 @@ function parseProp(line) {
   const params = {};
   parts.slice(1).forEach((p) => {
     const eq = p.indexOf("=");
-    if (eq > 0) params[p.slice(0, eq).toUpperCase()] = p.slice(eq + 1);
+    // Nilai parameter kadang ditulis dalam tanda kutip: TZID="Asia/Jakarta".
+    if (eq > 0) params[p.slice(0, eq).toUpperCase()] = p.slice(eq + 1).replace(/^"|"$/g, "");
   });
   return { name, params, value };
 }
@@ -229,6 +230,13 @@ function expandIcs(icsText, fromMs, toMs) {
     });
   };
 
+  // Satu kejadian berulang: cek EXDATE / override lalu masukkan.
+  const pushOccurrence = (ev, ms) => {
+    if (ev.exdates[ms]) return;
+    if (ev.uid && overridden[ev.uid + "@" + ms]) return;
+    push(ev, ms);
+  };
+
   events.forEach((ev) => {
     if (ev.cancelled) return;
 
@@ -243,52 +251,118 @@ function expandIcs(icsText, fromMs, toMs) {
       const eq = p.indexOf("=");
       if (eq > 0) rule[p.slice(0, eq).toUpperCase()] = p.slice(eq + 1);
     });
+
     const freq = rule.FREQ;
-    if (freq !== "WEEKLY" && freq !== "DAILY") {
-      push(ev, ev.start); // frekuensi lain: minimal kejadian pertamanya tampil
-      return;
-    }
     const interval = Math.max(1, parseInt(rule.INTERVAL || "1", 10) || 1);
     const until = rule.UNTIL ? parseIcsDate(rule.UNTIL, "UTC") : null;
     const count = rule.COUNT ? parseInt(rule.COUNT, 10) : null;
     const hardStop = Math.min(toMs, until != null ? until : toMs);
+    if (ev.start > hardStop) return;
 
-    // Hari-hari dalam minggu (BYDAY) dihitung pada zona WIB.
-    let byday = null;
-    if (freq === "WEEKLY" && rule.BYDAY) {
-      byday = {};
+    // CATATAN PENTING soal cara berhitung:
+    // versi sebelumnya memutar deret hari-demi-hari dari DTSTART dengan pembatas
+    // 1000 putaran. Untuk kelas yang deretnya dimulai jauh di masa lalu, pembatas
+    // itu habis SEBELUM sampai ke rentang yang mau ditampilkan, sehingga hasilnya
+    // 0 jadwal. Sekarang indeks kejadian pertama yang relevan dihitung langsung
+    // (tanpa memutar dari awal), jadi berapa pun lamanya deret itu berjalan,
+    // jadwalnya tetap ketemu.
+    const stepFor = (n) => {
+      if (freq === "DAILY") return ev.start + n * interval * DAY_MS;
+      return ev.start + n * interval * 7 * DAY_MS; // WEEKLY tanpa BYDAY
+    };
+
+    if (freq === "DAILY" || (freq === "WEEKLY" && !rule.BYDAY)) {
+      const span = (freq === "DAILY" ? interval : interval * 7) * DAY_MS;
+      let n = Math.max(0, Math.ceil((fromMs - ev.start) / span));
+      for (; ; n += 1) {
+        if (count != null && n >= count) break;
+        const ms = stepFor(n);
+        if (ms > hardStop) break;
+        pushOccurrence(ev, ms);
+      }
+      return;
+    }
+
+    if (freq === "WEEKLY") {
+      // Hari-hari dalam minggu (BYDAY) dihitung pada zona WIB.
+      const days = [];
       rule.BYDAY.split(",").forEach((d) => {
-        const i = BYDAY_INDEX[d.replace(/^[-+]?\d+/, "")];
-        if (i !== undefined) byday[i] = true;
+        const i = BYDAY_INDEX[d.replace(/^[-+]?\d+/, "").toUpperCase()];
+        if (i !== undefined && days.indexOf(i) === -1) days.push(i);
       });
+      if (!days.length) return;
+
+      const wkst = BYDAY_INDEX[(rule.WKST || "MO").toUpperCase()] ?? 1;
+      const dowStart = new Date(ev.start + WIB_OFFSET_MS).getUTCDay();
+      const offsetOf = (d) => (d - wkst + 7) % 7;
+      // Waktu yang sama dengan DTSTART, tapi digeser ke hari pertama minggunya.
+      const weekBase = ev.start - offsetOf(dowStart) * DAY_MS;
+      const weekSpan = interval * 7 * DAY_MS;
+      days.sort((a, b) => offsetOf(a) - offsetOf(b));
+      // Kejadian di minggu pertama yang jatuh SEBELUM DTSTART tidak dihitung.
+      const skippedInFirstWeek = days.filter((d) => offsetOf(d) < offsetOf(dowStart)).length;
+
+      let k = Math.max(0, Math.floor((fromMs - weekBase - 6 * DAY_MS) / weekSpan));
+      for (; ; k += 1) {
+        const kickoff = weekBase + k * weekSpan;
+        if (kickoff > hardStop) break;
+        let stop = false;
+        for (let j = 0; j < days.length; j += 1) {
+          const ms = kickoff + offsetOf(days[j]) * DAY_MS;
+          if (ms < ev.start) continue; // sebelum DTSTART
+          if (count != null && k * days.length + j - skippedInFirstWeek >= count) { stop = true; break; }
+          if (ms > hardStop) { stop = true; break; }
+          if (ms >= fromMs) pushOccurrence(ev, ms);
+        }
+        if (stop) break;
+      }
+      return;
     }
 
-    let produced = 0;
-    let guard = 0;
-    let t = ev.start;
-    while (t <= hardStop && guard < 1000 && (count == null || produced < count)) {
-      guard += 1;
-      let matches = true;
-      if (byday) {
-        const wibDay = new Date(t + WIB_OFFSET_MS).getUTCDay();
-        matches = !!byday[wibDay];
+    if (freq === "MONTHLY" || freq === "YEARLY") {
+      // Dihitung pada penanggalan WIB supaya "tanggal 5 tiap bulan" tetap
+      // tanggal 5 menurut waktu Indonesia, bukan bergeser karena UTC.
+      const c = new Date(ev.start + WIB_OFFSET_MS);
+      const baseY = c.getUTCFullYear();
+      const baseMo = c.getUTCMonth();
+      const dayOfMonth = rule.BYMONTHDAY ? parseInt(rule.BYMONTHDAY, 10) : c.getUTCDate();
+      const hh = c.getUTCHours();
+      const mm = c.getUTCMinutes();
+      const ss = c.getUTCSeconds();
+      const monthly = freq === "MONTHLY";
+
+      const occAt = (n) => {
+        const mo = monthly ? baseMo + n * interval : baseMo;
+        const y = monthly ? baseY : baseY + n * interval;
+        const ms = Date.UTC(y, mo, dayOfMonth, hh, mm, ss) - WIB_OFFSET_MS;
+        // Tanggal yang tidak ada di bulan itu (mis. 31 Februari) dilewati.
+        const back = new Date(ms + WIB_OFFSET_MS);
+        return back.getUTCDate() === dayOfMonth ? ms : null;
+      };
+
+      // Loncat langsung ke sekitar awal rentang, lalu mundur sedikit untuk aman.
+      const fromC = new Date(fromMs + WIB_OFFSET_MS);
+      let n = monthly
+        ? (fromC.getUTCFullYear() - baseY) * 12 + (fromC.getUTCMonth() - baseMo)
+        : fromC.getUTCFullYear() - baseY;
+      n = Math.max(0, Math.floor(n / interval) - 1);
+
+      for (; ; n += 1) {
+        if (count != null && n >= count) break;
+        const ms = occAt(n);
+        if (ms == null) {
+          // Bulan tanpa tanggal tersebut: lanjut, tapi jangan sampai tak berujung.
+          if (occAt(n + 1) != null && occAt(n + 1) > hardStop) break;
+          continue;
+        }
+        if (ms > hardStop) break;
+        if (ms >= fromMs && ms >= ev.start) pushOccurrence(ev, ms);
       }
-      if (matches) {
-        produced += 1;
-        const isOverridden = ev.uid && overridden[ev.uid + "@" + t];
-        if (!ev.exdates[t] && !isOverridden) push(ev, t);
-      }
-      if (freq === "DAILY") {
-        t += interval * DAY_MS;
-      } else if (byday) {
-        // WEEKLY dengan BYDAY: maju per hari; lompat ke minggu berikutnya
-        // sesuai INTERVAL setiap melewati hari Sabtu WIB.
-        const wibDay = new Date(t + WIB_OFFSET_MS).getUTCDay();
-        t += wibDay === 6 && interval > 1 ? ((interval - 1) * 7 + 1) * DAY_MS : DAY_MS;
-      } else {
-        t += interval * 7 * DAY_MS;
-      }
+      return;
     }
+
+    // Frekuensi lain yang tidak dikenal: minimal kejadian pertamanya tampil.
+    push(ev, ev.start);
   });
 
   out.sort((a, b) => a.start.localeCompare(b.start));
@@ -307,8 +381,40 @@ function wibTimeString(isoOrMs) {
   return new Date(ms + WIB_OFFSET_MS).toISOString().slice(11, 16);
 }
 
+// Rentang jadwal yang disimpan: sebulan ke belakang sampai enam bulan ke depan.
+// Sengaja LEBAR karena kalender kelas disusun per semester: kalau jendelanya
+// sempit (mis. hanya 14 hari), kelas yang baru mulai bulan depan tidak akan
+// terlihat sama sekali dan hasilnya terbaca sebagai "jadwal kosong".
+const SYNC_BACK_DAYS = 30;
+const SYNC_AHEAD_DAYS = 180;
+
+// Beberapa penyedia kalender menolak/melayani berbeda permintaan tanpa
+// User-Agent yang wajar, jadi kirim identitas yang jelas.
+const HTTP_UA = "Mozilla/5.0 (compatible; PCVClassroom/1.0; +https://pcvclassroom.com)";
+
+// Rapikan link kalender yang umum salah tempel:
+// - spasi/tanda kutip ikut ter-copy
+// - link tampilan HTML (".../basic.html") padahal yang dibutuhkan ".../basic.ics"
+// - link "embed?src=..." dari tombol Sematkan
+// - webcal:// (format langganan) -> https://
+function normalizeIcalUrl(raw) {
+  let url = String(raw || "").trim().replace(/^["'<]+|["'>]+$/g, "");
+  if (!url) return "";
+  if (url.indexOf("webcal://") === 0) url = "https://" + url.slice("webcal://".length);
+  const embed = url.match(/calendar\.google\.com\/calendar\/embed\?src=([^&]+)/);
+  if (embed) {
+    return "https://calendar.google.com/calendar/ical/" + embed[1] + "/public/basic.ics";
+  }
+  url = url.replace(/\/basic\.html(\?.*)?$/, "/basic.ics");
+  return url;
+}
+
 // Refresh scheduleCache semua kelas dari secret iCal (class_sources).
-// Mengembalikan ringkasan {classId: jumlahEvent | "error: ..."} untuk log/UI.
+//
+// Mengembalikan diagnosa per kelas supaya admin tahu PERSIS kenapa hasilnya
+// kosong (link salah? server menolak? filenya memang belum ada jadwal? atau
+// jadwalnya ada tapi di luar rentang tampil?). Sebelumnya kegagalan seperti ini
+// hanya tampil sebagai "0 agenda" tanpa keterangan apa pun.
 function refreshClassSchedules(app) {
   const summary = {};
   let sources = [];
@@ -318,29 +424,85 @@ function refreshClassSchedules(app) {
     return summary;
   }
   const now = Date.now();
+  const fromMs = now - SYNC_BACK_DAYS * DAY_MS;
+  const toMs = now + SYNC_AHEAD_DAYS * DAY_MS;
+
   sources.forEach((src) => {
     const classId = src.getString("class");
+    const info = { ok: false, events: 0 };
     try {
-      const res = $http.send({ url: src.getString("icalUrl"), method: "GET", timeout: 60 });
-      if (res.statusCode !== 200) throw new Error("HTTP " + res.statusCode);
-      // PENTING: body respons PocketBase JSVM ada di field `raw`, BUKAN `body`
-      // (`.body` selalu undefined). Salah nama field ini bikin expandIcs selalu
-      // menerima string kosong -> jadwal selalu kosong walau link iCal benar
-      // dan fetch-nya sendiri berhasil (statusCode 200, jadi tidak error).
-      //
-      // Jendela cukup lebar (seminggu ke belakang, dua bulan ke depan) supaya
-      // tampilan kalender bulanan di web siswa tidak setengah kosong.
-      const events = expandIcs(res.raw || "", now - 7 * DAY_MS, now + 60 * DAY_MS);
+      const url = normalizeIcalUrl(src.getString("icalUrl"));
+      if (!url) throw new Error("Link iCal kosong.");
+
+      const res = $http.send({
+        url: url,
+        method: "GET",
+        timeout: 60,
+        headers: { "User-Agent": HTTP_UA, Accept: "text/calendar, */*" },
+      });
+      info.httpStatus = res.statusCode;
+
+      const body = String(res.raw || "");
+      info.bytes = body.length;
+
+      if (res.statusCode !== 200) {
+        throw new Error(
+          "Server kalender menjawab HTTP " + res.statusCode +
+            (res.statusCode === 404
+              ? ". Link iCal-nya kemungkinan salah atau sudah di-reset di Google Calendar."
+              : res.statusCode === 403
+              ? ". Akses ditolak; pastikan yang dipakai adalah alamat RAHASIA format iCal."
+              : "."),
+        );
+      }
+      if (body.indexOf("BEGIN:VCALENDAR") === -1) {
+        throw new Error(
+          "Isi yang diunduh bukan berkas kalender (tidak ada BEGIN:VCALENDAR). " +
+            "Pastikan link berakhiran .ics, bukan halaman web biasa.",
+        );
+      }
+
+      // Jumlah jadwal di BERKAS (sebelum disaring rentang tampil). Angka ini yang
+      // membedakan "kalendernya memang kosong" dengan "ada isinya tapi di luar rentang".
+      info.vevents = (body.match(/BEGIN:VEVENT/g) || []).length;
+
+      const events = expandIcs(body, fromMs, toMs);
+      info.events = events.length;
+      info.ok = true;
+
       const cls = app.findRecordById("classes", classId);
       cls.set("scheduleCache", events);
       cls.set("scheduleFetchedAt", new Date().toISOString());
+      cls.set("scheduleStatus", buildStatusText(info));
       app.save(cls);
-      summary[classId] = events.length;
     } catch (err) {
-      summary[classId] = "error: " + (err && err.message ? err.message : String(err));
+      info.error = err && err.message ? err.message : String(err);
+      try {
+        const cls = app.findRecordById("classes", classId);
+        cls.set("scheduleFetchedAt", new Date().toISOString());
+        cls.set("scheduleStatus", buildStatusText(info));
+        app.save(cls);
+      } catch (_) {}
     }
+    summary[classId] = info;
   });
   return summary;
+}
+
+// Ringkasan sekali baca untuk ditampilkan di dashboard admin.
+function buildStatusText(info) {
+  if (info.error) return "GAGAL: " + info.error;
+  if (info.events > 0) {
+    return "OK: " + info.events + " jadwal dalam rentang tampil (" +
+      SYNC_BACK_DAYS + " hari lalu s/d " + SYNC_AHEAD_DAYS + " hari ke depan), " +
+      "dari " + (info.vevents || 0) + " jadwal di kalender.";
+  }
+  if ((info.vevents || 0) > 0) {
+    return "KOSONG: kalender terbaca (" + info.vevents + " jadwal), tapi tidak ada yang " +
+      "jatuh dalam " + SYNC_BACK_DAYS + " hari lalu s/d " + SYNC_AHEAD_DAYS + " hari ke depan. " +
+      "Biasanya berarti kelasnya memang belum dijadwalkan pada periode ini.";
+  }
+  return "KOSONG: kalender berhasil diunduh tapi memang belum berisi jadwal apa pun.";
 }
 
 module.exports = {
@@ -348,6 +510,7 @@ module.exports = {
   sendWA,
   waMessage,
   WA_TEMPLATE_DEFAULTS,
+  normalizeIcalUrl,
   expandIcs,
   wibDateString,
   wibTimeString,
