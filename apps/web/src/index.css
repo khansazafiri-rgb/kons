@@ -124,6 +124,27 @@ body {
      radial-gradient(ellipse 80% 60% at 20% 0%, rgba(255, 235, 210, 0.14), transparent 60%),
      radial-gradient(ellipse 60% 50% at 90% 100%, rgba(0, 0, 0, 0.28), transparent 65%);
  }
+ /* Tekstur "tenun" untuk hero besar: gradasi dalam + garis diagonal sangat
+    halus. Sengaja tanpa foto/footage - murni CSS. */
+ .bg-maroon-weave {
+   background-color: #6E0100;
+   background-image:
+     radial-gradient(ellipse 90% 70% at 12% -10%, rgba(255, 214, 170, 0.20), transparent 55%),
+     radial-gradient(ellipse 55% 45% at 85% 15%, rgba(201, 162, 39, 0.12), transparent 60%),
+     radial-gradient(ellipse 70% 60% at 100% 110%, rgba(0, 0, 0, 0.40), transparent 60%),
+     repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 10px),
+     linear-gradient(160deg, #8E0100 0%, #5A0100 62%, #420000 100%);
+ }
+ /* Overlay butiran noise (SVG turbulence) supaya bidang warna polos tidak
+    terlihat datar. Pakai di <div> absolut di atas panel, beri opacity kecil. */
+ .texture-noise {
+   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+ }
+ /* Pola titik-titik ivory untuk aksen dekoratif di panel gelap */
+ .texture-dots {
+   background-image: radial-gradient(rgba(253, 251, 247, 0.22) 1.2px, transparent 1.2px);
+   background-size: 20px 20px;
+ }
  /* Scrollbar tipis untuk daftar BAB yang panjang */
  .scrollbar-thin::-webkit-scrollbar {
    width: 6px;
