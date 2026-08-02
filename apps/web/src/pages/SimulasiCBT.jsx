@@ -194,7 +194,7 @@ export default function SimulasiCBT() {
  // Layar Pilihan untuk tahun yang SUDAH selesai: review atau kerjakan ulang
  if (questions && completedAttempt && !reviewing && !attemptId) {
    return (
-     <div className="min-h-screen bg-alba-50">
+     <div className="min-h-screen bg-diagonal-soft">
        <Header />
        <div className="max-w-md mx-auto px-6 py-24">
          <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
@@ -228,7 +228,7 @@ export default function SimulasiCBT() {
  // Layar Pengerjaan Ujian (atau Review)
  if (questions && (attemptId || reviewing)) {
    return (
-     <div className="min-h-screen bg-alba-50">
+     <div className="min-h-screen bg-diagonal-soft">
        <Header />
        <div className="max-w-5xl mx-auto px-6 py-10">
          <QuestionRunner
@@ -250,7 +250,7 @@ export default function SimulasiCBT() {
 
  // Layar Awal Pemilihan Parameter Ujian
  return (
-   <div className="min-h-screen bg-alba-50">
+   <div className="min-h-screen bg-diagonal-soft">
      <Header />
      <div className="max-w-3xl mx-auto px-6 py-14">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">

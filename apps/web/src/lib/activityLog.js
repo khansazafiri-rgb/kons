@@ -119,8 +119,43 @@ export function timeAgo(iso) {
   return `${Math.floor(days / 365)} tahun lalu`;
 }
 
-// Aktif = ada jejak aktivitas dalam N hari terakhir (default 14 hari).
-export const AKTIF_HARI = 14;
+// ---------------------------------------------------------------------------
+// Status keaktifan akun.
+//
+// "Aktif" TIDAK boleh berarti "pernah login beberapa minggu lalu". Yang dipakai
+// admin sehari-hari adalah: siapa yang SEDANG memakai web sekarang. Karena itu
+// statusnya berjenjang menurut jarak waktu dari jejak aktivitas terakhir
+// (users.lastActivityAt, diperbarui tiap aksi + heartbeat tiap 10 menit dari
+// Header selama web dibuka).
+// ---------------------------------------------------------------------------
+
+export const ONLINE_MENIT = 30;   // <= 30 menit  -> dianggap sedang online
+export const AKTIF_HARI = 7;      // <= 7 hari    -> masih terhitung aktif
+
+export const ACTIVITY_STATUS = {
+  online: { label: 'Online', desc: `aktif < ${ONLINE_MENIT} menit lalu`, tone: 'green' },
+  today: { label: 'Hari ini', desc: 'aktif dalam 24 jam terakhir', tone: 'gold' },
+  week: { label: 'Minggu ini', desc: `aktif dalam ${AKTIF_HARI} hari terakhir`, tone: 'stone' },
+  idle: { label: 'Tidak aktif', desc: `lebih dari ${AKTIF_HARI} hari tanpa aktivitas`, tone: 'red' },
+  never: { label: 'Belum pernah', desc: 'belum ada jejak aktivitas sama sekali', tone: 'red' },
+};
+
+// Kembalikan kunci status ('online' | 'today' | 'week' | 'idle' | 'never').
+export function activityStatus(user) {
+  if (!user?.lastActivityAt) return 'never';
+  const then = new Date(user.lastActivityAt).getTime();
+  if (Number.isNaN(then)) return 'never';
+  const menit = (Date.now() - then) / 60000;
+  if (menit <= ONLINE_MENIT) return 'online';
+  if (menit <= 24 * 60) return 'today';
+  if (menit <= AKTIF_HARI * 24 * 60) return 'week';
+  return 'idle';
+}
+
+export const isOnline = (user) => activityStatus(user) === 'online';
+
+// Aktif = ada jejak aktivitas dalam N hari terakhir (dipakai untuk ringkasan
+// "berapa yang masih hidup minggu ini", bukan untuk label per orang).
 export function isAktif(user, days = AKTIF_HARI) {
   if (!user?.lastActivityAt) return false;
   const then = new Date(user.lastActivityAt).getTime();

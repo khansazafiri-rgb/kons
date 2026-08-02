@@ -170,7 +170,7 @@ export default function CicilBelajar() {
  // Layar Peringatan Resume Pengerjaan
  if (questions && priorProgress && resume === null) {
    return (
-     <div className="min-h-screen bg-alba-50">
+     <div className="min-h-screen bg-grid-soft">
        <Header />
        <div className="max-w-md mx-auto px-6 py-24">
          <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
@@ -207,7 +207,7 @@ export default function CicilBelajar() {
  // Layar Pilihan untuk BAB yang SUDAH selesai: review atau kerjakan ulang
  if (questions && resume === 'completed' && priorProgress) {
    return (
-     <div className="min-h-screen bg-alba-50">
+     <div className="min-h-screen bg-grid-soft">
        <Header />
        <div className="max-w-md mx-auto px-6 py-24">
          <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
@@ -242,7 +242,7 @@ export default function CicilBelajar() {
  if (questions && resume !== null && resume !== 'completed') {
    const isReview = resume === 'review';
    return (
-     <div className="min-h-screen bg-alba-50">
+     <div className="min-h-screen bg-grid-soft">
        <Header />
        <div className="max-w-5xl mx-auto px-6 py-10">
          <QuestionRunner
@@ -265,7 +265,7 @@ export default function CicilBelajar() {
 
  // Layar Awal Pemilihan Bab
  return (
-   <div className="min-h-screen bg-alba-50">
+   <div className="min-h-screen bg-grid-soft">
      <Header />
      <div className="max-w-3xl mx-auto px-6 py-14">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
@@ -325,6 +325,7 @@ export default function CicilBelajar() {
                  value={chapterId}
                  onChange={setChapterId}
                  doneIds={doneChapters}
+                 openSignal={subjectId}
                  placeholder="Pilih BAB yang mau kamu kerjakan..."
                />
              </div>

@@ -5,6 +5,7 @@ import LandingLayout, { fadeUp } from './LandingLayout';
 import { TEACHERS as TEACHERS_FALLBACK, MANAGERS as MANAGERS_FALLBACK, MANAGER_CATEGORIES } from '@/data/team';
 import AchievementsSection from '@/components/landing/AchievementsSection';
 import pb from '@/lib/pocketbaseClient';
+import { teamPhotoSrc } from '@/lib/photoSrc';
 
 // Urutkan manager sesuai jabatan (Executive Board dulu, dst) lalu urutan simpan,
 // supaya alur strukturnya tetap terbaca di carousel.
@@ -233,7 +234,7 @@ function ExtraInfo({ extras }) {
 function TeacherCard({ t }) {
   return (
     <div className="group h-full rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
-      <ProfilePhoto photo={t.photo} name={t.name} badge="Pengajar" />
+      <ProfilePhoto photo={teamPhotoSrc(t)} name={t.name} badge="Pengajar" />
       <div className="p-6 flex flex-col flex-1">
         <h3 className="font-display text-lg font-semibold text-stone-800">{t.name}</h3>
         {t.bidang && (
@@ -276,7 +277,7 @@ function TeacherCard({ t }) {
 function ManagerCard({ m }) {
   return (
     <div className="group h-full rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col">
-      <ProfilePhoto photo={m.photo} name={m.name} />
+      <ProfilePhoto photo={teamPhotoSrc(m)} name={m.name} />
       <div className="p-6 flex flex-col flex-1">
         {/* Jabatan ditonjolkan di tiap kartu */}
         <span className="self-start inline-flex items-center gap-1.5 rounded-full bg-maroon-600 text-alba-50 text-[11px] font-bold px-3 py-1 mb-3">

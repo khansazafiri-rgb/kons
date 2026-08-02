@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Flame, LogOut, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import pb from '@/lib/pocketbaseClient';
 
 // Logo asli PCV, dari link Google Drive. Kalau link gagal dimuat, jatuh ke
 // salinan lokal gambar yang sama di public/ - jadi logo PCV selalu tampil.
@@ -63,8 +64,45 @@ export async function fetchEnrolledSubjectIds(pb, user, role) {
  }
 }
 
+// Ambil kelas reguler siswa beserta jadwalnya, FRESH dari server.
+// Penting: record di authStore adalah salinan saat login, jadi kalau admin baru
+// memilihkan kelas SETELAH siswa login, field `kelas` di sana masih kosong dan
+// jadwal tidak akan pernah muncul. Karena itu record user diambil ulang.
+// Mengembalikan { kelas, events } - kelas null kalau siswa belum punya kelas.
+export async function fetchMyClass(pb, user) {
+ if (!user?.id) return { kelas: null, events: [] };
+ try {
+   const me = await pb.collection('users').getOne(user.id);
+   if (!me.kelas) return { kelas: null, events: [] };
+   const kelas = await pb.collection('classes').getOne(me.kelas);
+   const events = Array.isArray(kelas.scheduleCache) ? kelas.scheduleCache : [];
+   return { kelas, events };
+ } catch (_) {
+   return { kelas: null, events: [] };
+ }
+}
+
+// Catat "masih memakai web" secara hemat: paling sering sekali per 10 menit,
+// disimpan di users.lastActivityAt. Tanpa ini, siswa yang sedang membaca-baca
+// tidak pernah terdeteksi online di Dashboard Activity admin, karena jejak
+// hanya tertulis saat menyelesaikan latihan.
+const HEARTBEAT_MS = 10 * 60 * 1000;
+export async function heartbeat(pb, user) {
+ if (!user?.id) return;
+ const key = `pcv_hb_${user.id}`;
+ try {
+   const last = Number(localStorage.getItem(key) || 0);
+   if (Date.now() - last < HEARTBEAT_MS) return;
+   localStorage.setItem(key, String(Date.now()));
+   await pb.collection('users').update(user.id, { lastActivityAt: new Date().toISOString() });
+ } catch (_) {
+   /* jejak aktivitas bukan data kritis - abaikan kegagalannya */
+ }
+}
+
 const navItems = [
  { to: '/beranda', label: 'Beranda' },
+ { to: '/jadwal-kelas', label: 'Jadwal Kelas' },
  { to: '/perdalam-materi', label: 'Perdalam Materi' },
  { to: '/cicil-belajar', label: 'Cicil Belajar!' },
  { to: '/simulasi-test', label: 'Simulasi Test' },
@@ -79,6 +117,9 @@ export default function Header() {
    document.documentElement.classList.toggle('dark', dark);
    localStorage.setItem('pcv_theme', dark ? 'dark' : 'light');
  }, [dark]);
+
+ // Header ada di semua halaman web siswa, jadi ini sekaligus penanda "online".
+ useEffect(() => { heartbeat(pb, user); }, [user]);
 
  const doLogout = async () => {
    // Tunggu slot device dilepas dulu supaya akun langsung bisa dipakai login

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, BookOpenText, ClipboardList, History, Library, Timer, CalendarClock } from 'lucide-react';
-import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
+import { ArrowRight, BookOpenText, CalendarDays, ClipboardList, History, Library, Timer, CalendarClock } from 'lucide-react';
+import Header, { fetchEnrolledSubjectIds, fetchMyClass } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
@@ -27,12 +27,39 @@ const cards = [
  },
 ];
 
+// Aksen visual per kartu menu, dipakai bergiliran supaya deretan kartu tidak
+// terlihat seperti satu blok seragam.
+const CARD_ACCENTS = [
+  {
+    bar: 'bg-maroon-600',
+    border: 'border-alba-200 hover:border-maroon-300',
+    icon: 'bg-maroon-50 border border-maroon-100 text-maroon-600 group-hover:bg-maroon-600 group-hover:text-alba-50',
+    button: 'bg-maroon-600 text-alba-50 hover:bg-maroon-700',
+    corner: 'texture-corner-maroon',
+  },
+  {
+    bar: 'bg-gold-400',
+    border: 'border-alba-200 hover:border-gold-200',
+    icon: 'bg-gold-100 border border-gold-200 text-gold-600 group-hover:bg-gold-400 group-hover:text-alba-50',
+    button: 'bg-gold-400 text-alba-50 hover:bg-gold-600',
+    corner: 'texture-corner-gold',
+  },
+  {
+    bar: 'bg-maroon-400',
+    border: 'border-alba-200 hover:border-maroon-200',
+    icon: 'bg-alba-100 border border-alba-300 text-maroon-500 group-hover:bg-maroon-400 group-hover:text-alba-50',
+    button: 'bg-stone-800 text-alba-50 hover:bg-stone-900',
+    corner: 'texture-corner-dots',
+  },
+];
+
 export default function LearningHome() {
  const navigate = useNavigate();
  const { user, role } = useAuth();
  const [resumeList, setResumeList] = useState([]);
  const [exams, setExams] = useState([]);
  const [kelas, setKelas] = useState(null); // record classes milik siswa (jadwal kelas reguler)
+ const [classEventsAll, setClassEventsAll] = useState([]);
  const [showBank, setShowBank] = useState(false); // saklar fitur Bank Soal (landing_settings)
 
  // Kartu Bank Soal baru muncul kalau admin sudah merilis fiturnya.
@@ -45,34 +72,48 @@ export default function LearningHome() {
    return () => { alive = false; };
  }, []);
 
- const menuCards = showBank
-   ? [...cards, {
-       icon: Library,
-       title: 'Bank Soal',
-       desc: 'Latihan bebas dari kumpulan soal berjumlah besar per mata kuliah dan BAB.',
-       to: '/bank-soal',
-     }]
-   : cards;
+ const menuCards = [
+   ...cards,
+   ...(showBank
+     ? [{
+         icon: Library,
+         title: 'Bank Soal',
+         desc: 'Latihan bebas dari kumpulan soal berjumlah besar per mata kuliah dan BAB.',
+         to: '/bank-soal',
+       }]
+     : []),
+   ...(kelas
+     ? [{
+         icon: CalendarDays,
+         title: 'Jadwal Kelas',
+         desc: 'Kalender kelas regulermu, lengkap dengan jam dan tempatnya.',
+         to: '/jadwal-kelas',
+       }]
+     : []),
+ ];
 
- // Jadwal kelas reguler siswa: server menyinkronkan Google Calendar tiap kelas
- // ke classes.scheduleCache; di sini tinggal menampilkan 7 hari ke depan.
+ // Jadwal kelas reguler siswa. Record user diambil FRESH dari server (lihat
+ // fetchMyClass): kalau admin baru memilihkan kelas setelah siswa login, salinan
+ // di sesi lokal masih kosong dan jadwalnya tidak akan pernah muncul.
  useEffect(() => {
    let alive = true;
-   if (!user?.kelas) { setKelas(null); return; }
-   pb.collection('classes').getOne(user.kelas)
-     .then((k) => { if (alive) setKelas(k); })
-     .catch(() => { if (alive) setKelas(null); });
+   fetchMyClass(pb, user).then((res) => {
+     if (!alive) return;
+     setKelas(res.kelas);
+     setClassEventsAll(res.events);
+   });
    return () => { alive = false; };
- }, [user?.kelas]);
+ }, [user]);
 
  const WIB_OFFSET_MS = 7 * 3600000;
  const wibDate = (iso) => new Date(new Date(iso).getTime() + WIB_OFFSET_MS).toISOString().slice(0, 10);
  const wibTime = (iso) => new Date(new Date(iso).getTime() + WIB_OFFSET_MS).toISOString().slice(11, 16);
  const todayWib = wibDate(new Date().toISOString());
  const tomorrowWib = wibDate(new Date(Date.now() + 86400000).toISOString());
- const classEvents = (Array.isArray(kelas?.scheduleCache) ? kelas.scheduleCache : [])
+ const classEvents = classEventsAll
    .filter((ev) => ev?.start && wibDate(ev.start) >= todayWib)
-   .slice(0, 6);
+   .sort((a, b) => a.start.localeCompare(b.start))
+   .slice(0, 4);
 
  // Reminder ujian: ambil jadwal ujian mendatang lalu tampilkan countdown di
  // beranda. Untuk SISWA, hanya jadwal dari mata kuliah yang ia ambil yang
@@ -125,7 +166,7 @@ export default function LearningHome() {
  const firstName = (user?.name || '').split(' ')[0];
 
  return (
-   <div className="min-h-screen bg-alba-50">
+   <div className="min-h-screen bg-glow-soft">
      <Header />
      <div className="max-w-6xl mx-auto px-6 py-14">
        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -232,32 +273,39 @@ export default function LearningHome() {
          </motion.div>
        )}
 
+       {/* Kartu menu sengaja TIDAK seragam: tiap menu punya warna aksen dan
+           pola latar ikonnya sendiri, jadi siswa mengenali menu dari bentuknya,
+           bukan hanya dari tulisannya. */}
        <div className={`grid gap-6 ${menuCards.length > 3 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
-         {menuCards.map((c, i) => (
-           <motion.div
-             key={c.title}
-             initial={{ opacity: 0, y: 16 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.4, delay: 0.08 * (i + 1) }}
-             className="group rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 hover:border-maroon-200 transition-all flex flex-col"
-           >
-             <div className="h-1.5 bg-maroon-600" />
-             <div className="p-7 flex flex-col flex-1">
-               <div className="w-11 h-11 rounded-xl bg-maroon-50 border border-maroon-100 text-maroon-600 flex items-center justify-center mb-5 group-hover:bg-maroon-600 group-hover:text-alba-50 transition-colors">
-                 <c.icon size={20} />
+         {menuCards.map((c, i) => {
+           const aksen = CARD_ACCENTS[i % CARD_ACCENTS.length];
+           return (
+             <motion.div
+               key={c.title}
+               initial={{ opacity: 0, y: 16 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.4, delay: 0.08 * (i + 1) }}
+               className={`group relative rounded-2xl border bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col ${aksen.border}`}
+             >
+               <div className={`h-1.5 ${aksen.bar}`} />
+               <div className={`absolute top-1.5 right-0 w-24 h-24 ${aksen.corner} pointer-events-none`} aria-hidden />
+               <div className="relative p-7 flex flex-col flex-1">
+                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-5 transition-colors ${aksen.icon}`}>
+                   <c.icon size={20} />
+                 </div>
+                 <h2 className="font-display text-xl font-semibold mb-2">{c.title}</h2>
+                 <p className="text-sm text-stone-600 leading-relaxed flex-1 mb-6">{c.desc}</p>
+                 <button
+                   onClick={() => navigate(c.to)}
+                   className={`self-start inline-flex items-center gap-2 rounded-full text-sm font-bold px-6 py-2.5 transition-colors ${aksen.button}`}
+                 >
+                   Buka
+                   <ArrowRight size={14} />
+                 </button>
                </div>
-               <h2 className="font-display text-xl font-semibold mb-2">{c.title}</h2>
-               <p className="text-sm text-stone-600 leading-relaxed flex-1 mb-6">{c.desc}</p>
-               <button
-                 onClick={() => navigate(c.to)}
-                 className="self-start inline-flex items-center gap-2 rounded-full bg-maroon-600 text-alba-50 text-sm font-bold px-6 py-2.5 hover:bg-maroon-700 transition-colors"
-               >
-                 Click here!
-                 <ArrowRight size={14} />
-               </button>
-             </div>
-           </motion.div>
-         ))}
+             </motion.div>
+           );
+         })}
        </div>
      </div>
    </div>

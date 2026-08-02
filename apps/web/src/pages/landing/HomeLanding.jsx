@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight, BookOpenText, CalendarClock, Flame, FlaskConical, GraduationCap,
+  ArrowRight, BookOpenText, CalendarClock, FlaskConical, GraduationCap,
   Instagram, MapPin, Medal, MessageCircle, Mic, Package, Quote, Sparkles, Star,
   Trophy, Users,
 } from 'lucide-react';
@@ -181,16 +181,6 @@ export default function HomeLanding() {
                 <HeroFeatureRow icon={CalendarClock} title="Reminder ujian & kelas" sub="Countdown ujian dan pengingat jadwal kelasmu" />
                 <HeroFeatureRow icon={Trophy} title="Tryout CBT per paket" sub="Simulasi ujian dengan timer, skor, dan pembahasan" />
               </div>
-            </div>
-
-            {/* Kartu mengambang: rasa produknya langsung kelihatan */}
-            <div className="absolute -right-4 -top-5 rotate-3 rounded-2xl bg-alba-50 text-stone-800 shadow-card-hover px-5 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-maroon-500">Reminder Ujian</p>
-              <p className="font-display font-bold text-sm">UTB Kardio · <span className="text-maroon-600">5 hari lagi</span></p>
-            </div>
-            <div className="absolute -left-7 -bottom-5 -rotate-2 rounded-2xl bg-gold-400 text-maroon-900 shadow-card-hover px-5 py-3 flex items-center gap-2">
-              <Flame size={16} />
-              <p className="font-display font-bold text-sm">Streak belajar 12 hari</p>
             </div>
           </motion.div>
         </div>

@@ -60,12 +60,15 @@ cronAdd("pcvClassReminderH1", "0 10 * * *", () => {
 
     students.forEach((st) => {
       const nama = st.getString("name") || "Sobat PCV";
-      const teks =
-        "Halo " + nama + "! Reminder dari PCV Classroom: besok ada jadwal kelas " +
-        cls.getString("name") + ":\n" + daftar + "\n\nSampai ketemu di kelas!";
 
-      // WhatsApp (skip otomatis kalau gateway belum aktif / nomor kosong).
+      // WhatsApp memakai template yang bisa diedit admin (skip otomatis kalau
+      // gateway belum aktif / nomor kosong).
       try {
+        const teks = shared.waMessage($app, "classReminder", {
+          nama: nama,
+          kelas: cls.getString("name"),
+          jadwal: daftar,
+        });
         shared.sendWA($app, st.getString("phone"), teks);
       } catch (err) {
         console.log("reminder WA gagal untuk", st.id, err);

@@ -1,14 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Activity, ChevronDown, Mail, RefreshCw, Search, Users, X } from 'lucide-react';
+import { Activity, ChevronDown, Mail, MessageCircle, RefreshCw, Search, Users, X } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import {
   ACTIVITY_SECTIONS,
+  ACTIVITY_STATUS,
   AKTIF_HARI,
+  ONLINE_MENIT,
+  activityStatus,
   isAktif,
+  isOnline,
   sectionIcon,
   sectionLabel,
   timeAgo,
 } from '@/lib/activityLog';
+import { WA_TEMPLATES } from '@/lib/waTemplates';
 
 // ==========================================================================
 // TAB "DASHBOARD ACTIVITY"
@@ -92,8 +97,6 @@ function AkunAktif() {
 
   const teachers = users.filter((u) => u.role === 'teacher');
   const students = users.filter((u) => u.role === 'student');
-  const aktifTeachers = teachers.filter((u) => isAktif(u));
-  const aktifStudents = students.filter((u) => isAktif(u));
 
   // Ujian terdekat untuk seorang user (dipakai sebagai pengingat di kartu).
   const ujianTerdekat = (u) => {
@@ -131,24 +134,39 @@ function AkunAktif() {
 
       <div className="grid sm:grid-cols-2 gap-4">
         <KartuAktif
-          label="Pengajar aktif"
-          aktif={aktifTeachers.length}
+          label="Pengajar"
+          online={teachers.filter(isOnline).length}
+          mingguIni={teachers.filter((u) => isAktif(u)).length}
           total={teachers.length}
           open={openRole === 'teacher'}
           onClick={() => setOpenRole(openRole === 'teacher' ? null : 'teacher')}
         />
         <KartuAktif
-          label="Siswa aktif"
-          aktif={aktifStudents.length}
+          label="Siswa"
+          online={students.filter(isOnline).length}
+          mingguIni={students.filter((u) => isAktif(u)).length}
           total={students.length}
           open={openRole === 'student'}
           onClick={() => setOpenRole(openRole === 'student' ? null : 'student')}
         />
       </div>
 
-      <p className="text-[11px] text-stone-400 px-1">
-        &quot;Aktif&quot; = ada jejak kegiatan dalam {AKTIF_HARI} hari terakhir (mengerjakan soal, membaca PPT, upload PPT, mengubah soal).
-      </p>
+      <div className="rounded-xl border border-alba-200 bg-alba-100/50 px-4 py-3">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-2">Arti status</p>
+        <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+          {Object.entries(ACTIVITY_STATUS).map(([key, s]) => (
+            <span key={key} className="inline-flex items-center gap-1.5 text-[11px] text-stone-500">
+              <span className={`w-2 h-2 rounded-full ${TONE_DOT[s.tone]}`} />
+              <b className="text-stone-600">{s.label}</b> {s.desc}
+            </span>
+          ))}
+        </div>
+        <p className="text-[11px] text-stone-400 mt-2 leading-relaxed">
+          Jejak aktivitas tercatat saat mengerjakan soal, membaca materi, atau sekadar membuka web
+          (dicatat maksimal sekali tiap 10 menit). Jadi akun yang tidak menyentuh web selama{' '}
+          {ONLINE_MENIT} menit otomatis tidak lagi dihitung online.
+        </p>
+      </div>
 
       {openRole && (
         <div className="bg-alba-50 rounded-2xl border border-alba-200 p-5 shadow-card space-y-3 animate-fade-in">
@@ -186,8 +204,23 @@ function AkunAktif() {
   );
 }
 
-function KartuAktif({ label, aktif, total, open, onClick }) {
-  const pct = total ? Math.round((aktif / total) * 100) : 0;
+const TONE_DOT = {
+  green: 'bg-green-500',
+  gold: 'bg-gold-400',
+  stone: 'bg-stone-400',
+  red: 'bg-red-400',
+};
+
+const TONE_BADGE = {
+  green: 'text-green-800 bg-green-100 border-green-200',
+  gold: 'text-gold-600 bg-gold-100 border-gold-200',
+  stone: 'text-stone-600 bg-alba-200 border-alba-300',
+  red: 'text-red-600 bg-red-50 border-red-200',
+};
+
+// Angka besar = yang SEDANG online; jumlah aktif sepekan jadi keterangan kedua.
+function KartuAktif({ label, online, mingguIni, total, open, onClick }) {
+  const pct = total ? Math.round((online / total) * 100) : 0;
   return (
     <button
       onClick={onClick}
@@ -198,18 +231,22 @@ function KartuAktif({ label, aktif, total, open, onClick }) {
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 text-stone-500">
           <Users size={16} />
-          <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
+          <span className="text-xs font-bold uppercase tracking-wider">{label} online</span>
         </div>
         <ChevronDown size={16} className={`text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
-      <p className="font-display text-3xl font-semibold text-maroon-700">
-        {aktif}
-        <span className="text-lg font-medium text-stone-400"> / {total}</span>
+      <p className="font-display text-3xl font-semibold text-maroon-700 flex items-center gap-2">
+        {online > 0 && <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />}
+        {online}
+        <span className="text-lg font-medium text-stone-400">/ {total}</span>
       </p>
       <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden mt-3">
-        <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-[11px] font-semibold text-stone-400 mt-1.5">
+      <p className="text-[11px] font-semibold text-stone-500 mt-2">
+        {mingguIni} aktif dalam {AKTIF_HARI} hari terakhir
+      </p>
+      <p className="text-[11px] font-semibold text-stone-400 mt-0.5">
         {open ? 'Klik untuk menutup daftar' : 'Klik untuk lihat siapa saja'}
       </p>
     </button>
@@ -219,7 +256,10 @@ function KartuAktif({ label, aktif, total, open, onClick }) {
 function BarisOrang({ u, ujian, subjectName }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState('');
-  const aktif = isAktif(u);
+  const [waOpen, setWaOpen] = useState(false);
+  const status = activityStatus(u);
+  const info = ACTIVITY_STATUS[status];
+  const online = status === 'online';
   const kapan = timeAgo(u.lastActivityAt);
 
   // Email dirakit & dikirim di server (hook nudge-email.pb.js) supaya kredensial
@@ -241,18 +281,37 @@ function BarisOrang({ u, ujian, subjectName }) {
     setSending(false);
   };
 
+  // Isi pesan dirakit server dari template yang bisa diedit admin di tab
+  // Notifikasi WA, jadi teksnya konsisten dengan pengiriman otomatis.
+  const kirimWa = async (templateKey, templateLabel) => {
+    setWaOpen(false);
+    if (!u.phone) { setSent('❌ Akun ini belum punya nomor WA. Isi dulu di tab Siswa.'); return; }
+    if (!window.confirm(`Kirim WA "${templateLabel}" ke ${u.name || u.userId} (${u.phone})?`)) return;
+    setSending(true);
+    setSent('');
+    try {
+      const res = await pb.send('/api/pcv/wa-send', {
+        method: 'POST',
+        body: { userId: u.id, template: templateKey },
+      });
+      setSent('✅ ' + (res?.message || 'WA terkirim.'));
+    } catch (e) {
+      setSent('❌ Gagal: ' + (e?.response?.message || e?.message || 'coba lagi'));
+    }
+    setSending(false);
+  };
+
   return (
-    <div className={`rounded-xl border px-4 py-3 ${aktif ? 'border-green-200 bg-green-50/40' : 'border-alba-200 bg-alba-50'}`}>
+    <div className={`rounded-xl border px-4 py-3 ${online ? 'border-green-200 bg-green-50/40' : 'border-alba-200 bg-alba-50'}`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
           <p className="font-bold text-sm text-stone-800 truncate">
             {u.name || '(tanpa nama)'}
             <span className="ml-2 font-normal text-xs text-stone-400">{u.userId}</span>
-            {aktif ? (
-              <span className="ml-2 text-[10px] font-bold uppercase text-green-800 bg-green-100 border border-green-200 rounded-full px-2 py-0.5">Aktif</span>
-            ) : (
-              <span className="ml-2 text-[10px] font-bold uppercase text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Lama tak aktif</span>
-            )}
+            <span className={`ml-2 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase border rounded-full px-2 py-0.5 ${TONE_BADGE[info.tone]}`}>
+              {online && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
+              {info.label}
+            </span>
           </p>
           <p className="text-xs text-stone-600 mt-1 leading-relaxed">
             {u.lastActivityText ? (
@@ -271,14 +330,51 @@ function BarisOrang({ u, ujian, subjectName }) {
             </p>
           )}
         </div>
-        <button
-          onClick={kirim}
-          disabled={sending || !u.email}
-          title={u.email ? `Kirim email penyemangat ke ${u.email}` : 'Akun ini tidak punya email'}
-          className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold rounded-full border border-maroon-300 text-maroon-600 px-3 py-1.5 hover:bg-maroon-50 disabled:opacity-40"
-        >
-          <Mail size={13} /> {sending ? 'Mengirim…' : 'Kirim Email'}
-        </button>
+        <div className="shrink-0 flex items-start gap-2">
+          <button
+            onClick={kirim}
+            disabled={sending || !u.email}
+            title={u.email ? `Kirim email penyemangat ke ${u.email}` : 'Akun ini tidak punya email'}
+            className="inline-flex items-center gap-1.5 text-xs font-bold rounded-full border border-maroon-300 text-maroon-600 px-3 py-1.5 hover:bg-maroon-50 disabled:opacity-40"
+          >
+            <Mail size={13} /> {sending ? 'Mengirim…' : 'Kirim Email'}
+          </button>
+
+          {/* Kirim WA: pilih dulu template pesannya */}
+          <div className="relative">
+            <button
+              onClick={() => setWaOpen((o) => !o)}
+              disabled={sending || !u.phone}
+              title={u.phone ? `Kirim WA ke ${u.phone}` : 'Akun ini belum punya nomor WA'}
+              className="inline-flex items-center gap-1.5 text-xs font-bold rounded-full border border-green-300 text-green-700 px-3 py-1.5 hover:bg-green-50 disabled:opacity-40"
+            >
+              <MessageCircle size={13} /> Kirim WA
+              <ChevronDown size={12} className={`transition-transform ${waOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {waOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setWaOpen(false)} />
+                <div className="absolute right-0 z-20 mt-2 w-64 rounded-xl border border-alba-200 bg-alba-50 shadow-card-hover p-1.5 animate-fade-in">
+                  <p className="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                    Pilih template pesan
+                  </p>
+                  {WA_TEMPLATES.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => kirimWa(t.key, t.label)}
+                      className="w-full text-left rounded-lg px-2.5 py-2 text-xs font-semibold text-stone-700 hover:bg-green-50 hover:text-green-800"
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                  <p className="px-2.5 py-1.5 text-[10px] text-stone-400 border-t border-alba-200 mt-1">
+                    Isi tiap template bisa diubah di tab Notifikasi WA.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
       {sent && <p className="text-[11px] mt-2 text-stone-600 bg-alba-100 border border-alba-200 rounded-lg px-3 py-1.5">{sent}</p>}
     </div>

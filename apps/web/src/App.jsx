@@ -17,6 +17,7 @@ import PembelajaranPPT from './pages/PembelajaranPPT';
 import CicilBelajar from './pages/CicilBelajar';
 import SimulasiCBT from './pages/SimulasiCBT';
 import BankSoal from './pages/BankSoal';
+import JadwalKelas from './pages/JadwalKelas';
 import AdminPanel from './pages/admin/AdminPanel';
 import TeacherPanel from './pages/teacher/TeacherPanel';
 
@@ -35,6 +36,7 @@ function App() {
          <Route path="/signup" element={<SignupPage />} />
          <Route path="/beranda" element={<ProtectedRoute><LearningHome /></ProtectedRoute>} />
          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+         <Route path="/jadwal-kelas" element={<ProtectedRoute><JadwalKelas /></ProtectedRoute>} />
          <Route path="/perdalam-materi" element={<ProtectedRoute><PerdalamMateri /></ProtectedRoute>} />
          <Route path="/pembelajaran-ppt" element={<ProtectedRoute><PembelajaranPPT /></ProtectedRoute>} />
          <Route path="/cicil-belajar" element={<ProtectedRoute><CicilBelajar /></ProtectedRoute>} />
