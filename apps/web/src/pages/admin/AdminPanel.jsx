@@ -849,9 +849,70 @@ ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "v
 
 Konversi soal-soal isian bergambar berikut (sertakan link gambar + semua jawaban yang diterima):
 <<< TEMPEL SOAL + LINK GAMBAR DI SINI >>>`,
+
+  'Acak (Campur)': `Kamu konverter soal untuk web CBT PCV Classroom. Soal-soal di bawah CAMPURAN dari beberapa tipe. Ubah SEMUANYA menjadi SATU array JavaScript, di mana tiap soal memakai format sesuai tipenya masing-masing.
+
+${OUTPUT_RULES}
+- Boleh mencampur keempat tipe di bawah dalam satu array yang sama, dengan urutan mengikuti urutan soal yang saya beri.
+
+TIPE 1 - MCQ BIASA (pilihan ganda, tanpa gambar):
+{
+  "text": "Pertanyaan lengkap",
+  "hint": "boleh \\"\\"",
+  "options": [
+    { "text": "Opsi A", "correct": false, "explanation": "Kenapa salah" },
+    { "text": "Opsi B", "correct": true,  "explanation": "Kenapa benar" }
+  ]
+}
+
+TIPE 2 - MCQ BERGAMBAR (pilihan ganda + gambar): sama seperti TIPE 1, TAPI tambahkan "imageUrl":
+{
+  "text": "Perhatikan gambar berikut. Pertanyaan di sini",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID",
+  "hint": "boleh \\"\\"",
+  "options": [
+    { "text": "Opsi A", "correct": false, "explanation": "Kenapa salah" },
+    { "text": "Opsi B", "correct": true,  "explanation": "Kenapa benar" }
+  ]
+}
+
+TIPE 3 - ISIAN BIASA (isian singkat, tanpa gambar):
+{
+  "text": "Instruksi/konteks soal",
+  "hint": "boleh \\"\\"",
+  "subQuestions": [
+    { "label": "A", "question": "Pertanyaan A", "validAnswers": ["jawaban / alternatif jawaban"] },
+    { "label": "B", "question": "Pertanyaan B", "validAnswers": ["jawaban"] }
+  ]
+}
+
+TIPE 4 - ISIAN BERGAMBAR (isian singkat + gambar): sama seperti TIPE 3, TAPI tambahkan "imageUrl":
+{
+  "text": "Perhatikan Gambar Berikut",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID",
+  "hint": "boleh \\"\\"",
+  "subQuestions": [
+    { "label": "A", "question": "Bentukan yang ditunjuk nomor 1 adalah", "validAnswers": ["Striated duct / Duktus striata"] },
+    { "label": "B", "question": "Bentukan yang ditunjuk nomor 2 adalah", "validAnswers": ["Intercalated duct"] }
+  ]
+}
+
+ATURAN ISI (penting, karena tipe tiap soal ditebak dari bentuk datanya):
+- Soal pilihan ganda WAJIB pakai "options" (min 2, TEPAT SATU "correct": true, SETIAP opsi wajib "explanation") dan DILARANG punya "subQuestions".
+- Soal isian WAJIB pakai "subQuestions" (min 1, "validAnswers" = array berisi SATU string, alternatif dipisah " / ") dan DILARANG punya "options".
+- JANGAN pernah menulis "options" dan "subQuestions" pada soal yang sama.
+- "imageUrl" HANYA ditulis pada soal yang memang punya gambar, dan pakai link gambar milik soal itu sendiri. Soal tanpa gambar: hilangkan "imageUrl" sepenuhnya (jangan ditulis "").
+
+Konversi soal-soal campuran berikut (sertakan link gambar untuk soal yang bergambar, kunci jawaban & pembahasan untuk MCQ, semua jawaban yang diterima untuk isian):
+<<< TEMPEL SOAL DI SINI >>>`,
 };
 
-const TYPE_LABEL = { mcq: 'MCQ Biasa', mcq_img: 'MCQ Bergambar', isian: 'Isian Biasa', isian_img: 'Isian Bergambar' };
+const TYPE_LABEL = { mcq: 'MCQ Biasa', mcq_img: 'MCQ Bergambar', isian: 'Isian Biasa', isian_img: 'Isian Bergambar', mixed: 'Acak (Campur)' };
+
+// "mixed" bukan tipe soal sungguhan yang disimpan ke database - ia hanya mode
+// import yang membolehkan satu tempelan berisi campuran keempat tipe, lalu tipe
+// tiap soal ditebak dari bentuk datanya sendiri (lihat detectItemType).
+const MIXED_TYPE = 'mixed';
 
 function BulkImport({ onImport, status }) {
   const [bulkText, setBulkText] = useState('');
@@ -885,6 +946,13 @@ function BulkImport({ onImport, status }) {
           </button>
         ))}
       </div>
+      {qtype === MIXED_TYPE && (
+        <p className="text-[11px] text-stone-500 bg-gold-100/40 border border-gold-200 rounded-lg px-3 py-2">
+          Mode <b>Acak</b>: satu tempelan boleh berisi campuran MCQ Biasa, MCQ Bergambar, Isian Biasa, dan Isian Bergambar.
+          Tipe tiap soal dibaca otomatis dari bentuk datanya — ada <code>options</code> = MCQ, ada <code>subQuestions</code> = Isian,
+          dan yang punya <code>imageUrl</code> jadi versi bergambar.
+        </p>
+      )}
 
       <p className="text-xs font-bold text-stone-500 pt-1">Langkah 2 - Buat datanya dengan Gemini:</p>
       <button onClick={copyPrompt} className={`text-xs font-semibold rounded-lg border px-4 py-2 transition-colors ${copied ? 'bg-green-50 border-green-200 text-green-800' : 'border-gold-200 bg-gold-100/50 text-gold-600 hover:bg-gold-100'}`}>
@@ -892,7 +960,11 @@ function BulkImport({ onImport, status }) {
       </button>
       <p className="text-[11px] text-stone-400">Tempel prompt itu di Gemini bersama soal-soalmu → salin array hasilnya → tempel di kotak bawah.</p>
 
-      <p className="text-xs font-bold text-stone-500 pt-1">Langkah 3 - Tempel hasilnya lalu import (akan dicek sesuai tipe <span className="text-maroon-600">{TYPE_LABEL[qtype]}</span>):</p>
+      <p className="text-xs font-bold text-stone-500 pt-1">
+        {qtype === MIXED_TYPE
+          ? <>Langkah 3 - Tempel hasilnya lalu import (<span className="text-maroon-600">tipe tiap soal dideteksi otomatis</span>):</>
+          : <>Langkah 3 - Tempel hasilnya lalu import (akan dicek sesuai tipe <span className="text-maroon-600">{TYPE_LABEL[qtype]}</span>):</>}
+      </p>
       <textarea
         value={bulkText}
         onChange={(e) => setBulkText(e.target.value)}
@@ -908,27 +980,48 @@ function BulkImport({ onImport, status }) {
   );
 }
 
+// Tebak tipe satu soal dari bentuk datanya sendiri - dipakai mode "Acak", di
+// mana satu tempelan boleh berisi campuran keempat tipe soal sekaligus.
+// Aturannya: "options" = MCQ, "subQuestions" = Isian, dan "imageUrl" yang terisi
+// menaikkannya ke varian bergambar.
+function detectItemType(item, no) {
+  const hasSubs = Array.isArray(item.subQuestions) && item.subQuestions.length > 0;
+  const hasOpts = Array.isArray(item.options) && item.options.length > 0;
+  if (hasSubs && hasOpts) throw new Error(`Soal #${no}: berisi "options" DAN "subQuestions" sekaligus, jadi tipenya tidak jelas. Satu soal hanya boleh punya salah satu.`);
+  if (!hasSubs && !hasOpts) throw new Error(`Soal #${no}: tidak punya "options" (MCQ) maupun "subQuestions" (Isian), jadi tipenya tidak bisa ditebak. Cek lagi hasil dari Gemini.`);
+  const withImg = String(item.imageUrl || '').trim() !== '';
+  if (hasSubs) return withImg ? 'isian_img' : 'isian';
+  return withImg ? 'mcq_img' : 'mcq';
+}
+
 // parser untuk import massal - tipe soal DITENTUKAN oleh pilihan user (qtype),
-// lalu isi datanya divalidasi agar sesuai dengan tipe tersebut.
+// lalu isi datanya divalidasi agar sesuai dengan tipe tersebut. Khusus qtype
+// "mixed" (Acak) pilihan user tidak memaksa apa pun: tipe tiap soal ditebak
+// per-soal lewat detectItemType, sehingga satu tempelan bisa memuat MCQ Biasa,
+// MCQ Bergambar, Isian Biasa, dan Isian Bergambar sekaligus.
 function parseBulkItems(bulkText, qtype) {
   // eslint-disable-next-line no-new-func
   const parsed = Function('return (' + bulkText + ')')();
   if (!Array.isArray(parsed)) throw new Error('Data harus berupa list [ ... ].');
-  const isian = isIsianType(qtype);
-  const withImg = hasImageType(qtype);
+  const acak = qtype === MIXED_TYPE;
   return parsed.map((item, i) => {
     const no = i + 1;
     const hasSubs = Array.isArray(item.subQuestions) && item.subQuestions.length > 0;
     const hasOpts = Array.isArray(item.options) && item.options.length > 0;
-    if (isian && !hasSubs) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "subQuestions". Pakai prompt Isian, atau ganti tipe ke MCQ.`);
-    if (!isian && !hasOpts) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "options". Pakai prompt MCQ, atau ganti tipe ke Isian.`);
-    if (!isian && hasSubs) throw new Error(`Soal #${no}: berisi "subQuestions" (format Isian) padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Ganti tipe ke Isian.`);
-    if (withImg && !item.imageUrl) throw new Error(`Soal #${no}: tipe bergambar tapi tidak ada "imageUrl". Tambahkan link gambarnya.`);
+    const itemType = acak ? detectItemType(item, no) : qtype;
+    const isian = isIsianType(itemType);
+    const withImg = hasImageType(itemType);
+    if (!acak) {
+      if (isian && !hasSubs) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "subQuestions". Pakai prompt Isian, atau ganti tipe ke MCQ.`);
+      if (!isian && !hasOpts) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "options". Pakai prompt MCQ, atau ganti tipe ke Isian.`);
+      if (!isian && hasSubs) throw new Error(`Soal #${no}: berisi "subQuestions" (format Isian) padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Ganti tipe ke Isian.`);
+      if (withImg && !item.imageUrl) throw new Error(`Soal #${no}: tipe bergambar tapi tidak ada "imageUrl". Tambahkan link gambarnya.`);
+    }
     return {
-      qtype,
+      qtype: itemType,
       text: item.text || '',
       hint: item.hint || '',
-      imageUrl: withImg ? (item.imageUrl || '') : (item.imageUrl || ''),
+      imageUrl: item.imageUrl || '',
       options: isian ? [] : item.options,
       subQuestions: isian
         ? item.subQuestions.map((sq) => ({
@@ -941,13 +1034,21 @@ function parseBulkItems(bulkText, qtype) {
   });
 }
 
+// Ringkasan "3 MCQ Biasa, 2 Isian Bergambar" untuk ditempelkan di pesan sukses,
+// supaya saat import Acak user bisa langsung mengecek deteksinya sudah benar.
+function summarizeTypes(items) {
+  const count = {};
+  items.forEach((it) => { count[it.qtype] = (count[it.qtype] || 0) + 1; });
+  return Object.entries(count).map(([t, n]) => `${n} ${TYPE_LABEL[t] || t}`).join(', ');
+}
+
 // Buat banyak soal sekaligus dengan tahan-banting: retry saat kena batas
 // kecepatan server (429) atau gangguan jaringan sesaat (502/503), plus jeda
 // kecil antar-soal supaya tidak menabrak rate limit. Dipakai BERSAMA oleh
 // EditSoal (Cicil Belajar) & EditSimulasi (CBT) agar keduanya SAMA andalnya -
 // sebelumnya import di Simulasi tidak punya retry sehingga sering "gagal di
 // tengah jalan" saat soalnya banyak.
-async function bulkCreateQuestions({ items, buildPayload, startOrder, setStatus }) {
+async function bulkCreateQuestions({ items, buildPayload, startOrder, setStatus, summary }) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let order = startOrder;
   let sukses = 0;
@@ -992,7 +1093,7 @@ async function bulkCreateQuestions({ items, buildPayload, startOrder, setStatus 
     if (sukses % 5 === 0) setStatus(`⏳ Menyimpan... ${sukses}/${items.length} soal`);
     await sleep(120); // jeda kecil supaya tidak menabrak rate limit server
   }
-  setStatus('✅ Selesai! ' + sukses + ' soal berhasil ditambahkan.');
+  setStatus('✅ Selesai! ' + sukses + ' soal berhasil ditambahkan.' + (summary ? '\nRincian: ' + summary : ''));
   return { sukses, ok: true };
 }
 
@@ -1141,6 +1242,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
       items,
       startOrder: questions.length,
       setStatus: setBulkStatus,
+      summary: summarizeTypes(items),
       buildPayload: (item) => ({
         subject: subjectId,
         chapter: chapterId,
@@ -1155,7 +1257,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
       onDone?.();
       logActivity(pb, user, {
         section: 'soal_tambah',
-        summary: `Import massal ${items.length} soal latihan ke ${subjectLabel()} · ${chapterLabel()}`,
+        summary: `Import massal ${items.length} soal latihan (${summarizeTypes(items)}) ke ${subjectLabel()} · ${chapterLabel()}`,
         targetLabel: chapterLabel(),
       });
     }
@@ -1796,6 +1898,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       items,
       startOrder: questions.length,
       setStatus: setBulkStatus,
+      summary: summarizeTypes(items),
       buildPayload: (item) => ({
         subject: subjectId,
         chapter: '',
@@ -1810,7 +1913,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       onDone?.();
       logActivity(pb, user, {
         section: 'soal_tambah',
-        summary: `Import massal ${items.length} soal ke Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`,
+        summary: `Import massal ${items.length} soal (${summarizeTypes(items)}) ke Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`,
         targetLabel: `Simulasi CBT Paket ${year}`,
       });
     }
