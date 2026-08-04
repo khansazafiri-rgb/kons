@@ -6,4 +6,4 @@
 // terbawa di hook PocketBase). Kalau beda, berarti salah satu dari build web /
 // restart PocketBase terlewat saat deploy, dan admin diberi tahu terang-terangan.
 // Naikkan versinya setiap kali ada perubahan pada hook PocketBase.
-export const APP_VERSION = 'v9.4';
+export const APP_VERSION = 'v9.5';

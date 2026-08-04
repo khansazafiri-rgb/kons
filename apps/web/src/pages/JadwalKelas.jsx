@@ -33,6 +33,8 @@ export default function JadwalKelas() {
   const { user } = useAuth();
   const [kelas, setKelas] = useState(null);
   const [events, setEvents] = useState([]);
+  const [reason, setReason] = useState('');   // no-source | empty | ok
+  const [status, setStatus] = useState('');   // keterangan teknis dari server
   const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState(() => {
     const t = new Date(Date.now() + WIB_OFFSET_MS);
@@ -46,6 +48,8 @@ export default function JadwalKelas() {
       if (!alive) return;
       setKelas(res.kelas);
       setEvents(res.events);
+      setReason(res.reason || '');
+      setStatus(res.status || '');
       setLoading(false);
 
       // Buka kalender langsung di bulan yang ADA kelasnya. Tanpa ini, siswa yang
@@ -126,9 +130,21 @@ export default function JadwalKelas() {
             isi="Admin belum memilihkan kelas untuk akunmu, jadi belum ada jadwal yang bisa ditampilkan. Hubungi admin PCV kalau kamu merasa seharusnya sudah masuk kelas."
           />
         ) : events.length === 0 ? (
+          // Pesan menyebut SEBAB persisnya, bukan tebakan. Keterangan teknis
+          // dari server ikut ditampilkan supaya admin bisa langsung bertindak
+          // kalau siswa mengirim screenshot halaman ini.
           <InfoBox
-            judul="Jadwal kelas belum tersedia"
-            isi={`Kelas "${kelas.name}" sudah terpasang di akunmu, tapi jadwalnya belum disinkronkan admin dari Google Calendar. Jadwal akan muncul di sini begitu admin menyiapkannya.`}
+            judul={
+              reason === 'no-source'
+                ? 'Kelas ini belum dipasangi kalender'
+                : 'Belum ada jadwal pada periode ini'
+            }
+            isi={
+              reason === 'no-source'
+                ? `Kelas "${kelas.name}" sudah terpasang di akunmu, tapi admin belum menghubungkan kelas ini ke Google Calendar. Tunjukkan halaman ini ke admin PCV: yang perlu diisi adalah link kalender kelas "${kelas.name}" di Dashboard Admin, tab Kelas & Reminder.`
+                : `Kalender kelas "${kelas.name}" sudah terhubung, tapi belum ada jadwal yang tercatat untuk periode ini. Jadwal akan muncul otomatis begitu jadwalnya diisi di Google Calendar.`
+            }
+            teknis={status}
           />
         ) : (
           <div className="grid lg:grid-cols-[1.35fr_1fr] gap-6 items-start">
@@ -287,13 +303,18 @@ function AgendaItem({ ev }) {
   );
 }
 
-function InfoBox({ judul, isi }) {
+function InfoBox({ judul, isi, teknis }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-6">
       <Info size={18} className="text-gold-600 mt-0.5 shrink-0" />
-      <div>
+      <div className="min-w-0">
         <p className="font-display font-semibold text-stone-800 mb-1">{judul}</p>
         <p className="text-sm text-stone-600 leading-relaxed">{isi}</p>
+        {teknis && (
+          <p className="mt-3 text-[11px] text-stone-500 bg-alba-50 border border-alba-200 rounded-lg px-3 py-2 leading-relaxed break-words">
+            Keterangan untuk admin: {teknis}
+          </p>
+        )}
       </div>
     </div>
   );

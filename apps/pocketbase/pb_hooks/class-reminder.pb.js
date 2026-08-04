@@ -10,7 +10,9 @@
 // - Endpoint POST /api/pcv/class-schedule/refresh: tombol "Refresh Jadwal"
 //   di dashboard admin (tidak perlu menunggu cron).
 
-cronAdd("pcvClassScheduleRefresh", "17 2 * * *", () => {
+// Tiap 3 jam, bukan sekali sehari: perubahan jadwal di Google Calendar tidak
+// perlu menunggu semalaman untuk terlihat siswa.
+cronAdd("pcvClassScheduleRefresh", "17 */3 * * *", () => {
   const { refreshClassSchedules } = require(`${__hooks}/pcv-shared.js`);
   const summary = refreshClassSchedules($app);
   console.log("pcvClassScheduleRefresh:", JSON.stringify(summary));
@@ -31,11 +33,13 @@ cronAdd("pcvClassReminderH1", "0 10 * * *", () => {
   }
 
   classes.forEach((cls) => {
+    // jsonArray: field JSON datang sebagai byte mentah, harus diurai dulu.
+    // Tanpa ini, filter di bawah meng-iterasi angka byte dan reminder H-1
+    // tidak pernah menemukan satu pun jadwal.
     let cache = [];
     try {
-      cache = cls.get("scheduleCache") || [];
+      cache = shared.jsonArray(cls.get("scheduleCache"));
     } catch (_) {}
-    if (!Array.isArray(cache)) return;
     const tomorrow = cache.filter((ev) => ev && ev.start && shared.wibDateString(ev.start) === besok);
     if (!tomorrow.length) return;
 
@@ -105,6 +109,45 @@ routerAdd("POST", "/api/pcv/class-schedule/refresh", (e) => {
   const { refreshClassSchedules } = require(`${__hooks}/pcv-shared.js`);
   const summary = refreshClassSchedules(e.app);
   return e.json(200, { summary: summary });
+});
+
+// Dipanggil halaman siswa saat membuka jadwal: pastikan jadwal kelasnya ADA
+// dan tidak basi, sinkronkan sendiri kalau perlu, lalu kembalikan hasilnya.
+//
+// Tujuannya menghilangkan ketergantungan pada admin menekan tombol refresh -
+// itulah yang selama ini membuat halaman siswa kosong padahal link kalendernya
+// sudah benar. Sinkronisasi hanya dijalankan kalau datanya kosong atau sudah
+// lewat batas umur, jadi tidak membebani server maupun Google Calendar.
+routerAdd("POST", "/api/pcv/class-schedule/ensure", (e) => {
+  const auth = e.auth;
+  if (!auth) return e.json(401, { message: "Harus login." });
+
+  const classId = auth.getString("kelas");
+  if (!classId) {
+    return e.json(200, { hasClass: false, events: [], reason: "no-class" });
+  }
+
+  const shared = require(`${__hooks}/pcv-shared.js`);
+  const hasil = shared.syncClassIfStale(e.app, classId, 3 * 60 * 60 * 1000);
+
+  let events = [];
+  let name = "";
+  try {
+    const cls = e.app.findRecordById("classes", classId);
+    name = cls.getString("name");
+    events = shared.jsonArray(cls.get("scheduleCache"));
+  } catch (_) {}
+
+  return e.json(200, {
+    hasClass: true,
+    className: name,
+    events: events,
+    // Kenapa kosong (kalau kosong): belum dipasangi link, gagal ambil, atau
+    // memang tidak ada jadwal pada periode ini.
+    reason: hasil.sourceMissing ? "no-source" : events.length ? "ok" : "empty",
+    status: hasil.status || "",
+    synced: hasil.synced,
+  });
 });
 
 // Versi kode server yang SEDANG berjalan. Dicocokkan dashboard admin dengan

@@ -70,15 +70,31 @@ export async function fetchEnrolledSubjectIds(pb, user, role) {
 // jadwal tidak akan pernah muncul. Karena itu record user diambil ulang.
 // Mengembalikan { kelas, events } - kelas null kalau siswa belum punya kelas.
 export async function fetchMyClass(pb, user) {
- if (!user?.id) return { kelas: null, events: [] };
+ if (!user?.id) return { kelas: null, events: [], reason: 'no-class' };
  try {
    const me = await pb.collection('users').getOne(user.id);
-   if (!me.kelas) return { kelas: null, events: [] };
+   if (!me.kelas) return { kelas: null, events: [], reason: 'no-class' };
    const kelas = await pb.collection('classes').getOne(me.kelas);
-   const events = Array.isArray(kelas.scheduleCache) ? kelas.scheduleCache : [];
-   return { kelas, events };
+   let events = Array.isArray(kelas.scheduleCache) ? kelas.scheduleCache : [];
+   let reason = events.length ? 'ok' : 'empty';
+   let status = kelas.scheduleStatus || '';
+
+   // Kalau jadwalnya kosong, minta server menyinkronkan saat itu juga. Ini yang
+   // membuat jadwal muncul sendiri tanpa admin harus menekan tombol refresh,
+   // sekaligus memberi tahu sebab persisnya kalau tetap kosong.
+   if (!events.length) {
+     try {
+       const r = await pb.send('/api/pcv/class-schedule/ensure', { method: 'POST' });
+       if (Array.isArray(r?.events)) events = r.events;
+       reason = r?.reason || reason;
+       status = r?.status || status;
+     } catch (_) {
+       /* endpoint belum ada (server versi lama) - pakai apa adanya */
+     }
+   }
+   return { kelas, events, reason, status };
  } catch (_) {
-   return { kelas: null, events: [] };
+   return { kelas: null, events: [], reason: 'no-class' };
  }
 }
 
