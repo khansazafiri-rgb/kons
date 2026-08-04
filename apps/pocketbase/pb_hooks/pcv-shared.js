@@ -8,7 +8,7 @@
 // apps/web/src/lib/appVersion.js — dipakai tab admin Kelas & Reminder untuk
 // mendeteksi deploy yang belum lengkap (mis. web sudah di-build tapi
 // PocketBase belum di-restart, sehingga hook masih versi lama).
-const SERVER_VERSION = "v9.4";
+const SERVER_VERSION = "v9.5";
 
 // "0823..." / "+62 823..." / "62823..." -> "62823..." (format target gateway).
 function normalizePhone(raw) {
@@ -493,6 +493,80 @@ function syncOneClass(app, classId, rawUrl) {
   return r.info;
 }
 
+// Baca field JSON PocketBase sebagai ARRAY JavaScript yang sebenarnya.
+//
+// PENTING: nilai field JSON di JSVM sering datang sebagai byte mentah (JSONRaw),
+// bukan array JS. Array.isArray() atasnya bernilai true, tapi .length-nya adalah
+// jumlah BYTE - array kosong "[]" pun panjangnya 2, sehingga terbaca seolah
+// "ada isinya", dan meng-iterasi-nya menghasilkan angka byte, bukan objek acara.
+// Ini pernah membuat halaman siswa mengira jadwalnya ada padahal kosong, dan
+// membuat reminder H-1 tidak menemukan acara apa pun.
+function jsonArray(value) {
+  if (value == null) return [];
+  try {
+    const txt = typeof value === "string" ? value : toString(value);
+    const parsed = JSON.parse(txt);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {}
+  // Sudah berupa array JS asli (mis. baru saja dirakit di memori).
+  return Array.isArray(value) && (value.length === 0 || typeof value[0] === "object") ? value : [];
+}
+
+// Sinkronkan satu kelas HANYA kalau datanya sudah basi atau masih kosong.
+// Dipakai endpoint "ensure" yang dipanggil halaman siswa, supaya jadwal muncul
+// sendiri tanpa menunggu admin menekan tombol apa pun, tapi tetap tidak
+// membombardir Google Calendar tiap kali halaman dibuka.
+//
+// Mengembalikan: { synced, status, sourceMissing }
+function syncClassIfStale(app, classId, maxAgeMs) {
+  const out = { synced: false, status: "", sourceMissing: false };
+  let cls;
+  try {
+    cls = app.findRecordById("classes", classId);
+  } catch (_) {
+    return out;
+  }
+  try {
+    out.status = cls.getString("scheduleStatus");
+  } catch (_) {}
+
+  // Cari link iCal kelas ini. Tidak ada = admin memang belum memasangnya.
+  let src = null;
+  try {
+    src = app.findRecordsByFilter("class_sources", `class = '${classId}'`, "", 1, 0)[0] || null;
+  } catch (_) {}
+  if (!src) {
+    out.sourceMissing = true;
+    return out;
+  }
+
+  let cache = [];
+  try {
+    cache = jsonArray(cls.get("scheduleCache"));
+  } catch (_) {}
+  const kosong = cache.length === 0;
+
+  let umurMs = Infinity;
+  try {
+    const t = cls.get("scheduleFetchedAt");
+    if (t) {
+      const ms = new Date(String(t)).getTime();
+      if (!isNaN(ms)) umurMs = Date.now() - ms;
+    }
+  } catch (_) {}
+
+  // Kalau isinya kosong, coba lagi lebih sering (tiap 5 menit) supaya kesalahan
+  // link yang baru diperbaiki langsung terasa. Kalau sudah ada isinya, cukup
+  // disegarkan sesuai maxAgeMs.
+  const ambang = kosong ? 5 * 60 * 1000 : maxAgeMs;
+  if (umurMs < ambang) return out;
+
+  const info = syncOneClass(app, classId, src.getString("icalUrl"));
+  out.synced = true;
+  out.status = buildStatusText(info);
+  return out;
+}
+
 // Refresh scheduleCache semua kelas dari secret iCal (class_sources).
 // Mengembalikan diagnosa per kelas supaya admin tahu PERSIS kenapa hasilnya
 // kosong. Sebelumnya kegagalan hanya tampil sebagai "0 agenda" tanpa keterangan.
@@ -535,6 +609,8 @@ module.exports = {
   normalizeIcalUrl,
   fetchIcalDiagnostic,
   syncOneClass,
+  syncClassIfStale,
+  jsonArray,
   expandIcs,
   wibDateString,
   wibTimeString,
