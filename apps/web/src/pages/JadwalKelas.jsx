@@ -47,6 +47,20 @@ export default function JadwalKelas() {
       setKelas(res.kelas);
       setEvents(res.events);
       setLoading(false);
+
+      // Buka kalender langsung di bulan yang ADA kelasnya. Tanpa ini, siswa yang
+      // membuka halaman saat liburan (mis. Agustus, sementara kelas baru mulai
+      // September) hanya melihat kalender kosong dan mengira jadwalnya tidak ada.
+      const hariIni = todayWib();
+      const mendatang = (res.events || [])
+        .filter((ev) => ev?.start && wibParts(ev.start).date >= hariIni)
+        .sort((a, b) => a.start.localeCompare(b.start));
+      const adaBulanIni = mendatang.some((ev) => wibParts(ev.start).date.slice(0, 7) === hariIni.slice(0, 7));
+      if (!adaBulanIni && mendatang.length) {
+        const tgl = wibParts(mendatang[0].start).date;
+        setCursor({ year: Number(tgl.slice(0, 4)), month: Number(tgl.slice(5, 7)) - 1 });
+        setPickedDate(tgl);
+      }
     });
     return () => { alive = false; };
   }, [user]);

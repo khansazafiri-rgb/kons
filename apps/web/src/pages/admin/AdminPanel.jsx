@@ -10,6 +10,7 @@ import { STUDENT_TYPES, studentTypeLabel, studentTypeShort } from '@/lib/student
 import { SIGNUP_TEXT_GROUPS, resolveSignupTexts } from '@/lib/signupContent';
 import { LANDING_TEXT_GROUPS, resolveLandingTexts } from '@/lib/landingContent';
 import { WA_TEMPLATES, resolveWaTemplates } from '@/lib/waTemplates';
+import { APP_VERSION } from '@/lib/appVersion';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
@@ -3037,6 +3038,27 @@ function KelasReminder() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [okMsg, setOkMsg] = useState('');
+  const [serverVersion, setServerVersion] = useState(undefined); // undefined=cek, null=endpoint tak ada
+  const [serverSkewMin, setServerSkewMin] = useState(0); // selisih jam server vs browser (menit)
+  const [testResult, setTestResult] = useState({}); // { classId: hasil /api/pcv/ical-test }
+
+  // Cek versi kode server. Kalau endpoint-nya tidak ada atau versinya beda
+  // dengan versi tampilan, berarti deploy belum lengkap - dan SEMUA perbaikan
+  // jadwal tidak akan terasa sampai PocketBase di-restart dengan kode baru.
+  useEffect(() => {
+    pb.send('/api/pcv/version', { method: 'GET' })
+      .then((r) => {
+        setServerVersion(r?.version || null);
+        if (r?.serverTime) {
+          setServerSkewMin(Math.round((new Date(r.serverTime).getTime() - Date.now()) / 60000));
+        }
+      })
+      .catch(() => setServerVersion(null));
+  }, []);
+
+  const deployOk = serverVersion === APP_VERSION;
+  // Jam server yang meleset jauh membuat perhitungan rentang jadwal ikut meleset.
+  const jamMeleset = Math.abs(serverSkewMin) > 60;
 
   const load = async () => {
     setError('');
@@ -3095,10 +3117,10 @@ function KelasReminder() {
         setOkMsg(`Secret iCal kelas "${c.name}" dihapus.`);
       } else if (existing) {
         await pb.collection('class_sources').update(existing.id, { icalUrl: url });
-        setOkMsg(`Secret iCal kelas "${c.name}" diperbarui.`);
+        setOkMsg(`Secret iCal kelas "${c.name}" diperbarui dan jadwalnya LANGSUNG disinkronkan. Lihat keterangan status di bawah kelasnya.`);
       } else if (url) {
         await pb.collection('class_sources').create({ class: c.id, icalUrl: url });
-        setOkMsg(`Secret iCal kelas "${c.name}" tersimpan. Tekan "Refresh Jadwal Sekarang" untuk menarik jadwalnya.`);
+        setOkMsg(`Secret iCal kelas "${c.name}" tersimpan dan jadwalnya LANGSUNG disinkronkan. Lihat keterangan status di bawah kelasnya.`);
       }
       await load();
     } catch (e) {
@@ -3132,10 +3154,57 @@ function KelasReminder() {
     } finally { setBusy(''); }
   };
 
+  // Tes satu link iCal lewat server, TANPA menyimpan. Hasil lengkapnya
+  // (status HTTP, byte, jumlah jadwal, contoh isi, atau pesan error persis)
+  // ditampilkan di bawah kelasnya - bahan diagnosa sekali pandang.
+  const testIcal = async (c) => {
+    const url = (drafts[c.id] || '').trim();
+    if (!url) return;
+    setBusy('test:' + c.id); setError('');
+    try {
+      const res = await pb.send('/api/pcv/ical-test', { method: 'POST', body: { url } });
+      setTestResult((prev) => ({ ...prev, [c.id]: res }));
+    } catch (e) {
+      setTestResult((prev) => ({ ...prev, [c.id]: { info: { error: e?.response?.message || e?.message || 'Endpoint tes tidak ditemukan. Kode server masih versi lama, jalankan deploy/update.sh.' } } }));
+    } finally { setBusy(''); }
+  };
+
   const inputCls = 'rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50';
 
   return (
     <div className="space-y-5">
+      {/* Pengecekan deploy: tampilan vs server harus menjalankan versi yang sama */}
+      {serverVersion !== undefined && !deployOk && (
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+          <p className="font-bold text-red-700 text-sm">⚠ Kode server di VPS BUKAN versi terbaru</p>
+          <p className="text-sm text-red-700/90 mt-1 leading-relaxed">
+            Versi tampilan: <b>{APP_VERSION}</b> · Versi server: <b>{serverVersion || 'tidak terdeteksi (endpoint versi belum ada = hook PocketBase masih lama)'}</b>.
+            Merge di GitHub saja TIDAK mengubah server. Jalankan di Terminal VPS:
+          </p>
+          <p className="font-mono text-xs bg-alba-50 border border-red-200 rounded-lg px-3 py-2 mt-2">
+            bash /opt/pcv/kons/deploy/update.sh
+          </p>
+          <p className="text-xs text-red-700/80 mt-2">
+            Script itu sudah sekaligus git pull, build web, dan restart PocketBase. Setelah selesai,
+            hard refresh halaman ini (Cmd+Shift+R) sampai banner merah ini hilang. Selama banner ini
+            masih tampil, semua perbaikan jadwal memang belum aktif di server.
+          </p>
+        </div>
+      )}
+      {deployOk && (
+        <p className="text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2">
+          ✓ Deploy lengkap: tampilan &amp; server sama-sama versi {APP_VERSION}.
+        </p>
+      )}
+      {jamMeleset && (
+        <p className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2 leading-relaxed">
+          ⚠ Jam server VPS meleset {serverSkewMin > 0 ? 'maju' : 'mundur'} sekitar{' '}
+          {Math.abs(Math.round(serverSkewMin / 60))} jam dari jam perangkat ini. Karena rentang jadwal
+          dihitung dari jam server, jadwal bisa hilang walau kalendernya benar. Perbaiki di VPS dengan:
+          <span className="font-mono"> sudo timedatectl set-ntp true</span>
+        </p>
+      )}
+
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
         <h2 className="font-display text-lg font-semibold text-maroon-600">Kelas Reguler & Reminder H-1</h2>
         <div className="text-sm text-stone-500 mt-1 leading-relaxed space-y-2">
@@ -3195,7 +3264,52 @@ function KelasReminder() {
                 >
                   {busy === 'ical:' + c.id ? '…' : 'Simpan iCal'}
                 </button>
+                <button
+                  onClick={() => testIcal(c)}
+                  disabled={busy === 'test:' + c.id || !(drafts[c.id] || '').trim()}
+                  title="Unduh dan periksa link ini tanpa menyimpan, untuk melihat persis apa yang server terima"
+                  className="shrink-0 rounded-lg border border-gold-400 text-gold-600 text-sm font-semibold px-4 py-2 hover:bg-gold-100 disabled:opacity-40"
+                >
+                  {busy === 'test:' + c.id ? 'Mengetes…' : 'Tes Link'}
+                </button>
               </div>
+
+              {/* Hasil tes link: diagnosa lengkap dari server, sekali pandang */}
+              {testResult[c.id] && (
+                <div className={`mt-2 text-xs rounded-lg px-3 py-2.5 leading-relaxed border ${
+                  testResult[c.id]?.info?.ok
+                    ? 'bg-green-50 border-green-200 text-green-800'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}>
+                  {testResult[c.id]?.info?.ok ? (
+                    <>
+                      <p className="font-bold">✓ Link BEKERJA</p>
+                      <p>
+                        HTTP {testResult[c.id].info.httpStatus} · {testResult[c.id].info.bytes} byte terunduh ·{' '}
+                        {testResult[c.id].info.vevents} jadwal di kalender · {testResult[c.id].info.events} masuk rentang tampil.
+                      </p>
+                      {(testResult[c.id].contoh || []).length > 0 && (
+                        <p className="mt-1">
+                          Contoh: {testResult[c.id].contoh.map((ev) => `${ev.title} (${String(ev.start).slice(0, 10)})`).join(' · ')}
+                        </p>
+                      )}
+                      {testResult[c.id].info.events === 0 && (
+                        <p className="mt-1 font-semibold">
+                          Kalender terbaca tapi tidak ada jadwal pada periode tampil. Cek apakah jadwal di Google Calendar-nya memang sudah diisi.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-bold">✗ Link BERMASALAH</p>
+                      <p>{testResult[c.id]?.info?.error || 'Gagal tanpa keterangan.'}</p>
+                      {testResult[c.id]?.info?.head && (
+                        <p className="mt-1 font-mono text-[10px] break-all opacity-80">Awal isi: {testResult[c.id].info.head}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               {/* Status hasil sinkronisasi terakhir. Disimpan di database, jadi
                   alasan "kenapa kosong" tetap bisa dibaca kapan saja, bukan cuma
                   sekilas setelah menekan tombol refresh. */}

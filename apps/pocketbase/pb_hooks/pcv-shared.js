@@ -4,6 +4,12 @@
 // Berisi: normalisasi nomor WA, pengiriman pesan WA lewat gateway, dan parser
 // iCal sederhana untuk jadwal kelas reguler.
 
+// Penanda versi kode server. HARUS SAMA dengan APP_VERSION di
+// apps/web/src/lib/appVersion.js — dipakai tab admin Kelas & Reminder untuk
+// mendeteksi deploy yang belum lengkap (mis. web sudah di-build tapi
+// PocketBase belum di-restart, sehingga hook masih versi lama).
+const SERVER_VERSION = "v9.4";
+
 // "0823..." / "+62 823..." / "62823..." -> "62823..." (format target gateway).
 function normalizePhone(raw) {
   let digits = String(raw || "").replace(/\D/g, "");
@@ -409,12 +415,87 @@ function normalizeIcalUrl(raw) {
   return url;
 }
 
+// Unduh dan jabarkan satu link iCal, TANPA menyimpan apa pun.
+// Mengembalikan { info, events } - info berisi diagnosa lengkap (status HTTP,
+// jumlah byte, cuplikan isi, jumlah jadwal di berkas vs yang masuk rentang),
+// dipakai oleh sinkronisasi maupun tombol "Tes Link" di dashboard admin.
+function fetchIcalDiagnostic(rawUrl) {
+  const now = Date.now();
+  const fromMs = now - SYNC_BACK_DAYS * DAY_MS;
+  const toMs = now + SYNC_AHEAD_DAYS * DAY_MS;
+  const info = { ok: false, events: 0 };
+  let events = [];
+  try {
+    const url = normalizeIcalUrl(rawUrl);
+    info.url = url;
+    if (!url) throw new Error("Link iCal kosong.");
+
+    const res = $http.send({
+      url: url,
+      method: "GET",
+      timeout: 60,
+      headers: { "User-Agent": HTTP_UA, Accept: "text/calendar, */*" },
+    });
+    info.httpStatus = res.statusCode;
+
+    const body = String(res.raw || "");
+    info.bytes = body.length;
+    info.head = body.slice(0, 120);
+
+    if (res.statusCode !== 200) {
+      throw new Error(
+        "Server kalender menjawab HTTP " + res.statusCode +
+          (res.statusCode === 404
+            ? ". Link iCal-nya kemungkinan salah atau sudah di-reset di Google Calendar."
+            : res.statusCode === 403
+            ? ". Akses ditolak; pastikan yang dipakai adalah alamat RAHASIA format iCal."
+            : "."),
+      );
+    }
+    if (body.indexOf("BEGIN:VCALENDAR") === -1) {
+      throw new Error(
+        "Isi yang diunduh bukan berkas kalender (tidak ada BEGIN:VCALENDAR). " +
+          "Pastikan link berakhiran .ics, bukan halaman web biasa.",
+      );
+    }
+
+    // Jumlah jadwal di BERKAS (sebelum disaring rentang tampil). Angka ini yang
+    // membedakan "kalendernya memang kosong" dengan "ada isinya tapi di luar rentang".
+    info.vevents = (body.match(/BEGIN:VEVENT/g) || []).length;
+
+    events = expandIcs(body, fromMs, toMs);
+    info.events = events.length;
+    info.ok = true;
+  } catch (err) {
+    info.error = err && err.message ? err.message : String(err);
+  }
+  return { info: info, events: events };
+}
+
+// Sinkronkan SATU kelas dari link iCal-nya dan simpan hasil + statusnya.
+function syncOneClass(app, classId, rawUrl) {
+  const r = fetchIcalDiagnostic(rawUrl);
+  try {
+    const cls = app.findRecordById("classes", classId);
+    if (r.info.ok) cls.set("scheduleCache", r.events);
+    cls.set("scheduleFetchedAt", new Date().toISOString());
+    // Field keterangan status baru ada setelah migrasi terbaru. Kalau karena
+    // suatu hal belum ada, JANGAN sampai menggagalkan penyimpanan jadwalnya -
+    // jadwal jauh lebih penting daripada teks keterangannya.
+    try {
+      cls.set("scheduleStatus", buildStatusText(r.info));
+    } catch (_) {}
+    app.save(cls);
+  } catch (err) {
+    r.info.error = (r.info.error ? r.info.error + " | " : "") +
+      "Gagal menyimpan hasil: " + (err && err.message ? err.message : String(err));
+  }
+  return r.info;
+}
+
 // Refresh scheduleCache semua kelas dari secret iCal (class_sources).
-//
 // Mengembalikan diagnosa per kelas supaya admin tahu PERSIS kenapa hasilnya
-// kosong (link salah? server menolak? filenya memang belum ada jadwal? atau
-// jadwalnya ada tapi di luar rentang tampil?). Sebelumnya kegagalan seperti ini
-// hanya tampil sebagai "0 agenda" tanpa keterangan apa pun.
+// kosong. Sebelumnya kegagalan hanya tampil sebagai "0 agenda" tanpa keterangan.
 function refreshClassSchedules(app) {
   const summary = {};
   let sources = [];
@@ -423,68 +504,8 @@ function refreshClassSchedules(app) {
   } catch (_) {
     return summary;
   }
-  const now = Date.now();
-  const fromMs = now - SYNC_BACK_DAYS * DAY_MS;
-  const toMs = now + SYNC_AHEAD_DAYS * DAY_MS;
-
   sources.forEach((src) => {
-    const classId = src.getString("class");
-    const info = { ok: false, events: 0 };
-    try {
-      const url = normalizeIcalUrl(src.getString("icalUrl"));
-      if (!url) throw new Error("Link iCal kosong.");
-
-      const res = $http.send({
-        url: url,
-        method: "GET",
-        timeout: 60,
-        headers: { "User-Agent": HTTP_UA, Accept: "text/calendar, */*" },
-      });
-      info.httpStatus = res.statusCode;
-
-      const body = String(res.raw || "");
-      info.bytes = body.length;
-
-      if (res.statusCode !== 200) {
-        throw new Error(
-          "Server kalender menjawab HTTP " + res.statusCode +
-            (res.statusCode === 404
-              ? ". Link iCal-nya kemungkinan salah atau sudah di-reset di Google Calendar."
-              : res.statusCode === 403
-              ? ". Akses ditolak; pastikan yang dipakai adalah alamat RAHASIA format iCal."
-              : "."),
-        );
-      }
-      if (body.indexOf("BEGIN:VCALENDAR") === -1) {
-        throw new Error(
-          "Isi yang diunduh bukan berkas kalender (tidak ada BEGIN:VCALENDAR). " +
-            "Pastikan link berakhiran .ics, bukan halaman web biasa.",
-        );
-      }
-
-      // Jumlah jadwal di BERKAS (sebelum disaring rentang tampil). Angka ini yang
-      // membedakan "kalendernya memang kosong" dengan "ada isinya tapi di luar rentang".
-      info.vevents = (body.match(/BEGIN:VEVENT/g) || []).length;
-
-      const events = expandIcs(body, fromMs, toMs);
-      info.events = events.length;
-      info.ok = true;
-
-      const cls = app.findRecordById("classes", classId);
-      cls.set("scheduleCache", events);
-      cls.set("scheduleFetchedAt", new Date().toISOString());
-      cls.set("scheduleStatus", buildStatusText(info));
-      app.save(cls);
-    } catch (err) {
-      info.error = err && err.message ? err.message : String(err);
-      try {
-        const cls = app.findRecordById("classes", classId);
-        cls.set("scheduleFetchedAt", new Date().toISOString());
-        cls.set("scheduleStatus", buildStatusText(info));
-        app.save(cls);
-      } catch (_) {}
-    }
-    summary[classId] = info;
+    summary[src.getString("class")] = syncOneClass(app, src.getString("class"), src.getString("icalUrl"));
   });
   return summary;
 }
@@ -506,11 +527,14 @@ function buildStatusText(info) {
 }
 
 module.exports = {
+  SERVER_VERSION,
   normalizePhone,
   sendWA,
   waMessage,
   WA_TEMPLATE_DEFAULTS,
   normalizeIcalUrl,
+  fetchIcalDiagnostic,
+  syncOneClass,
   expandIcs,
   wibDateString,
   wibTimeString,
