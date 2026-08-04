@@ -3,3 +3,7 @@ dist/
 .env
 .env.local
 pb_snapshots/
+
+# Kredensial & log sync korpus ML (JANGAN dicommit)
+.ml-sync.env
+apps/pptparser/logs/

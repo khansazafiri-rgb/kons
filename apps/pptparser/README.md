@@ -101,6 +101,38 @@ dijalankan/`migrations:up`, seperti migration lain di proyek ini).
 Jalankan `npm run sync` ini setiap kali ada PPT baru/diperbarui — cukup 1
 command, tidak perlu sentuh folder atau file JSON manual sama sekali.
 
+Mode incremental (hemat): `npm run sync -- --incremental` (atau env
+`ML_SYNC_INCREMENTAL=1`) hanya memproses PPT yang **baru/berubah** sejak sync
+terakhir — sisanya dilewati. Cocok untuk dijalankan berkala. Tambah `--all`
+untuk memaksa proses ulang semua PPT.
+
+### Sync otomatis berkala (cron)
+
+Agar tidak perlu ingat menjalankan sync tiap upload PPT, ada pembungkus siap-pakai
+`sync-cron.sh` yang membaca kredensial dari file env terpisah (tidak masuk git):
+
+```bash
+# 1) sekali saja: siapkan file kredensial di ROOT repo
+cp apps/pptparser/.ml-sync.env.example .ml-sync.env
+nano .ml-sync.env            # isi PB_ADMIN_EMAIL & PB_ADMIN_PASSWORD
+chmod 600 .ml-sync.env       # batasi akses (berisi password)
+
+# 2) uji jalan manual dulu
+apps/pptparser/sync-cron.sh
+tail -n 20 apps/pptparser/logs/sync.log
+
+# 3) pasang cron (mis. tiap hari 02:00). Pakai `bash -lc` supaya node ketemu di PATH.
+#    Ganti /opt/pcv/kons dengan lokasi repo di server-mu.
+crontab -e
+# lalu tambahkan baris:
+0 2 * * * /bin/bash -lc '/opt/pcv/kons/apps/pptparser/sync-cron.sh' >/dev/null 2>&1
+```
+
+Wrapper ini default **incremental**, mencatat ke `apps/pptparser/logs/sync.log`,
+dan keluar dengan kode non-0 bila gagal (berguna bila cron dikonfigurasi `MAILTO`).
+Kalau `node` tak ditemukan cron, isi `NODE_BIN=/path/ke/node` di `.ml-sync.env`
+(cari path-nya dengan `which node`).
+
 `graded.json` = array record `questions` aplikasi + flag `wasCorrect`
 (aplikasi sudah tahu benar/salah, mesin tinggal memetakan):
 ```json
