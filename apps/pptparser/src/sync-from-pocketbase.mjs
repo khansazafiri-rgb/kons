@@ -32,6 +32,10 @@ function parseArgs(argv) {
     password: process.env.PB_ADMIN_PASSWORD || null,
     tmp: path.join(os.tmpdir(), 'pptparser-sync'),
     concurrency: 1,
+    // Mode hemat untuk cron: hanya proses PPT yang BARU / BERUBAH sejak sync
+    // terakhir (bandingkan waktu update ppt_files vs topics). Aktifkan lewat
+    // flag --incremental atau env ML_SYNC_INCREMENTAL=1.
+    incremental: process.env.ML_SYNC_INCREMENTAL === '1',
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -40,6 +44,8 @@ function parseArgs(argv) {
     else if (a === '--password') args.password = argv[++i];
     else if (a === '--tmp') args.tmp = argv[++i];
     else if (a === '--concurrency') args.concurrency = Math.max(1, parseInt(argv[++i], 10) || 1);
+    else if (a === '--incremental') args.incremental = true;
+    else if (a === '--all') args.incremental = false;
   }
   return args;
 }
@@ -142,12 +148,30 @@ async function main() {
     return;
   }
 
+  // Mode incremental: ambil topics yang sudah ada untuk membandingkan waktu
+  // update. PPT dilewati bila topics-nya sudah ada, sumber filenya sama, DAN
+  // topics diperbarui setelah ppt_files terakhir berubah (berarti tak ada yang
+  // baru). PPT baru (tanpa topics) atau yang diupload ulang tetap diproses.
+  const existingByChapter = new Map();
+  if (args.incremental) {
+    const topics = await listAll(args.url, token, 'topics');
+    for (const t of topics) existingByChapter.set(t.chapter, t);
+  }
+  const isUnchanged = (rec) => {
+    if (!args.incremental) return false;
+    const t = existingByChapter.get(rec.chapter);
+    if (!t) return false;
+    if (t.sourceFile !== rec.file) return false;
+    return new Date(t.updated).getTime() >= new Date(rec.updated).getTime();
+  };
+
   fs.mkdirSync(args.tmp, { recursive: true });
-  console.log(`${C.bold}${pptRecords.length} PPT ditemukan.${C.reset} Folder sementara: ${args.tmp} ${C.dim}(concurrency ${args.concurrency})${C.reset}\n`);
+  console.log(`${C.bold}${pptRecords.length} PPT ditemukan.${C.reset} Folder sementara: ${args.tmp} ${C.dim}(concurrency ${args.concurrency}${args.incremental ? ', incremental' : ''})${C.reset}\n`);
 
   const queue = [...pptRecords];
   let active = 0;
   let done = 0;
+  let skipped = 0;
   const results = [];
 
   await new Promise((resolveAll) => {
@@ -160,6 +184,13 @@ async function main() {
           const chapterTitle = rec.expand?.chapter?.title || rec.chapter;
           const started = Date.now();
           try {
+            if (isUnchanged(rec)) {
+              done++;
+              skipped++;
+              console.log(`${C.dim}•${C.reset} [${done}/${pptRecords.length}] ${chapterTitle} ${C.dim}(tidak berubah, dilewati)${C.reset}`);
+              results.push({ chapter: chapterTitle, ok: true, skipped: true });
+              return;
+            }
             if (!rec.file) throw new Error('record tidak punya file (kosong)');
             const pdfPath = path.join(args.tmp, `${rec.chapter}.pdf`);
             const jsonPath = path.join(args.tmp, `${rec.chapter}.json`);
@@ -197,11 +228,14 @@ async function main() {
     pump();
   });
 
-  const okCount = results.filter((r) => r.ok).length;
-  const failCount = results.length - okCount;
-  console.log(`\n${C.bold}Selesai:${C.reset} ${C.green}${okCount} berhasil${C.reset}, ${failCount ? C.red : C.dim}${failCount} gagal${C.reset}`);
+  const okCount = results.filter((r) => r.ok && !r.skipped).length;
+  const failCount = results.filter((r) => !r.ok).length;
+  const skipPart = skipped ? `, ${C.dim}${skipped} dilewati (tak berubah)${C.reset}` : '';
+  console.log(`\n${C.bold}Selesai:${C.reset} ${C.green}${okCount} diperbarui${C.reset}, ${failCount ? C.red : C.dim}${failCount} gagal${C.reset}${skipPart}`);
   if (okCount > 0) {
-    console.log(`${C.dim}Korpus ML di collection 'topics' sudah diperbarui — web app otomatis memakainya di Simulasi CBT.${C.reset}`);
+    console.log(`${C.dim}Korpus ML di collection 'topics' sudah diperbarui — web app otomatis memakainya di Simulasi CBT & Cicil Belajar.${C.reset}`);
+  } else if (skipped && !failCount) {
+    console.log(`${C.dim}Tidak ada materi baru/berubah — korpus sudah mutakhir.${C.reset}`);
   }
 }
 
