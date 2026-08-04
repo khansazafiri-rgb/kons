@@ -106,3 +106,62 @@ routerAdd("POST", "/api/pcv/class-schedule/refresh", (e) => {
   const summary = refreshClassSchedules(e.app);
   return e.json(200, { summary: summary });
 });
+
+// Versi kode server yang SEDANG berjalan. Dicocokkan dashboard admin dengan
+// versi tampilan: kalau beda (atau endpoint ini 404), berarti deploy belum
+// lengkap - biasanya PocketBase belum di-restart sehingga hook masih versi lama.
+routerAdd("GET", "/api/pcv/version", (e) => {
+  const { SERVER_VERSION } = require(`${__hooks}/pcv-shared.js`);
+  // Jam server ikut dikirim: kalau jam VPS meleset jauh, seluruh perhitungan
+  // "rentang jadwal yang ditampilkan" ikut meleset dan jadwal bisa hilang
+  // walaupun kalendernya benar. Dashboard admin membandingkannya dengan jam
+  // browser dan memperingatkan kalau selisihnya kelewat besar.
+  return e.json(200, { version: SERVER_VERSION, serverTime: new Date().toISOString() });
+});
+
+// Tes sebuah link iCal TANPA menyimpan apa pun: unduh, periksa, jabarkan, lalu
+// kembalikan diagnosa lengkap (status HTTP, byte, cuplikan isi, jumlah jadwal).
+// Tombol "Tes Link" di tab Kelas & Reminder memakai ini supaya masalah link
+// langsung kelihatan di layar, bukan jadi tebak-tebakan.
+routerAdd("POST", "/api/pcv/ical-test", (e) => {
+  const auth = e.auth;
+  if (!auth || auth.get("role") !== "admin") {
+    return e.json(403, { message: "Hanya admin yang boleh mengetes link." });
+  }
+  const body = new DynamicModel({ url: "" });
+  e.bindBody(body);
+  if (!body.url) return e.json(400, { message: "Isi link iCal yang mau dites." });
+
+  const shared = require(`${__hooks}/pcv-shared.js`);
+  const r = shared.fetchIcalDiagnostic(body.url);
+  // Tiga contoh jadwal pertama ikut dikirim supaya admin bisa mengecek cepat
+  // apakah isinya memang kalender kelas yang dimaksud.
+  return e.json(200, {
+    info: r.info,
+    contoh: r.events.slice(0, 3),
+    serverVersion: shared.SERVER_VERSION,
+  });
+});
+
+// Begitu admin MENYIMPAN link iCal, kelasnya langsung disinkronkan saat itu
+// juga - tidak perlu (dan tidak bisa lupa) menekan tombol refresh terpisah.
+// Kegagalan sinkronisasi tidak boleh menggagalkan penyimpanan link-nya.
+onRecordCreateRequest((e) => {
+  e.next();
+  try {
+    const { syncOneClass } = require(`${__hooks}/pcv-shared.js`);
+    syncOneClass(e.app, e.record.getString("class"), e.record.getString("icalUrl"));
+  } catch (err) {
+    console.log("auto-sync setelah simpan iCal gagal:", err);
+  }
+}, "class_sources");
+
+onRecordUpdateRequest((e) => {
+  e.next();
+  try {
+    const { syncOneClass } = require(`${__hooks}/pcv-shared.js`);
+    syncOneClass(e.app, e.record.getString("class"), e.record.getString("icalUrl"));
+  } catch (err) {
+    console.log("auto-sync setelah ubah iCal gagal:", err);
+  }
+}, "class_sources");
