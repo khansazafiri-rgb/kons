@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpenText, Lock } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
+import useUrlState from '@/lib/useUrlState';
+import { filterLatihan, gabung } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
 import ChapterSelect from '@/components/ChapterSelect';
 
@@ -10,9 +12,11 @@ export default function PerdalamMateri() {
  const { user, role } = useAuth();
  const navigate = useNavigate();
  const [subjects, setSubjects] = useState([]);
- const [subjectId, setSubjectId] = useState('');
+ // Pilihan disimpan di URL supaya refresh tidak melempar balik ke daftar awal.
+ const [subjectId, setSubjectId] = useUrlState('subject', '');
  const [chapters, setChapters] = useState([]);
- const [chapterId, setChapterId] = useState('');
+ const [chapterId, setChapterId] = useUrlState('chapter', '');
+ const mkSebelumnya = useRef(subjectId);
  const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
  const [doneChapters, setDoneChapters] = useState(new Set());
  const [enrolled, setEnrolled] = useState(null); // null=tanpa batasan, []=belum dipilihkan, [..]=boleh
@@ -44,7 +48,7 @@ export default function PerdalamMateri() {
      setSubjects(subs);
      try {
        // BAB yang di-hide tidak dihitung sebagai bagian dari progress siswa.
-       const allChapters = await pb.collection('chapters').getFullList({ filter: 'hidden != true', fields: 'id,subject' });
+       const allChapters = await pb.collection('chapters').getFullList({ filter: gabung('hidden != true', filterLatihan()), fields: 'id,subject' });
        const totals = {};
        allChapters.forEach((c) => { totals[c.subject] = (totals[c.subject] || 0) + 1; });
        let doneSet = new Set();
@@ -71,12 +75,18 @@ export default function PerdalamMateri() {
  useEffect(() => {
    if (!subjectId) return setChapters([]);
    // BAB yang di-hide disembunyikan dari siswa (tetap bisa dikelola di Edit Soal).
-   let filter = `subject = '${subjectId}' && hidden != true`;
+   const filter = gabung(pb.filter('subject = {:s}', { s: subjectId }), 'hidden != true', filterLatihan());
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
      setChapters(chs);
-     setChapterId('');
+     // BAB pilihan hanya dikosongkan kalau mata kuliahnya BENAR-BENAR berganti.
+     // Kalau tidak dijaga, BAB yang dipulihkan dari URL ikut terhapus tiap kali
+     // halaman dibuka ulang.
+     if (mkSebelumnya.current !== subjectId) {
+       setChapterId('');
+       mkSebelumnya.current = subjectId;
+     }
    });
- }, [subjectId]);
+ }, [subjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
  // Prefetch URL PPT begitu BAB dipilih, supaya saat user menekan "Pelajari"
  // (gesture langsung) tab baru bisa dibuka seketika tanpa diblokir popup.

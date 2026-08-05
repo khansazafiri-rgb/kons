@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Library, Lock } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
+import useUrlState from '@/lib/useUrlState';
+import { filterLatihan, gabung } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import ChapterSelect from '@/components/ChapterSelect';
@@ -18,9 +20,11 @@ export default function BankSoal() {
   const { user, role } = useAuth();
   const [enabled, setEnabled] = useState(null); // null = masih cek saklar
   const [subjects, setSubjects] = useState([]);
-  const [subjectId, setSubjectId] = useState('');
+  // Pilihan disimpan di URL supaya refresh tidak melempar balik ke daftar awal.
+  const [subjectId, setSubjectId] = useUrlState('subject', '');
   const [chapters, setChapters] = useState([]);
-  const [chapterId, setChapterId] = useState('');
+  const [chapterId, setChapterId] = useUrlState('chapter', '');
+  const mkSebelumnya = useRef(subjectId);
   const [questions, setQuestions] = useState(null);
   const [enrolled, setEnrolled] = useState(null);
 
@@ -40,10 +44,15 @@ export default function BankSoal() {
   }, [enabled]);
 
   useEffect(() => {
-    setChapterId('');
+    // Hanya kosongkan BAB kalau mata kuliahnya benar-benar berganti, supaya BAB
+    // yang dipulihkan dari URL tidak ikut terhapus saat halaman dibuka ulang.
+    if (mkSebelumnya.current !== subjectId) {
+      setChapterId('');
+      mkSebelumnya.current = subjectId;
+    }
     if (!subjectId) return setChapters([]);
     pb.collection('chapters')
-      .getFullList({ sort: 'order', filter: `subject = '${subjectId}' && hidden != true` })
+      .getFullList({ sort: 'order', filter: gabung(pb.filter('subject = {:s}', { s: subjectId }), 'hidden != true', filterLatihan()) })
       .then(setChapters)
       .catch(() => setChapters([]));
   }, [subjectId]);
