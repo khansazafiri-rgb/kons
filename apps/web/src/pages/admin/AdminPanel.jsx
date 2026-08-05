@@ -46,7 +46,10 @@ export default function AdminPanel() {
             </button>
           ))}
         </nav>
-        <div>
+        {/* min-w-0: tanpa ini kolom isi ikut melebar mengikuti teks terpanjang di
+            dalamnya (nama BAB/mata kuliah), sehingga seluruh halaman melar ke
+            kanan dan tombol-tombol di ujung baris jadi tidak bisa diklik. */}
+        <div className="min-w-0">
           {tab === 'Pengajar' && <Pengajar />}
           {tab === 'Siswa' && <StudentCards adminMode />}
           {tab === 'Dashboard Activity' && <DashboardActivity />}
@@ -721,7 +724,7 @@ function QuestionForm({ form, setForm }) {
             className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
           />
           {form.imageUrl && (
-            <img src={form.imageUrl} alt="Preview gambar soal" referrerPolicy="no-referrer" className="max-h-56 rounded-xl border border-alba-200" onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = ''; }} />
+            <img src={form.imageUrl} alt="Preview gambar soal" referrerPolicy="no-referrer" className="max-h-56 max-w-full rounded-xl border border-alba-200" onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = ''; }} />
           )}
         </div>
       )}
@@ -734,7 +737,7 @@ function QuestionForm({ form, setForm }) {
           {form.subQuestions.map((sq, i) => (
             <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
               <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 min-w-0 space-y-2">
                 <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
                 <input value={sq.validAnswers} onChange={(e) => updateSub(i, 'validAnswers', e.target.value)} placeholder='Jawaban benar - pisahkan alternatif dengan "/" (mis. Striated duct / Duktus striata)' className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50" />
               </div>
@@ -755,7 +758,7 @@ function QuestionForm({ form, setForm }) {
           {form.options.map((o, i) => (
             <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
               <input type="radio" checked={o.correct} onChange={() => updateOption(i, 'correct', true)} className="mt-2.5 w-4 h-4 cursor-pointer" />
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 min-w-0 space-y-2">
                 <input value={o.text} onChange={(e) => updateOption(i, 'text', e.target.value)} placeholder={`Opsi ${i + 1}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
                 <textarea value={o.explanation} onChange={(e) => updateOption(i, 'explanation', e.target.value)} placeholder="Penjelasan opsi ini..." className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50" rows={2} />
               </div>
@@ -1271,7 +1274,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
         <h2 className="font-display text-lg font-semibold">Edit Soal Cicil Belajar</h2>
         {!allowedSubjectIds && (
           <div className="flex gap-2">
-            <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="Tambah mata kuliah baru" className="flex-1 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+            <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="Tambah mata kuliah baru" className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
             <button onClick={addSubject} className="rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
           </div>
         )}
@@ -1745,7 +1748,7 @@ function PreviewModal({ previewData, onClose }) {
           <p className="text-base font-semibold leading-relaxed">{previewData.text}</p>
 
           {previewData.imageUrl && (
-            <img src={previewData.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" className="max-h-72 rounded-xl border border-alba-200 mx-auto" />
+            <img src={previewData.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" className="max-h-72 max-w-full rounded-xl border border-alba-200 mx-auto" />
           )}
 
           {previewData.hint && (
@@ -1926,11 +1929,11 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT (per Paket)</h2>
         <div className="flex gap-4 flex-col sm:flex-row">
-          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
+          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
             <option value="">Pilih mata kuliah...</option>
             {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={year} onChange={(e) => setYear(e.target.value)} disabled={!subjectId} className="flex-1 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50 disabled:opacity-50">
+          <select value={year} onChange={(e) => setYear(e.target.value)} disabled={!subjectId} className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50 disabled:opacity-50">
             <option value="">Pilih paket...</option>
             {pakets.map((p) => <option key={p} value={p}>Paket {p}</option>)}
             <option value={nextPaket}>+ Paket baru (Paket {nextPaket})</option>

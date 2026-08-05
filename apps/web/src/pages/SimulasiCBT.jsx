@@ -287,8 +287,8 @@ export default function SimulasiCBT() {
                    }`}
                  >
                    <div className="flex items-center justify-between gap-2 mb-2">
-                     <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
-                     {<span className="text-[11px] font-bold text-maroon-500">{done}/{avail} paket</span>}
+                     <p className={`text-sm font-bold min-w-0 ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
+                     {<span className="text-[11px] font-bold text-maroon-500 shrink-0">{done}/{avail} paket</span>}
                    </div>
                    {(
                      <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
@@ -411,13 +411,13 @@ export default function SimulasiCBT() {
                      isMe ? 'bg-maroon-50 border border-maroon-100 font-bold text-maroon-700' : 'bg-alba-100/60 text-stone-700'
                    }`}
                  >
-                   <span className="flex items-center gap-3">
+                   <span className="flex items-center gap-3 min-w-0">
                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                        i === 0 ? 'bg-gold-400 text-alba-50' : i < 3 ? 'bg-gold-100 text-gold-600 border border-gold-200' : 'bg-alba-200 text-stone-500'
                      }`}>{i + 1}</span>
                      {isMe ? 'Kamu 🎯' : `Peserta ${String(row.owner || row.id).slice(-4).toUpperCase()}`}
                    </span>
-                   <span className="font-bold">{row.score ?? 0}</span>
+                   <span className="font-bold shrink-0">{row.score ?? 0}</span>
                  </div>
                );
              })}

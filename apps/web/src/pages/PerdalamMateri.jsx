@@ -144,8 +144,8 @@ export default function PerdalamMateri() {
                    }`}
                  >
                    <div className="flex items-center justify-between gap-2 mb-2">
-                     <p className={`text-sm font-bold ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
-                     {<span className="text-[11px] font-bold text-maroon-500">{prog.done}/{prog.total}</span>}
+                     <p className={`text-sm font-bold min-w-0 ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
+                     {<span className="text-[11px] font-bold text-maroon-500 shrink-0">{prog.done}/{prog.total}</span>}
                    </div>
                    {(
                      <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">

@@ -153,7 +153,7 @@ export default function JadwalKelas() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35 }}
-              className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-5"
+              className="min-w-0 rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-5"
             >
               <div className="flex items-center justify-between mb-4">
                 <button

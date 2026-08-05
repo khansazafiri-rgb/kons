@@ -155,23 +155,35 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
       </div>
       <p className="text-xs text-stone-400">Panah ↑ ↓ mengatur urutan. ✏️ ubah nama, 👁 sembunyikan/tampilkan dari siswa, 🗑 hapus BAB beserta isinya. Klik nama BAB untuk memilih.</p>
       {error && <p className="text-xs whitespace-pre-wrap bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">{error}</p>}
-      <div className="grid gap-2 max-h-72 overflow-y-auto scrollbar-thin">
+      {/* grid-cols-1 = minmax(0, 1fr): kolom daftar dikunci selebar wadahnya.
+          Tanpa itu kolom otomatis melebar seukuran judul BAB terpanjang, jadi
+          truncate di bawah tidak pernah kena dan barisnya meluber ke samping. */}
+      <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto scrollbar-thin">
         {chapters.map((c, i) => (
-          <div key={c.id} className={`flex items-center gap-1 rounded-lg border pl-1 pr-1.5 ${selectedChapterId === c.id ? 'border-maroon-600 bg-maroon-50' : c.hidden ? 'border-alba-200 bg-alba-100/50' : 'border-alba-200'}`}>
-            <div className="flex flex-col shrink-0">
-              <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
-              <button onClick={() => move(i, +1)} disabled={i === chapters.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
+          <div key={c.id} className={`flex flex-col sm:flex-row sm:items-center gap-1 rounded-lg border pl-1 pr-1.5 ${selectedChapterId === c.id ? 'border-maroon-600 bg-maroon-50' : c.hidden ? 'border-alba-200 bg-alba-100/50' : 'border-alba-200'}`}>
+            {/* Di layar sempit judul dapat satu baris penuh dan tombol aksinya
+                turun ke bawah, supaya nama BAB tetap kebaca dan semua tombol
+                tetap kepencet tanpa perlu geser layar ke samping. */}
+            <div className="flex items-center gap-1 min-w-0 sm:flex-1">
+              <div className="flex flex-col shrink-0">
+                <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Naik">▲</button>
+                <button onClick={() => move(i, +1)} disabled={i === chapters.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600" title="Turun">▼</button>
+              </div>
+              {/* min-w-0 + line-clamp: judul sepanjang apa pun dikemas maksimal
+                  dua baris, tidak mendorong penanda/tombol keluar layar.
+                  Judul utuhnya tetap bisa dilihat lewat tooltip. */}
+              <button onClick={() => onSelect?.(c.id)} title={c.title} className={`flex-1 min-w-0 line-clamp-2 text-left px-2 py-2 text-sm ${selectedChapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${c.hidden ? 'text-stone-400' : ''}`}>
+                <span className="text-stone-400 mr-1">{i + 1}.</span>
+                {c.hidden && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
+                {c.title}
+              </button>
             </div>
-            {/* min-w-0 + truncate: judul sepanjang apa pun tidak mendorong penanda/tombol keluar layar */}
-            <button onClick={() => onSelect?.(c.id)} title={c.title} className={`flex-1 min-w-0 truncate text-left px-2 py-2 text-sm ${selectedChapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${c.hidden ? 'text-stone-400' : ''}`}>
-              <span className="text-stone-400 mr-1">{i + 1}.</span>
-              {c.hidden && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
-              {c.title}
-            </button>
-            {renderIndicator(c)}
-            <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
-            <button onClick={() => toggleHide(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={c.hidden ? 'Tampilkan ke siswa' : 'Sembunyikan dari siswa'}>{c.hidden ? '🙈' : '👁'}</button>
-            <button onClick={() => remove(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600" title="Hapus BAB">🗑</button>
+            <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto pb-1 sm:pb-0">
+              {renderIndicator(c)}
+              <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
+              <button onClick={() => toggleHide(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={c.hidden ? 'Tampilkan ke siswa' : 'Sembunyikan dari siswa'}>{c.hidden ? '🙈' : '👁'}</button>
+              <button onClick={() => remove(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600" title="Hapus BAB">🗑</button>
+            </div>
           </div>
         ))}
         {chapters.length === 0 && <p className="text-xs text-stone-400 px-1 py-2">Belum ada BAB.</p>}

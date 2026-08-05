@@ -581,7 +581,7 @@ function PreviewRiwayat({ data, onClose }) {
                 <>
                   <p className="font-medium text-sm text-stone-800 leading-relaxed">{it.text || '(teks soal kosong)'}</p>
                   {it.imageUrl && (
-                    <img src={it.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" loading="lazy" className="mt-3 max-h-56 rounded-lg border border-alba-200" />
+                    <img src={it.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" loading="lazy" className="mt-3 max-h-56 max-w-full rounded-lg border border-alba-200" />
                   )}
                   {(it.choices || []).length > 0 && (
                     <div className="mt-3 space-y-1.5">
