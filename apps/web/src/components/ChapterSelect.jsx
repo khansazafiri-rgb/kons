@@ -97,7 +97,7 @@ export default function ChapterSelect({ chapters, value, onChange, doneIds, plac
           )}
           {/* Tiap BAB tampil sebagai KOTAK tersendiri (bukan baris menu polos)
               dan daftarnya bisa di-scroll sampai bawah, seperti versi awal. */}
-          <div className="max-h-72 overflow-y-auto scrollbar-thin p-2 grid gap-2">
+          <div className="max-h-72 overflow-y-auto scrollbar-thin p-2 grid grid-cols-1 gap-2">
             {visible.map((c) => {
               const active = c.id === value;
               return (
@@ -111,7 +111,9 @@ export default function ChapterSelect({ chapters, value, onChange, doneIds, plac
                       : 'border-alba-200 text-stone-700 hover:border-maroon-200 hover:bg-alba-100/60'
                   }`}
                 >
-                  <span>{c.title}</span>
+                  {/* min-w-0: judul BAB yang panjang dibungkus turun ke baris
+                      berikutnya, bukan mendorong penanda "Selesai" keluar kotak. */}
+                  <span className="min-w-0">{c.title}</span>
                   <span className="flex items-center gap-2 shrink-0">
                     {doneIds?.has(c.id) && (
                       <span className="text-[10px] font-bold rounded-full px-2.5 py-0.5 border text-green-800 bg-green-50 border-green-200">

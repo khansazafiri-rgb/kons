@@ -9,6 +9,9 @@
 body {
  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
  overflow-x: clip;
+ /* Kata/URL panjang tanpa spasi (mis. link Google Drive, nama file PPT) dipotong
+    di ujung baris, bukan melebarkan kolom sampai layout jebol ke samping. */
+ overflow-wrap: break-word;
  -webkit-font-smoothing: antialiased;
 }
 
@@ -221,9 +224,12 @@ body {
    -webkit-mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%);
    mask-image: radial-gradient(circle at 100% 0%, #000 0%, transparent 70%);
  }
- /* Scrollbar tipis untuk daftar BAB yang panjang */
+ /* Scrollbar tipis untuk daftar BAB yang panjang. Tinggi diisi juga supaya
+    daftar yang perlu digeser ke samping (mis. tabel) tetap punya scrollbar
+    yang terlihat, bukan cuma yang vertikal. */
  .scrollbar-thin::-webkit-scrollbar {
    width: 6px;
+   height: 6px;
  }
  .scrollbar-thin::-webkit-scrollbar-thumb {
    background: #E2D6C2;

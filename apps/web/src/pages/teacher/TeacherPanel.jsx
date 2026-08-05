@@ -24,7 +24,9 @@ export default function TeacherPanel() {
             </button>
           ))}
         </nav>
-        <div>
+        {/* min-w-0: kolom isi tidak boleh ikut melebar mengikuti teks terpanjang
+            di dalamnya, supaya halaman tidak melar ke kanan. */}
+        <div className="min-w-0">
           {tab === 'Profil Pengajar' && <ProfilPengajar />}
           {/* Siswa: hanya yang mengambil mata kuliah ajar teacher ini; progres dihitung dari mata kuliah ajarnya saja */}
           {tab === 'Siswa' && <StudentCards subjectScope={teachingSubjects} />}

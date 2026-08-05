@@ -380,7 +380,9 @@ export default function QuestionRunner({
 
  return (
    <div className="grid lg:grid-cols-[1fr_230px] gap-6 items-start">
-     <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6 md:p-7">
+     {/* min-w-0: soal/pilihan jawaban yang panjang dibungkus di dalam kolomnya,
+         tidak melebarkan kolom sampai panel navigasi soal terdorong keluar layar. */}
+     <div className="min-w-0 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6 md:p-7">
        {/* Bar atas: nomor soal, timer, keluar */}
        <div className="flex items-center justify-between gap-3 mb-5 pb-4 border-b border-alba-200">
          <div className="flex items-center gap-2">
@@ -424,7 +426,7 @@ export default function QuestionRunner({
          </div>
        )}
 
-       <p className="font-medium text-lg mb-4 leading-relaxed text-stone-800" dangerouslySetInnerHTML={{ __html: q.text || '' }} />
+       <p className="font-medium text-lg mb-4 leading-relaxed text-stone-800 overflow-x-auto scrollbar-thin" dangerouslySetInnerHTML={{ __html: q.text || '' }} />
 
        {/* SOAL BERGAMBAR: tampilkan gambar dari link (mis. googleusercontent) */}
        {showImage && q.imageUrl && (
@@ -890,7 +892,7 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
        )}
      </div>
 
-     <p className="font-medium leading-relaxed text-stone-800 mb-3" dangerouslySetInnerHTML={{ __html: qq.text || '' }} />
+     <p className="font-medium leading-relaxed text-stone-800 mb-3 overflow-x-auto scrollbar-thin" dangerouslySetInnerHTML={{ __html: qq.text || '' }} />
 
      {qq.imageUrl && (
        <img src={qq.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" loading="lazy" className="max-h-80 w-auto max-w-full rounded-xl border border-alba-200 shadow-sm mx-auto mb-4" />
