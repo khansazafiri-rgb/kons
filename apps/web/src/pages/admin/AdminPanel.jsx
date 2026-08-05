@@ -13,6 +13,7 @@ import { WA_TEMPLATES, resolveWaTemplates } from '@/lib/waTemplates';
 import { APP_VERSION } from '@/lib/appVersion';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
+import RichText, { hasImageLink } from '@/lib/richText';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 
 const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page'];
@@ -613,6 +614,7 @@ const EMPTY_FORM = {
   year: '',
   text: '',
   hint: '',
+  explanation: '',
   imageUrl: '',
   options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }],
   subQuestions: [{ label: 'A', question: '', validAnswers: '' }],
@@ -634,6 +636,7 @@ function normalizeQuestion(q) {
       imageUrl: opt.imageUrl || '',
       options: Array.isArray(opt.choices) ? opt.choices : [],
       subQuestions: Array.isArray(opt.subQuestions) ? opt.subQuestions : [],
+      explanation: opt.explanation || '',
     };
   }
   return {
@@ -642,6 +645,7 @@ function normalizeQuestion(q) {
     imageUrl: q?.imageUrl || '',
     options: Array.isArray(opt) ? opt : [],
     subQuestions: Array.isArray(q?.subQuestions) ? q.subQuestions : [],
+    explanation: '',
   };
 }
 
@@ -653,6 +657,9 @@ function packOptions(n) {
     imageUrl: hasImageType(n.qtype) ? (n.imageUrl || '') : '',
     choices: isian ? [] : (n.options || []),
     subQuestions: isian ? (n.subQuestions || []) : [],
+    // Pembahasan tunggal: satu penjelasan untuk seluruh soal (sering cuma
+    // berupa link gambar). Berlaku untuk semua tipe, MCQ maupun isian.
+    explanation: n.explanation || '',
   };
 }
 
@@ -663,6 +670,7 @@ function formFromQuestion(raw) {
     year: q.year || '',
     text: q.text || '',
     hint: q.hint || '',
+    explanation: q.explanation || '',
     imageUrl: q.imageUrl || '',
     options: (q.options && q.options.length) ? q.options : EMPTY_FORM.options,
     subQuestions: (q.subQuestions && q.subQuestions.length)
@@ -681,6 +689,7 @@ function payloadFromForm(form) {
     options: packOptions({
       qtype: form.qtype,
       imageUrl: form.imageUrl,
+      explanation: form.explanation,
       options: isian ? [] : form.options,
       subQuestions: isian
         ? form.subQuestions
@@ -732,6 +741,28 @@ function QuestionForm({ form, setForm }) {
       <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan..." className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" rows={3} />
       <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
 
+      {/* Pembahasan tunggal: satu penjelasan untuk seluruh soal, dipakai kalau
+          soalnya tidak punya alasan per opsi (sering isinya cuma link gambar
+          slide). Link lh3/Drive di sini otomatis tampil sebagai gambar. */}
+      <div className="space-y-1">
+        <textarea
+          value={form.explanation}
+          onChange={(e) => setForm((f) => ({ ...f, explanation: e.target.value }))}
+          placeholder="Pembahasan untuk seluruh soal (opsional). Boleh diisi teks, link gambar, atau keduanya."
+          className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+          rows={2}
+        />
+        <p className="text-[11px] text-stone-400">
+          Dipakai kalau satu soal cukup dijelaskan sekali, bukan per opsi. Link <span className="font-mono">lh3.googleusercontent.com</span> atau link Google Drive otomatis ditampilkan sebagai gambar ke siswa.
+        </p>
+        {hasImageLink(form.explanation) && (
+          <div className="rounded-lg border border-alba-200 bg-alba-100/60 px-3 py-2">
+            <p className="text-[11px] font-bold text-stone-500 mb-1">Preview pembahasan:</p>
+            <div className="text-sm text-stone-700"><RichText text={form.explanation} /></div>
+          </div>
+        )}
+      </div>
+
       {isian ? (
         <>
           {form.subQuestions.map((sq, i) => (
@@ -777,10 +808,22 @@ const OUTPUT_RULES = `ATURAN OUTPUT (WAJIB):
 - DILARANG menulis "const", "let", "var", titik koma penutup, komentar, kalimat pembuka/penutup, atau membungkus dengan blok kode tiga-backtick.
 - Gunakan tanda kutip dobel ". Escape " di dalam teks menjadi \\".`;
 
+// Berlaku untuk semua tipe: sebagian soal pembahasannya cuma SATU untuk
+// keseluruhan (sering berupa screenshot slide), bukan alasan per opsi.
+const PEMBAHASAN_TUNGGAL_RULE = `PEMBAHASAN SATU UNTUK SELURUH SOAL (opsional):
+- Kalau sebuah soal pembahasannya CUMA SATU untuk keseluruhan - bukan alasan per opsi - taruh di field "explanation" TINGKAT SOAL (sejajar "text" dan "hint", ditulis setelah "hint"), dan biarkan "explanation" tiap opsi berisi "".
+- Ciri-cirinya: setelah soal cuma ada satu gambar/screenshot pembahasan, atau satu paragraf penjelasan yang tidak membahas opsi satu per satu, atau diawali kata seperti "pembahasan:", "penjelasan:", "keterangan:".
+- Isinya boleh teks saja, link gambar saja, atau teks + link gambar dicampur. Link gambar ditulis sebagai URL biasa (BUKAN tag <img>) dan tetap diubah ke format https://lh3.googleusercontent.com/d/FILE_ID. Web otomatis menampilkannya sebagai gambar.
+- Untuk pindah baris di dalam "explanation" pakai <br>, jangan Enter beneran.
+- Kalau soal tidak punya pembahasan menyeluruh seperti itu, JANGAN tulis field "explanation" tingkat soal sama sekali.
+- Hati-hati bedakan: "imageUrl" = gambar SOAL (dilihat sebelum menjawab), gambar di "explanation" = gambar PEMBAHASAN (muncul setelah jawaban dibuka).`;
+
 const GEMINI_PROMPTS = {
   'MCQ Biasa': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda berikut menjadi SATU array JavaScript.
 
 ${OUTPUT_RULES}
+
+${PEMBAHASAN_TUNGGAL_RULE}
 
 FORMAT TIAP SOAL:
 {
@@ -799,6 +842,8 @@ Konversi soal-soal berikut (dengan kunci jawaban & pembahasan):
   'MCQ Bergambar': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda BERGAMBAR berikut menjadi SATU array JavaScript.
 
 ${OUTPUT_RULES}
+
+${PEMBAHASAN_TUNGGAL_RULE}
 - "imageUrl" WAJIB ada, format https://lh3.googleusercontent.com/d/FILE_ID (pakai ID gambar yang saya beri per soal).
 
 FORMAT TIAP SOAL:
@@ -820,6 +865,8 @@ Konversi soal-soal bergambar berikut (sertakan link gambar tiap soal + kunci jaw
 
 ${OUTPUT_RULES}
 
+${PEMBAHASAN_TUNGGAL_RULE}
+
 FORMAT TIAP SOAL:
 {
   "text": "Instruksi/konteks soal",
@@ -837,6 +884,8 @@ Konversi soal-soal isian berikut (sertakan semua jawaban yang diterima):
   'Isian Bergambar': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal ISIAN SINGKAT BERGAMBAR berikut menjadi SATU array JavaScript.
 
 ${OUTPUT_RULES}
+
+${PEMBAHASAN_TUNGGAL_RULE}
 - "imageUrl" WAJIB ada, format https://lh3.googleusercontent.com/d/FILE_ID (pakai ID gambar yang saya beri per soal).
 
 FORMAT TIAP SOAL:
@@ -857,6 +906,8 @@ Konversi soal-soal isian bergambar berikut (sertakan link gambar + semua jawaban
   'Acak (Campur)': `Kamu konverter soal untuk web CBT PCV Classroom. Soal-soal di bawah CAMPURAN dari beberapa tipe. Ubah SEMUANYA menjadi SATU array JavaScript, di mana tiap soal memakai format sesuai tipenya masing-masing.
 
 ${OUTPUT_RULES}
+
+${PEMBAHASAN_TUNGGAL_RULE}
 - Boleh mencampur keempat tipe di bawah dalam satu array yang sama, dengan urutan mengikuti urutan soal yang saya beri.
 
 TIPE 1 - MCQ BIASA (pilihan ganda, tanpa gambar):
@@ -1025,6 +1076,7 @@ function parseBulkItems(bulkText, qtype) {
       qtype: itemType,
       text: item.text || '',
       hint: item.hint || '',
+      explanation: item.explanation || '',
       imageUrl: item.imageUrl || '',
       options: isian ? [] : item.options,
       subQuestions: isian
@@ -1254,7 +1306,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
         year: null,
         text: item.text,
         hint: item.hint,
-        options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
+        options: packOptions(item), // qtype/imageUrl/subQuestions/explanation dibungkus ke field options
       }),
     });
     if (ok) {
@@ -1344,7 +1396,7 @@ const stripHtml = (v) => String(v || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp
 // sering hanya "Perhatikan gambar berikut" - pertanyaan aslinya ada di
 // subQuestions, jadi bagian itu ikut dikumpulkan di sini.
 function searchableParts(q) {
-  const parts = [stripHtml(q.text), stripHtml(q.hint)];
+  const parts = [stripHtml(q.text), stripHtml(q.hint), stripHtml(q.explanation)];
   for (const sq of q.subQuestions || []) {
     parts.push(stripHtml(sq.question));
     for (const a of sq.validAnswers || []) parts.push(String(a));
@@ -1635,7 +1687,7 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
             year: Number(year),
             text: q.text || '',
             hint: q.hint || '',
-            options: packOptions(q), // qtype/imageUrl/subQuestions ikut terbawa
+            options: packOptions(q), // qtype/imageUrl/subQuestions/explanation ikut terbawa
             order: ++order,
           });
           if (mode === 'move') await pb.collection('questions').delete(q.id);
@@ -1753,7 +1805,7 @@ function PreviewModal({ previewData, onClose }) {
 
           {previewData.hint && (
             <div className="bg-gold-100/70 border border-gold-200 text-stone-700 px-4 py-3 rounded-lg text-sm">
-              <span className="font-bold">Hint:</span> {previewData.hint}
+              <span className="font-bold">Hint:</span> <RichText text={previewData.hint} />
             </div>
           )}
 
@@ -1782,10 +1834,17 @@ function PreviewModal({ previewData, onClose }) {
 
                   <div className="mt-3 pt-3 border-t border-alba-200/60">
                     <p className="text-xs font-bold text-stone-500 mb-1">Pembahasan:</p>
-                    <p className="text-sm text-stone-700">{o.explanation || <span className="italic text-stone-400">Penjelasan belum diisi oleh pengajar.</span>}</p>
+                    <div className="text-sm text-stone-700">{o.explanation ? <RichText text={o.explanation} /> : <span className="italic text-stone-400">Penjelasan belum diisi oleh pengajar.</span>}</div>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {previewData.explanation && (
+            <div className="rounded-xl border border-maroon-100 bg-maroon-50/60 px-4 py-3">
+              <p className="text-xs font-bold text-maroon-700 mb-1.5">Pembahasan (satu untuk seluruh soal):</p>
+              <div className="text-sm leading-relaxed text-stone-700"><RichText text={previewData.explanation} /></div>
             </div>
           )}
         </div>
@@ -1910,7 +1969,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
         year: Number(year),
         text: item.text,
         hint: item.hint,
-        options: packOptions(item), // qtype/imageUrl/subQuestions dibungkus ke field options
+        options: packOptions(item), // qtype/imageUrl/subQuestions/explanation dibungkus ke field options
       }),
     });
     if (ok) {

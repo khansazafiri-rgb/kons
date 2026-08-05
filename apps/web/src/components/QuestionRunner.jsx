@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, RotateCcw, TimerReset, X, XCircle } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } from '@/lib/weaknessAnalyzer';
+import RichText from '@/lib/richText';
 
 /*
  QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
@@ -23,6 +24,7 @@ export function normalizeQuestion(q) {
      imageUrl: opt.imageUrl || '',
      options: Array.isArray(opt.choices) ? opt.choices : [],
      subQuestions: Array.isArray(opt.subQuestions) ? opt.subQuestions : [],
+     explanation: opt.explanation || '',
    };
  }
  // legacy: options berupa array = MCQ biasa
@@ -32,6 +34,7 @@ export function normalizeQuestion(q) {
    imageUrl: q?.imageUrl || '',
    options: Array.isArray(opt) ? opt : [],
    subQuestions: Array.isArray(q?.subQuestions) ? q.subQuestions : [],
+   explanation: '',
  };
 }
 
@@ -517,12 +520,25 @@ export default function QuestionRunner({
                      <span className="font-bold block mb-1">
                        {opt.correct ? '✅ Alasan Benar:' : '❌ Mengapa Salah:'}
                      </span>
-                     {opt.explanation}
+                     <RichText text={opt.explanation} />
                    </div>
                  )}
                </div>
              );
            })}
+         </div>
+       )}
+
+       {/* Pembahasan tunggal: satu penjelasan untuk seluruh soal (bukan per
+           opsi). Muncul sekali saja setelah jawaban dibuka, dan berlaku sama
+           untuk MCQ maupun isian. */}
+       {showResult && q.explanation && (
+         <div className="mb-6 rounded-xl border border-maroon-100 bg-maroon-50/60 px-4 py-3 animate-fade-in">
+           <p className="flex items-center gap-1.5 font-bold text-sm mb-1.5 text-maroon-700">
+             <Lightbulb size={15} />
+             Pembahasan:
+           </p>
+           <div className="text-sm leading-relaxed text-stone-700"><RichText text={q.explanation} /></div>
          </div>
        )}
 
@@ -532,7 +548,7 @@ export default function QuestionRunner({
              <Lightbulb size={15} />
              Hint Dokter:
            </p>
-           <p className="text-sm leading-relaxed">{q.hint || 'Tidak ada hint spesifik untuk soal ini.'}</p>
+           <div className="text-sm leading-relaxed">{q.hint ? <RichText text={q.hint} /> : 'Tidak ada hint spesifik untuk soal ini.'}</div>
          </div>
        )}
 
@@ -942,13 +958,21 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
                  </span>
                </div>
                {opt.explanation && (pembahasanOnly || opt.correct || isSelected) && (
-                 <p className={`mt-2 ml-9 text-xs leading-relaxed ${opt.correct ? 'text-green-900' : 'text-stone-600'}`}>
-                   <span className="font-bold">{opt.correct ? 'Alasan benar: ' : 'Mengapa salah: '}</span>{opt.explanation}
-                 </p>
+                 <div className={`mt-2 ml-9 text-xs leading-relaxed ${opt.correct ? 'text-green-900' : 'text-stone-600'}`}>
+                   <span className="font-bold">{opt.correct ? 'Alasan benar: ' : 'Mengapa salah: '}</span><RichText text={opt.explanation} />
+                 </div>
                )}
              </div>
            );
          })}
+       </div>
+     )}
+
+     {/* Pembahasan tunggal juga ikut tampil di layar review/pembahasan */}
+     {qq.explanation && (
+       <div className="mt-3 rounded-xl border border-maroon-100 bg-maroon-50/60 px-4 py-3">
+         <p className="text-xs font-bold text-maroon-700 mb-1.5">Pembahasan:</p>
+         <div className="text-xs leading-relaxed text-stone-700"><RichText text={qq.explanation} /></div>
        </div>
      )}
    </div>
