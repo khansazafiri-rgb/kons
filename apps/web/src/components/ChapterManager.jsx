@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
+import { KIND_CBT, filterCbt, filterLatihan, gabung } from '@/lib/chapterScope';
 
 // Manajemen BAB per mata kuliah: tambah, ubah nama, hide/tampilkan, urutkan,
 // hapus, dan PILIH bab. Dipakai bersama di "Edit Soal" (Cicil Belajar) & "PPT
@@ -10,10 +11,17 @@ import pb from '@/lib/pocketbaseClient';
 // - selectedChapterId  : id bab yang sedang dipilih
 // - onSelect(id)       : dipanggil saat sebuah bab diklik (untuk dipilih)
 // - indicator          : 'ppt' -> tanda ✓ bila bab sudah punya file PPT
-//                        'soal' -> badge jumlah soal (latihan) pada bab
+//                        'soal' -> badge jumlah soal pada bab
 // - refreshSignal      : ubah nilainya untuk memaksa muat ulang (mis. setelah
 //                        upload PPT / tambah soal dari komponen induk)
-export default function ChapterManager({ subjectId, selectedChapterId, onSelect, indicator, refreshSignal }) {
+// - kind               : 'latihan' (default) untuk BAB Cicil Belajar & PPT,
+//                        'cbt' untuk BAB Simulasi CBT
+// - university         : hanya dipakai saat kind 'cbt' - universitas pemilik
+//                        BAB. String kosong = dipakai semua universitas.
+export default function ChapterManager({ subjectId, selectedChapterId, onSelect, indicator, refreshSignal, kind = 'latihan', university = '' }) {
+  const cbt = kind === KIND_CBT;
+  // Ruang lingkup BAB: latihan berlaku umum, cbt dipisah per universitas.
+  const lingkup = cbt ? filterCbt(university) : filterLatihan();
   const [chapters, setChapters] = useState([]);
   const [newTitle, setNewTitle] = useState('');
   const [error, setError] = useState('');
@@ -32,7 +40,7 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
   const load = () => {
     if (!subjectId) { setChapters([]); return; }
     pb.collection('chapters')
-      .getFullList({ sort: 'order', filter: `subject = '${subjectId}'` })
+      .getFullList({ sort: 'order', filter: gabung(pb.filter('subject = {:s}', { s: subjectId }), lingkup) })
       .then(setChapters)
       .catch((e) => setError('Gagal memuat BAB: ' + (e?.message || '')));
   };
@@ -47,7 +55,7 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
         .catch(() => setPptSet(new Set()));
     } else if (indicator === 'soal') {
       pb.collection('questions')
-        .getFullList({ filter: `subject = '${subjectId}' && type = 'latihan'`, fields: 'chapter' })
+        .getFullList({ filter: pb.filter('subject = {:s} && type = {:t}', { s: subjectId, t: cbt ? 'cbt' : 'latihan' }), fields: 'chapter' })
         .then((rows) => {
           const m = {};
           rows.forEach((r) => { if (r.chapter) m[r.chapter] = (m[r.chapter] || 0) + 1; });
@@ -58,13 +66,19 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
   };
 
   const reload = () => { load(); loadIndicators(); };
-  useEffect(() => { setError(''); reload(); }, [subjectId, indicator, refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setError(''); reload(); }, [subjectId, indicator, refreshSignal, kind, university]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addChapter = async () => {
     if (!newTitle.trim() || !subjectId) return;
     setError('');
     try {
-      await pb.collection('chapters').create({ title: newTitle.trim(), subject: subjectId, order: chapters.length + 1 });
+      await pb.collection('chapters').create({
+        title: newTitle.trim(),
+        subject: subjectId,
+        order: chapters.length + 1,
+        kind,
+        university: cbt ? (university || '') : '',
+      });
       setNewTitle('');
       reload();
     } catch (e) { setError(errMsg(e)); }

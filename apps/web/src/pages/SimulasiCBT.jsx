@@ -5,28 +5,31 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import { touchActivity } from '@/lib/activityLog';
+import { filterCbtUntukSiswa, gabung } from '@/lib/chapterScope';
+import useUrlState from '@/lib/useUrlState';
 
-// Soal simulasi dikelompokkan per "Paket" (Paket 1, 2, 3, ...) - bukan lagi
-// per tahun angkatan. Field database-nya tetap bernama `year`, hanya isinya
-// kini nomor paket. Paket baru ditambahkan admin lewat tab Edit Soal.
+// Soal simulasi dikelompokkan per BAB bernama bebas (bukan lagi "Paket 1/2/3"
+// bernomor), dan tiap BAB menempel pada satu universitas. Siswa hanya melihat
+// BAB milik kampusnya sendiri ditambah BAB "Semua Universitas". BAB simulasi
+// ditambahkan admin lewat tab Edit Soal -> Simulasi CBT.
 export default function SimulasiCBT() {
  const { user, role } = useAuth();
  const [subjects, setSubjects] = useState([]);
- const [subjectId, setSubjectId] = useState('');
- const [year, setYear] = useState('');
- const [mode, setMode] = useState('');
+ const [subjectId, setSubjectId] = useUrlState('mk', '');
+ const [chapterId, setChapterId] = useUrlState('bab', '');
+ const [mode, setMode] = useUrlState('mode', '');
  const [questions, setQuestions] = useState(null);
  const [attemptId, setAttemptId] = useState(null);
  const [completedAttempt, setCompletedAttempt] = useState(null); // attempt lama yg sudah selesai (untuk review)
  const [reviewing, setReviewing] = useState(false);
- const [availYears, setAvailYears] = useState({});   // { subjectId: Set(tahun yang ada soalnya) }
- const [doneYears, setDoneYears] = useState({});     // { subjectId: Set(tahun yang sudah dikerjakan) }
+ const [babPerMk, setBabPerMk] = useState({});      // { subjectId: [{id,title}] BAB yang ada soalnya }
+ const [babSelesai, setBabSelesai] = useState(() => new Set()); // id BAB yang sudah dituntaskan
  const [leaderboard, setLeaderboard] = useState([]);
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
 
- // Auto-scroll mengikuti pilihan (mata kuliah → tahun → mode → mulai)
- const yearRef = useRef(null);
+ // Auto-scroll mengikuti pilihan (mata kuliah → BAB → mode → mulai)
+ const babRef = useRef(null);
  const modeRef = useRef(null);
  const startRef = useRef(null);
  const scrollToRef = (ref) => setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
@@ -43,68 +46,78 @@ export default function SimulasiCBT() {
    [subjects, enrolled]
  );
 
- // Progress per mata kuliah: berapa tahun angkatan yang sudah dituntaskan
- // dari seluruh tahun yang tersedia soalnya.
+ // Nama BAB yang sedang dipilih, untuk pesan & jejak aktivitas.
+ const babLabel = () =>
+   (babPerMk[subjectId] || []).find((b) => b.id === chapterId)?.title || 'BAB simulasi';
+
+ // BAB simulasi yang boleh dilihat siswa ini: BAB kampusnya sendiri + BAB
+ // "Semua Universitas". BAB yang belum ada soalnya sengaja tidak ditampilkan
+ // supaya siswa tidak membuka tryout kosong.
  useEffect(() => {
    (async () => {
      const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
      setSubjects(subs);
      try {
-       const cbtQs = await pb.collection('questions').getFullList({ filter: "type = 'cbt'", fields: 'subject,year' });
-       const avail = {};
-       cbtQs.forEach((qq) => {
-         if (!qq.year) return;
-         if (!avail[qq.subject]) avail[qq.subject] = new Set();
-         avail[qq.subject].add(qq.year);
+       const babBoleh = await pb.collection('chapters').getFullList({
+         sort: 'order',
+         filter: gabung(filterCbtUntukSiswa(user?.asalKuliah), 'hidden != true'),
+         fields: 'id,subject,title,order',
        });
-       setAvailYears(avail);
+       const bolehIds = new Set(babBoleh.map((c) => c.id));
+
+       const cbtQs = await pb.collection('questions').getFullList({ filter: "type = 'cbt'", fields: 'subject,chapter' });
+       const adaSoal = new Set(cbtQs.map((q) => q.chapter).filter(Boolean));
+
+       const perMk = {};
+       babBoleh.forEach((c) => {
+         if (!adaSoal.has(c.id)) return;
+         if (!perMk[c.subject]) perMk[c.subject] = [];
+         perMk[c.subject].push({ id: c.id, title: c.title });
+       });
+       setBabPerMk(perMk);
+
        if (user?.id) {
          const attempts = await pb
            .collection('cbt_attempts')
-           .getFullList({ filter: `owner = '${user.id}' && status = 'completed'`, fields: 'subject,year' });
-         const done = {};
-         attempts.forEach((a) => {
-           if (!done[a.subject]) done[a.subject] = new Set();
-           done[a.subject].add(a.year);
-         });
-         setDoneYears(done);
+           .getFullList({ filter: pb.filter('owner = {:o} && status = {:st}', { o: user.id, st: 'completed' }), fields: 'chapter' });
+         setBabSelesai(new Set(attempts.map((a) => a.chapter).filter((c) => c && bolehIds.has(c))));
        }
      } catch (e) {
-       setAvailYears({});
+       setBabPerMk({});
      }
    })();
  }, [user, refreshKey]);
 
- // FITUR: Leaderboard anonim per tryout (subject + tahun).
+ // FITUR: Leaderboard anonim per tryout (subject + BAB).
  // Kalau API rule cbt_attempts tidak mengizinkan membaca milik orang lain,
  // bagian ini otomatis disembunyikan (error ditelan).
  useEffect(() => {
    setLeaderboard([]);
-   if (!subjectId || !year) return;
+   if (!subjectId || !chapterId) return;
    pb.collection('cbt_attempts')
      .getList(1, 10, {
-       filter: `subject = '${subjectId}' && year = ${year} && status = 'completed'`,
+       filter: pb.filter('subject = {:s} && chapter = {:c} && status = {:st}', { s: subjectId, c: chapterId, st: 'completed' }),
        sort: '-score',
        fields: 'id,owner,score',
      })
      .then((res) => setLeaderboard(res.items || []))
      .catch(() => setLeaderboard([]));
- }, [subjectId, year, refreshKey]);
+ }, [subjectId, chapterId, refreshKey]);
 
  const start = async () => {
-   if (!subjectId || !year || !mode) return;
+   if (!subjectId || !chapterId || !mode) return;
    if (enrolled && !enrolled.includes(subjectId)) {
      alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
      return;
    }
 
    const qs = await pb.collection('questions').getFullList({
-     filter: `subject = '${subjectId}' && type = 'cbt' && year = ${year}`,
+     filter: pb.filter('subject = {:s} && type = {:t} && chapter = {:c}', { s: subjectId, t: 'cbt', c: chapterId }),
      sort: 'order',
      expand: 'chapter',
    });
    if (qs.length === 0) {
-     alert(`Belum ada soal untuk Paket ${year} di mata kuliah ini. Silakan pilih paket lain.`);
+     alert(`Belum ada soal untuk "${babLabel()}" di mata kuliah ini. Silakan pilih BAB lain.`);
      return;
    }
 
@@ -118,12 +131,15 @@ export default function SimulasiCBT() {
      return;
    }
 
-   // Kalau tahun ini sudah pernah dituntaskan, tawarkan review dulu (jangan
+   // Kalau BAB ini sudah pernah dituntaskan, tawarkan review dulu (jangan
    // langsung buat attempt baru) supaya jawaban lama tidak tertimpa.
    if (user) {
      const done = await pb
        .collection('cbt_attempts')
-       .getFullList({ filter: `owner = '${user.id}' && subject = '${subjectId}' && year = ${year} && status = 'completed'`, sort: '-created' });
+       .getFullList({
+         filter: pb.filter('owner = {:o} && subject = {:s} && chapter = {:c} && status = {:st}', { o: user.id, s: subjectId, c: chapterId, st: 'completed' }),
+         sort: '-created',
+       });
      if (done[0]) {
        setCompletedAttempt(done[0]);
        setQuestions(qs);
@@ -136,7 +152,7 @@ export default function SimulasiCBT() {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
        subject: subjectId,
-       year: parseInt(year),
+       chapter: chapterId,
        mode,
        status: 'in_progress',
        startedAt: new Date().toISOString(),
@@ -145,7 +161,7 @@ export default function SimulasiCBT() {
    }
  };
 
- // Mulai attempt baru walau tahun ini sudah pernah dikerjakan (dari layar pilihan).
+ // Mulai attempt baru walau BAB ini sudah pernah dikerjakan (dari layar pilihan).
  const startFresh = async () => {
    setCompletedAttempt(null);
    setReviewing(false);
@@ -153,7 +169,7 @@ export default function SimulasiCBT() {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
        subject: subjectId,
-       year: parseInt(year),
+       chapter: chapterId,
        mode,
        status: 'in_progress',
        startedAt: new Date().toISOString(),
@@ -180,7 +196,7 @@ export default function SimulasiCBT() {
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
    const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
-   touchActivity(pb, user, `Mengerjakan Simulasi CBT ${namaMk} Paket ${year} (nilai ${score})`);
+   touchActivity(pb, user, `Mengerjakan Simulasi CBT ${namaMk} · ${babLabel()} (nilai ${score})`);
  };
 
  const exit = async () => {
@@ -245,8 +261,7 @@ export default function SimulasiCBT() {
    );
  }
 
- const availOfSubject = availYears[subjectId] || new Set();
- const doneOfSubject = doneYears[subjectId] || new Set();
+ const babOfSubject = babPerMk[subjectId] || [];
 
  // Layar Awal Pemilihan Parameter Ujian
  return (
@@ -257,8 +272,8 @@ export default function SimulasiCBT() {
          <Timer size={14} />
          SIMULASI CBT TEST
        </p>
-       <h1 className="font-display text-3xl font-semibold mb-2">Tryout Paket Soal</h1>
-       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah, paket soal, dan mode ujian untuk memulai tryout.</p>
+       <h1 className="font-display text-3xl font-semibold mb-2">Tryout Simulasi</h1>
+       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah, BAB soal, dan mode ujian untuk memulai tryout.</p>
 
        {enrolled && enrolled.length === 0 && (
          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
@@ -272,23 +287,22 @@ export default function SimulasiCBT() {
            <label className="block text-sm font-bold text-stone-700 mb-3">1. Pilih Mata Kuliah</label>
            <div className="grid sm:grid-cols-2 gap-2.5">
              {visibleSubjects.map((s) => {
-               const avail = availYears[s.id] ? availYears[s.id].size : 0;
-               const done = doneYears[s.id]
-                 ? [...doneYears[s.id]].filter((y) => (availYears[s.id] || new Set()).has(y)).length
-                 : 0;
+               const daftar = babPerMk[s.id] || [];
+               const avail = daftar.length;
+               const done = daftar.filter((b) => babSelesai.has(b.id)).length;
                const pct = avail ? Math.round((done / avail) * 100) : 0;
                const active = subjectId === s.id;
                return (
                  <button
                    key={s.id}
-                   onClick={() => { setSubjectId(s.id); setYear(''); scrollToRef(yearRef); }}
+                   onClick={() => { setSubjectId(s.id); setChapterId(''); scrollToRef(babRef); }}
                    className={`text-left rounded-xl border p-4 transition-all ${
                      active ? 'border-maroon-600 bg-maroon-50' : 'border-alba-200 hover:border-maroon-200 hover:bg-alba-100/60'
                    }`}
                  >
                    <div className="flex items-center justify-between gap-2 mb-2">
                      <p className={`text-sm font-bold min-w-0 ${active ? 'text-maroon-700' : 'text-stone-700'}`}>{s.name}</p>
-                     {<span className="text-[11px] font-bold text-maroon-500 shrink-0">{done}/{avail} paket</span>}
+                     {<span className="text-[11px] font-bold text-maroon-500 shrink-0">{done}/{avail} BAB</span>}
                    </div>
                    {(
                      <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
@@ -305,33 +319,34 @@ export default function SimulasiCBT() {
          </div>
 
          {subjectId && (
-           <div ref={yearRef} className="animate-fade-in scroll-mt-24">
-             <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih Paket Soal</label>
-             {availOfSubject.size === 0 ? (
-               <p className="text-sm text-stone-400">Belum ada paket soal untuk mata kuliah ini.</p>
+           <div ref={babRef} className="animate-fade-in scroll-mt-24">
+             <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih BAB Soal</label>
+             {babOfSubject.length === 0 ? (
+               <p className="text-sm text-stone-400">Belum ada BAB simulasi untuk mata kuliah ini di kampusmu.</p>
              ) : (
-               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                 {[...availOfSubject].sort((a, b) => a - b).map((p) => {
-                   const done = doneOfSubject.has(p);
+               <div className="grid grid-cols-1 gap-2">
+                 {babOfSubject.map((b) => {
+                   const done = babSelesai.has(b.id);
+                   const dipilih = chapterId === b.id;
                    return (
                      <button
-                       key={p}
-                       onClick={() => { setYear(String(p)); scrollToRef(modeRef); }}
-                       className={`relative rounded-xl border px-2 py-2.5 text-sm font-bold transition-all ${
-                         year === String(p)
+                       key={b.id}
+                       onClick={() => { setChapterId(b.id); scrollToRef(modeRef); }}
+                       title={done ? 'Sudah pernah kamu kerjakan' : 'Soal tersedia'}
+                       className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm font-bold transition-all ${
+                         dipilih
                            ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
                            : 'border-maroon-200 text-maroon-700 bg-maroon-50/50 hover:border-maroon-400'
                        }`}
-                       title={done ? 'Sudah pernah kamu kerjakan' : 'Soal tersedia'}
                      >
-                       Paket {p}
-                       {done && <span className="absolute -top-1.5 -right-1.5 text-[10px]">✅</span>}
+                       <span className="min-w-0 line-clamp-2">{b.title}</span>
+                       {done && <span className="shrink-0 text-[11px]">✅</span>}
                      </button>
                    );
                  })}
                </div>
              )}
-             <p className="text-[11px] text-stone-400 mt-2">✅ = paket yang pernah kamu tuntaskan</p>
+             <p className="text-[11px] text-stone-400 mt-2">✅ = BAB yang pernah kamu tuntaskan</p>
            </div>
          )}
 
@@ -385,7 +400,7 @@ export default function SimulasiCBT() {
 
          <div ref={startRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
-             disabled={!subjectId || !year || !mode}
+             disabled={!subjectId || !chapterId || !mode}
              onClick={start}
              className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
            >

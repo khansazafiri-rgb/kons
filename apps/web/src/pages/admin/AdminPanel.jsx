@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
@@ -14,11 +14,15 @@ import { APP_VERSION } from '@/lib/appVersion';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
+import { KIND_CBT, LABEL_UNIV_SEMUA, OPSI_UNIV_SEMUA, filterLatihan, gabung, labelUniversitas, univKeDb } from '@/lib/chapterScope';
+import useUrlState from '@/lib/useUrlState';
+import { FK_INDONESIA } from '@/data/fakultasKedokteran';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 
 const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page'];
 export default function AdminPanel() {
-  const [tab, setTab] = useState('Pengajar');
+  // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
+  const [tab, setTab] = useUrlState('tab', 'Pengajar');
   const { user, isAuthed } = useAuth();
 
   if (!isAuthed || !user?.id) {
@@ -190,7 +194,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
       const [st, subs, chs, prog, cls] = await Promise.all([
         pb.collection('users').getFullList({ filter: "role = 'student'" }),
         pb.collection('subjects').getFullList({ sort: 'order', fields: 'id,name' }),
-        pb.collection('chapters').getFullList({ fields: 'id,subject,title' }),
+        pb.collection('chapters').getFullList({ filter: filterLatihan(), fields: 'id,subject,title' }),
         pb.collection('soal_progress').getFullList({ filter: "status = 'completed'", fields: 'owner,chapter,updated' }).catch(() => []),
         pb.collection('classes').getFullList({ sort: 'order', filter: 'hidden != true' }).catch(() => []),
       ]);
@@ -575,7 +579,7 @@ function PhoneEditor({ initial, onSave }) {
 // (workflow sesuai PRD: CBT tidak lewat BAB, langsung mata kuliah → paket)
 // ==========================================
 export function EditSoalHub({ allowedSubjectIds = null }) {
-  const [mode, setMode] = useState(null);
+  const [mode, setMode] = useUrlState('jenis', '');
 
   if (!mode) {
     return (
@@ -600,7 +604,7 @@ export function EditSoalHub({ allowedSubjectIds = null }) {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => setMode(null)} className="text-sm font-bold text-stone-500 hover:text-maroon-600 transition-colors">
+      <button onClick={() => setMode('')} className="text-sm font-bold text-stone-500 hover:text-maroon-600 transition-colors">
         ← Kembali ke pilihan jenis soal
       </button>
       {mode === 'cicil' ? <EditSoal allowedSubjectIds={allowedSubjectIds} /> : <EditSimulasi allowedSubjectIds={allowedSubjectIds} />}
@@ -1200,8 +1204,8 @@ async function bulkDeleteQuestions({ ids, setStatus }) {
 export function EditSoal({ allowedSubjectIds = null }) {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
-  const [subjectId, setSubjectId] = useState('');
-  const [chapterId, setChapterId] = useState('');
+  const [subjectId, setSubjectId] = useUrlState('mk', '');
+  const [chapterId, setChapterId] = useUrlState('bab', '');
   const [newSubjectName, setNewSubjectName] = useState('');
   const [questions, setQuestions] = useState([]);
 
@@ -1220,7 +1224,9 @@ export function EditSoal({ allowedSubjectIds = null }) {
   const loadSubjects = () => pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
     setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
   });
-  const loadQuestions = (cid) => pb.collection('questions').getFullList({ filter: `chapter = '${cid}'`, sort: '-created' }).then((list) => setQuestions(list.map(normalizeQuestion)));
+  const loadQuestions = (cid) => pb.collection('questions')
+    .getFullList({ filter: pb.filter('chapter = {:c} && type = {:t}', { c: cid, t: 'latihan' }), sort: '-created' })
+    .then((list) => setQuestions(list.map(normalizeQuestion)));
   // Muat ulang daftar soal BAB aktif + segarkan badge jumlah soal di daftar BAB.
   const reloadQuestions = (cid) => { loadQuestions(cid); setSoalRefresh((n) => n + 1); };
 
@@ -1862,65 +1868,86 @@ function PreviewModal({ previewData, onClose }) {
 // Soal dikelompokkan per "Paket 1..N" (field database tetap `year`).
 // Paket baru dibuat dengan memilih "+ Paket baru" lalu menyimpan soal pertama.
 // ==========================================
+// Edit Soal Simulasi CBT. Alur: pilih UNIVERSITAS -> mata kuliah -> BAB -> soal.
+//
+// Dulu soal simulasi dikelompokkan per "Paket" bernomor (field `year`), jadi
+// namanya tidak bisa bebas dan semua kampus dapat soal yang sama. Sekarang
+// pengelompokannya memakai BAB seperti Cicil Belajar - namanya bebas - dan tiap
+// BAB menempel pada satu universitas, supaya siswa FK yang berbeda mendapat
+// soal yang berbeda. BAB "Semua Universitas" dibaca oleh semua siswa.
 export function EditSimulasi({ allowedSubjectIds = null }) {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
-  const [subjectId, setSubjectId] = useState('');
-  const [year, setYear] = useState(''); // nomor paket terpilih
+  const [univOpsi, setUnivOpsi] = useUrlState('univ', '');   // '' = belum memilih
+  const [subjectId, setSubjectId] = useUrlState('mk', '');
+  const [chapterId, setChapterId] = useUrlState('bab', '');
+  const [chapterTitle, setChapterTitle] = useState('');
   const [questions, setQuestions] = useState([]);
-  const [pakets, setPakets] = useState([]); // nomor paket yang sudah ada soalnya
+  const [soalRefresh, setSoalRefresh] = useState(0);
 
   const [editingId, setEditingId] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [bulkStatus, setBulkStatus] = useState('');
 
+  const university = univKeDb(univOpsi); // nilai yang benar-benar disimpan
+  const univDipilih = univOpsi !== '';
+
+  const subjectLabel = () => subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
+  const univLabel = () => labelUniversitas(university);
+  const whereLabel = () => `Simulasi CBT ${univLabel()} · ${subjectLabel()} · ${chapterTitle || 'BAB'}`;
+
   useEffect(() => {
     pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
       setSubjects(allowedSubjectIds ? subs.filter((s) => allowedSubjectIds.includes(s.id)) : subs);
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Daftar paket yang sudah ada untuk mata kuliah terpilih.
+  // Ganti universitas atau mata kuliah -> BAB terpilih tidak lagi relevan.
+  // Dijaga supaya hanya berlaku saat pilihannya BENAR-BENAR berganti; kalau
+  // tidak, BAB yang dipulihkan dari URL ikut terhapus tiap halaman dibuka ulang.
+  const lingkupSebelumnya = useRef(`${univOpsi}|${subjectId}`);
   useEffect(() => {
-    setYear('');
-    setPakets([]);
-    if (!subjectId) return;
-    pb.collection('questions')
-      .getFullList({ filter: `subject = '${subjectId}' && type = 'cbt'`, fields: 'year' })
-      .then((rows) => {
-        const set = new Set(rows.map((r) => r.year).filter((y) => y > 0));
-        setPakets([...set].sort((a, b) => a - b));
-      })
-      .catch(() => setPakets([]));
-  }, [subjectId]);
-
-  const nextPaket = pakets.length ? Math.max(...pakets) + 1 : 1;
-
-  const loadQuestions = () => {
-    if (subjectId && year) {
-      pb.collection('questions').getFullList({ filter: `subject = '${subjectId}' && type = 'cbt' && year = ${year}`, sort: '-created' }).then((list) => setQuestions(list.map(normalizeQuestion)));
+    const sekarang = `${univOpsi}|${subjectId}`;
+    if (lingkupSebelumnya.current !== sekarang) {
+      lingkupSebelumnya.current = sekarang;
+      setChapterId('');
     }
-  };
+  }, [univOpsi, subjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadQuestions(); }, [subjectId, year]);
+  useEffect(() => {
+    if (!chapterId) return setChapterTitle('');
+    pb.collection('chapters').getOne(chapterId).then((c) => setChapterTitle(c?.title || '')).catch(() => setChapterTitle(''));
+  }, [chapterId]);
+
+  const loadQuestions = (cid = chapterId) => {
+    if (!subjectId || !cid) { setQuestions([]); return; }
+    pb.collection('questions')
+      .getFullList({
+        filter: pb.filter('subject = {:s} && type = {:t} && chapter = {:c}', { s: subjectId, t: 'cbt', c: cid }),
+        sort: '-created',
+      })
+      .then((list) => setQuestions(list.map(normalizeQuestion)))
+      .catch(() => setQuestions([]));
+  };
+  const reloadQuestions = (cid) => { loadQuestions(cid); setSoalRefresh((n) => n + 1); };
+
+  useEffect(() => { loadQuestions(); }, [subjectId, chapterId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveQuestion = async () => {
-    if (!form.text.trim() || !subjectId || !year) return;
+    if (!form.text.trim() || !subjectId || !chapterId) return;
     const payload = {
       subject: subjectId,
-      chapter: '',
+      chapter: chapterId,
       type: 'cbt',
-      year: Number(year),
       ...payloadFromForm(form),
     };
 
-    const where = `Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`.trim();
     if (editingId) {
       const saved = await pb.collection('questions').update(editingId, payload);
       logActivity(pb, user, {
         section: 'soal_ubah',
-        summary: `Mengubah soal di ${where}`,
+        summary: `Mengubah soal di ${whereLabel()}`,
         targetLabel: shorten(form.text, 200),
         detail: questionSnapshot(saved),
       });
@@ -1929,7 +1956,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       const saved = await pb.collection('questions').create(payload);
       logActivity(pb, user, {
         section: 'soal_tambah',
-        summary: `Menambah soal di ${where}`,
+        summary: `Menambah soal di ${whereLabel()}`,
         targetLabel: shorten(form.text, 200),
         detail: questionSnapshot(saved),
       });
@@ -1937,19 +1964,20 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
     setForm(EMPTY_FORM);
     setEditingId(null);
-    loadQuestions();
+    reloadQuestions();
   };
 
   const startEdit = (q) => {
     setForm(formFromQuestion(q));
     setEditingId(q.id);
   };
+  const cancelEdit = () => { setForm(EMPTY_FORM); setEditingId(null); };
 
-  // Import massal soal CBT - kini memakai helper yang SAMA dengan Cicil Belajar
-  // (retry saat rate limit + jeda antar-soal), jadi tidak lagi "gagal di tengah
+  // Import massal soal CBT - memakai helper yang SAMA dengan Cicil Belajar
+  // (retry saat rate limit + jeda antar-soal), jadi tidak "gagal di tengah
   // jalan" ketika soalnya banyak.
   const importBulk = async (bulkText, qtype, onDone) => {
-    if (!subjectId || !year) { setBulkStatus('⚠️ Pilih mata kuliah dan paket dulu.'); return; }
+    if (!subjectId || !chapterId) { setBulkStatus('⚠️ Pilih universitas, mata kuliah, dan BAB dulu.'); return; }
     let items;
     try {
       items = parseBulkItems(bulkText, qtype);
@@ -1964,9 +1992,8 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       summary: summarizeTypes(items),
       buildPayload: (item) => ({
         subject: subjectId,
-        chapter: '',
+        chapter: chapterId,
         type: 'cbt',
-        year: Number(year),
         text: item.text,
         hint: item.hint,
         options: packOptions(item), // qtype/imageUrl/subQuestions/explanation dibungkus ke field options
@@ -1976,40 +2003,72 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       onDone?.();
       logActivity(pb, user, {
         section: 'soal_tambah',
-        summary: `Import massal ${items.length} soal (${summarizeTypes(items)}) ke Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`,
-        targetLabel: `Simulasi CBT Paket ${year}`,
+        summary: `Import massal ${items.length} soal (${summarizeTypes(items)}) ke ${whereLabel()}`,
+        targetLabel: whereLabel(),
       });
     }
-    loadQuestions();
+    reloadQuestions();
   };
 
   return (
     <div className="space-y-6">
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT (per Paket)</h2>
-        <div className="flex gap-4 flex-col sm:flex-row">
-          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
-            <option value="">Pilih mata kuliah...</option>
-            {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT</h2>
+
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-stone-500">1. Universitas</label>
+          <select value={univOpsi} onChange={(e) => setUnivOpsi(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
+            <option value="">Pilih universitas...</option>
+            <option value={OPSI_UNIV_SEMUA}>{LABEL_UNIV_SEMUA} (dibaca semua siswa)</option>
+            {FK_INDONESIA.map((grup) => (
+              <optgroup key={grup.wilayah} label={grup.wilayah}>
+                {grup.items.map((nama) => <option key={nama} value={nama}>{nama}</option>)}
+              </optgroup>
+            ))}
           </select>
-          <select value={year} onChange={(e) => setYear(e.target.value)} disabled={!subjectId} className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50 disabled:opacity-50">
-            <option value="">Pilih paket...</option>
-            {pakets.map((p) => <option key={p} value={p}>Paket {p}</option>)}
-            <option value={nextPaket}>+ Paket baru (Paket {nextPaket})</option>
-          </select>
+          <p className="text-[11px] text-stone-400">
+            Soal di sini hanya muncul untuk siswa yang asal kuliahnya sama persis dengan pilihan ini.
+            Pilih <b>{LABEL_UNIV_SEMUA}</b> kalau soalnya dipakai bersama semua kampus.
+          </p>
         </div>
-        <p className="text-xs text-stone-400">
-          Paket baru otomatis muncul di web siswa begitu soal pertamanya tersimpan.
-        </p>
+
+        {univDipilih && (
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-stone-500">2. Mata kuliah</label>
+            <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
+              <option value="">Pilih mata kuliah...</option>
+              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {univDipilih && subjectId && (
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-stone-500">3. BAB simulasi — namanya bebas</label>
+            <ChapterManager
+              subjectId={subjectId}
+              selectedChapterId={chapterId}
+              onSelect={setChapterId}
+              indicator="soal"
+              refreshSignal={soalRefresh}
+              kind={KIND_CBT}
+              university={university}
+            />
+          </div>
+        )}
       </div>
 
-      {subjectId && year && (
+      {chapterId && (
         <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
-          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : `Tambah Soal Simulasi (Paket ${year})`}</h3>
+          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : 'Tambah Soal Simulasi'}</h3>
+          <p className="text-xs text-stone-400 -mt-2">{whereLabel()}</p>
           <QuestionForm form={form} setForm={setForm} />
 
           <div className="flex gap-2 pt-2">
-            <button onClick={saveQuestion} className={`rounded-lg text-alba-50 text-sm font-semibold px-6 py-2 ml-auto ${editingId ? 'bg-gold-400 hover:bg-gold-600' : 'bg-maroon-600 hover:bg-maroon-700'}`}>
+            {editingId && (
+              <button onClick={cancelEdit} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal Edit</button>
+            )}
+            <button onClick={saveQuestion} className={`rounded-lg text-alba-50 text-sm font-semibold px-6 py-2 ${editingId ? 'bg-gold-400 hover:bg-gold-600' : 'bg-maroon-600 hover:bg-maroon-700'} ${!editingId && 'ml-auto'}`}>
               {editingId ? 'Update Soal' : 'Simpan Soal'}
             </button>
           </div>
@@ -2017,12 +2076,12 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
           <BulkImport onImport={importBulk} status={bulkStatus} />
 
           <QuestionList
-            title={`Daftar Soal CBT Paket ${year}`}
+            title="Daftar Soal di BAB Simulasi Ini"
             questions={questions}
             onPreview={setPreviewData}
             onEdit={startEdit}
-            onReload={loadQuestions}
-            whereLabel={`Simulasi CBT ${subjects.find((s) => s.id === subjectId)?.name || ''} Paket ${year}`.trim()}
+            onReload={() => reloadQuestions()}
+            whereLabel={whereLabel()}
           />
         </div>
       )}

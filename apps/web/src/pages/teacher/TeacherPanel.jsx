@@ -4,11 +4,13 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { EditSoalHub, StudentCards } from '@/pages/admin/AdminPanel';
 import PPTUpload from '@/components/PPTUpload';
+import useUrlState from '@/lib/useUrlState';
 
 const TABS = ['Profil Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah'];
 
 export default function TeacherPanel() {
-  const [tab, setTab] = useState('Profil Pengajar');
+  // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
+  const [tab, setTab] = useUrlState('tab', 'Profil Pengajar');
   const { user } = useAuth();
   const teachingSubjects = Array.isArray(user?.teachingSubjects) ? user.teachingSubjects : [];
 

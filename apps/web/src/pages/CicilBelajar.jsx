@@ -3,19 +3,21 @@ import { useSearchParams } from 'react-router-dom';
 import { BookOpen, ClipboardList, History, Lock, PencilLine } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
+import { filterLatihan, gabung } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import ChapterSelect from '@/components/ChapterSelect';
 import { touchActivity } from '@/lib/activityLog';
+import useUrlState from '@/lib/useUrlState';
 
 export default function CicilBelajar() {
  const { user, role } = useAuth();
- const [params] = useSearchParams();
  const [subjects, setSubjects] = useState([]);
- const [subjectId, setSubjectId] = useState(params.get('subject') || '');
+ // Pilihan disimpan di URL supaya refresh tidak melempar balik ke daftar awal.
+ const [subjectId, setSubjectId] = useUrlState('subject', '');
  const [chapters, setChapters] = useState([]);
- const [chapterId, setChapterId] = useState(params.get('chapter') || '');
- const [mode, setMode] = useState(''); // 'kerjakan' | 'review'
+ const [chapterId, setChapterId] = useUrlState('chapter', '');
+ const [mode, setMode] = useUrlState('mode', ''); // 'kerjakan' | 'review'
  const [questions, setQuestions] = useState(null);
  const [priorProgress, setPriorProgress] = useState(null);
  const [resume, setResume] = useState(null);
@@ -58,7 +60,7 @@ export default function CicilBelajar() {
      setSubjects(subs);
      try {
        // BAB yang di-hide tidak dihitung sebagai bagian dari progress siswa.
-       const allChapters = await pb.collection('chapters').getFullList({ filter: 'hidden != true', fields: 'id,subject' });
+       const allChapters = await pb.collection('chapters').getFullList({ filter: gabung('hidden != true', filterLatihan()), fields: 'id,subject' });
        let doneSet = new Set();
        if (user?.id) {
          const prog = await pb
@@ -85,7 +87,7 @@ export default function CicilBelajar() {
  useEffect(() => {
    if (!subjectId) return setChapters([]);
    // BAB yang di-hide disembunyikan dari siswa (tetap bisa dikelola di Edit Soal).
-   let filter = `subject = '${subjectId}' && hidden != true`;
+   const filter = gabung(pb.filter('subject = {:s}', { s: subjectId }), 'hidden != true', filterLatihan());
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then(setChapters);
  }, [subjectId]);
 
