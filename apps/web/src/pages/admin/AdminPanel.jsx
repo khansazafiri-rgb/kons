@@ -64,6 +64,7 @@ export default function AdminPanel() {
           {tab === 'Tambah Akun' && (
             <div className="space-y-6">
               <PendingSignups />
+              <LinkUndangan />
               <TambahAkun />
               <SignupSettings />
             </div>
@@ -2186,34 +2187,60 @@ function PendingSignups() {
         )}
       </div>
       <p className="text-xs text-stone-500 mb-4">
-        Pilihkan mata kuliah dulu, lalu klik <b>ACC</b> - siswa otomatis menerima email
-        bahwa web sudah bisa diakses.
+        Pilihkan mata kuliah dulu, lalu klik <b>ACC</b> - pendaftar otomatis menerima email
+        bahwa web sudah bisa diakses. Pendaftar pengajar &amp; admin berasal dari link undangan
+        di bawah; cek perannya sebelum meng-ACC.
       </p>
       {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2 mb-4">{msg}</p>}
       {pending.length === 0 ? (
         <p className="text-sm text-stone-400">Belum ada pendaftar baru.</p>
       ) : (
         <div className="space-y-4">
-          {pending.map((u) => (
-            <div key={u.id} className="rounded-xl border border-gold-200 bg-gold-100/30 p-4">
+          {pending.map((u) => {
+            // Pendaftar bisa siswa (jalur /signup) ATAU pengajar/admin (jalur
+            // link undangan). Perannya ditonjolkan supaya admin tidak pernah
+            // meng-ACC akun berperan tinggi tanpa sadar.
+            const siswa = !u.role || u.role === 'student';
+            const calonAdmin = u.role === 'admin';
+            return (
+            <div key={u.id} className={`rounded-xl border p-4 ${calonAdmin ? 'border-maroon-300 bg-maroon-50/50' : 'border-gold-200 bg-gold-100/30'}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{u.name} <span className="text-stone-400 font-normal">({u.userId})</span></p>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {u.email} · WA {u.phone || '-'} · Semester {u.semester || '-'} · {u.asalKuliah || '-'}
+                <div className="min-w-0">
+                  <p className="font-semibold">
+                    <span className={`inline-block mr-2 text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-0.5 border align-middle ${
+                      calonAdmin
+                        ? 'text-maroon-700 bg-maroon-50 border-maroon-200'
+                        : u.role === 'teacher'
+                        ? 'text-gold-600 bg-gold-100/70 border-gold-200'
+                        : 'text-stone-500 bg-alba-100 border-alba-200'
+                    }`}>
+                      {calonAdmin ? 'Admin' : u.role === 'teacher' ? 'Pengajar' : 'Siswa'}
+                    </span>
+                    {u.name} <span className="text-stone-400 font-normal">({u.userId})</span>
                   </p>
-                  <label className="inline-flex items-center gap-2 mt-2 text-xs">
-                    <span className="font-bold text-stone-500">Tipe:</span>
-                    <select
-                      value={u.studentType || 'reguler'}
-                      onChange={(e) => changeType(u, e.target.value)}
-                      className="rounded-lg border border-alba-300 bg-alba-50 px-2 py-1 text-xs font-semibold"
-                    >
-                      {STUDENT_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </label>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    {u.email} · WA {u.phone || '-'}
+                    {siswa && <> · Semester {u.semester || '-'} · {u.asalKuliah || '-'}</>}
+                  </p>
+                  {calonAdmin && (
+                    <p className="text-xs font-semibold text-maroon-700 mt-2">
+                      Pendaftar ini minta akses ADMIN — bisa mengelola semua akun & soal. Pastikan kamu memang mengundangnya.
+                    </p>
+                  )}
+                  {siswa && (
+                    <label className="inline-flex items-center gap-2 mt-2 text-xs">
+                      <span className="font-bold text-stone-500">Tipe:</span>
+                      <select
+                        value={u.studentType || 'reguler'}
+                        onChange={(e) => changeType(u, e.target.value)}
+                        className="rounded-lg border border-alba-300 bg-alba-50 px-2 py-1 text-xs font-semibold"
+                      >
+                        {STUDENT_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2232,8 +2259,11 @@ function PendingSignups() {
                   </button>
                 </div>
               </div>
+              {!calonAdmin && (
               <div className="mt-3 pt-3 border-t border-gold-200">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-2">Mata kuliah yang boleh diakses:</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-2">
+                  {siswa ? 'Mata kuliah yang boleh diakses:' : 'Mata kuliah yang diajar:'}
+                </p>
                 <div className="flex flex-wrap gap-1.5">
                   {subjects.map((s) => (
                     <button
@@ -2250,8 +2280,10 @@ function PendingSignups() {
                   ))}
                 </div>
               </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -2515,6 +2547,156 @@ function TambahAkun() {
       <p className="text-[11px] text-stone-400 mt-4 leading-relaxed">
         Akun baru dibuat "bersih" tanpa mata kuliah. Setelah akun jadi, buka tab <b>Siswa</b> (atau <b>Pengajar</b>) lalu pilihkan mata kuliah yang boleh ia akses.
       </p>
+    </div>
+  );
+}
+
+
+// ==========================================
+// LINK UNDANGAN PENGAJAR & ADMIN
+// ==========================================
+// Halaman /daftar-pengajar dan /daftar-admin tidak bisa dibuka tanpa link dari
+// sini. Token-nya dibuat di browser admin memakai generator acak bawaan
+// peramban, lalu disimpan di collection signup_invites yang hanya bisa dibaca
+// admin - jadi daftar token tidak bisa diintip dari luar.
+function LinkUndangan() {
+  const { user: admin } = useAuth();
+  const [daftar, setDaftar] = useState([]);
+  const [role, setRole] = useState('teacher');
+  const [note, setNote] = useState('');
+  const [msg, setMsg] = useState('');
+  const [tersalin, setTersalin] = useState('');
+
+  const load = () =>
+    pb.collection('signup_invites').getFullList({ sort: '-created' })
+      .then(setDaftar)
+      .catch((e) => setMsg('Gagal memuat daftar undangan: ' + (e?.message || '')));
+
+  useEffect(() => { load(); }, []);
+
+  const alamatUndangan = (inv) =>
+    `${window.location.origin}${inv.role === 'admin' ? '/daftar-admin' : '/daftar-pengajar'}?token=${inv.token}`;
+
+  const buat = async () => {
+    setMsg('');
+    // 32 byte acak -> 64 karakter heksadesimal. Terlalu panjang untuk ditebak.
+    const acak = new Uint8Array(32);
+    crypto.getRandomValues(acak);
+    const token = Array.from(acak, (b) => b.toString(16).padStart(2, '0')).join('');
+    try {
+      await pb.collection('signup_invites').create({
+        token,
+        role,
+        note: note.trim(),
+        active: true,
+        usedCount: 0,
+        createdBy: admin?.id || '',
+      });
+      setNote('');
+      load();
+      logActivity(pb, admin, {
+        section: 'akun_tambah',
+        summary: `Membuat link undangan pendaftaran ${role === 'admin' ? 'admin' : 'pengajar'}`,
+        targetLabel: note.trim() || (role === 'admin' ? 'Undangan admin' : 'Undangan pengajar'),
+      });
+    } catch (e) {
+      setMsg('Gagal membuat link: ' + (e?.message || ''));
+    }
+  };
+
+  const ubahAktif = async (inv) => {
+    if (inv.active && !confirm(`Cabut link ini? Yang sudah memegang link tidak bisa mendaftar lagi.`)) return;
+    setMsg('');
+    try {
+      await pb.collection('signup_invites').update(inv.id, { active: !inv.active });
+      load();
+    } catch (e) { setMsg('Gagal mengubah status: ' + (e?.message || '')); }
+  };
+
+  const hapus = async (inv) => {
+    if (!confirm('Hapus link undangan ini dari daftar?')) return;
+    setMsg('');
+    try { await pb.collection('signup_invites').delete(inv.id); load(); }
+    catch (e) { setMsg('Gagal menghapus: ' + (e?.message || '')); }
+  };
+
+  const salin = (inv) => {
+    navigator.clipboard.writeText(alamatUndangan(inv)).then(() => {
+      setTersalin(inv.id);
+      setTimeout(() => setTersalin(''), 2000);
+    });
+  };
+
+  return (
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
+      <div>
+        <h2 className="font-display text-lg font-semibold">Link Undangan Pengajar &amp; Admin</h2>
+        <p className="text-sm text-stone-500 mt-1 leading-relaxed max-w-xl">
+          Halaman pendaftaran pengajar dan admin sengaja tidak bisa dibuka sembarangan — satu-satunya jalan masuk
+          adalah link dari sini. Kirim linknya ke orang yang bersangkutan; akun yang mereka buat masih mati
+          sampai kamu meng-ACC di <b>Pendaftaran Masuk</b> di atas.
+        </p>
+      </div>
+
+      <div className="grid sm:grid-cols-[10rem_1fr_auto] gap-3">
+        <select value={role} onChange={(e) => setRole(e.target.value)} className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50">
+          <option value="teacher">Pengajar</option>
+          <option value="admin">Admin</option>
+        </select>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Catatan, mis. “Untuk Bu Dina - Mikrobiologi” (opsional)"
+          className="min-w-0 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+        />
+        <button onClick={buat} className="shrink-0 rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-5 py-2">
+          Buat Link
+        </button>
+      </div>
+
+      {msg && <p className="text-xs bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">{msg}</p>}
+
+      <div className="space-y-2">
+        {daftar.map((inv) => (
+          <div key={inv.id} className={`rounded-xl border px-4 py-3 ${inv.active ? 'border-alba-200 bg-alba-50' : 'border-alba-200 bg-alba-100/60'}`}>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className={`text-[10px] font-bold uppercase tracking-wider rounded-full px-2.5 py-0.5 border ${
+                inv.role === 'admin'
+                  ? 'text-maroon-700 bg-maroon-50 border-maroon-100'
+                  : 'text-gold-600 bg-gold-100/70 border-gold-200'
+              }`}>
+                {inv.role === 'admin' ? 'Admin' : 'Pengajar'}
+              </span>
+              {!inv.active && (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 bg-alba-200 rounded-full px-2.5 py-0.5">Dicabut</span>
+              )}
+              {inv.note && <span className="text-xs text-stone-600 min-w-0 line-clamp-1">{inv.note}</span>}
+              <span className="text-[11px] text-stone-400 ml-auto shrink-0">
+                dipakai {inv.usedCount || 0}×
+              </span>
+            </div>
+
+            <p className="text-[11px] font-mono text-stone-500 break-all bg-alba-100/70 border border-alba-200 rounded-lg px-3 py-2">
+              {alamatUndangan(inv)}
+            </p>
+
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button onClick={() => salin(inv)} className={`text-xs font-semibold rounded-lg border px-3 py-1.5 transition-colors ${
+                tersalin === inv.id ? 'bg-green-50 border-green-200 text-green-800' : 'border-alba-300 text-stone-600 hover:bg-alba-100'
+              }`}>
+                {tersalin === inv.id ? '✅ Tersalin' : 'Salin link'}
+              </button>
+              <button onClick={() => ubahAktif(inv)} className="text-xs font-semibold rounded-lg border border-alba-300 px-3 py-1.5 text-stone-600 hover:bg-alba-100">
+                {inv.active ? 'Cabut' : 'Aktifkan lagi'}
+              </button>
+              <button onClick={() => hapus(inv)} className="text-xs font-semibold rounded-lg border border-red-200 px-3 py-1.5 text-red-600 hover:bg-red-50">
+                Hapus
+              </button>
+            </div>
+          </div>
+        ))}
+        {daftar.length === 0 && <p className="text-sm text-stone-400">Belum ada link undangan.</p>}
+      </div>
     </div>
   );
 }

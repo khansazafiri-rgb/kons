@@ -10,6 +10,7 @@ import TeamPage from './pages/landing/TeamPage';
 import StudentWebPage from './pages/landing/StudentWebPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import StaffSignupPage from '@/pages/StaffSignupPage';
 import LearningHome from './pages/LearningHome';
 import ProfilePage from './pages/ProfilePage';
 import PerdalamMateri from './pages/PerdalamMateri';
@@ -34,6 +35,10 @@ function App() {
          <Route path="/student-web" element={<StudentWebPage />} />
          <Route path="/login" element={<LoginPage />} />
          <Route path="/signup" element={<SignupPage />} />
+        {/* Pendaftaran pengajar & admin: dua halaman terpisah, dan keduanya
+            hanya bisa dibuka lewat link undangan dari dashboard admin. */}
+        <Route path="/daftar-pengajar" element={<StaffSignupPage role="teacher" />} />
+        <Route path="/daftar-admin" element={<StaffSignupPage role="admin" />} />
          <Route path="/beranda" element={<ProtectedRoute><LearningHome /></ProtectedRoute>} />
          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
          <Route path="/jadwal-kelas" element={<ProtectedRoute><JadwalKelas /></ProtectedRoute>} />
