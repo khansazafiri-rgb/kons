@@ -270,19 +270,53 @@ function SambunganSheets() {
             Tiap lembar di sini punya rumusnya sendiri - tinggal ditempel di tab yang berbeda.
           </p>
 
-          <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3">
-            <input
-              type="checkbox"
-              checked={nyala}
+          {/* Tombol nyala/mati dibuat berbentuk saklar sungguhan dan berlabel
+              PERINTAH ("Nyalakan sekarang"), bukan keterangan keadaan. Bentuk
+              kotak centang dengan tulisan "Alamat CSV dimatikan" sempat dikira
+              sekadar keterangan, sehingga langkah pertama terlewat dan semua
+              rumusnya ditolak server. */}
+          <div
+            className={`rounded-xl border px-4 py-3.5 flex flex-wrap items-center gap-x-4 gap-y-2 ${
+              nyala ? 'border-green-200 bg-green-50' : 'border-maroon-200 bg-maroon-50'
+            }`}
+          >
+            <button
+              type="button"
+              role="switch"
+              aria-checked={nyala}
               disabled={sibuk}
-              onChange={(e) => simpan({ enabled: e.target.checked })}
-              className="w-4 h-4 accent-maroon-600"
-            />
-            <span className="text-sm font-semibold">
-              {nyala ? 'Alamat CSV AKTIF' : 'Alamat CSV dimatikan'}
-            </span>
-            <span className="text-xs text-stone-500">tanpa ini, semua rumus di bawah menolak</span>
-          </label>
+              onClick={() => simpan({ enabled: !nyala })}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+                nyala ? 'bg-green-600' : 'bg-stone-300'
+              }`}
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                  nyala ? 'left-6' : 'left-1'
+                }`}
+              />
+            </button>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-stone-800">
+                {nyala ? 'Alamat CSV aktif' : 'Alamat CSV masih mati'}
+              </p>
+              <p className="text-xs text-stone-600">
+                {nyala
+                  ? 'Rumus di bawah sudah bisa dipakai di Google Sheets.'
+                  : 'Geser saklar ini dulu - selama mati, semua rumus di bawah ditolak server.'}
+              </p>
+            </div>
+            {!nyala && (
+              <button
+                type="button"
+                disabled={sibuk}
+                onClick={() => simpan({ enabled: true })}
+                className="ml-auto shrink-0 rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4 py-2 disabled:opacity-50"
+              >
+                {sibuk ? 'Menyalakan...' : 'Nyalakan sekarang'}
+              </button>
+            )}
+          </div>
 
           <div className="rounded-xl border border-gold-200 bg-gold-100/50 px-4 py-3 space-y-1">
             <p className="text-sm font-bold text-gold-700">Perlu diingat sebelum menyalakan</p>
@@ -296,8 +330,14 @@ function SambunganSheets() {
             </p>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-bold text-stone-700">Rumus per lembar</p>
+          {/* Selama saklarnya mati, rumusnya diredupkan dan tombol Salin
+              dimatikan - menyalin rumus yang pasti ditolak server hanya
+              berujung #N/A di spreadsheet tanpa petunjuk apa pun. */}
+          <div className={`space-y-2 ${nyala ? '' : 'opacity-50 pointer-events-none'}`}>
+            <p className="text-sm font-bold text-stone-700">
+              Rumus per lembar
+              {!nyala && <span className="ml-2 text-xs font-medium text-stone-500">(nyalakan saklar dulu)</span>}
+            </p>
             {SHEETS.map((s) => (
               <div key={s.key} className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-stone-500 w-32 shrink-0">{s.label}</span>
@@ -306,7 +346,8 @@ function SambunganSheets() {
                 </code>
                 <button
                   onClick={() => salin(s.key)}
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-alba-300 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-maroon-50 hover:text-maroon-600"
+                  disabled={!nyala}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-alba-300 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-maroon-50 hover:text-maroon-600 disabled:opacity-50"
                 >
                   {tersalin === s.key ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
                   {tersalin === s.key ? 'Tersalin' : 'Salin'}
@@ -318,7 +359,7 @@ function SambunganSheets() {
           <details className="rounded-xl border border-alba-200 bg-alba-100/40 px-4 py-3">
             <summary className="text-sm font-bold text-stone-700 cursor-pointer">Cara memasangnya</summary>
             <ol className="mt-2 text-xs text-stone-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
-              <li>Nyalakan saklar di atas.</li>
+              <li>Geser saklar di atas sampai tulisannya berubah jadi &quot;Alamat CSV aktif&quot;. Selama masih mati, rumusnya pasti gagal dan Google cuma menampilkan #N/A.</li>
               <li>Buat spreadsheet baru di Google Sheets.</li>
               <li>Buat satu tab untuk tiap lembar, misalnya beri nama Ringkasan, Cicil Belajar, dan seterusnya.</li>
               <li>Di tiap tab, klik sel A1 lalu tempel rumus lembar yang sesuai.</li>
