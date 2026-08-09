@@ -8,7 +8,7 @@
 // apps/web/src/lib/appVersion.js — dipakai tab admin Kelas & Reminder untuk
 // mendeteksi deploy yang belum lengkap (mis. web sudah di-build tapi
 // PocketBase belum di-restart, sehingga hook masih versi lama).
-const SERVER_VERSION = "v9.6";
+const SERVER_VERSION = "v9.7";
 
 // "0823..." / "+62 823..." / "62823..." -> "62823..." (format target gateway).
 function normalizePhone(raw) {
