@@ -202,6 +202,31 @@ sudo nano /opt/pcv/pocketbase.env
 sudo systemctl restart pocketbase
 ```
 
+**Kenapa restart ini penting.** Semua link yang dikirim ke luar dibangun dari
+satu nilai yang sama, `appURL` di settings PocketBase: email verifikasi & reset
+sandi, email pendaftaran, email pengingat, pesan WhatsApp, dan link BAB di
+spreadsheet Peta Konten. Dulu nilai itu cuma diisi sekali waktu database
+pertama kali dibuat, jadi ketika web masih menumpang alamat bawaan Hostinger
+(`srv1836059.hstgr.cloud`) nilainya ketahan di situ — mengubah `APP_URL` di
+file env tidak ada efeknya, dan siswa yang mengklik link di email konfirmasi
+tetap dilempar ke alamat hostinger.
+
+Sekarang `pb_hooks/app-url.pb.js` mengoreksinya **setiap kali PocketBase
+start**, jadi restart di atas sudah cukup. Hook itu juga menolak alamat bawaan
+penyedia hosting (`*.hstgr.cloud`, `*.duckdns.org`, `srv123...`, alamat IP
+mentah) — kalau `APP_URL` di file env masih berisi salah satu dari itu, nilainya
+diabaikan dan dipakai `https://pcvclassroom.com`.
+
+Kalau mau memastikan, lihat lognya setelah restart:
+
+```bash
+sudo journalctl -u pocketbase -n 50 | grep app-url
+# contoh: [app-url] appURL dikoreksi: https://srv1836059.hstgr.cloud -> https://pcvclassroom.com
+```
+
+Baris itu cuma muncul kalau memang ada yang dikoreksi — kalau sudah benar, tidak
+ada log dan tidak ada yang ditulis ulang.
+
 ### 7.4 Cek hasilnya
 
 - Buka `https://pcvclassroom.com` → web tampil dengan gembok HTTPS.
