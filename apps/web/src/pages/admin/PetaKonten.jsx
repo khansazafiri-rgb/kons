@@ -31,7 +31,7 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
   const [subjectFilter, setSubjectFilter] = useState('');
   const [univFilter, setUnivFilter] = useState('__all__');
   const [query, setQuery] = useState('');
-  const [hanyaKosong, setHanyaKosong] = useState(false);
+  const [status, setStatus] = useState('semua'); // 'semua' | 'sudah' | 'belum'
 
   const lembar = SHEET_KEYS.includes(sheet) ? sheet : 'ringkasan';
 
@@ -58,18 +58,33 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
     if (lembar === 'cbt' && univFilter !== '__all__') r = r.filter((x) => x.university === univFilter);
     const q = query.trim().toLowerCase();
     if (q) r = r.filter((x) => `${x.title} ${x.subjectName}`.toLowerCase().includes(q));
-    if (hanyaKosong) r = r.filter((x) => !isiLengkap(x, lembar));
+    if (status !== 'semua') {
+      const mau = status === 'sudah';
+      r = r.filter((x) => isiLengkap(x, lembar) === mau);
+    }
     return r;
-  }, [rows, lembar, subjectFilter, univFilter, query, hanyaKosong]);
+  }, [rows, lembar, subjectFilter, univFilter, query, status]);
 
-  const belumTerisi = useMemo(
-    () => rowsForSheet(rows, lembar).filter((r) => !isiLengkap(r, lembar)).length,
-    [rows, lembar],
-  );
+  // Berapa yang sudah & belum di lembar ini, dipakai sebagai angka di pilihan
+  // penyaring supaya "yang mana"-nya selalu satu klik dari "berapa"-nya.
+  const cacah = useMemo(() => {
+    const semua = rowsForSheet(rows, lembar);
+    const sudah = semua.filter((r) => isiLengkap(r, lembar)).length;
+    return { semua: semua.length, sudah, belum: semua.length - sudah };
+  }, [rows, lembar]);
+
+  // Lompatan dari angka ringkasan / kartu atas ke daftar BAB-nya.
+  const lompatKe = (lembarTujuan, subjectId = '', statusTujuan = 'semua') => {
+    setSheet(lembarTujuan);
+    setSubjectFilter(subjectId);
+    setStatus(statusTujuan);
+    setQuery('');
+    setUnivFilter('__all__');
+  };
 
   const gantiLembar = (k) => {
     setSheet(k);
-    setHanyaKosong(false);
+    setStatus('semua');
     setQuery('');
     if (k !== 'cbt') setUnivFilter('__all__');
   };
@@ -106,14 +121,16 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
           </button>
         </div>
 
-        {/* Angka besar: gambaran cepat sebelum masuk ke tabel per lembar. */}
+        {/* Angka besar: gambaran cepat sebelum masuk ke tabel per lembar.
+            Kartu yang bisa diklik langsung membuka daftar BAB-nya - angka
+            "berapa" tanpa jalan menuju "yang mana" tidak bisa ditindaklanjuti. */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-5">
-          <Kartu label="BAB latihan" nilai={total.babLatihan} />
-          <Kartu label="BAB ber-PPT" nilai={total.babBerPpt} dari={total.babLatihan} />
-          <Kartu label="BAB ber-video" nilai={total.babBerVideo} dari={total.babLatihan} />
-          <Kartu label="BAB ber-soal" nilai={total.babBerSoal} dari={total.babLatihan} />
-          <Kartu label="Soal cicil belajar" nilai={total.soalLatihan} />
-          <Kartu label="BAB simulasi CBT" nilai={total.babCbt} sub={`${total.soalCbt} soal`} />
+          <Kartu label="BAB latihan" nilai={total.babLatihan} onKlik={() => lompatKe('cicil')} />
+          <Kartu label="BAB ber-PPT" nilai={total.babBerPpt} dari={total.babLatihan} onKlik={() => lompatKe('materi', '', 'sudah')} />
+          <Kartu label="BAB ber-video" nilai={total.babBerVideo} dari={total.babLatihan} onKlik={() => lompatKe('materi')} />
+          <Kartu label="BAB ber-soal" nilai={total.babBerSoal} dari={total.babLatihan} onKlik={() => lompatKe('cicil', '', 'sudah')} />
+          <Kartu label="Soal cicil belajar" nilai={total.soalLatihan} onKlik={() => lompatKe('cicil')} />
+          <Kartu label="BAB simulasi CBT" nilai={total.babCbt} sub={`${total.soalCbt} soal`} onKlik={() => lompatKe('cbt')} />
         </div>
       </div>
 
@@ -134,7 +151,7 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
 
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card space-y-4">
         {lembar === 'ringkasan' ? (
-          <LembarRingkasan ringkasan={ringkasan} tanpaBab={data?.tanpaBab || []} loading={loading} />
+          <LembarRingkasan ringkasan={ringkasan} tanpaBab={data?.tanpaBab || []} loading={loading} onLompat={lompatKe} />
         ) : (
           <>
             <Penyaring
@@ -146,9 +163,9 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
               setUnivFilter={setUnivFilter}
               query={query}
               setQuery={setQuery}
-              hanyaKosong={hanyaKosong}
-              setHanyaKosong={setHanyaKosong}
-              belumTerisi={belumTerisi}
+              status={status}
+              setStatus={setStatus}
+              cacah={cacah}
               lembar={lembar}
               rowsTampil={tampil}
             />
@@ -427,9 +444,14 @@ function SambunganSheets() {
   );
 }
 
-function Kartu({ label, nilai, dari, sub }) {
+function Kartu({ label, nilai, dari, sub, onKlik }) {
   return (
-    <div className="rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3">
+    <button
+      type="button"
+      onClick={onKlik}
+      title="Lihat daftar BAB-nya"
+      className="text-left rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 hover:border-maroon-300 hover:bg-maroon-50/60 transition-colors"
+    >
       <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-stone-400 mb-1">{label}</p>
       <p className="font-display text-2xl font-semibold text-stone-800 leading-none">
         {nilai}
@@ -437,15 +459,18 @@ function Kartu({ label, nilai, dari, sub }) {
       </p>
       {dari !== undefined && <p className="text-[11px] text-stone-500 mt-1">{persen(nilai, dari)}% terisi</p>}
       {sub && <p className="text-[11px] text-stone-500 mt-1">{sub}</p>}
-    </div>
+    </button>
   );
 }
 
 function Penyaring({
   subjects, subjectFilter, setSubjectFilter, universitas, univFilter, setUnivFilter,
-  query, setQuery, hanyaKosong, setHanyaKosong, belumTerisi, lembar, rowsTampil,
+  query, setQuery, status, setStatus, cacah, lembar, rowsTampil,
 }) {
   const selectCls = 'rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 min-w-0';
+  // Kata "terisi" terlalu kabur di lembar materi - yang dimaksud PPT-nya.
+  const labelSudah = lembar === 'materi' ? 'PPT sudah diupload' : 'Soal sudah ada';
+  const labelBelum = lembar === 'materi' ? 'PPT belum diupload' : 'Soal belum ada';
   // Yang diunduh persis yang sedang tampil di tabel, termasuk hasil penyaring -
   // jadi "hanya yang belum terisi" bisa langsung jadi daftar tugas.
   const unduh = () => {
@@ -484,18 +509,13 @@ function Penyaring({
         />
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-semibold text-stone-600">
-        <input
-          type="checkbox"
-          checked={hanyaKosong}
-          onChange={(e) => setHanyaKosong(e.target.checked)}
-          className="w-4 h-4 accent-maroon-600"
-        />
-        Hanya yang belum terisi
-        <span className="rounded-full bg-gold-100 text-gold-700 border border-gold-200 text-[11px] font-bold px-2 py-0.5">
-          {belumTerisi}
-        </span>
-      </label>
+      {/* Dulu cuma centang "hanya yang belum terisi", jadi pertanyaan sebaliknya
+          - "yang SUDAH itu BAB mana saja?" - tidak ada jalannya sama sekali. */}
+      <select value={status} onChange={(e) => setStatus(e.target.value)} className={selectCls}>
+        <option value="semua">Semua status ({cacah.semua})</option>
+        <option value="sudah">{labelSudah} ({cacah.sudah})</option>
+        <option value="belum">{labelBelum} ({cacah.belum})</option>
+      </select>
 
       <button
         onClick={unduh}
@@ -693,7 +713,7 @@ function TabelBab({ rows, lembar, loading, basePath, pptTab }) {
   );
 }
 
-function LembarRingkasan({ ringkasan, tanpaBab, loading }) {
+function LembarRingkasan({ ringkasan, tanpaBab, loading, onLompat }) {
   if (loading) return <p className="text-sm text-stone-400 py-6">Memuat ringkasan...</p>;
   if (!ringkasan.length) return <p className="text-sm text-stone-500 py-6">Belum ada mata kuliah.</p>;
 
@@ -714,6 +734,9 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-stone-500">
           Hitungan per mata kuliah. Angka pecahan dibaca &quot;sudah terisi / total BAB&quot;.
+          <span className="block text-xs text-stone-400 mt-0.5">
+            Klik angkanya untuk melihat BAB mana saja yang dimaksud.
+          </span>
         </p>
         <button
           onClick={unduh}
@@ -749,14 +772,33 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading }) {
                     </span>
                   )}
                 </td>
-                <td className={`${td} font-display font-semibold`}>{r.babLatihan}</td>
-                <td className={td}><Pecahan a={r.babBerPpt} b={r.babLatihan} /></td>
-                <td className={td}><Pecahan a={r.babBerVideo} b={r.babLatihan} /></td>
-                <td className={td}><Pecahan a={r.babBerSoal} b={r.babLatihan} /></td>
-                <td className={`${td} font-display font-semibold`}>{r.soalLatihan}</td>
-                <td className={`${td} font-display ${r.soalBank ? 'font-semibold' : 'text-stone-300'}`}>{r.soalBank}</td>
-                <td className={td}><Pecahan a={r.babCbtBerSoal} b={r.babCbt} /></td>
-                <td className={`${td} font-display font-semibold`}>{r.soalCbt}</td>
+                {/* Tiap angka adalah jalan menuju daftarnya: mengklik "10/16"
+                    di kolom PPT membuka 10 BAB yang PPT-nya sudah ada, bukan
+                    sekadar memberi tahu bahwa jumlahnya 10. */}
+                <td className={`${td} font-display font-semibold`}>
+                  <Angka nilai={r.babLatihan} onKlik={() => onLompat('cicil', r.subjectId)} />
+                </td>
+                <td className={td}>
+                  <Pecahan a={r.babBerPpt} b={r.babLatihan} onKlik={(mau) => onLompat('materi', r.subjectId, mau)} />
+                </td>
+                <td className={td}>
+                  <Pecahan a={r.babBerVideo} b={r.babLatihan} onKlik={() => onLompat('materi', r.subjectId)} />
+                </td>
+                <td className={td}>
+                  <Pecahan a={r.babBerSoal} b={r.babLatihan} onKlik={(mau) => onLompat('cicil', r.subjectId, mau)} />
+                </td>
+                <td className={`${td} font-display font-semibold`}>
+                  <Angka nilai={r.soalLatihan} onKlik={() => onLompat('cicil', r.subjectId, 'sudah')} />
+                </td>
+                <td className={`${td} font-display ${r.soalBank ? 'font-semibold' : 'text-stone-300'}`}>
+                  <Angka nilai={r.soalBank} onKlik={() => onLompat('bank', r.subjectId, 'sudah')} />
+                </td>
+                <td className={td}>
+                  <Pecahan a={r.babCbtBerSoal} b={r.babCbt} onKlik={(mau) => onLompat('cbt', r.subjectId, mau)} />
+                </td>
+                <td className={`${td} font-display font-semibold`}>
+                  <Angka nilai={r.soalCbt} onKlik={() => onLompat('cbt', r.subjectId, 'sudah')} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -787,12 +829,38 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading }) {
   );
 }
 
-function Pecahan({ a, b }) {
+// Pembilang membuka yang SUDAH, penyebut membuka SEMUANYA - dua pertanyaan
+// berbeda yang memang sering muncul berurutan.
+function Pecahan({ a, b, onKlik }) {
   if (!b) return <span className="text-stone-300">-</span>;
   const penuh = a === b;
   return (
-    <span className={`font-display font-semibold ${penuh ? 'text-green-700' : a === 0 ? 'text-stone-300' : 'text-stone-800'}`}>
-      {a}<span className="text-stone-400 font-sans text-xs">/{b}</span>
+    <span className={`font-display font-semibold whitespace-nowrap ${penuh ? 'text-green-700' : a === 0 ? 'text-stone-300' : 'text-stone-800'}`}>
+      <button
+        type="button"
+        onClick={() => onKlik('sudah')}
+        title="Lihat BAB yang sudah terisi"
+        className="hover:underline hover:text-maroon-600"
+      >
+        {a}
+      </button>
+      <span className="text-stone-400 font-sans text-xs">/</span>
+      <button
+        type="button"
+        onClick={() => onKlik('semua')}
+        title="Lihat semua BAB-nya"
+        className="text-stone-400 font-sans text-xs hover:underline hover:text-maroon-600"
+      >
+        {b}
+      </button>
     </span>
+  );
+}
+
+function Angka({ nilai, onKlik }) {
+  return (
+    <button type="button" onClick={onKlik} title="Lihat daftarnya" className="hover:underline hover:text-maroon-600">
+      {nilai}
+    </button>
   );
 }
