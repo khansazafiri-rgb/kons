@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Check, CheckCircle2, Copy, Download, ExternalLink, EyeOff, FileText, PlayCircle, RefreshCw, Search, Table2 } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
+import { GSHEET_SCRIPT } from '@/lib/gsheetScript';
 import useUrlState from '@/lib/useUrlState';
 import {
   SHEETS, SHEET_KEYS, isiLengkap, loadContentMap, persen, ringkasPerSubjek,
@@ -220,15 +221,17 @@ function SambunganSheets() {
     `${asal}/api/pcv/peta-konten.csv?token=${encodeURIComponent(rec?.token || '')}&lembar=${kunci}`;
   const rumus = (kunci) => `=IMPORTDATA("${alamat(kunci)}")`;
 
-  const salin = async (kunci) => {
+  const salinTeks = async (kunci, teks) => {
     try {
-      await navigator.clipboard.writeText(rumus(kunci));
+      await navigator.clipboard.writeText(teks);
       setTersalin(kunci);
       setTimeout(() => setTersalin(''), 1800);
     } catch (_) {
       setMsg('Browser menolak menyalin otomatis. Blok teksnya lalu salin manual.');
     }
   };
+  const salin = (kunci) => salinTeks(kunci, rumus(kunci));
+  const salinSkrip = () => salinTeks('__skrip__', GSHEET_SCRIPT);
 
   if (belumAda) {
     return (
@@ -356,12 +359,49 @@ function SambunganSheets() {
             ))}
           </div>
 
+          {/* Tab impor isinya seluruh BAB dari semua mata kuliah menumpuk jadi
+              satu daftar panjang - bagus untuk rekap, payah untuk memeriksa satu
+              BAB. Skrip ini menambah tab "Cek Cepat" berisi pilihan bertingkat,
+              tanpa mengubah tab impor yang sudah ada. */}
+          <div className={`rounded-xl border border-alba-200 bg-alba-100/40 px-4 py-3 space-y-2 ${nyala ? '' : 'opacity-50 pointer-events-none'}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-bold text-stone-700">Tambahan: tab &quot;Cek Cepat&quot;</p>
+              <button
+                onClick={salinSkrip}
+                disabled={!nyala}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-alba-300 bg-alba-50 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-maroon-50 hover:text-maroon-600 disabled:opacity-50"
+              >
+                {tersalin === '__skrip__' ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                {tersalin === '__skrip__' ? 'Skrip tersalin' : 'Salin skrip'}
+              </button>
+            </div>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Tab hasil impor memuat semua BAB dari semua mata kuliah dalam satu daftar panjang -
+              enak untuk rekap, tapi menyulitkan kalau cuma mau memeriksa satu BAB. Skrip ini
+              menambah satu tab berisi tiga pilihan bertingkat: <span className="font-semibold">halaman
+              → mata kuliah → BAB</span>. Isinya langsung menyaring, lengkap dengan hitungan sudah/belum
+              dan jumlah soalnya. Tab impor yang lain tidak diubah, hanya ikut diberi warna pada kolom
+              statusnya supaya lebih enak dibaca.
+            </p>
+            <details>
+              <summary className="text-xs font-bold text-stone-600 cursor-pointer">Cara memasang skripnya</summary>
+              <ol className="mt-2 text-xs text-stone-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
+                <li>Pastikan kelima tab rumus di atas sudah terpasang dan datanya sudah masuk.</li>
+                <li>Di spreadsheet, buka menu <span className="font-semibold">Ekstensi → Apps Script</span>.</li>
+                <li>Hapus isi bawaannya, lalu tempel skrip dari tombol &quot;Salin skrip&quot;.</li>
+                <li>Simpan (ikon disket), lalu tutup tab Apps Script.</li>
+                <li>Muat ulang spreadsheet-nya. Menu baru <span className="font-semibold">&quot;Peta Konten&quot;</span> muncul di deretan menu atas.</li>
+                <li>Klik <span className="font-semibold">Peta Konten → Pasang / perbarui tab Cek Cepat</span>. Google akan meminta izin sekali di awal - izinkan.</li>
+              </ol>
+            </details>
+          </div>
+
           <details className="rounded-xl border border-alba-200 bg-alba-100/40 px-4 py-3">
             <summary className="text-sm font-bold text-stone-700 cursor-pointer">Cara memasangnya</summary>
             <ol className="mt-2 text-xs text-stone-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
               <li>Geser saklar di atas sampai tulisannya berubah jadi &quot;Alamat CSV aktif&quot;. Selama masih mati, rumusnya pasti gagal dan Google cuma menampilkan #N/A.</li>
               <li>Buat spreadsheet baru di Google Sheets.</li>
-              <li>Buat satu tab untuk tiap lembar, misalnya beri nama Ringkasan, Cicil Belajar, dan seterusnya.</li>
+              <li>Buat satu tab untuk tiap lembar, dan beri nama PERSIS seperti label di daftar rumus: Ringkasan, Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab dipakai skrip &quot;Cek Cepat&quot; untuk menemukan datanya.</li>
               <li>Di tiap tab, klik sel A1 lalu tempel rumus lembar yang sesuai.</li>
               <li>Tunggu sebentar - datanya masuk sendiri, dan ikut tersegarkan berkala tanpa disentuh lagi.</li>
             </ol>
