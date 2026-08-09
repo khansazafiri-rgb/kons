@@ -52,10 +52,13 @@ export function AuthProvider({ children }) {
       if (!devices.includes(deviceId)) {
         if (devices.length >= limit) {
           pb.authStore.clear();
+          // Sengaja TIDAK menyarankan "logout dulu dari device sana": logout
+          // tidak lagi melepas slot (lihat catatan di fungsi logout), jadi
+          // saran itu cuma bikin siswa bolak-balik mencoba dan tetap gagal.
           throw new Error(
             limit > 1
-              ? `Akun ini sedang login di ${limit} device. Logout dulu dari salah satu device, atau hubungi admin untuk reset device.`
-              : 'Akun ini sedang login di device lain. Logout dulu dari device tersebut, atau hubungi admin untuk reset device.',
+              ? `Akun ini sudah terkunci ke ${limit} device. Satu akun hanya bisa dipakai di ${limit} device itu saja (boleh berapa pun tab di dalamnya). Kalau kamu ganti HP/laptop, minta admin melakukan Reset Device.`
+              : 'Akun ini sudah terkunci ke device lain. Satu akun hanya bisa dipakai di satu device (boleh berapa pun tab di dalamnya). Kalau kamu ganti HP/laptop, minta admin melakukan Reset Device.',
           );
         }
         const updated = [...devices, deviceId];
@@ -65,24 +68,22 @@ export function AuthProvider({ children }) {
     return record;
   };
 
-  // Logout MELEPAS slot device: setelah logout, akun bisa dipakai login dari
-  // device lain (sesuai alur yang diminta). Kalau pelepasan gagal (mis. offline),
-  // sesi lokal tetap dibersihkan; slot bisa dilepas admin lewat Reset Device.
+  // Logout TIDAK melepas slot device - ini disengaja.
+  //
+  // Yang diminta: satu akun terkunci ke satu device, tapi bebas berapa pun tab
+  // di device itu. Kalau logout ikut mengosongkan slotnya, kuncinya jadi tidak
+  // ada artinya - siswa tinggal logout, lalu akunnya bisa dipakai login di HP
+  // teman. Dengan slot dipertahankan:
+  //   - device yang sama (tab mana pun) tetap bisa login lagi kapan saja,
+  //     karena deviceId-nya sudah tercatat di daftar;
+  //   - device lain tetap ditolak, logout atau tidak.
+  //
+  // Konsekuensinya yang harus diketahui admin: kalau siswa ganti HP, ganti
+  // browser, buka lewat mode Incognito, atau menghapus data situs, deviceId-nya
+  // ikut hilang dan ia akan terkunci di luar. Satu-satunya jalan keluar adalah
+  // tombol "Reset Device" di Dashboard Admin (siswa otomatis dapat notifikasi
+  // WhatsApp setelah di-reset).
   const logout = async () => {
-    const record = pb.authStore.record;
-    try {
-      if (record && deviceLimitFor(record) !== Infinity) {
-        const deviceId = getDeviceId();
-        const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
-        if (devices.includes(deviceId)) {
-          await pb.collection('users').update(record.id, {
-            deviceIds: devices.filter((d) => d !== deviceId),
-          });
-        }
-      }
-    } catch (_) {
-      // dibiarkan: logout lokal tetap jalan
-    }
     pb.authStore.clear();
   };
 
