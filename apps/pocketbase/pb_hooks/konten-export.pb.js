@@ -82,6 +82,14 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
     if (cid) punyaPpt[cid] = p.getString("file") || "ada";
   });
 
+  // Alamat web dipakai untuk kolom "Link": dari spreadsheet, satu klik langsung
+  // membuka BAB-nya. Tanpa itu, isi kolom cuma keterangan yang harus dicari
+  // sendiri lagi di dashboard.
+  let asal = "https://pcvclassroom.com";
+  try {
+    asal = (e.app.settings().meta.appURL || asal).replace(/\/+$/, "");
+  } catch (_) {}
+
   const namaSubjek = {};
   const urutanSubjek = {};
   subjects.forEach((s, i) => {
@@ -108,6 +116,15 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
       soalLatihan: soal.latihan,
       soalCbt: soal.cbt,
       soalBank: soal.bank,
+      // Alamat untuk MELIHAT isinya. BAB Simulasi diarahkan ke layar Edit Soal,
+      // bukan ke halaman siswa: halaman itu menyaring BAB per universitas asal
+      // akun yang membuka, jadi BAB milik kampus lain akan tampak kosong.
+      linkMateri: asal + "/pembelajaran-ppt?subject=" + sid + "&chapter=" + c.id,
+      linkCicil: asal + "/cicil-belajar?subject=" + sid + "&chapter=" + c.id + "&mode=review",
+      linkBank: asal + "/bank-soal?subject=" + sid + "&chapter=" + c.id,
+      linkCbt: asal + "/admin?tab=Edit+Soal&jenis=cbt&univ=" +
+        encodeURIComponent(c.getString("university") || "__semua__") +
+        "&mk=" + sid + "&bab=" + c.id,
     });
   });
   rows.sort((a, b) =>
@@ -144,30 +161,38 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
 
   const dipilih = rows.filter((r) => (lembar === "cbt" ? r.cbt : !r.cbt));
 
+  // Kolom "Link" selalu jadi kolom TERAKHIR di tiap lembar - skrip Cek Cepat
+  // mengandalkan posisi itu untuk membuat tombolnya.
   let out;
   if (lembar === "materi") {
-    out = [["Mata kuliah", "BAB", "Disembunyikan", "PPT", "Video", "Status"]];
+    out = [["Mata kuliah", "BAB", "Disembunyikan", "PPT", "Video", "Status", "Link"]];
     dipilih.forEach((r) => {
       out.push([
         r.subjectName, r.title, r.hidden ? "ya" : "",
         r.ppt || "belum", r.video || "belum", r.ppt ? "sudah" : "belum",
+        r.ppt ? r.linkMateri : "",
       ]);
     });
   } else if (lembar === "cbt") {
-    out = [["Mata kuliah", "Universitas", "BAB", "Disembunyikan", "Jumlah soal", "Status"]];
+    out = [["Mata kuliah", "Universitas", "BAB", "Disembunyikan", "Jumlah soal", "Status", "Link"]];
     dipilih.forEach((r) => {
       out.push([
         r.subjectName, r.universitas, r.title, r.hidden ? "ya" : "",
         r.soalCbt, r.soalCbt > 0 ? "sudah" : "belum",
+        r.soalCbt > 0 ? r.linkCbt : "",
       ]);
     });
   } else {
     // cicil (bawaan untuk nilai lembar yang tidak dikenal) & bank
     const pakaiBank = lembar === "bank";
-    out = [["Mata kuliah", "BAB", "Disembunyikan", "Jumlah soal", "Status"]];
+    out = [["Mata kuliah", "BAB", "Disembunyikan", "Jumlah soal", "Status", "Link"]];
     dipilih.forEach((r) => {
       const n = pakaiBank ? r.soalBank : r.soalLatihan;
-      out.push([r.subjectName, r.title, r.hidden ? "ya" : "", n, n > 0 ? "sudah" : "belum"]);
+      const link = pakaiBank ? r.linkBank : r.linkCicil;
+      out.push([
+        r.subjectName, r.title, r.hidden ? "ya" : "", n, n > 0 ? "sudah" : "belum",
+        n > 0 ? link : "",
+      ]);
     });
   }
 
