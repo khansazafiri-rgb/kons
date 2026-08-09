@@ -14,6 +14,7 @@ import { APP_VERSION } from '@/lib/appVersion';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
+import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
 import { KIND_CBT, LABEL_UNIV_SEMUA, OPSI_UNIV_SEMUA, filterLatihan, gabung, labelUniversitas, univKeDb } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 import { FK_INDONESIA } from '@/data/fakultasKedokteran';
@@ -635,24 +636,33 @@ const hasImageType = (t) => String(t || '').includes('img');
 // disimpan di dalam field "options" (JSON) yang sudah ada, sebagai objek amplop.
 
 // Baca record apa adanya -> bentuk seragam { qtype, imageUrl, options(choices), subQuestions }
+//
+// Teksnya sekalian dibersihkan dari "kode aneh" hasil salah encoding lewat
+// lib/textRepair, sama seperti di QuestionRunner. Efek sampingnya menguntungkan:
+// begitu soal lama yang rusak dibuka di form Edit lalu disimpan, versi bersihnya
+// ikut tertulis ke database.
 function normalizeQuestion(q) {
   const opt = q?.options;
   if (opt && !Array.isArray(opt) && typeof opt === 'object') {
     return {
       ...q,
+      text: fixText(q?.text || ''),
+      hint: fixText(q?.hint || ''),
       qtype: opt.qtype || 'mcq',
       imageUrl: opt.imageUrl || '',
-      options: Array.isArray(opt.choices) ? opt.choices : [],
-      subQuestions: Array.isArray(opt.subQuestions) ? opt.subQuestions : [],
-      explanation: opt.explanation || '',
+      options: Array.isArray(opt.choices) ? fixDeep(opt.choices) : [],
+      subQuestions: Array.isArray(opt.subQuestions) ? fixDeep(opt.subQuestions) : [],
+      explanation: fixText(opt.explanation || ''),
     };
   }
   return {
     ...q,
+    text: fixText(q?.text || ''),
+    hint: fixText(q?.hint || ''),
     qtype: q?.qtype || 'mcq',
     imageUrl: q?.imageUrl || '',
-    options: Array.isArray(opt) ? opt : [],
-    subQuestions: Array.isArray(q?.subQuestions) ? q.subQuestions : [],
+    options: Array.isArray(opt) ? fixDeep(opt) : [],
+    subQuestions: Array.isArray(q?.subQuestions) ? fixDeep(q.subQuestions) : [],
     explanation: '',
   };
 }
@@ -814,7 +824,12 @@ function QuestionForm({ form, setForm }) {
 const OUTPUT_RULES = `ATURAN OUTPUT (WAJIB):
 - Keluarkan HANYA array-nya, dimulai "[" dan diakhiri "]".
 - DILARANG menulis "const", "let", "var", titik koma penutup, komentar, kalimat pembuka/penutup, atau membungkus dengan blok kode tiga-backtick.
-- Gunakan tanda kutip dobel ". Escape " di dalam teks menjadi \\".`;
+- Gunakan tanda kutip dobel ". Escape " di dalam teks menjadi \\".
+
+KARAKTER RUSAK DI SOAL SUMBER:
+- Kalau soal yang saya tempel memuat kode aneh seperti "â€¦" "â€“" "Â°" "Ã©" "â‰¥" "Î±", itu bekas salah encoding - perbaiki jadi karakter aslinya ("…" "–" "°" "é" "≥" "α"), jangan disalin apa adanya. Polanya: awalan "â€", "Â", "Ã", "Î" menempel di depan karakter lain.
+- Kode HTML yang ikut tersalin juga dikembalikan: "&hellip;" jadi "…", "&#8211;" jadi "–", "&deg;" jadi "°", "&amp;" jadi "&".
+- Karakter kedokteran yang memang dipakai (α β ° ± ≥ µ × →) ditulis sebagai karakter asli, bukan dieja jadi kata dan bukan escape "\\u03b1".`;
 
 // Berlaku untuk semua tipe: sebagian soal pembahasannya cuma SATU untuk
 // keseluruhan (sering berupa screenshot slide), bukan alasan per opsi.
@@ -977,6 +992,33 @@ const TYPE_LABEL = { mcq: 'MCQ Biasa', mcq_img: 'MCQ Bergambar', isian: 'Isian B
 // tiap soal ditebak dari bentuk datanya sendiri (lihat detectItemType).
 const MIXED_TYPE = 'mixed';
 
+// Pemberitahuan "kode aneh" di kotak tempelan: begitu pengajar menempel soal
+// yang encodingnya rusak (misal "tersebutâ€¦"), langsung terlihat kode apa saja
+// yang ketemu dan bakal jadi lambang apa. Perbaikannya sendiri otomatis waktu
+// import - ini cuma supaya pengajar bisa memastikan tebakannya benar.
+function KodeAnehNotice({ text }) {
+  const temuan = useMemo(() => listBrokenCodes(text).slice(0, 8), [text]);
+  if (!temuan.length) return null;
+  const adaYangGagal = temuan.some((t) => t.benar === null);
+  return (
+    <div className="text-[11px] rounded-lg border border-gold-200 bg-gold-100/40 px-3 py-2 space-y-1">
+      <p className="font-semibold text-stone-600">Ada kode aneh di tempelanmu (bekas salah encoding). Ini otomatis diperbaiki saat di-import:</p>
+      <div className="flex flex-wrap gap-1.5">
+        {temuan.map((t) => (
+          <span key={t.rusak} className="inline-flex items-center gap-1 rounded border border-alba-300 bg-alba-50 px-1.5 py-0.5 font-mono">
+            <span className="text-red-700">{t.rusak}</span>
+            <span className="text-stone-400">→</span>
+            <span className="text-green-800">{t.benar ?? 'tidak bisa dipulihkan'}</span>
+          </span>
+        ))}
+      </div>
+      {adaYangGagal && (
+        <p className="text-stone-500">Yang bertanda &quot;tidak bisa dipulihkan&quot; sudah kehilangan karakter aslinya sejak dari sumbernya - itu harus diketik ulang manual.</p>
+      )}
+    </div>
+  );
+}
+
 function BulkImport({ onImport, status }) {
   const [bulkText, setBulkText] = useState('');
   const [qtype, setQtype] = useState('mcq'); // tipe soal yang akan di-import (menentukan cara membaca datanya)
@@ -1035,6 +1077,7 @@ function BulkImport({ onImport, status }) {
         className="w-full rounded-lg border border-alba-300 px-3 py-2 text-xs font-mono bg-alba-50"
         rows={8}
       />
+      <KodeAnehNotice text={bulkText} />
       <button onClick={() => { onImport(bulkText, qtype, () => setBulkText('')); }} className="rounded-lg bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-6 py-2">
         Import Semua Soal ({TYPE_LABEL[qtype]})
       </button>
@@ -1080,18 +1123,21 @@ function parseBulkItems(bulkText, qtype) {
       if (!isian && hasSubs) throw new Error(`Soal #${no}: berisi "subQuestions" (format Isian) padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Ganti tipe ke Isian.`);
       if (withImg && !item.imageUrl) throw new Error(`Soal #${no}: tipe bergambar tapi tidak ada "imageUrl". Tambahkan link gambarnya.`);
     }
+    // Teks dibersihkan dari "kode aneh" SEBELUM disimpan (lihat lib/textRepair),
+    // supaya yang masuk database sudah berupa lambang yang benar - bukan cuma
+    // dirapikan saat ditampilkan.
     return {
       qtype: itemType,
-      text: item.text || '',
-      hint: item.hint || '',
-      explanation: item.explanation || '',
+      text: fixText(item.text || ''),
+      hint: fixText(item.hint || ''),
+      explanation: fixText(item.explanation || ''),
       imageUrl: item.imageUrl || '',
-      options: isian ? [] : item.options,
+      options: isian ? [] : fixDeep(item.options),
       subQuestions: isian
         ? item.subQuestions.map((sq) => ({
             label: sq.label || 'A',
-            question: sq.question || '',
-            validAnswers: Array.isArray(sq.validAnswers) ? sq.validAnswers : [String(sq.validAnswers || '')],
+            question: fixText(sq.question || ''),
+            validAnswers: (Array.isArray(sq.validAnswers) ? sq.validAnswers : [String(sq.validAnswers || '')]).map(fixText),
           }))
         : [],
     };
