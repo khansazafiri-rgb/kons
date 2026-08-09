@@ -6,6 +6,7 @@ import {
   Maximize2, Minimize2, ShieldCheck, Timer, UserPlus,
 } from 'lucide-react';
 import LandingLayout, { fadeUp } from './LandingLayout';
+import pb from '@/lib/pocketbaseClient';
 
 const FEATURES = [
   {
@@ -69,14 +70,7 @@ export default function StudentWebPage() {
           </motion.div>
 
           <motion.div {...fadeUp} className="mt-10">
-            <p className="text-sm font-bold text-stone-700 mb-3">Mata kuliah yang tersedia:</p>
-            <div className="flex flex-wrap gap-3">
-              {SUBJECTS.map((s) => (
-                <span key={s} className="rounded-full border border-alba-300 bg-alba-50 px-5 py-2.5 text-sm font-semibold text-stone-700 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors cursor-default">
-                  {s}
-                </span>
-              ))}
-            </div>
+            <IsiWeb />
             <div className="max-w-2xl mt-8 rounded-xl border border-gold-200 bg-gold-100/50 px-4 py-3 flex gap-2.5">
               <span className="font-bold text-gold-600 shrink-0">Notes:</span>
               <p className="text-sm text-stone-600 leading-relaxed">
@@ -134,6 +128,93 @@ export default function StudentWebPage() {
         </div>
       </section>
     </LandingLayout>
+  );
+}
+
+// Keterangan isi web yang benar-benar ada saat ini: mata kuliah beserta jumlah
+// BAB, PPT, dan soalnya. Angkanya dihitung server lewat /api/pcv/konten-stats —
+// collection soal & PPT sendiri tertutup untuk pengunjung, jadi yang dikirim ke
+// sini hanya ringkasannya.
+//
+// Kalau endpointnya belum ada (PocketBase belum di-restart setelah deploy) atau
+// admin mematikan saklarnya, bagian ini kembali ke daftar nama mata kuliah
+// biasa, supaya halaman tidak pernah tampil kosong.
+function IsiWeb() {
+  const [data, setData] = useState(null);
+  const [gagal, setGagal] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    pb.send('/api/pcv/konten-stats', { method: 'GET' })
+      .then((r) => { if (alive) setData(r); })
+      .catch(() => { if (alive) setGagal(true); });
+    return () => { alive = false; };
+  }, []);
+
+  const daftar = data?.enabled && Array.isArray(data.subjects) ? data.subjects : [];
+
+  if (gagal || (data && !daftar.length)) {
+    return (
+      <>
+        <p className="text-sm font-bold text-stone-700 mb-3">Mata kuliah yang tersedia:</p>
+        <div className="flex flex-wrap gap-3">
+          {SUBJECTS.map((s) => (
+            <span key={s} className="rounded-full border border-alba-300 bg-alba-50 px-5 py-2.5 text-sm font-semibold text-stone-700 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors cursor-default">
+              {s}
+            </span>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  // Selama data belum datang, tahan tampilan daftar supaya tidak ada kedipan
+  // "kosong lalu terisi".
+  if (!data) return <div className="h-24" />;
+
+  const t = data.total || {};
+  return (
+    <>
+      <p className="text-sm font-bold text-stone-700 mb-1">Isi web saat ini:</p>
+      <p className="text-sm text-stone-600 mb-4 leading-relaxed">
+        {t.mataKuliah} mata kuliah · {t.bab} BAB · {t.babPpt} PPT materi · {t.soal} soal latihan
+        {t.soalSimulasi > 0 && <> · {t.soalSimulasi} soal simulasi CBT</>}
+      </p>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {daftar.map((s) => (
+          <div key={s.nama} className="rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 hover:border-maroon-300 transition-colors">
+            <p className="font-semibold text-stone-800 text-sm mb-1.5 break-words">{s.nama}</p>
+            {/* Angka nol tidak ditulis: mata kuliah yang materinya belum
+                lengkap cukup menyebut jumlah BAB-nya, tanpa deretan "0". */}
+            <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-stone-500">
+              {[
+                s.bab > 0 && `${s.bab} BAB`,
+                s.babPpt > 0 && `${s.babPpt} PPT`,
+                s.soal > 0 && `${s.soal} soal`,
+              ]
+                .filter(Boolean)
+                .map((teks, i) => (
+                  <span key={teks}>
+                    {i > 0 && <span className="text-alba-300 mr-2">|</span>}
+                    {teks}
+                  </span>
+                ))}
+              {s.soalSimulasi > 0 && (
+                <span>
+                  <span className="text-alba-300 mr-2">|</span>
+                  <span className="text-maroon-600 font-semibold">{s.soalSimulasi} soal CBT</span>
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-stone-400 mt-3">
+        Angka di atas terhitung otomatis dari isi web, jadi selalu mengikuti materi terbaru
+        yang sudah diunggah tentor.
+      </p>
+    </>
   );
 }
 
