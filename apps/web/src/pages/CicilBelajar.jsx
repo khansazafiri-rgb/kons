@@ -134,6 +134,25 @@ export default function CicilBelajar() {
    }
  };
 
+ // Alamat yang sudah membawa BAB + mode "review" (mis. pintasan "lihat isi" di
+ // Peta Konten) langsung membuka pembahasannya, tanpa harus menekan tombol lagi.
+ // Sengaja HANYA untuk mode review: mode itu tidak menyentuh progress siapa pun,
+ // sedangkan membuka mode "kerjakan" otomatis bisa membuat catatan pengerjaan
+ // yang tidak diminta - misalnya saat halaman sekadar di-refresh.
+ // Hanya berlaku untuk alamat yang SUDAH membawa pilihannya sejak halaman
+ // dibuka. Siswa yang memilih "Review" dari dalam halaman tetap menekan tombol
+ // mulai seperti biasa - alurnya tidak diubah.
+ const awal = useRef({ mode, chapterId });
+ const sudahAutoBuka = useRef(false);
+ useEffect(() => {
+   if (sudahAutoBuka.current) return;
+   if (awal.current.mode !== 'review' || awal.current.chapterId !== chapterId) return;
+   if (mode !== 'review' || !chapterId || !chapters.length) return;
+   if (!chapters.some((c) => c.id === chapterId)) return; // BAB belum termuat / tidak boleh dilihat
+   sudahAutoBuka.current = true;
+   openChapter();
+ }, [mode, chapterId, chapters]); // eslint-disable-line react-hooks/exhaustive-deps
+
  const savePartial = async (ans) => {
    if (!user) return;
    try {

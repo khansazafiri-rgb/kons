@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Download, EyeOff, FileText, PlayCircle, RefreshCw, Search } from 'lucide-react';
+import { AlertTriangle, Check, CheckCircle2, Copy, Download, ExternalLink, EyeOff, FileText, PlayCircle, RefreshCw, Search, Table2 } from 'lucide-react';
+import pb from '@/lib/pocketbaseClient';
+import { useAuth } from '@/context/AuthContext';
 import useUrlState from '@/lib/useUrlState';
 import {
   SHEETS, SHEET_KEYS, isiLengkap, loadContentMap, persen, ringkasPerSubjek,
@@ -20,6 +22,7 @@ import {
 // - basePath          : '/admin' atau '/teacher', untuk membangun link lompatan
 // - pptTab            : nama tab upload PPT di dashboard bersangkutan
 export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admin', pptTab = 'Perdalam Materi' }) {
+  const { role } = useAuth();
   const [sheet, setSheet] = useUrlState('lembar', 'ringkasan');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -152,6 +155,193 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
           </>
         )}
       </div>
+
+      {/* Sambungan Google Sheets khusus admin - token & saklarnya memang hanya
+          bisa dibaca admin. */}
+      {role === 'admin' && <SambunganSheets />}
+    </div>
+  );
+}
+
+// SAMBUNGAN GOOGLE SHEETS
+//
+// Google Sheets bisa menarik isi sebuah alamat CSV sendiri lewat rumus
+// =IMPORTDATA("...") dan menyegarkannya berkala, jadi tidak ada kredensial
+// Google apa pun yang perlu disimpan di server kita. Yang perlu dijaga adalah
+// alamatnya: karena yang mengambil adalah server Google (bukan browser yang
+// sudah login), alamat itu harus bisa dibuka tanpa sesi, dan penjaganya berupa
+// token rahasia. Karena itu saklarnya bawaan MATI dan tokennya bisa diganti
+// kapan saja - mengganti token langsung mematikan semua alamat lama.
+function SambunganSheets() {
+  const [rec, setRec] = useState(null);
+  const [belumAda, setBelumAda] = useState(false);
+  const [buka, setBuka] = useState(false);
+  const [sibuk, setSibuk] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [tersalin, setTersalin] = useState('');
+
+  useEffect(() => {
+    pb.collection('konten_export')
+      .getFullList()
+      .then((rows) => {
+        if (rows[0]) setRec(rows[0]);
+        else setBelumAda(true);
+      })
+      .catch(() => setBelumAda(true));
+  }, []);
+
+  const simpan = async (patch) => {
+    if (!rec) return;
+    setSibuk(true);
+    setMsg('');
+    try {
+      setRec(await pb.collection('konten_export').update(rec.id, patch));
+    } catch (e) {
+      setMsg('Gagal menyimpan: ' + (e?.message || 'coba lagi'));
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  const gantiToken = () => {
+    const acak = new Uint8Array(30);
+    crypto.getRandomValues(acak);
+    const token = [...acak].map((n) => n.toString(36).padStart(2, '0')).join('').slice(0, 40);
+    simpan({ token });
+  };
+
+  // Alamat CSV selalu satu host dengan PocketBase, bukan dengan halaman ini -
+  // keduanya bisa berbeda saat pengembangan lokal.
+  const asal = (() => {
+    try { return new URL(pb.baseURL || '/', window.location.origin).origin; }
+    catch (_) { return window.location.origin; }
+  })();
+  const alamat = (kunci) =>
+    `${asal}/api/pcv/peta-konten.csv?token=${encodeURIComponent(rec?.token || '')}&lembar=${kunci}`;
+  const rumus = (kunci) => `=IMPORTDATA("${alamat(kunci)}")`;
+
+  const salin = async (kunci) => {
+    try {
+      await navigator.clipboard.writeText(rumus(kunci));
+      setTersalin(kunci);
+      setTimeout(() => setTersalin(''), 1800);
+    } catch (_) {
+      setMsg('Browser menolak menyalin otomatis. Blok teksnya lalu salin manual.');
+    }
+  };
+
+  if (belumAda) {
+    return (
+      <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
+        <p className="text-sm text-stone-500">
+          Sambungan Google Sheets belum tersedia - PocketBase perlu di-restart dulu supaya
+          migrasi terbarunya jalan.
+        </p>
+      </div>
+    );
+  }
+  if (!rec) return null;
+
+  const nyala = !!rec.enabled;
+
+  return (
+    <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card overflow-hidden">
+      <button
+        onClick={() => setBuka((b) => !b)}
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left hover:bg-maroon-50/50 transition-colors"
+      >
+        <span className="flex items-center gap-2.5 min-w-0">
+          <Table2 size={18} className="text-maroon-600 shrink-0" />
+          <span className="min-w-0">
+            <span className="block font-display text-base font-semibold">Sambungkan ke Google Sheets</span>
+            <span className="block text-xs text-stone-500">
+              {nyala ? 'Aktif - spreadsheet menarik datanya sendiri' : 'Belum aktif'}
+            </span>
+          </span>
+        </span>
+        <span className="text-sm font-bold text-stone-400 shrink-0">{buka ? '−' : '+'}</span>
+      </button>
+
+      {buka && (
+        <div className="px-6 pb-6 space-y-4 border-t border-alba-200 pt-4">
+          <p className="text-sm text-stone-600 leading-relaxed">
+            Google Sheets bisa menarik isi Peta Konten sendiri dan menyegarkannya berkala
+            (biasanya tiap ±1 jam), jadi spreadsheet-nya tidak perlu diisi ulang manual.
+            Tiap lembar di sini punya rumusnya sendiri - tinggal ditempel di tab yang berbeda.
+          </p>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={nyala}
+              disabled={sibuk}
+              onChange={(e) => simpan({ enabled: e.target.checked })}
+              className="w-4 h-4 accent-maroon-600"
+            />
+            <span className="text-sm font-semibold">
+              {nyala ? 'Alamat CSV AKTIF' : 'Alamat CSV dimatikan'}
+            </span>
+            <span className="text-xs text-stone-500">tanpa ini, semua rumus di bawah menolak</span>
+          </label>
+
+          <div className="rounded-xl border border-gold-200 bg-gold-100/50 px-4 py-3 space-y-1">
+            <p className="text-sm font-bold text-gold-700">Perlu diingat sebelum menyalakan</p>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Yang mengambil alamat ini adalah server Google, bukan browser yang sudah login,
+              jadi alamatnya sengaja bisa dibuka tanpa login dan hanya dijaga token di atas.
+              Siapa pun yang memegang alamat lengkapnya bisa membaca daftar BAB dan jumlah
+              soalnya - <span className="font-semibold">teks soal dan kunci jawaban tidak
+              pernah ikut terkirim</span>. Jangan sebarkan alamatnya di luar tim, dan kalau
+              terlanjur bocor tekan &quot;Ganti token&quot;: semua alamat lama langsung mati.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-bold text-stone-700">Rumus per lembar</p>
+            {SHEETS.map((s) => (
+              <div key={s.key} className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-stone-500 w-32 shrink-0">{s.label}</span>
+                <code className="flex-1 min-w-0 truncate rounded-lg border border-alba-300 bg-alba-100/60 px-3 py-2 text-[11px] text-stone-600">
+                  {rumus(s.key)}
+                </code>
+                <button
+                  onClick={() => salin(s.key)}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-alba-300 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-maroon-50 hover:text-maroon-600"
+                >
+                  {tersalin === s.key ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                  {tersalin === s.key ? 'Tersalin' : 'Salin'}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <details className="rounded-xl border border-alba-200 bg-alba-100/40 px-4 py-3">
+            <summary className="text-sm font-bold text-stone-700 cursor-pointer">Cara memasangnya</summary>
+            <ol className="mt-2 text-xs text-stone-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
+              <li>Nyalakan saklar di atas.</li>
+              <li>Buat spreadsheet baru di Google Sheets.</li>
+              <li>Buat satu tab untuk tiap lembar, misalnya beri nama Ringkasan, Cicil Belajar, dan seterusnya.</li>
+              <li>Di tiap tab, klik sel A1 lalu tempel rumus lembar yang sesuai.</li>
+              <li>Tunggu sebentar - datanya masuk sendiri, dan ikut tersegarkan berkala tanpa disentuh lagi.</li>
+            </ol>
+          </details>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <button
+              onClick={gantiToken}
+              disabled={sibuk}
+              className="rounded-lg border border-alba-300 px-3.5 py-2 text-sm font-semibold text-stone-600 hover:bg-maroon-50 hover:text-maroon-600 disabled:opacity-50"
+            >
+              Ganti token
+            </button>
+            <span className="text-xs text-stone-400">
+              Setelah diganti, rumus lama berhenti bekerja dan harus ditempel ulang.
+            </span>
+          </div>
+
+          {msg && <p className="text-sm text-red-600">{msg}</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -258,6 +448,23 @@ function tautanIsi(row, lembar, basePath, pptTab) {
   return `${basePath}?${p.toString()}`;
 }
 
+// Pintasan ke halaman siswa yang menampilkan isi BAB ini. Mengembalikan ''
+// kalau memang tidak ada halaman yang bisa dituju:
+// - Perdalam Materi tanpa PPT belum punya apa pun untuk dibuka.
+// - Simulasi CBT disaring per universitas asal akun yang membuka, jadi BAB
+//   milik kampus lain akan tampak kosong dan malah membingungkan. Untuk itu
+//   soalnya dilihat lewat tombol "Lihat soal" di kolom paling kanan.
+function tautanLihat(row, lembar) {
+  const p = new URLSearchParams({ subject: row.subjectId, chapter: row.id });
+  if (lembar === 'materi') return row.hasPpt ? `/pembelajaran-ppt?${p.toString()}` : '';
+  if (lembar === 'bank') return row.soalBank > 0 ? `/bank-soal?${p.toString()}` : '';
+  if (lembar === 'cbt') return '';
+  // Cicil Belajar: mode review membuka kunci + pembahasan tanpa perlu pernah
+  // mengerjakan BAB-nya, dan tidak menyentuh progres siapa pun.
+  p.set('mode', 'review');
+  return row.soalLatihan > 0 ? `/cicil-belajar?${p.toString()}` : '';
+}
+
 function TabelBab({ rows, lembar, loading, basePath, pptTab }) {
   if (loading) return <p className="text-sm text-stone-400 py-6">Memuat daftar BAB...</p>;
   if (!rows.length) {
@@ -312,7 +519,24 @@ function TabelBab({ rows, lembar, loading, basePath, pptTab }) {
                   </td>
                 )}
                 <td className={`${td} font-semibold text-stone-800`}>
-                  <span className="break-words">{r.title}</span>
+                  {/* Nama BAB sekaligus pintasan untuk MELIHAT isinya di
+                      halaman siswa yang sebenarnya - dibuka di tab baru supaya
+                      dashboard tidak ikut berpindah. Kolomnya tidak bertambah,
+                      jadi tabel tetap muat tanpa geser ke samping. */}
+                  {tautanLihat(r, lembar) ? (
+                    <a
+                      href={tautanLihat(r, lembar)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Lihat isinya seperti yang dilihat siswa (tab baru)"
+                      className="inline-flex items-start gap-1 hover:text-maroon-600 hover:underline"
+                    >
+                      <span className="break-words">{r.title}</span>
+                      <ExternalLink size={11} className="shrink-0 mt-1 text-stone-400" />
+                    </a>
+                  ) : (
+                    <span className="break-words">{r.title}</span>
+                  )}
                   {r.hidden && (
                     <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-stone-100 border border-stone-200 text-stone-500 text-[10px] font-bold px-2 py-0.5 align-middle">
                       <EyeOff size={10} /> disembunyikan
