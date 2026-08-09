@@ -207,12 +207,20 @@ Akan dibuat di sesi berikutnya berdasarkan `DEPLOY_VPS.md` — ini adalah refere
 
 ---
 
-## 6. Priority 5 — Migrasi domain `.com`
+## 6. Priority 5 — Migrasi domain `.com` — SELESAI
 
-Saat ini: `pcvclassroom.duckdns.org` (gratis, tapi branded DuckDNS).
-Rencana: domain `.com` asli (misal `pcvclassroom.com` atau sejenis).
+Domain resmi sekarang **`pcvclassroom.com`**. Alamat lama
+(`pcvclassroom.duckdns.org` dan alamat bawaan Hostinger `srv1836059.hstgr.cloud`)
+sudah tidak dipakai.
 
-**Langkah saat domain .com sudah terbeli:**
+Satu hal yang gampang terlewat waktu pindah domain: link di email dan di
+spreadsheet Peta Konten TIDAK ikut berubah cuma karena Caddyfile diganti —
+semuanya dibangun dari `appURL` di settings PocketBase. Sejak
+`pb_hooks/app-url.pb.js` ada, nilai itu dikoreksi otomatis tiap PocketBase
+start (dan alamat bawaan penyedia hosting ditolak), jadi cukup restart.
+Penjelasan lengkapnya di `CHEATSHEET_DEPLOY.md` bagian 7.3.
+
+**Langkah yang dulu dipakai, sebagai arsip kalau nanti pindah domain lagi:**
 
 ```bash
 # 1. Point A record ke 103.217.226.232
