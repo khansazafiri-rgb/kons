@@ -4,9 +4,10 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { EditSoalHub, StudentCards } from '@/pages/admin/AdminPanel';
 import PPTUpload from '@/components/PPTUpload';
+import PetaKonten from '@/pages/admin/PetaKonten';
 import useUrlState from '@/lib/useUrlState';
 
-const TABS = ['Profil Pengajar', 'Siswa', 'Edit Soal', 'PPT Mata Kuliah'];
+const TABS = ['Profil Pengajar', 'Siswa', 'Peta Konten', 'Edit Soal', 'PPT Mata Kuliah'];
 
 export default function TeacherPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
@@ -32,6 +33,10 @@ export default function TeacherPanel() {
           {tab === 'Profil Pengajar' && <ProfilPengajar />}
           {/* Siswa: hanya yang mengambil mata kuliah ajar teacher ini; progres dihitung dari mata kuliah ajarnya saja */}
           {tab === 'Siswa' && <StudentCards subjectScope={teachingSubjects} />}
+          {/* Peta Konten: hanya BAB dari mata kuliah ajarnya */}
+          {tab === 'Peta Konten' && (
+            <PetaKonten allowedSubjectIds={teachingSubjects} basePath="/teacher" pptTab="PPT Mata Kuliah" />
+          )}
           {/* Edit Soal: dibatasi ke mata kuliah ajar (allowedSubjectIds) */}
           {tab === 'Edit Soal' && <EditSoalHub allowedSubjectIds={teachingSubjects} />}
           {tab === 'PPT Mata Kuliah' && <PPTUpload allowedSubjectIds={teachingSubjects} />}

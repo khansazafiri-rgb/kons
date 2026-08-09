@@ -18,8 +18,9 @@ import { KIND_CBT, LABEL_UNIV_SEMUA, OPSI_UNIV_SEMUA, filterLatihan, gabung, lab
 import useUrlState from '@/lib/useUrlState';
 import { FK_INDONESIA } from '@/data/fakultasKedokteran';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
+import PetaKonten from '@/pages/admin/PetaKonten';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page'];
 export default function AdminPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
   const [tab, setTab] = useUrlState('tab', 'Pengajar');
@@ -58,6 +59,8 @@ export default function AdminPanel() {
           {tab === 'Pengajar' && <Pengajar />}
           {tab === 'Siswa' && <StudentCards adminMode />}
           {tab === 'Dashboard Activity' && <DashboardActivity />}
+          {/* Peta Konten: daftar seluruh BAB + status PPT/soalnya, dipisah per lembar fitur */}
+          {tab === 'Peta Konten' && <PetaKonten allowedSubjectIds={null} basePath="/admin" pptTab="Perdalam Materi" />}
           {tab === 'Edit Soal' && <EditSoalHub />}
           {/* Admin bisa upload PPT + link video untuk SEMUA mata kuliah (allowedSubjectIds=null) */}
           {tab === 'Perdalam Materi' && <PPTUpload allowedSubjectIds={null} />}
@@ -1231,8 +1234,18 @@ export function EditSoal({ allowedSubjectIds = null }) {
   // Muat ulang daftar soal BAB aktif + segarkan badge jumlah soal di daftar BAB.
   const reloadQuestions = (cid) => { loadQuestions(cid); setSoalRefresh((n) => n + 1); };
 
+  // Ganti mata kuliah -> BAB terpilih tidak lagi relevan. Dijaga supaya hanya
+  // berlaku saat mata kuliahnya BENAR-BENAR berganti; kalau tidak, BAB yang
+  // dipulihkan dari URL (mis. dari tombol "Isi soal" di Peta Konten) ikut
+  // terhapus tiap halaman dibuka.
+  const mkSebelumnya = useRef(subjectId);
+
   useEffect(() => { loadSubjects(); }, []);
-  useEffect(() => { setChapterId(''); }, [subjectId]);
+  useEffect(() => {
+    if (mkSebelumnya.current === subjectId) return;
+    mkSebelumnya.current = subjectId;
+    setChapterId('');
+  }, [subjectId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (chapterId) loadQuestions(chapterId); else setQuestions([]); }, [chapterId]);
   useEffect(() => {
     if (!chapterId) return setChapterTitle('');
@@ -4357,6 +4370,7 @@ function LandingTextEditor() {
   const [rec, setRec] = useState(null);
   const [texts, setTexts] = useState(() => resolveLandingTexts(null));
   const [showBankSoal, setShowBankSoal] = useState(false);
+  const [showKontenStats, setShowKontenStats] = useState(true);
   const [openGroup, setOpenGroup] = useState(LANDING_TEXT_GROUPS[0].group);
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
@@ -4369,6 +4383,7 @@ function LandingTextEditor() {
         setRec(rows[0]);
         setTexts(resolveLandingTexts(rows[0].texts));
         setShowBankSoal(!!rows[0].showBankSoal);
+        setShowKontenStats(!!rows[0].showKontenStats);
       })
       .catch((e) => setMsg('Gagal memuat: ' + (e?.message || '')));
   }, []);
@@ -4380,7 +4395,7 @@ function LandingTextEditor() {
     if (!rec) return;
     setSaving(true); setMsg('');
     try {
-      const updated = await pb.collection('landing_settings').update(rec.id, { texts, showBankSoal });
+      const updated = await pb.collection('landing_settings').update(rec.id, { texts, showBankSoal, showKontenStats });
       setRec(updated);
       setMsg('✅ Tersimpan. Buka halaman depan untuk melihat hasilnya.');
     } catch (e) {
@@ -4410,6 +4425,22 @@ function LandingTextEditor() {
           {showBankSoal ? 'Bank Soal DITAMPILKAN di web siswa' : 'Bank Soal disembunyikan (belum dirilis)'}
         </span>
         <span className="text-xs text-stone-500">fitur baru: bank soal per mata kuliah/BAB</span>
+      </label>
+
+      {/* Keterangan isi web (jumlah BAB/PPT/soal per mata kuliah) di halaman
+          Student Web. Kalau dimatikan, halaman itu kembali menampilkan daftar
+          nama mata kuliah saja. */}
+      <label className="flex items-center gap-3 cursor-pointer select-none rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 mb-4">
+        <input
+          type="checkbox"
+          checked={showKontenStats}
+          onChange={(e) => setShowKontenStats(e.target.checked)}
+          className="w-4 h-4 accent-maroon-600"
+        />
+        <span className="text-sm font-semibold">
+          {showKontenStats ? 'Keterangan isi web DITAMPILKAN di halaman Student Web' : 'Keterangan isi web disembunyikan'}
+        </span>
+        <span className="text-xs text-stone-500">jumlah BAB, PPT, dan soal per mata kuliah</span>
       </label>
 
       <div className="space-y-2">

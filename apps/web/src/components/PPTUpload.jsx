@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
 import ChapterManager from '@/components/ChapterManager';
 import { useAuth } from '@/context/AuthContext';
 import { logActivity } from '@/lib/activityLog';
+import useUrlState from '@/lib/useUrlState';
 
 const MAX_PDF_SIZE = 100 * 1024 * 1024; // sesuai ppt_files.file maxSize (100MB)
 
@@ -12,8 +13,10 @@ const MAX_PDF_SIZE = 100 * 1024 * 1024; // sesuai ppt_files.file maxSize (100MB)
 export default function PPTUpload({ allowedSubjectIds = null }) {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
-  const [subjectId, setSubjectId] = useState('');
-  const [chapterId, setChapterId] = useState('');
+  // Pilihan disimpan di URL supaya refresh tidak melempar balik ke awal, dan
+  // supaya tombol "Upload / ubah" di Peta Konten bisa langsung membuka BAB-nya.
+  const [subjectId, setSubjectId] = useUrlState('mk', '');
+  const [chapterId, setChapterId] = useUrlState('bab', '');
   const [chapterTitle, setChapterTitle] = useState(''); // untuk keterangan di riwayat aktivitas
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
@@ -51,11 +54,16 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
   }, [allowedSubjectIds]);
 
   // BAB dikelola oleh ChapterManager; di sini cukup reset pilihan saat mata
-  // kuliah berganti.
+  // kuliah berganti. Dijaga supaya hanya berlaku saat mata kuliahnya BENAR-BENAR
+  // berganti - kalau tidak, BAB yang dipulihkan dari URL ikut terhapus tiap
+  // halaman dibuka ulang.
+  const mkSebelumnya = useRef(subjectId);
   useEffect(() => {
+    if (mkSebelumnya.current === subjectId) return;
+    mkSebelumnya.current = subjectId;
     setChapterId('');
     setExistingFile(null);
-  }, [subjectId]);
+  }, [subjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setExistingFile(null);
