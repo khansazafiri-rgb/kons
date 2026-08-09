@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Flag, Lightbulb
 import pb from '@/lib/pocketbaseClient';
 import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } from '@/lib/weaknessAnalyzer';
 import RichText from '@/lib/richText';
+import { fixText, fixDeep } from '@/lib/textRepair';
 
 /*
  QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
@@ -15,25 +16,35 @@ import RichText from '@/lib/richText';
 */
 
 // Baca record soal apa adanya -> bentuk seragam { qtype, imageUrl, options(choices), subQuestions }
+//
+// Semua teksnya sekalian dibersihkan dari "kode aneh" hasil salah encoding
+// (misal "tersebutâ€¦" yang seharusnya "tersebut…") lewat lib/textRepair, jadi
+// soal lama yang terlanjur tersimpan rusak pun langsung tampil benar tanpa
+// perlu di-import ulang. Kunci jawaban ikut dibersihkan supaya siswa yang
+// mengetik karakter yang benar tidak dinilai salah.
 export function normalizeQuestion(q) {
  const opt = q?.options;
  if (opt && !Array.isArray(opt) && typeof opt === 'object') {
    return {
      ...q,
+     text: fixText(q?.text || ''),
+     hint: fixText(q?.hint || ''),
      qtype: opt.qtype || 'mcq',
      imageUrl: opt.imageUrl || '',
-     options: Array.isArray(opt.choices) ? opt.choices : [],
-     subQuestions: Array.isArray(opt.subQuestions) ? opt.subQuestions : [],
-     explanation: opt.explanation || '',
+     options: Array.isArray(opt.choices) ? fixDeep(opt.choices) : [],
+     subQuestions: Array.isArray(opt.subQuestions) ? fixDeep(opt.subQuestions) : [],
+     explanation: fixText(opt.explanation || ''),
    };
  }
  // legacy: options berupa array = MCQ biasa
  return {
    ...q,
+   text: fixText(q?.text || ''),
+   hint: fixText(q?.hint || ''),
    qtype: q?.qtype || 'mcq',
    imageUrl: q?.imageUrl || '',
-   options: Array.isArray(opt) ? opt : [],
-   subQuestions: Array.isArray(q?.subQuestions) ? q.subQuestions : [],
+   options: Array.isArray(opt) ? fixDeep(opt) : [],
+   subQuestions: Array.isArray(q?.subQuestions) ? fixDeep(q.subQuestions) : [],
    explanation: '',
  };
 }

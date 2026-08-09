@@ -126,6 +126,40 @@ Kalau link sudah dalam format `lh3.googleusercontent.com/d/...`, pakai apa adany
 - `"explanation"` di TINGKAT SOAL (pembahasan tunggal) sifatnya opsional: tulis HANYA kalau soal itu memang punya satu pembahasan untuk keseluruhan; kalau tidak ada, jangan tulis fieldnya sama sekali. Urutannya taruh setelah `"hint"`.
 - Kalau jawaban benar ditandai dengan cara apa pun (`*`, kata "JAWABAN", huruf tebal, garis bawah, dll), hilangkan tandanya dari teks opsi/sub-jawaban, lalu terjemahkan jadi `correct: true` (khusus MCQ).
 
+## Karakter Aneh (Mojibake) di Soal Sumber
+
+Soal yang dikirim user kadang sudah rusak encoding-nya sebelum sampai ke sini —
+gejalanya muncul kode seperti `â€¦`, `â€“`, `Â°`, `Ã©`. Itu bukan karakter
+asli, melainkan lambang biasa yang byte-nya salah dibaca. Perbaiki SEBELUM
+menulis kode, jangan disalin apa adanya:
+
+| Kode rusak | Ketikan aslinya | Kode rusak | Ketikan aslinya |
+|---|---|---|---|
+| `â€¦` | `…` | `Â°` | `°` |
+| `â€“` | `–` | `Â±` | `±` |
+| `â€”` | `—` | `Âµ` | `µ` |
+| `â€™` | `’` | `Ã—` | `×` |
+| `â€œ` `â€` | `“` `”` | `â‰¥` `â‰¤` | `≥` `≤` |
+| `â€¢` | `•` | `â†’` | `→` |
+| `Î±` `Î²` | `α` `β` | `Ã©` `Ã¼` | `é` `ü` |
+
+Polanya: awalan `â€`, `Â`, `Ã`, `Î`, atau `ðŸ` menempel di depan karakter lain.
+Daftar lengkapnya ada di `KODE_ANEH_SOAL.md` di akar repo web PCV Classroom.
+Kalau ketemu bentuk yang tidak ada di tabel, kaidahnya: baca huruf-huruf itu
+sebagai byte Windows-1252, lalu terjemahkan ulang sebagai UTF-8.
+
+Berlaku juga untuk kode HTML yang ikut tersalin: `&hellip;` → `…`,
+`&#8211;` → `–`, `&deg;` → `°`, `&amp;` → `&`.
+
+Kalau ada karakter `�` (kotak/berlian bertanya), itu sudah rusak permanen dan
+tidak bisa ditebak — jangan dikarang. Tulis soalnya seperti biasa, lalu
+laporkan di baris klarifikasi di luar array:
+❓ perlu klarifikasi: <ringkasan soal> — alasan: ada karakter rusak `�` yang tidak terbaca
+
+Sebaliknya, karakter yang MEMANG dipakai di soal kedokteran (`α`, `β`, `°`,
+`±`, `≥`, `µ`, `×`, `→`) ditulis apa adanya sebagai karakter asli — jangan
+diganti jadi "alfa", "derajat", atau escape `α`.
+
 ## Bentuk Objek per Kategori
 
 Ini cuma nentuin field apa yang dipakai tiap objek — keempatnya tetap disambung jadi satu array yang sama, TANPA header pemisah.
