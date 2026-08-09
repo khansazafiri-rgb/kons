@@ -29,7 +29,9 @@ export const GSHEET_SCRIPT = `/**
 
 var TAB_CEK = 'Cek Cepat';
 var SEMUA = '(Semua)';
-var BATAS = 5000; // batas baris untuk rumus hitungan, cukup longgar
+// Rumus hitungan memakai rentang kolom penuh (mis. A2:A), BUKAN batas baris
+// tetap: tab baru Google Sheets cuma punya 1000 baris, jadi menyebut baris
+// ke-5000 membuat rumusnya menunjuk ke luar lembar dan hitungannya gagal.
 
 // Susunan kolom tiap tab hasil impor (nomor kolom, 1 = A).
 var LEMBAR = {
@@ -102,7 +104,21 @@ function pasangCekCepat() {
   sh.setColumnWidth(1, 190);
   sh.setColumnWidth(2, 380);
   segarkanCek();
-  rapikanSemuaTab();
+
+  // Tulisan di atas disimpan ke spreadsheet SEKARANG, sebelum langkah kosmetik
+  // di bawah dijalankan. Kalau tidak, kegagalan saat merapikan tab lain bisa
+  // membatalkan seluruh isi tab ini dan yang tersisa cuma lembar kosong tanpa
+  // penjelasan apa pun.
+  SpreadsheetApp.flush();
+
+  // Pewarnaan tab lain sifatnya mempercantik, jadi kegagalannya tidak boleh
+  // menggagalkan hasil utama - cukup dilaporkan.
+  try {
+    rapikanSemuaTab();
+  } catch (err) {
+    SpreadsheetApp.getActive().toast('Tab "' + TAB_CEK + '" jadi, tapi perapian tab lain gagal: ' + err, 'Peta Konten', 8);
+    return;
+  }
   SpreadsheetApp.getActive().toast('Tab "' + TAB_CEK + '" siap dipakai.', 'Peta Konten', 5);
 }
 
@@ -157,8 +173,12 @@ function segarkanCek() {
 
 /** Ringkasan angka + tabel hasil, semuanya berupa rumus supaya tidak basi. */
 function tulisHasil(sh, namaLembar, k) {
-  sh.getRange(7, 1, 200, 12).clearContent();
-  sh.getRange(7, 1, 200, 12).setBackground(null).setFontWeight('normal');
+  // Sama seperti di rapikanSemuaTab: rentangnya dipangkas ke ukuran tab yang
+  // sebenarnya supaya getRange tidak melempar error.
+  var tinggi = Math.min(200, Math.max(sh.getMaxRows() - 6, 1));
+  var lebarBersih = Math.min(12, sh.getMaxColumns());
+  sh.getRange(7, 1, tinggi, lebarBersih).clearContent();
+  sh.getRange(7, 1, tinggi, lebarBersih).setBackground(null).setFontWeight('normal');
 
   var s = "'" + namaLembar + "'!";
   var kMk = huruf(k.mk);
@@ -167,23 +187,23 @@ function tulisHasil(sh, namaLembar, k) {
 
   // Bagian yang dipakai berulang: baris mana saja yang lolos kedua pilihan.
   var lolos =
-    '((($B$4="' + SEMUA + '")+(' + s + kMk + '2:' + kMk + BATAS + '=$B$4))>0)*' +
-    '((($B$5="' + SEMUA + '")+(' + s + kBab + '2:' + kBab + BATAS + '=$B$5))>0)*' +
-    '(' + s + kMk + '2:' + kMk + BATAS + '<>"")';
+    '((($B$4="' + SEMUA + '")+(' + s + kMk + '2:' + kMk + '=$B$4))>0)*' +
+    '((($B$5="' + SEMUA + '")+(' + s + kBab + '2:' + kBab + '=$B$5))>0)*' +
+    '(' + s + kMk + '2:' + kMk + '<>"")';
 
   var label = ['BAB yang cocok', 'Sudah terisi', 'Belum terisi'];
   var rumus = [
     '=SUMPRODUCT(' + lolos + ')',
-    '=SUMPRODUCT(' + lolos + '*(' + s + kStatus + '2:' + kStatus + BATAS + '="sudah"))',
-    '=SUMPRODUCT(' + lolos + '*(' + s + kStatus + '2:' + kStatus + BATAS + '="belum"))'
+    '=SUMPRODUCT(' + lolos + '*(' + s + kStatus + '2:' + kStatus + '="sudah"))',
+    '=SUMPRODUCT(' + lolos + '*(' + s + kStatus + '2:' + kStatus + '="belum"))'
   ];
   if (k.nilai > 0) {
     var kNilai = huruf(k.nilai);
     label.push(k.labelNilai);
-    rumus.push('=SUMPRODUCT(' + lolos + '*' + s + kNilai + '2:' + kNilai + BATAS + ')');
+    rumus.push('=SUMPRODUCT(' + lolos + '*' + s + kNilai + '2:' + kNilai + ')');
   } else {
     label.push(k.labelNilai);
-    rumus.push('=SUMPRODUCT(' + lolos + '*(' + s + huruf(4) + '2:' + huruf(4) + BATAS + '<>"belum")*(' + s + huruf(4) + '2:' + huruf(4) + BATAS + '<>""))');
+    rumus.push('=SUMPRODUCT(' + lolos + '*(' + s + huruf(4) + '2:' + huruf(4) + '<>"belum")*(' + s + huruf(4) + '2:' + huruf(4) + '<>""))');
   }
 
   for (var i = 0; i < label.length; i++) {
@@ -216,7 +236,10 @@ function rapikanSemuaTab() {
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, k.lebar).setFontWeight('bold').setBackground('#efebe9');
 
-    var kolomStatus = sh.getRange(2, k.status, BATAS, 1);
+    // Jangan minta baris melebihi yang benar-benar dimiliki tab-nya: tab baru
+    // hanya punya 1000 baris, dan getRange di luar batas itu MELEMPAR error -
+    // inilah yang bikin pemasangan gagal di tengah jalan.
+    var kolomStatus = sh.getRange(2, k.status, Math.max(sh.getMaxRows() - 1, 1), 1);
     var aturan = [
       SpreadsheetApp.newConditionalFormatRule()
         .whenTextEqualTo('belum').setBackground('#fdecea').setFontColor('#b3261e')
