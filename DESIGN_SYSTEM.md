@@ -183,7 +183,7 @@ Folder: `apps/web/src/pages/`
 - **Carousel looping** (`LandingPage.jsx`): saat scroll mentok kanan, otomatis lompat ke awal; mentok kiri, lompat ke akhir. Ada hint teks "← geser →" di mobile.
 - **Auto-scroll** (`CicilBelajar.jsx`, `PerdalamMateri.jsx`, `SimulasiCBT.jsx`): setelah user memilih mata kuliah/BAB/tahun/mode, halaman otomatis `scrollIntoView({ behavior: 'smooth' })` ke section berikutnya.
 - **Validasi upload file** (`TeacherPanel.jsx`): PDF only, maksimal 100MB, pesan error jelas dalam Bahasa Indonesia.
-- **Device limit** (`context/AuthContext.jsx`): admin tanpa batas device, teacher/student maksimal 3 device — bukan elemen visual, tapi memengaruhi alur UX login.
+- **Device limit** (`context/AuthContext.jsx`): admin tanpa batas device, teacher 1 device, student sesuai tipenya (reguler & privat 1, Student - Web 2). Kuncinya menempel ke device, bukan ke sesi: di device yang sama boleh berapa pun tab, dan **logout tidak melepas slotnya** — pelepasan hanya lewat tombol Reset Device di Dashboard Admin. Bukan elemen visual, tapi memengaruhi alur UX login (dan copy pengumuman di `LoginPage.jsx`).
 
 ## Aturan Penulisan Teks (PRD v9)
 

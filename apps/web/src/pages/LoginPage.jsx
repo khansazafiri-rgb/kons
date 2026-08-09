@@ -125,8 +125,11 @@ export default function LoginPage() {
          </Link>
 
          <p className="text-xs text-stone-500 mt-8 leading-relaxed bg-alba-100/70 border border-alba-200 rounded-xl px-4 py-3">
-           Akun kelas reguler &amp; privat bisa aktif di <span className="font-semibold">1 device</span>,
-           akun Student&nbsp;-&nbsp;Web di <span className="font-semibold">2 device</span>. Kesulitan login?
+           Akun kelas reguler &amp; privat terkunci ke <span className="font-semibold">1 device</span>,
+           akun Student&nbsp;-&nbsp;Web ke <span className="font-semibold">2 device</span>. Di device itu
+           kamu bebas membuka berapa pun tab, dan logout tidak melepas kuncinya — jadi kalau
+           kamu <span className="font-semibold">ganti HP/laptop</span>, minta admin melakukan
+           Reset Device dulu. Kesulitan login?
            Hubungi narahubung admin di{' '}
            <a
              href="https://wa.me/6282257238650"

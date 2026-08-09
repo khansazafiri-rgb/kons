@@ -138,8 +138,9 @@ export default function Header() {
  useEffect(() => { heartbeat(pb, user); }, [user]);
 
  const doLogout = async () => {
-   // Tunggu slot device dilepas dulu supaya akun langsung bisa dipakai login
-   // dari device lain begitu halaman login terbuka.
+   // Logout cuma membersihkan sesi di device ini; kunci device-nya tetap
+   // dipegang akun (lihat catatan di AuthContext.logout), jadi setelah ini
+   // device yang sama masih bisa login lagi, device lain tetap ditolak.
    await logout();
    navigate('/login');
  };
