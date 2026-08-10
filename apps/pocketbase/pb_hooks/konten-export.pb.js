@@ -108,7 +108,11 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
       subjectName: namaSubjek[sid],
       title: c.getString("title"),
       order: c.getInt("order") || 0,
+      // Penyembunyian dipisah per halaman: "hidden" untuk halaman soal
+      // (Cicil Belajar/Bank Soal/Simulasi CBT), "hiddenMateri" untuk
+      // Perdalam Materi. Tiap lembar di bawah memakai yang sesuai.
       hidden: c.getBool("hidden"),
+      hiddenMateri: c.getBool("hiddenMateri"),
       cbt: cbt,
       universitas: cbt ? (c.getString("university") || "Semua Universitas") : "",
       ppt: punyaPpt[c.id] || "",
@@ -168,7 +172,7 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
     out = [["Mata kuliah", "BAB", "Disembunyikan", "PPT", "Video", "Status", "Link"]];
     dipilih.forEach((r) => {
       out.push([
-        r.subjectName, r.title, r.hidden ? "ya" : "",
+        r.subjectName, r.title, r.hiddenMateri ? "ya" : "",
         r.ppt || "belum", r.video || "belum", r.ppt ? "sudah" : "belum",
         r.ppt ? r.linkMateri : "",
       ]);

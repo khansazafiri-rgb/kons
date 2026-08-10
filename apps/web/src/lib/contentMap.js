@@ -52,7 +52,7 @@ export async function loadContentMap(allowedSubjectIds = null) {
     pb.collection('chapters').getFullList({
       sort: 'subject,order',
       filter: lingkup,
-      fields: 'id,title,subject,order,hidden,kind,university,videoUrl',
+      fields: 'id,title,subject,order,hidden,hiddenMateri,kind,university,videoUrl',
     }),
     pb.collection('ppt_files').getFullList({ filter: lingkup, fields: 'chapter,file,updated' }),
     pb.collection('questions').getFullList({ filter: lingkup, fields: 'chapter,subject,type' }),
@@ -91,7 +91,10 @@ export async function loadContentMap(allowedSubjectIds = null) {
         id: c.id,
         title: c.title,
         order: c.order || 0,
+        // Penyembunyian dipisah per halaman (lihat lib/chapterScope.js):
+        // `hidden` untuk halaman soal, `hiddenMateri` untuk Perdalam Materi.
         hidden: c.hidden === true,
+        hiddenMateri: c.hiddenMateri === true,
         // BAB lama nilainya kosong dan tetap dibaca sebagai latihan.
         kind: cbt ? KIND_CBT : 'latihan',
         university: cbt ? (c.university || '') : '',
@@ -156,7 +159,13 @@ export function ringkasPerSubjek(subjects, rows) {
       subjectId: s.id,
       subjectName: s.name,
       babLatihan: latihan.length,
-      babTersembunyi: latihan.filter((r) => r.hidden).length,
+      // Yang dihitung: BAB yang BENAR-BENAR tidak bisa dibuka siswa, yaitu
+      // tersembunyi di halaman soal DAN di Perdalam Materi. BAB yang cuma
+      // disembunyikan di salah satunya masih bisa dipakai siswa, jadi tidak
+      // pantas dilaporkan sebagai "disembunyikan dari siswa".
+      babTersembunyi: latihan.filter((r) => r.hidden && r.hiddenMateri).length,
+      babTersembunyiSoal: latihan.filter((r) => r.hidden).length,
+      babTersembunyiMateri: latihan.filter((r) => r.hiddenMateri).length,
       babBerPpt: latihan.filter((r) => r.hasPpt).length,
       babBerVideo: latihan.filter((r) => r.hasVideo).length,
       babBerSoal: latihan.filter((r) => r.soalLatihan > 0).length,

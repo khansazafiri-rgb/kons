@@ -49,5 +49,33 @@ export const filterCbtUntukSiswa = (asalKuliah) => {
   });
 };
 
+// ---------------------------------------------------------------------------
+// SEMBUNYIKAN BAB - dipisah per halaman
+//
+// Satu BAB latihan dipakai DUA halaman siswa: Cicil Belajar (soal) dan Perdalam
+// Materi (PPT/video). Penyembunyiannya berdiri sendiri-sendiri, karena sering
+// PPT-nya sudah siap dibaca padahal soalnya belum digarap (atau sebaliknya):
+//
+//   hidden       -> sembunyikan dari halaman SOAL. Untuk BAB latihan berarti
+//                   Cicil Belajar & Bank Soal; untuk BAB kind "cbt" berarti
+//                   Simulasi CBT. Tombolnya ada di Edit Soal / Simulasi CBT.
+//   hiddenMateri -> sembunyikan dari Perdalam Materi. Tombolnya ada di
+//                   PPT Mata Kuliah. Tidak dipakai BAB kind "cbt".
+//
+// Yang TIDAK dipisah: menambah BAB. Satu record dipakai kedua halaman, jadi BAB
+// baru tetap muncul serentak di dua-duanya.
+//
+// Dua konstanta di bawah dipakai juga sebagai nilai prop `scope` di
+// ChapterManager, supaya nama fieldnya cuma ditulis di satu tempat.
+export const SCOPE_SOAL = 'hidden';
+export const SCOPE_MATERI = 'hiddenMateri';
+
+// BAB yang boleh dilihat siswa di halaman soal (Cicil Belajar / Bank Soal /
+// Simulasi CBT).
+export const filterTampilSoal = () => `${SCOPE_SOAL} != true`;
+
+// BAB yang boleh dilihat siswa di Perdalam Materi.
+export const filterTampilMateri = () => `${SCOPE_MATERI} != true`;
+
 // Gabungkan beberapa potongan filter dengan &&, buang yang kosong.
 export const gabung = (...bagian) => bagian.filter(Boolean).join(' && ');

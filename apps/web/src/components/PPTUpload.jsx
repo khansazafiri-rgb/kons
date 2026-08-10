@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
 import ChapterManager from '@/components/ChapterManager';
+import { SCOPE_MATERI } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
 import { logActivity } from '@/lib/activityLog';
 import useUrlState from '@/lib/useUrlState';
@@ -235,7 +236,7 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
       {/* Kelola BAB (tambah/ubah nama/hide/urutkan/hapus) + pilih BAB untuk upload.
           Tanda ✓ PPT muncul di BAB yang sudah punya file. Berlaku admin & pengajar. */}
       {subjectId && (
-        <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} indicator="ppt" refreshSignal={pptRefresh} />
+        <ChapterManager subjectId={subjectId} selectedChapterId={chapterId} onSelect={setChapterId} indicator="ppt" refreshSignal={pptRefresh} scope={SCOPE_MATERI} />
       )}
       {chapterId && existingFile && (
         <div className="text-xs text-gold-700 bg-gold-100/70 border border-gold-200 rounded-lg px-3 py-2 space-y-1">

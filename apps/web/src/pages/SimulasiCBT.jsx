@@ -5,7 +5,7 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import { touchActivity } from '@/lib/activityLog';
-import { filterCbtUntukSiswa, gabung } from '@/lib/chapterScope';
+import { filterCbtUntukSiswa, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 
 // Soal simulasi dikelompokkan per BAB bernama bebas (bukan lagi "Paket 1/2/3"
@@ -60,7 +60,7 @@ export default function SimulasiCBT() {
      try {
        const babBoleh = await pb.collection('chapters').getFullList({
          sort: 'order',
-         filter: gabung(filterCbtUntukSiswa(user?.asalKuliah), 'hidden != true'),
+         filter: gabung(filterCbtUntukSiswa(user?.asalKuliah), filterTampilSoal()),
          fields: 'id,subject,title,order',
        });
        const bolehIds = new Set(babBoleh.map((c) => c.id));

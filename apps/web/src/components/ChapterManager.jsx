@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
-import { KIND_CBT, filterCbt, filterLatihan, gabung } from '@/lib/chapterScope';
+import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, filterCbt, filterLatihan, gabung } from '@/lib/chapterScope';
 
 // Manajemen BAB per mata kuliah: tambah, ubah nama, hide/tampilkan, urutkan,
 // hapus, dan PILIH bab. Dipakai bersama di "Edit Soal" (Cicil Belajar) & "PPT
 // Mata Kuliah", untuk admin maupun pengajar (izin ditegakkan oleh API rules).
+//
+// Menambah/mengubah nama/mengurutkan/menghapus BAB itu BERSAMA: satu record
+// dipakai kedua halaman, jadi BAB baru langsung muncul di dua-duanya. Yang
+// berdiri sendiri cuma tombol sembunyikannya - lihat prop `scope`.
 //
 // Props:
 // - subjectId          : mata kuliah aktif
@@ -18,8 +22,19 @@ import { KIND_CBT, filterCbt, filterLatihan, gabung } from '@/lib/chapterScope';
 //                        'cbt' untuk BAB Simulasi CBT
 // - university         : hanya dipakai saat kind 'cbt' - universitas pemilik
 //                        BAB. String kosong = dipakai semua universitas.
-export default function ChapterManager({ subjectId, selectedChapterId, onSelect, indicator, refreshSignal, kind = 'latihan', university = '' }) {
+// - scope              : HALAMAN MANA yang disembunyikan tombol 👁 di sini.
+//                        SCOPE_SOAL (bawaan)  -> field `hidden`, mempengaruhi
+//                          Cicil Belajar / Bank Soal / Simulasi CBT.
+//                        SCOPE_MATERI         -> field `hiddenMateri`,
+//                          mempengaruhi Perdalam Materi saja.
+export default function ChapterManager({ subjectId, selectedChapterId, onSelect, indicator, refreshSignal, kind = 'latihan', university = '', scope = SCOPE_SOAL }) {
   const cbt = kind === KIND_CBT;
+  // BAB Simulasi cuma punya satu halaman, jadi di sana tidak ada "halaman
+  // sebelah" yang perlu dilaporkan statusnya.
+  const scopeLain = cbt ? null : (scope === SCOPE_SOAL ? SCOPE_MATERI : SCOPE_SOAL);
+  const namaHalaman = scope === SCOPE_MATERI ? 'Perdalam Materi' : (cbt ? 'Simulasi CBT' : 'Cicil Belajar');
+  const namaHalamanLain = scope === SCOPE_MATERI ? 'Cicil Belajar' : 'Perdalam Materi';
+  const disembunyikan = (c) => !!c?.[scope];
   // Ruang lingkup BAB: latihan berlaku umum, cbt dipisah per universitas.
   const lingkup = cbt ? filterCbt(university) : filterLatihan();
   const [chapters, setChapters] = useState([]);
@@ -94,9 +109,10 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
     catch (e) { setError(errMsg(e)); }
   };
 
+  // Cuma menyentuh field milik halaman ini - halaman sebelah tidak ikut berubah.
   const toggleHide = async (c) => {
     setError('');
-    try { await pb.collection('chapters').update(c.id, { hidden: !c.hidden }); reload(); }
+    try { await pb.collection('chapters').update(c.id, { [scope]: !disembunyikan(c) }); reload(); }
     catch (e) { setError(errMsg(e)); }
   };
 
@@ -167,14 +183,21 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
         />
         <button onClick={addChapter} className="shrink-0 rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4">Tambah</button>
       </div>
-      <p className="text-xs text-stone-400">Panah ↑ ↓ mengatur urutan. ✏️ ubah nama, 👁 sembunyikan/tampilkan dari siswa, 🗑 hapus BAB beserta isinya. Klik nama BAB untuk memilih.</p>
+      <p className="text-xs text-stone-400">
+        Panah ↑ ↓ mengatur urutan. ✏️ ubah nama, 👁 sembunyikan/tampilkan dari siswa, 🗑 hapus BAB beserta isinya. Klik nama BAB untuk memilih.
+      </p>
+      <p className="text-xs text-stone-400">
+        {scopeLain
+          ? <>👁 di sini cuma mengatur <span className="font-semibold text-stone-500">{namaHalaman}</span>. Untuk menyembunyikan dari {namaHalamanLain}, pakai tombol 👁 di halaman itu. Menambah, mengubah nama, mengurutkan, dan menghapus BAB tetap berlaku untuk dua-duanya.</>
+          : <>👁 di sini mengatur tampil/tidaknya BAB di <span className="font-semibold text-stone-500">{namaHalaman}</span>.</>}
+      </p>
       {error && <p className="text-xs whitespace-pre-wrap bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">{error}</p>}
       {/* grid-cols-1 = minmax(0, 1fr): kolom daftar dikunci selebar wadahnya.
           Tanpa itu kolom otomatis melebar seukuran judul BAB terpanjang, jadi
           truncate di bawah tidak pernah kena dan barisnya meluber ke samping. */}
       <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto scrollbar-thin">
         {chapters.map((c, i) => (
-          <div key={c.id} className={`flex flex-col sm:flex-row sm:items-center gap-1 rounded-lg border pl-1 pr-1.5 ${selectedChapterId === c.id ? 'border-maroon-600 bg-maroon-50' : c.hidden ? 'border-alba-200 bg-alba-100/50' : 'border-alba-200'}`}>
+          <div key={c.id} className={`flex flex-col sm:flex-row sm:items-center gap-1 rounded-lg border pl-1 pr-1.5 ${selectedChapterId === c.id ? 'border-maroon-600 bg-maroon-50' : disembunyikan(c) ? 'border-alba-200 bg-alba-100/50' : 'border-alba-200'}`}>
             {/* Di layar sempit judul dapat satu baris penuh dan tombol aksinya
                 turun ke bawah, supaya nama BAB tetap kebaca dan semua tombol
                 tetap kepencet tanpa perlu geser layar ke samping. */}
@@ -186,16 +209,24 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
               {/* min-w-0 + line-clamp: judul sepanjang apa pun dikemas maksimal
                   dua baris, tidak mendorong penanda/tombol keluar layar.
                   Judul utuhnya tetap bisa dilihat lewat tooltip. */}
-              <button onClick={() => onSelect?.(c.id)} title={c.title} className={`flex-1 min-w-0 line-clamp-2 text-left px-2 py-2 text-sm ${selectedChapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${c.hidden ? 'text-stone-400' : ''}`}>
+              <button onClick={() => onSelect?.(c.id)} title={c.title} className={`flex-1 min-w-0 line-clamp-2 text-left px-2 py-2 text-sm ${selectedChapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${disembunyikan(c) ? 'text-stone-400' : ''}`}>
                 <span className="text-stone-400 mr-1">{i + 1}.</span>
-                {c.hidden && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
+                {disembunyikan(c) && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
+                {/* Status halaman sebelah ikut ditampilkan (sekadar keterangan,
+                    tidak bisa diklik di sini) supaya tidak bingung waktu BAB
+                    kelihatan normal di layar ini tapi hilang di halaman satunya. */}
+                {scopeLain && c[scopeLain] && (
+                  <span className="mr-1.5 text-[9px] font-semibold uppercase tracking-wide text-stone-400 border border-alba-300 rounded-full px-2 py-0.5" title={`BAB ini disembunyikan dari ${namaHalamanLain}. Ubahnya lewat halaman itu.`}>
+                    Hidden di {namaHalamanLain}
+                  </span>
+                )}
                 {c.title}
               </button>
             </div>
             <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto pb-1 sm:pb-0">
               {renderIndicator(c)}
               <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
-              <button onClick={() => toggleHide(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={c.hidden ? 'Tampilkan ke siswa' : 'Sembunyikan dari siswa'}>{c.hidden ? '🙈' : '👁'}</button>
+              <button onClick={() => toggleHide(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={disembunyikan(c) ? `Tampilkan di ${namaHalaman}` : `Sembunyikan dari ${namaHalaman}`}>{disembunyikan(c) ? '🙈' : '👁'}</button>
               <button onClick={() => remove(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600" title="Hapus BAB">🗑</button>
             </div>
           </div>
