@@ -42,8 +42,12 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
   let ppts = [];
   try {
     subjects = e.app.findRecordsByFilter("subjects", "id != ''", "order", 0, 0);
-    // Hanya BAB yang benar-benar terlihat siswa.
-    chapters = e.app.findRecordsByFilter("chapters", "hidden != true", "", 0, 0);
+    // Semua BAB ditarik, penyaringannya dilakukan per angka di bawah:
+    // penyembunyian sekarang dipisah per halaman ("hidden" untuk halaman soal,
+    // "hiddenMateri" untuk Perdalam Materi), jadi satu filter di query tidak
+    // lagi cukup - BAB yang cuma disembunyikan di salah satu halaman tetap
+    // terlihat siswa di halaman satunya dan masih pantas dihitung.
+    chapters = e.app.findRecordsByFilter("chapters", "id != ''", "", 0, 0);
     ppts = e.app.findRecordsByFilter("ppt_files", "id != ''", "", 0, 0);
   } catch (err) {
     return e.json(200, { enabled: true, subjects: [], total: kosongTotal() });
@@ -94,15 +98,20 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
     const soal = hitunganSoal[c.id] || { latihan: 0, cbt: 0, bank: 0 };
     // BAB lama nilainya kosong dan tetap dibaca sebagai BAB latihan.
     if (c.getString("kind") === "cbt") {
+      // BAB Simulasi cuma punya satu halaman, jadi "hidden" saja yang berlaku.
+      if (c.getBool("hidden")) return;
       target.babSimulasi += 1;
       target.soalSimulasi += soal.cbt;
       return;
     }
+    const adaSoal = !c.getBool("hidden");        // tampil di Cicil Belajar
+    const adaMateri = !c.getBool("hiddenMateri"); // tampil di Perdalam Materi
+    if (!adaSoal && !adaMateri) return;          // tertutup di dua-duanya
     target.bab += 1;
-    if (punyaPpt[c.id]) target.babPpt += 1;
-    if (c.getString("videoUrl")) target.babVideo += 1;
-    if (soal.latihan > 0) target.babSoal += 1;
-    target.soal += soal.latihan;
+    if (adaMateri && punyaPpt[c.id]) target.babPpt += 1;
+    if (adaMateri && c.getString("videoUrl")) target.babVideo += 1;
+    if (adaSoal && soal.latihan > 0) target.babSoal += 1;
+    if (adaSoal) target.soal += soal.latihan;
   });
 
   // Mata kuliah yang belum punya BAB sama sekali tidak perlu dipamerkan.

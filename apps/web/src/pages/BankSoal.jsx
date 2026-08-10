@@ -3,7 +3,7 @@ import { Library, Lock } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import useUrlState from '@/lib/useUrlState';
-import { filterLatihan, gabung } from '@/lib/chapterScope';
+import { filterLatihan, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import ChapterSelect from '@/components/ChapterSelect';
@@ -52,7 +52,7 @@ export default function BankSoal() {
     }
     if (!subjectId) return setChapters([]);
     pb.collection('chapters')
-      .getFullList({ sort: 'order', filter: gabung(pb.filter('subject = {:s}', { s: subjectId }), 'hidden != true', filterLatihan()) })
+      .getFullList({ sort: 'order', filter: gabung(pb.filter('subject = {:s}', { s: subjectId }), filterTampilSoal(), filterLatihan()) })
       .then(setChapters)
       .catch(() => setChapters([]));
   }, [subjectId]);

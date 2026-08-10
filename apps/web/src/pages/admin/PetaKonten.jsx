@@ -476,7 +476,8 @@ function Penyaring({
   const unduh = () => {
     const header = ['Mata kuliah', 'BAB', 'Universitas', 'Disembunyikan', 'PPT', 'Video', 'Soal cicil', 'Soal simulasi', 'Soal bank'];
     const baris = rowsTampil.map((r) => [
-      r.subjectName, r.title, r.universityLabel || '-', r.hidden ? 'ya' : 'tidak',
+      r.subjectName, r.title, r.universityLabel || '-',
+      (lembar === 'materi' ? r.hiddenMateri : r.hidden) ? 'ya' : 'tidak',
       r.hasPpt ? r.pptName : 'belum', r.hasVideo ? 'ada' : 'belum',
       r.soalLatihan, r.soalCbt, r.soalBank,
     ]);
@@ -638,7 +639,10 @@ function TabelBab({ rows, lembar, loading, basePath, pptTab }) {
                   ) : (
                     <span className="break-words">{r.title}</span>
                   )}
-                  {r.hidden && (
+                  {/* Penyembunyian dipisah per halaman, jadi badge ini ikut
+                      lembar yang sedang dibuka: di lembar Perdalam Materi yang
+                      dibaca hiddenMateri, di lembar soal yang dibaca hidden. */}
+                  {(lembar === 'materi' ? r.hiddenMateri : r.hidden) && (
                     <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-stone-100 border border-stone-200 text-stone-500 text-[10px] font-bold px-2 py-0.5 align-middle">
                       <EyeOff size={10} /> disembunyikan
                     </span>
@@ -769,6 +773,15 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading, onLompat }) {
                   {r.babTersembunyi > 0 && (
                     <span className="block text-[11px] font-medium text-stone-400">
                       {r.babTersembunyi} BAB disembunyikan dari siswa
+                    </span>
+                  )}
+                  {/* BAB yang cuma disembunyikan di SALAH SATU halaman masih
+                      bisa dibuka siswa, jadi dilaporkan terpisah supaya tidak
+                      tertukar dengan yang benar-benar tertutup di atas. */}
+                  {(r.babTersembunyiSoal > r.babTersembunyi || r.babTersembunyiMateri > r.babTersembunyi) && (
+                    <span className="block text-[11px] font-medium text-stone-400">
+                      sebagian: {r.babTersembunyiSoal - r.babTersembunyi} BAB hanya disembunyikan dari Cicil Belajar,
+                      {' '}{r.babTersembunyiMateri - r.babTersembunyi} BAB hanya dari Perdalam Materi
                     </span>
                   )}
                 </td>

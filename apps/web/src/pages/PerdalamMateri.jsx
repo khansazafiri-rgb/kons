@@ -4,7 +4,7 @@ import { BookOpenText, Lock } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import useUrlState from '@/lib/useUrlState';
-import { filterLatihan, gabung } from '@/lib/chapterScope';
+import { filterLatihan, filterTampilMateri, gabung } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
 import ChapterSelect from '@/components/ChapterSelect';
 
@@ -48,7 +48,9 @@ export default function PerdalamMateri() {
      setSubjects(subs);
      try {
        // BAB yang di-hide tidak dihitung sebagai bagian dari progress siswa.
-       const allChapters = await pb.collection('chapters').getFullList({ filter: gabung('hidden != true', filterLatihan()), fields: 'id,subject' });
+       // Yang dipakai di sini penyembunyian khusus Perdalam Materi - BAB yang
+       // cuma disembunyikan dari halaman soal tetap ikut dihitung di sini.
+       const allChapters = await pb.collection('chapters').getFullList({ filter: gabung(filterTampilMateri(), filterLatihan()), fields: 'id,subject' });
        const totals = {};
        allChapters.forEach((c) => { totals[c.subject] = (totals[c.subject] || 0) + 1; });
        let doneSet = new Set();
@@ -74,8 +76,10 @@ export default function PerdalamMateri() {
 
  useEffect(() => {
    if (!subjectId) return setChapters([]);
-   // BAB yang di-hide disembunyikan dari siswa (tetap bisa dikelola di Edit Soal).
-   const filter = gabung(pb.filter('subject = {:s}', { s: subjectId }), 'hidden != true', filterLatihan());
+   // Yang menentukan di sini cuma tombol 👁 di "PPT Mata Kuliah"; BAB yang
+   // disembunyikan dari Cicil Belajar TETAP tampil di sini selama PPT/videonya
+   // memang mau dibaca siswa.
+   const filter = gabung(pb.filter('subject = {:s}', { s: subjectId }), filterTampilMateri(), filterLatihan());
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
      setChapters(chs);
      // BAB pilihan hanya dikosongkan kalau mata kuliahnya BENAR-BENAR berganti.
