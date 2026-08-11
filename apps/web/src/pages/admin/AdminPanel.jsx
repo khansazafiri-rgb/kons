@@ -170,6 +170,7 @@ function Pengajar() {
               </button>
             ))}
           </div>
+          <BiodataEditor user={t} onSaved={load} />
         </div>
       ))}
       {teachers.length === 0 && <p className="text-sm text-stone-400">Belum ada pengajar.</p>}
@@ -342,16 +343,6 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     }
   };
 
-  // Simpan nomor WA siswa (untuk siswa lama yang mendaftar sebelum ada kolomnya).
-  const savePhone = async (s, phone) => {
-    try {
-      await pb.collection('users').update(s.id, { phone: phone.trim() });
-      setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, phone: phone.trim() } : u)));
-    } catch (e) {
-      setEnrollError('Gagal menyimpan nomor WA: ' + (e?.message || ''));
-    }
-  };
-
   const changeStudentType = async (s, studentType) => {
     setError('');
     setStudents((prev) => prev.map((u) => (u.id === s.id ? { ...u, studentType } : u)));
@@ -475,7 +466,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
                 )}
 
                 {adminMode && (
-                  <PhoneEditor initial={s.phone || ''} onSave={(v) => savePhone(s, v)} />
+                  <BiodataEditor user={s} siswa onSaved={load} />
                 )}
 
                 <div>
@@ -556,25 +547,108 @@ function MiniField({ label, value }) {
 
 // Editor nomor WA siswa: dipakai untuk melengkapi nomor siswa lama yang
 // mendaftar sebelum kolom nomor WA ada di form Sign Up.
-function PhoneEditor({ initial, onSave }) {
-  const [value, setValue] = useState(initial);
-  useEffect(() => { setValue(initial); }, [initial]);
-  const dirty = value.trim() !== (initial || '');
+// Ubah biodata akun (siswa maupun pengajar) dari Dashboard Admin.
+//
+// Dua jalur penyimpanan, karena PocketBase memperlakukan email berbeda:
+//   - Nama, Login ID, No. WA, Semester, Asal kuliah -> update biasa ke
+//     collection users.
+//   - Gmail -> lewat endpoint /api/pcv/user-email. Pada collection auth,
+//     PocketBase MENOLAK perubahan email dari update biasa dan membalas
+//     "validation_values_mismatch"; email cuma boleh diganti superuser atau
+//     pemilik akun lewat alur konfirmasi. Admin PCV bukan superuser
+//     PocketBase, jadi tanpa endpoint itu kolom Gmail tidak akan pernah bisa
+//     dibetulkan - padahal itu yang dipakai siswa buat login.
+//
+// Yang diubah cuma field yang benar-benar berubah, supaya menekan Simpan tanpa
+// mengetik apa pun tidak menimbulkan penulisan yang tidak perlu.
+function BiodataEditor({ user, onSaved, siswa = false }) {
+  const kosongkan = () => ({
+    name: user?.name || '',
+    userId: user?.userId || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    semester: user?.semester ? String(user.semester) : '',
+    asalKuliah: user?.asalKuliah || '',
+  });
+  const [form, setForm] = useState(kosongkan);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setForm(kosongkan()); setStatus(''); setError(''); }, [user?.id, user?.name, user?.userId, user?.email, user?.phone, user?.semester, user?.asalKuliah]);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const awal = kosongkan();
+  const berubah = Object.keys(awal).some((k) => String(form[k]).trim() !== String(awal[k]).trim());
+
+  const simpan = async () => {
+    setSaving(true); setStatus(''); setError('');
+    try {
+      const biasa = {};
+      if (form.name.trim() !== awal.name) biasa.name = form.name.trim();
+      if (form.userId.trim() !== awal.userId) biasa.userId = form.userId.trim();
+      if (form.phone.trim() !== awal.phone) biasa.phone = form.phone.trim();
+      if (siswa) {
+        if (form.semester.trim() !== awal.semester) biasa.semester = form.semester.trim() ? Number(form.semester) : null;
+        if (form.asalKuliah.trim() !== awal.asalKuliah) biasa.asalKuliah = form.asalKuliah.trim();
+      }
+      if (Object.keys(biasa).length) await pb.collection('users').update(user.id, biasa);
+
+      const emailBaru = form.email.trim();
+      if (emailBaru.toLowerCase() !== awal.email.toLowerCase()) {
+        const res = await pb.send('/api/pcv/user-email', {
+          method: 'POST',
+          body: { id: user.id, email: emailBaru },
+        });
+        if (!res?.ok) throw new Error(res?.message || 'Gagal mengganti email.');
+      }
+      setStatus('✅ Biodata tersimpan.');
+      onSaved?.();
+    } catch (e) {
+      // Pesan dari endpoint email ada di response.message; error PocketBase
+      // biasa menaruh detail per field di response.data.
+      const dataDetail = e?.response?.data && Object.keys(e.response.data).length
+        ? Object.entries(e.response.data).map(([f, info]) => `${f}: ${info?.message || 'tidak valid'}`).join(' | ')
+        : '';
+      setError('Gagal menyimpan: ' + (e?.response?.message || dataDetail || e?.message || 'terjadi kesalahan.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls = 'w-full rounded-lg border border-alba-300 px-3 py-1.5 text-xs bg-alba-50';
+  const Kolom = ({ label, children }) => (
+    <label className="block">
+      <span className="block text-[9px] uppercase tracking-widest font-bold text-stone-400 mb-1">{label}</span>
+      {children}
+    </label>
+  );
+
   return (
-    <div className="flex items-center gap-2">
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Nomor WA siswa (08xxxxxxxxxx)"
-        className="flex-1 min-w-0 max-w-xs rounded-lg border border-alba-300 px-3 py-1.5 text-xs bg-alba-50"
-      />
-      <button
-        onClick={() => onSave(value)}
-        disabled={!dirty}
-        className="text-xs font-semibold rounded-full border border-maroon-300 text-maroon-600 px-3 py-1.5 hover:bg-maroon-50 disabled:opacity-40"
-      >
-        Simpan No. WA
-      </button>
+    <div className="pt-3 border-t border-alba-200 space-y-2">
+      <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Ubah biodata</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <Kolom label="Nama"><input value={form.name} onChange={set('name')} className={inputCls} placeholder="Nama lengkap" /></Kolom>
+        <Kolom label="Login ID"><input value={form.userId} onChange={set('userId')} className={inputCls} placeholder="dipakai untuk login" /></Kolom>
+        <Kolom label="Gmail"><input value={form.email} onChange={set('email')} className={inputCls} placeholder="nama@gmail.com" /></Kolom>
+        <Kolom label="No. WA"><input value={form.phone} onChange={set('phone')} className={inputCls} placeholder="08xxxxxxxxxx" /></Kolom>
+        {siswa && <Kolom label="Semester"><input value={form.semester} onChange={set('semester')} inputMode="numeric" className={inputCls} placeholder="mis. 3" /></Kolom>}
+        {siswa && <Kolom label="Asal kuliah"><input value={form.asalKuliah} onChange={set('asalKuliah')} className={inputCls} placeholder="mis. FK UNAIR" /></Kolom>}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={simpan}
+          disabled={!berubah || saving}
+          className="text-xs font-semibold rounded-full border border-maroon-300 text-maroon-600 px-4 py-1.5 hover:bg-maroon-50 disabled:opacity-40"
+        >
+          {saving ? 'Menyimpan...' : 'Simpan Biodata'}
+        </button>
+        {status && <span className="text-xs text-green-700">{status}</span>}
+      </div>
+      <p className="text-[11px] text-stone-400">
+        Login ID dan Gmail dua-duanya bisa dipakai login, jadi mengubahnya ikut mengubah cara akun ini masuk — kabari pemiliknya. Ganti Gmail tidak mengirim email konfirmasi apa pun.
+      </p>
+      {error && <p className="text-xs whitespace-pre-wrap bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">{error}</p>}
     </div>
   );
 }
