@@ -2230,12 +2230,19 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 // ==========================================
 
 // Pendaftar dari halaman Sign Up yang menunggu ACC. Alur admin:
-// 1. pilihkan mata kuliah lewat chip di kartu, 2. klik "ACC" -> akun aktif dan
-// email notifikasi terkirim otomatis (hook PocketBase), atau "Tolak" -> hapus.
+// 1. pilihkan mata kuliah DAN kelas regulernya lewat chip di kartu, 2. klik
+// "ACC" -> akun aktif dan email notifikasi terkirim otomatis (hook
+// PocketBase), atau "Tolak" -> hapus.
+//
+// Kelas reguler sengaja ikut di sini, bukan cuma di Daftar Siswa: dua hal itu
+// selalu diisi bersamaan waktu meng-ACC, dan kalau kelasnya harus dicari ulang
+// di tab lain setelah ACC, gampang kelewat - padahal siswa tanpa kelas tidak
+// akan pernah dapat reminder jadwal H-1.
 function PendingSignups() {
   const { user: admin } = useAuth();
   const [pending, setPending] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [classes, setClasses] = useState([]); // kelas reguler untuk reminder H-1
   const [busyId, setBusyId] = useState(null);
   const [msg, setMsg] = useState('');
 
@@ -2243,8 +2250,9 @@ function PendingSignups() {
     Promise.all([
       pb.collection('users').getFullList({ filter: 'signupPending = true', sort: '-created' }),
       pb.collection('subjects').getFullList({ sort: 'order' }),
+      pb.collection('classes').getFullList({ sort: 'order', filter: 'hidden != true' }).catch(() => []),
     ])
-      .then(([p, s]) => { setPending(p); setSubjects(s); })
+      .then(([p, s, k]) => { setPending(p); setSubjects(s); setClasses(k); })
       .catch((e) => setMsg(`Gagal memuat pendaftar: ${e?.message || ''}`));
 
   useEffect(() => { load(); }, []);
@@ -2257,6 +2265,19 @@ function PendingSignups() {
       await pb.collection('users').update(u.id, { teachingSubjects: next });
     } catch (e) {
       setMsg(`Gagal menyimpan mata kuliah: ${e?.message || ''}`);
+      load();
+    }
+  };
+
+  // Satu siswa cuma boleh satu kelas reguler, jadi ini mengganti - bukan
+  // menambah. Klik kelas yang sedang aktif = melepaskannya.
+  const changeKelas = async (u, kelasId) => {
+    const next = u.kelas === kelasId ? '' : kelasId;
+    setPending((prev) => prev.map((x) => (x.id === u.id ? { ...x, kelas: next } : x)));
+    try {
+      await pb.collection('users').update(u.id, { kelas: next });
+    } catch (e) {
+      setMsg(`Gagal menyimpan kelas: ${e?.message || ''}`);
       load();
     }
   };
@@ -2320,9 +2341,9 @@ function PendingSignups() {
         )}
       </div>
       <p className="text-xs text-stone-500 mb-4">
-        Pilihkan mata kuliah dulu, lalu klik <b>ACC</b> - pendaftar otomatis menerima email
-        bahwa web sudah bisa diakses. Pendaftar pengajar &amp; admin berasal dari link undangan
-        di bawah; cek perannya sebelum meng-ACC.
+        Pilihkan mata kuliah dan kelas regulernya dulu, lalu klik <b>ACC</b> - pendaftar otomatis
+        menerima email bahwa web sudah bisa diakses. Pendaftar pengajar &amp; admin berasal dari
+        link undangan di bawah; cek perannya sebelum meng-ACC.
       </p>
       {msg && <p className="text-sm rounded-lg bg-alba-100 border border-alba-200 px-3 py-2 mb-4">{msg}</p>}
       {pending.length === 0 ? (
@@ -2412,6 +2433,38 @@ function PendingSignups() {
                     </button>
                   ))}
                 </div>
+
+                {/* Kelas reguler ikut dipilih di sini supaya sekali duduk
+                    selesai - tanpa ini siswa harus dicari ulang di tab Daftar
+                    Siswa hanya untuk mengisi kelasnya. Khusus siswa: pengajar
+                    tidak ikut jadwal kelas. */}
+                {siswa && classes.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-gold-200/70">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-2">
+                      Kelas reguler (untuk reminder jadwal H-1):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {classes.map((k) => (
+                        <button
+                          key={k.id}
+                          onClick={() => changeKelas(u, k.id)}
+                          className={`text-xs rounded-full px-3 py-1 border transition-colors ${
+                            u.kelas === k.id
+                              ? 'bg-maroon-600 text-alba-50 border-maroon-600'
+                              : 'border-alba-300 hover:border-maroon-300 hover:text-maroon-600'
+                          }`}
+                        >
+                          {k.name}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-stone-400 mt-1.5">
+                      {u.kelas
+                        ? 'Klik kelas yang sedang aktif untuk melepaskannya.'
+                        : 'Boleh dikosongkan - tapi selama kosong, siswa ini tidak akan dapat reminder jadwal.'}
+                    </p>
+                  </div>
+                )}
               </div>
               )}
             </div>
