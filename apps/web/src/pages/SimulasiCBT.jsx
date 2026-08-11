@@ -24,7 +24,6 @@ export default function SimulasiCBT() {
  const [reviewing, setReviewing] = useState(false);
  const [babPerMk, setBabPerMk] = useState({});      // { subjectId: [{id,title}] BAB yang ada soalnya }
  const [babSelesai, setBabSelesai] = useState(() => new Set()); // id BAB yang sudah dituntaskan
- const [leaderboard, setLeaderboard] = useState([]);
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
 
@@ -87,22 +86,6 @@ export default function SimulasiCBT() {
      }
    })();
  }, [user, refreshKey]);
-
- // FITUR: Leaderboard anonim per tryout (subject + BAB).
- // Kalau API rule cbt_attempts tidak mengizinkan membaca milik orang lain,
- // bagian ini otomatis disembunyikan (error ditelan).
- useEffect(() => {
-   setLeaderboard([]);
-   if (!subjectId || !chapterId) return;
-   pb.collection('cbt_attempts')
-     .getList(1, 10, {
-       filter: pb.filter('subject = {:s} && chapter = {:c} && status = {:st}', { s: subjectId, c: chapterId, st: 'completed' }),
-       sort: '-score',
-       fields: 'id,owner,score',
-     })
-     .then((res) => setLeaderboard(res.items || []))
-     .catch(() => setLeaderboard([]));
- }, [subjectId, chapterId, refreshKey]);
 
  const start = async () => {
    if (!subjectId || !chapterId || !mode) return;
@@ -204,7 +187,7 @@ export default function SimulasiCBT() {
    setAttemptId(null);
    setCompletedAttempt(null);
    setReviewing(false);
-   setRefreshKey((k) => k + 1); // refresh progress & leaderboard
+   setRefreshKey((k) => k + 1); // refresh progress
  };
 
  // Layar Pilihan untuk tahun yang SUDAH selesai: review atau kerjakan ulang
@@ -409,36 +392,6 @@ export default function SimulasiCBT() {
          </div>
        </div>
 
-       {/* FITUR: Leaderboard anonim */}
-       {leaderboard.length > 0 && (
-         <div className="mt-8 bg-alba-50 rounded-2xl border border-gold-200 p-6 shadow-card animate-fade-in">
-           <p className="flex items-center gap-2 text-sm font-bold text-gold-600 mb-4">
-             <Trophy size={16} />
-             Top Skor Tryout Ini (anonim)
-           </p>
-           <div className="space-y-1.5">
-             {leaderboard.map((row, i) => {
-               const isMe = user?.id && row.owner === user.id;
-               return (
-                 <div
-                   key={row.id}
-                   className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-sm ${
-                     isMe ? 'bg-maroon-50 border border-maroon-100 font-bold text-maroon-700' : 'bg-alba-100/60 text-stone-700'
-                   }`}
-                 >
-                   <span className="flex items-center gap-3 min-w-0">
-                     <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                       i === 0 ? 'bg-gold-400 text-alba-50' : i < 3 ? 'bg-gold-100 text-gold-600 border border-gold-200' : 'bg-alba-200 text-stone-500'
-                     }`}>{i + 1}</span>
-                     {isMe ? 'Kamu 🎯' : `Peserta ${String(row.owner || row.id).slice(-4).toUpperCase()}`}
-                   </span>
-                   <span className="font-bold shrink-0">{row.score ?? 0}</span>
-                 </div>
-               );
-             })}
-           </div>
-         </div>
-       )}
      </div>
    </div>
  );

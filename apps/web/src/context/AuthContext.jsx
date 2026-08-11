@@ -41,6 +41,15 @@ export function AuthProvider({ children }) {
   const login = async (identity, password) => {
     await pb.collection('users').authWithPassword(identity, password);
     const record = pb.authStore.record;
+    // Akun yang baru mendaftar disimpan dengan disabled: true DAN
+    // signupPending: true (lihat SignupPage), jadi dua keadaan yang sangat
+    // berbeda dulu memakai satu pesan yang sama - pendaftar baru dikira
+    // akunnya dinonaktifkan, padahal cuma antre di-ACC admin. Yang menunggu
+    // ACC diperiksa lebih dulu supaya dapat pesan yang benar.
+    if (record.signupPending) {
+      pb.authStore.clear();
+      throw new Error('Akun ini belum diverifikasi oleh admin. Tunggu beberapa saat, atau hubungi admin.');
+    }
     if (record.disabled) {
       pb.authStore.clear();
       throw new Error('Akun ini telah dinonaktifkan. Silakan hubungi admin.');
