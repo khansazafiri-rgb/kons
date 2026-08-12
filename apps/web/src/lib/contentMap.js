@@ -47,15 +47,18 @@ export async function loadContentMap(allowedSubjectIds = null) {
 
   const lingkup = dibatasi ? filterSubjekTerpilih(allowedSubjectIds) : '';
 
-  const [subjects, chapters, ppts, questions] = await Promise.all([
+  const [subjects, chapters, ppts, questions, videos] = await Promise.all([
     pb.collection('subjects').getFullList({ sort: 'order' }),
     pb.collection('chapters').getFullList({
       sort: 'subject,order',
       filter: lingkup,
-      fields: 'id,title,subject,order,hidden,hiddenMateri,kind,university,videoUrl',
+      fields: 'id,title,subject,order,hidden,hiddenMateri,kind,university',
     }),
     pb.collection('ppt_files').getFullList({ filter: lingkup, fields: 'chapter,file,updated' }),
     pb.collection('questions').getFullList({ filter: lingkup, fields: 'chapter,subject,type' }),
+    // Video kini per kelas reguler (collection chapter_videos), bukan lagi satu
+    // field di chapters. Admin & pengajar membaca semua barisnya.
+    pb.collection('chapter_videos').getFullList({ fields: 'chapter,kelas,videoUrl' }).catch(() => []),
   ]);
 
   const subjekTampil = dibatasi ? subjects.filter((s) => allowedSubjectIds.includes(s.id)) : subjects;
@@ -66,6 +69,18 @@ export async function loadContentMap(allowedSubjectIds = null) {
 
   const pptPerBab = {};
   ppts.forEach((p) => { if (p.chapter) pptPerBab[p.chapter] = p; });
+
+  // Satu BAB bisa punya beberapa video (satu per kelas). Untuk peta konten yang
+  // dihitung cukup "ada/tidak", dan tautannya memakai video umum kalau ada -
+  // itu yang berlaku buat paling banyak siswa.
+  const videoPerBab = {};
+  videos.forEach((v) => {
+    if (!v.chapter) return;
+    const kini = videoPerBab[v.chapter];
+    if (!kini || (!v.kelas && kini.kelas)) videoPerBab[v.chapter] = v;
+  });
+  const jumlahVideo = {};
+  videos.forEach((v) => { if (v.chapter) jumlahVideo[v.chapter] = (jumlahVideo[v.chapter] || 0) + 1; });
 
   // Hitung soal per BAB dan, untuk soal yatim, per mata kuliah.
   const soalPerBab = {};
@@ -105,8 +120,9 @@ export async function loadContentMap(allowedSubjectIds = null) {
         hasPpt: !!ppt,
         pptName: ppt?.file || '',
         pptUpdated: ppt?.updated || '',
-        videoUrl: c.videoUrl || '',
-        hasVideo: !!(c.videoUrl && c.videoUrl.trim()),
+        videoUrl: videoPerBab[c.id]?.videoUrl || '',
+        hasVideo: (jumlahVideo[c.id] || 0) > 0,
+        jumlahVideo: jumlahVideo[c.id] || 0,
         soalLatihan: soal.latihan,
         soalCbt: soal.cbt,
         soalBank: soal.bank,
