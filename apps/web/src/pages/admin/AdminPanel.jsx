@@ -2887,6 +2887,54 @@ function LinkUndangan() {
   );
 }
 
+// Pemilih FK untuk sebuah jadwal ujian. Daftar FK di Indonesia panjang
+// (ratusan), jadi bukan deretan chip semua - dipilih satu per satu lewat
+// dropdown bergrup yang sama dengan halaman Sign Up, lalu yang terpilih muncul
+// sebagai chip yang bisa dilepas.
+//
+// Daftar kosong artinya jadwal berlaku untuk SEMUA FK. Itu yang menjaga jadwal
+// lama tetap tampil seperti sebelumnya setelah fitur ini dipasang.
+function PilihFakultas({ nilai, onChange, ringkas = false }) {
+  const dipilih = Array.isArray(nilai) ? nilai : [];
+  const tambah = (fk) => { if (fk && !dipilih.includes(fk)) onChange([...dipilih, fk]); };
+  const lepas = (fk) => onChange(dipilih.filter((x) => x !== fk));
+
+  return (
+    <div className="space-y-1.5">
+      <select
+        value=""
+        onChange={(e) => { tambah(e.target.value); e.target.value = ''; }}
+        className={`rounded-lg border px-2 py-2 text-xs bg-alba-50 max-w-full ${ringkas ? 'border-dashed border-alba-300' : 'border-alba-300'}`}
+      >
+        <option value="">{dipilih.length ? '+ Tambah FK lain' : 'Semua FK (klik untuk membatasi)'}</option>
+        {FK_INDONESIA.map((g) => (
+          <optgroup key={g.group} label={g.group}>
+            {g.items.filter((fk) => !dipilih.includes(fk)).map((fk) => (
+              <option key={fk} value={fk}>{fk}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {dipilih.length === 0 ? (
+        <p className="text-[11px] text-stone-400">Tampil ke <b>semua FK</b>.</p>
+      ) : (
+        <div className="flex flex-wrap gap-1">
+          {dipilih.map((fk) => (
+            <button
+              key={fk}
+              onClick={() => lepas(fk)}
+              title="Klik untuk melepas"
+              className="text-[11px] rounded-full border border-maroon-200 bg-maroon-50 text-maroon-700 px-2.5 py-0.5 hover:bg-maroon-100"
+            >
+              {fk} ×
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ==========================================
 // TAB JADWAL UJIAN + URUTAN MATA KULIAH
 // Admin mengatur: (1) urutan mata kuliah yang tampil di "Cicil Belajar" &
@@ -2918,6 +2966,7 @@ function JadwalUjian() {
           d[s.id] = {
             examName: s.examName || '',
             examDate: s.examDate ? String(s.examDate).slice(0, 10) : '',
+            universities: Array.isArray(s.universities) ? s.universities : [],
           };
         });
         setEditDraft(d);
@@ -2973,8 +3022,10 @@ function JadwalUjian() {
         subject: s.id,
         examName: d.examName.trim(),
         examDate: `${d.examDate} 00:00:00`,
+        // Daftar kosong = jadwal ini berlaku untuk SEMUA FK.
+        universities: Array.isArray(d.universities) ? d.universities : [],
       });
-      setNewDraft((prev) => ({ ...prev, [s.id]: { examName: '', examDate: '' } }));
+      setNewDraft((prev) => ({ ...prev, [s.id]: { examName: '', examDate: '', universities: [] } }));
       setOkMsg(`Jadwal ujian untuk "${s.name}" ditambahkan.`);
       await load();
     } catch (err) {
@@ -2996,6 +3047,7 @@ function JadwalUjian() {
       await pb.collection('exam_schedules').update(sched.id, {
         examName: d.examName.trim(),
         examDate: `${d.examDate} 00:00:00`,
+        universities: Array.isArray(d.universities) ? d.universities : [],
       });
       setOkMsg('Jadwal ujian tersimpan.');
       await load();
@@ -3033,7 +3085,7 @@ function JadwalUjian() {
         <p className="text-sm text-stone-500 mt-1 leading-relaxed">
           Panah <b>↑ ↓</b> mengatur urutan tampil mata kuliah di halaman <b>Cicil Belajar</b> dan <b>Perdalam Materi</b>.
           Tiap mata kuliah bisa punya <b>beberapa jadwal ujian</b> (mis. UTB 1 &amp; UTB 2). Tambah lewat baris <b>+ Tambah jadwal</b>,
-          lalu jadwal bisa <b>diedit</b> atau <b>dihapus</b> kapan saja. Siswa hanya melihat hitung mundur untuk mata kuliah yang ia ambil.
+          lalu jadwal bisa <b>diedit</b> atau <b>dihapus</b> kapan saja. Siswa hanya melihat hitung mundur untuk mata kuliah yang ia ambil. Tiap jadwal juga bisa dibatasi ke <b>FK tertentu</b> - karena jadwal ujian tiap fakultas berbeda; kalau daftarnya dibiarkan kosong, jadwal itu tampil ke semua FK.
         </p>
         {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
         {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
@@ -3062,8 +3114,15 @@ function JadwalUjian() {
               <div className="mt-3 pl-0 md:pl-[4.25rem] space-y-2">
                 {list.map((sched) => {
                   const d = editDraft[sched.id] || {};
-                  const original = { examName: sched.examName || '', examDate: sched.examDate ? String(sched.examDate).slice(0, 10) : '' };
-                  const dirty = d.examName !== original.examName || d.examDate !== original.examDate;
+                  const original = {
+                    examName: sched.examName || '',
+                    examDate: sched.examDate ? String(sched.examDate).slice(0, 10) : '',
+                    universities: Array.isArray(sched.universities) ? sched.universities : [],
+                  };
+                  const fkSama =
+                    (d.universities || []).length === original.universities.length &&
+                    (d.universities || []).every((u) => original.universities.includes(u));
+                  const dirty = d.examName !== original.examName || d.examDate !== original.examDate || !fkSama;
                   return (
                     <div key={sched.id} className="flex flex-col md:flex-row md:items-center gap-2">
                       <input
@@ -3077,6 +3136,10 @@ function JadwalUjian() {
                         value={d.examDate || ''}
                         onChange={(e) => setEditField(sched.id, 'examDate', e.target.value)}
                         className="rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
+                      />
+                      <PilihFakultas
+                        nilai={d.universities || []}
+                        onChange={(v) => setEditField(sched.id, 'universities', v)}
                       />
                       <button
                         onClick={() => saveSchedule(sched)}
@@ -3112,6 +3175,11 @@ function JadwalUjian() {
                     value={nd.examDate || ''}
                     onChange={(e) => setNewField(s.id, 'examDate', e.target.value)}
                     className="rounded-lg border border-dashed border-alba-300 px-3 py-2 text-sm bg-alba-50"
+                  />
+                  <PilihFakultas
+                    ringkas
+                    nilai={nd.universities || []}
+                    onChange={(v) => setNewField(s.id, 'universities', v)}
                   />
                   <button
                     onClick={() => addSchedule(s)}

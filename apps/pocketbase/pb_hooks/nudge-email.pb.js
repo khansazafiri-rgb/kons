@@ -97,10 +97,26 @@ routerAdd("POST", "/api/pcv/nudge", (e) => {
         0,
       );
 
+      // Jadwal ujian tiap FK berbeda, jadi tiap jadwal bisa dibatasi ke FK
+      // tertentu. Daftar kosong = berlaku untuk semua FK.
+      const fkSaya = String(target.getString("asalKuliah") || "").trim();
+      // Field JSON dibaca lewat getString lalu di-parse: rec.get("universities")
+      // mengembalikan BYTE MENTAH JSON-nya (mis. [91,93] untuk "[]"), bukan
+      // array JavaScript - kalau dipakai langsung, fk.length selalu terisi dan
+      // fk.indexOf selalu -1, sehingga SEMUA jadwal ikut terbuang diam-diam.
+      const bacaFk = (rec) => {
+        try {
+          const v = JSON.parse(rec.getString("universities") || "[]");
+          return Array.isArray(v) ? v : [];
+        } catch (_) { return []; }
+      };
+
       const mendatang = [];
       for (let i = 0; i < jadwal.length; i++) {
         const j = jadwal[i];
         if (subjectIds.indexOf(j.getString("subject")) === -1) continue;
+        const fk = bacaFk(j);
+        if (fk.length && (!fkSaya || fk.indexOf(fkSaya) === -1)) continue;
         const tgl = j.get("examDate");
         if (!tgl) continue;
         const t = new Date(String(tgl)).getTime();

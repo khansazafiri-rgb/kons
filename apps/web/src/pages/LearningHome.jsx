@@ -130,7 +130,17 @@ export default function LearningHome() {
        const now = new Date();
        now.setHours(0, 0, 0, 0);
        // enrolled === null -> tanpa pembatasan (semua). Array -> hanya yang diambil.
-       const visible = enrolled ? rows.filter((r) => enrolled.includes(r.subject)) : rows;
+       const visible0 = enrolled ? rows.filter((r) => enrolled.includes(r.subject)) : rows;
+       // Jadwal ujian tiap Fakultas Kedokteran berbeda, jadi tiap jadwal bisa
+       // dibatasi ke FK tertentu. Daftar kosong = berlaku untuk semua FK.
+       // Guru/admin (enrolled === null) tetap melihat semuanya.
+       const fkSaya = String(user?.asalKuliah || '').trim();
+       const visible = enrolled
+         ? visible0.filter((r) => {
+             const fk = Array.isArray(r.universities) ? r.universities : [];
+             return fk.length === 0 || (fkSaya && fk.includes(fkSaya));
+           })
+         : visible0;
        const upcoming = visible
          .filter((r) => r.examDate && r.examName)
          .map((r) => {

@@ -15,6 +15,7 @@ export default function PembelajaranPPT() {
  const chapterId = params.get('chapter');
  const [chapter, setChapter] = useState(null);
  const [fileUrl, setFileUrl] = useState('');
+ const [videoUrl, setVideoUrl] = useState(''); // video BAB ini untuk kelas siswa
  const [done, setDone] = useState(false);
  const [denied, setDenied] = useState(false); // akses ditolak (mata kuliah di luar jatah siswa)
 
@@ -34,6 +35,28 @@ export default function PembelajaranPPT() {
    })();
    return () => { alive = false; };
  }, [user, role, subjectId]);
+
+ // Video penjelasan dipisah per KELAS REGULER: tiap kelas direkam
+ // sendiri-sendiri. Server sudah menyaring lewat API rule chapter_videos -
+ // siswa cuma bisa membaca video kelasnya sendiri + video "semua kelas".
+ // Di sini tinggal memilih yang paling tepat: rekaman kelasnya kalau ada,
+ // kalau belum ada baru pakai yang berlaku umum sebagai cadangan.
+ useEffect(() => {
+   setVideoUrl('');
+   if (!chapterId || denied) return;
+   let alive = true;
+   pb.collection('chapter_videos')
+     .getFullList({ filter: pb.filter('chapter = {:c}', { c: chapterId }), sort: 'created' })
+     .then((rows) => {
+       if (!alive) return;
+       const kelasSaya = user?.kelas || '';
+       const punyaKelas = kelasSaya ? rows.find((r) => r.kelas === kelasSaya) : null;
+       const umum = rows.find((r) => !r.kelas);
+       setVideoUrl((punyaKelas || umum)?.videoUrl || '');
+     })
+     .catch(() => { if (alive) setVideoUrl(''); });
+   return () => { alive = false; };
+ }, [chapterId, denied, user]);
 
  useEffect(() => {
    if (!chapterId || denied) return;
@@ -140,7 +163,7 @@ export default function PembelajaranPPT() {
 
        {/* Video penjelasan (link Google Drive per BAB, diisi admin/pengajar
            di tempat yang sama dengan upload PPT) */}
-       {chapter?.videoUrl && (
+       {videoUrl && (
          <div className="mt-6 bg-alba-50 rounded-2xl border border-maroon-100 shadow-card p-6 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
            <span className="w-12 h-12 rounded-2xl bg-maroon-50 border border-maroon-100 text-maroon-600 flex items-center justify-center shrink-0">
              <PlayCircle size={24} />
@@ -150,7 +173,7 @@ export default function PembelajaranPPT() {
              <p className="text-sm text-stone-600 mt-0.5">Tonton penjelasan materinya langsung dari tentor lewat Google Drive.</p>
            </div>
            <a
-             href={chapter.videoUrl}
+             href={videoUrl}
              target="_blank"
              rel="noopener noreferrer"
              className="inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 font-bold px-6 py-3 shadow-card hover:bg-maroon-700 transition-colors shrink-0"

@@ -26,8 +26,12 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
   const [uploading, setUploading] = useState(false);
   const [existingFile, setExistingFile] = useState(null);
   const [pptRefresh, setPptRefresh] = useState(0); // memaksa ChapterManager muat ulang tanda ✓ PPT
-  const [videoUrl, setVideoUrl] = useState('');        // link Drive video BAB terpilih (draft)
-  const [savedVideoUrl, setSavedVideoUrl] = useState(''); // nilai tersimpan di server
+  // Video BAB kini banyak baris - satu per kelas reguler, plus baris "semua
+  // kelas" sebagai cadangan. Disimpan di collection chapter_videos.
+  const [videos, setVideos] = useState([]);          // baris tersimpan di server
+  const [classes, setClasses] = useState([]);        // daftar kelas reguler
+  const [videoDraft, setVideoDraft] = useState({});  // { [videoId]: url } saat diedit
+  const [barisBaru, setBarisBaru] = useState({ kelas: '', videoUrl: '' });
   const [videoMsg, setVideoMsg] = useState('');
   const [savingVideo, setSavingVideo] = useState(false);
 
@@ -69,8 +73,9 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
   useEffect(() => {
     setExistingFile(null);
     setChapterTitle('');
-    setVideoUrl('');
-    setSavedVideoUrl('');
+    setVideos([]);
+    setVideoDraft({});
+    setBarisBaru({ kelas: '', videoUrl: '' });
     setVideoMsg('');
     if (!chapterId) return;
     pb.collection('ppt_files')
@@ -79,35 +84,111 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
       .catch(() => setExistingFile(null));
     pb.collection('chapters').getOne(chapterId).then((c) => {
       setChapterTitle(c?.title || '');
-      setVideoUrl(c?.videoUrl || '');
-      setSavedVideoUrl(c?.videoUrl || '');
     }).catch(() => {});
-  }, [chapterId]);
+    muatVideo();
+  }, [chapterId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Simpan link video Google Drive untuk BAB ini (tampil di halaman materi
-  // siswa sebagai tombol "Tonton Video"). Kosongkan lalu simpan untuk menghapus.
-  const saveVideoUrl = async () => {
+  // Kelas reguler dipakai untuk memilihkan sasaran tiap video.
+  useEffect(() => {
+    pb.collection('classes')
+      .getFullList({ sort: 'order', filter: 'hidden != true' })
+      .then(setClasses)
+      .catch(() => setClasses([]));
+  }, []);
+
+  // ---- Video per kelas reguler -----------------------------------------
+  // Satu BAB boleh punya beberapa video: satu per kelas, plus baris "Semua
+  // kelas" sebagai cadangan untuk kelas yang belum punya rekaman sendiri.
+  // PPT tidak ikut dibedakan - materinya sama untuk semua kelas.
+  const muatVideo = () => {
     if (!chapterId) return;
-    const url = videoUrl.trim();
-    if (url && !/^https?:\/\//i.test(url)) {
+    pb.collection('chapter_videos')
+      .getFullList({ filter: pb.filter('chapter = {:c}', { c: chapterId }), sort: 'created' })
+      .then((rows) => {
+        setVideos(rows);
+        const d = {};
+        rows.forEach((r) => { d[r.id] = r.videoUrl || ''; });
+        setVideoDraft(d);
+      })
+      .catch(() => setVideos([]));
+  };
+
+  const linkValid = (url) => /^https?:\/\//i.test(url.trim());
+
+  const catatAktivitas = (kata, kelasId) => {
+    const subjectLabel = subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
+    const kelasLabel = kelasId ? (classes.find((k) => k.id === kelasId)?.name || 'kelas') : 'semua kelas';
+    logActivity(pb, user, {
+      section: 'ppt_tambah',
+      summary: `${kata} link video (${kelasLabel}) di ${subjectLabel} · ${chapterTitle || 'BAB'}`,
+      targetLabel: `${subjectLabel} · ${chapterTitle || 'BAB'}`,
+      detail: { subject: subjectLabel, chapter: chapterTitle, kelas: kelasLabel },
+    });
+  };
+
+  const tambahVideo = async () => {
+    if (!chapterId) return;
+    const url = barisBaru.videoUrl.trim();
+    if (!linkValid(url)) {
       setVideoMsg('Link harus diawali https:// (salin dari tombol Share di Google Drive).');
       return;
     }
-    setSavingVideo(true);
-    setVideoMsg('');
+    // Satu kelas cukup satu video per BAB, supaya siswa tidak bingung harus
+    // menonton yang mana.
+    if (videos.some((v) => (v.kelas || '') === barisBaru.kelas)) {
+      setVideoMsg(barisBaru.kelas
+        ? 'Kelas itu sudah punya video di BAB ini. Ubah link yang sudah ada, atau hapus dulu.'
+        : 'Video "Semua kelas" sudah ada di BAB ini. Ubah link yang sudah ada, atau hapus dulu.');
+      return;
+    }
+    setSavingVideo(true); setVideoMsg('');
     try {
-      await pb.collection('chapters').update(chapterId, { videoUrl: url });
-      setSavedVideoUrl(url);
-      setVideoMsg(url ? 'Link video tersimpan.' : 'Link video dihapus.');
-      const subjectLabel = subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
-      logActivity(pb, user, {
-        section: 'ppt_tambah',
-        summary: `${url ? 'Menyimpan' : 'Menghapus'} link video di ${subjectLabel} · ${chapterTitle || 'BAB'}`,
-        targetLabel: `${subjectLabel} · ${chapterTitle || 'BAB'}`,
-        detail: { subject: subjectLabel, chapter: chapterTitle, videoUrl: url },
+      await pb.collection('chapter_videos').create({
+        chapter: chapterId,
+        kelas: barisBaru.kelas || '',
+        videoUrl: url,
       });
+      catatAktivitas('Menambah', barisBaru.kelas);
+      setBarisBaru({ kelas: '', videoUrl: '' });
+      setVideoMsg('Link video ditambahkan.');
+      muatVideo();
+    } catch (err) {
+      setVideoMsg(`Gagal menambah link: ${err?.message || 'coba lagi'}`);
+    } finally {
+      setSavingVideo(false);
+    }
+  };
+
+  const simpanVideo = async (v) => {
+    const url = String(videoDraft[v.id] || '').trim();
+    if (!linkValid(url)) {
+      setVideoMsg('Link harus diawali https:// (salin dari tombol Share di Google Drive).');
+      return;
+    }
+    setSavingVideo(true); setVideoMsg('');
+    try {
+      await pb.collection('chapter_videos').update(v.id, { videoUrl: url });
+      catatAktivitas('Mengubah', v.kelas);
+      setVideoMsg('Link video tersimpan.');
+      muatVideo();
     } catch (err) {
       setVideoMsg(`Gagal menyimpan link: ${err?.message || 'coba lagi'}`);
+    } finally {
+      setSavingVideo(false);
+    }
+  };
+
+  const hapusVideo = async (v) => {
+    const label = v.kelas ? (classes.find((k) => k.id === v.kelas)?.name || 'kelas ini') : 'Semua kelas';
+    if (!confirm(`Hapus link video untuk "${label}"?`)) return;
+    setSavingVideo(true); setVideoMsg('');
+    try {
+      await pb.collection('chapter_videos').delete(v.id);
+      catatAktivitas('Menghapus', v.kelas);
+      setVideoMsg('Link video dihapus.');
+      muatVideo();
+    } catch (err) {
+      setVideoMsg(`Gagal menghapus link: ${err?.message || 'coba lagi'}`);
     } finally {
       setSavingVideo(false);
     }
@@ -290,39 +371,91 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
         </p>
       )}
 
-      {/* Link video Google Drive per BAB. Tampil di halaman materi siswa
-          sebagai tombol "Tonton Video" di samping PPT-nya. */}
+      {/* Link video per BAB, dipisah per KELAS REGULER. Tiap kelas direkam
+          sendiri-sendiri, jadi siswa hanya melihat video kelasnya. Baris
+          "Semua kelas" jadi cadangan untuk kelas yang belum punya rekaman.
+          PPT di atas TIDAK dipisah - materinya sama untuk semua kelas. */}
       {chapterId && (
-        <div className="pt-4 border-t border-alba-200 space-y-2">
-          <p className="text-sm font-bold text-stone-700">Link Video Penjelasan (Google Drive)</p>
+        <div className="pt-4 border-t border-alba-200 space-y-3">
+          <p className="text-sm font-bold text-stone-700">Link Video Penjelasan per Kelas (Google Drive)</p>
           <p className="text-xs text-stone-400">
-            Tempel link share Google Drive video untuk BAB ini. Pastikan aksesnya
-            &quot;Anyone with the link&quot;. Kosongkan lalu simpan untuk menghapus link.
+            Tiap kelas reguler bisa punya rekamannya sendiri - siswa cuma melihat video kelasnya.
+            Baris <b>Semua kelas</b> dipakai sebagai cadangan untuk kelas yang belum punya rekaman sendiri.
+            Pastikan akses link-nya &quot;Anyone with the link&quot;.
           </p>
-          <div className="flex gap-2">
-            <input
-              value={videoUrl}
-              onChange={(e) => { setVideoUrl(e.target.value); setVideoMsg(''); }}
-              placeholder="https://drive.google.com/file/d/..."
-              disabled={savingVideo}
-              className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50"
-            />
-            <button
-              onClick={saveVideoUrl}
-              disabled={savingVideo || videoUrl.trim() === savedVideoUrl}
-              className="shrink-0 rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-4 py-2 disabled:opacity-50"
-            >
-              {savingVideo ? 'Menyimpan...' : 'Simpan Link'}
-            </button>
-          </div>
-          {savedVideoUrl && (
-            <p className="text-xs text-stone-500">
-              Video saat ini:{' '}
-              <a href={savedVideoUrl} target="_blank" rel="noopener noreferrer" className="underline text-maroon-600 break-all">
-                {savedVideoUrl}
-              </a>
-            </p>
+
+          {videos.length > 0 && (
+            <div className="space-y-2">
+              {videos.map((v) => {
+                const label = v.kelas ? (classes.find((k) => k.id === v.kelas)?.name || 'Kelas terhapus') : 'Semua kelas';
+                const berubah = String(videoDraft[v.id] || '') !== (v.videoUrl || '');
+                return (
+                  <div key={v.id} className="rounded-lg border border-alba-200 bg-alba-100/40 px-3 py-2 space-y-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
+                      {v.kelas ? label : <span className="text-maroon-600">{label} (cadangan)</span>}
+                    </p>
+                    <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                      <input
+                        value={videoDraft[v.id] || ''}
+                        onChange={(e) => { setVideoDraft((d) => ({ ...d, [v.id]: e.target.value })); setVideoMsg(''); }}
+                        placeholder="https://drive.google.com/file/d/..."
+                        disabled={savingVideo}
+                        className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3 py-1.5 text-xs bg-alba-50"
+                      />
+                      <button
+                        onClick={() => simpanVideo(v)}
+                        disabled={savingVideo || !berubah}
+                        className="shrink-0 rounded-lg bg-maroon-600 text-alba-50 text-xs font-semibold px-3 py-1.5 disabled:opacity-40"
+                      >
+                        Simpan
+                      </button>
+                      <button
+                        onClick={() => hapusVideo(v)}
+                        disabled={savingVideo}
+                        className="shrink-0 rounded-lg border border-red-300 text-red-600 text-xs font-semibold px-3 py-1.5 hover:bg-red-50 disabled:opacity-40"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
+
+          <div className="rounded-lg border border-dashed border-alba-300 px-3 py-2 space-y-1.5">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500">Tambah video</p>
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+              <select
+                value={barisBaru.kelas}
+                onChange={(e) => { setBarisBaru((b) => ({ ...b, kelas: e.target.value })); setVideoMsg(''); }}
+                disabled={savingVideo}
+                className="shrink-0 rounded-lg border border-alba-300 px-2 py-1.5 text-xs bg-alba-50"
+              >
+                <option value="">Semua kelas (cadangan)</option>
+                {classes.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
+              </select>
+              <input
+                value={barisBaru.videoUrl}
+                onChange={(e) => { setBarisBaru((b) => ({ ...b, videoUrl: e.target.value })); setVideoMsg(''); }}
+                placeholder="https://drive.google.com/file/d/..."
+                disabled={savingVideo}
+                className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3 py-1.5 text-xs bg-alba-50"
+              />
+              <button
+                onClick={tambahVideo}
+                disabled={savingVideo || !barisBaru.videoUrl.trim()}
+                className="shrink-0 rounded-lg bg-maroon-600 text-alba-50 text-xs font-semibold px-4 py-1.5 disabled:opacity-40"
+              >
+                {savingVideo ? 'Menyimpan...' : 'Tambah'}
+              </button>
+            </div>
+          </div>
+
+          {videos.length === 0 && (
+            <p className="text-xs text-stone-400">Belum ada video untuk BAB ini.</p>
+          )}
+
           {videoMsg && (
             <p className={`text-xs rounded-lg px-3 py-2 ${videoMsg.startsWith('Gagal') || videoMsg.startsWith('Link harus') ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-800 border border-green-200'}`}>
               {videoMsg}

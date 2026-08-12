@@ -40,6 +40,7 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
   let subjects = [];
   let chapters = [];
   let ppts = [];
+  let videos = [];
   try {
     subjects = e.app.findRecordsByFilter("subjects", "id != ''", "order", 0, 0);
     // Semua BAB ditarik, penyaringannya dilakukan per angka di bawah:
@@ -49,6 +50,10 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
     // terlihat siswa di halaman satunya dan masih pantas dihitung.
     chapters = e.app.findRecordsByFilter("chapters", "id != ''", "", 0, 0);
     ppts = e.app.findRecordsByFilter("ppt_files", "id != ''", "", 0, 0);
+    // Video kini per kelas reguler di collection chapter_videos, bukan lagi
+    // satu field di chapters. Untuk angka landing page cukup "BAB ini punya
+    // video atau tidak", tidak peduli untuk kelas mana.
+    videos = e.app.findRecordsByFilter("chapter_videos", "id != ''", "", 0, 0);
   } catch (err) {
     return e.json(200, { enabled: true, subjects: [], total: kosongTotal() });
   }
@@ -76,6 +81,12 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
   ppts.forEach((p) => {
     const cid = p.getString("chapter");
     if (cid) punyaPpt[cid] = true;
+  });
+
+  const punyaVideo = {};
+  videos.forEach((v) => {
+    const cid = v.getString("chapter");
+    if (cid) punyaVideo[cid] = true;
   });
 
   const perSubjek = {};
@@ -109,7 +120,7 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
     if (!adaSoal && !adaMateri) return;          // tertutup di dua-duanya
     target.bab += 1;
     if (adaMateri && punyaPpt[c.id]) target.babPpt += 1;
-    if (adaMateri && c.getString("videoUrl")) target.babVideo += 1;
+    if (adaMateri && punyaVideo[c.id]) target.babVideo += 1;
     if (adaSoal && soal.latihan > 0) target.babSoal += 1;
     if (adaSoal) target.soal += soal.latihan;
   });

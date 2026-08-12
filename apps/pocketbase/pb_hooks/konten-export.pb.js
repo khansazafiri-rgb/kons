@@ -97,6 +97,17 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
     urutanSubjek[s.id] = i;
   });
 
+  // Video kini per kelas reguler (collection chapter_videos), bukan lagi satu
+  // field di chapters. Untuk peta konten cukup "ada/tidak".
+  const punyaVideo = {};
+  try {
+    const barisVideo = e.app.findRecordsByFilter("chapter_videos", "id != ''", "", 0, 0);
+    barisVideo.forEach((v) => {
+      const cid = v.getString("chapter");
+      if (cid) punyaVideo[cid] = true;
+    });
+  } catch (_) {}
+
   const rows = [];
   chapters.forEach((c) => {
     const sid = c.getString("subject");
@@ -116,7 +127,7 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
       cbt: cbt,
       universitas: cbt ? (c.getString("university") || "Semua Universitas") : "",
       ppt: punyaPpt[c.id] || "",
-      video: c.getString("videoUrl") ? "ada" : "",
+      video: punyaVideo[c.id] ? "ada" : "",
       soalLatihan: soal.latihan,
       soalCbt: soal.cbt,
       soalBank: soal.bank,
