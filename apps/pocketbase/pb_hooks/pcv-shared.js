@@ -8,7 +8,7 @@
 // apps/web/src/lib/appVersion.js — dipakai tab admin Kelas & Reminder untuk
 // mendeteksi deploy yang belum lengkap (mis. web sudah di-build tapi
 // PocketBase belum di-restart, sehingga hook masih versi lama).
-const SERVER_VERSION = "v9.7";
+const SERVER_VERSION = "v9.8";
 
 // "0823..." / "+62 823..." / "62823..." -> "62823..." (format target gateway).
 function normalizePhone(raw) {
@@ -118,6 +118,54 @@ function waMessage(app, key, vars) {
     .replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? String(v[k]) : ""))
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+// ---------------------------------------------------------------------------
+// Email "akun sudah aktif" untuk siswa yang baru di-ACC.
+//
+// Dipakai DUA jalur ACC yang berbeda supaya isinya persis sama:
+//   1. dari dashboard admin  -> lewat onRecordUpdateRequest (signup-email.pb.js)
+//   2. dari magic link /acc   -> lewat endpoint approve/submit (signup-approve.pb.js)
+//
+// Jalur magic link menyimpan lewat app.save() langsung (DAO), yang TIDAK memicu
+// hook *Request, jadi email ini harus dikirim manual di sana - fungsi bersama
+// ini yang menjamin keduanya identik.
+function sendStudentApprovedEmail(app, record) {
+  try {
+    const email = record.getString("email");
+    if (!email) return;
+
+    // Student - Web boleh 2 device, tipe lain 1 device.
+    const devices = record.getString("studentType") === "web" ? 2 : 1;
+    const deviceNote =
+      devices > 1
+        ? "Akunmu bisa dipakai di maksimal <b>" + devices + " device</b>. Dua device pertama " +
+          "yang kamu pakai login akan terdaftar otomatis."
+        : "Akunmu bisa dipakai di <b>1 device</b>. Device pertama yang kamu pakai login " +
+          "akan terdaftar otomatis.";
+
+    const settings = app.settings();
+    const appUrl = (settings.meta.appURL || "https://pcvclassroom.com").replace(/\/+$/, "");
+    const message = new MailerMessage({
+      from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+      to: [{ address: email }],
+      subject: "Akun PCV Classroom kamu sudah aktif!",
+      html:
+        "<p>Halo <b>" + record.getString("name") + "</b>,</p>" +
+        "<p>Selamat! Pendaftaranmu di PCV Classroom sudah di-ACC admin. " +
+        "Website siswa sekarang sudah bisa kamu akses:</p>" +
+        "<p><a href=\"" + appUrl + "/login\">" + appUrl + "/login</a></p>" +
+        "<p>Masuk menggunakan <b>Login ID</b> dan <b>password</b> yang kamu isi saat mendaftar.</p>" +
+        "<p><b>Penting soal device:</b> " + deviceNote + " " +
+        "Kalau nanti ingin ganti device, hubungi admin lewat WhatsApp: " +
+        "<a href=\"https://wa.me/6282257238650\">wa.me/6282257238650</a>.</p>" +
+        "<p>Selamat belajar, Sobat PCV!</p>" +
+        "<p>- PCV Classroom &middot; Primus Coltus Virtus</p>",
+    });
+    app.newMailClient().send(message);
+  } catch (err) {
+    console.log("pcv-shared sendStudentApprovedEmail gagal:", err);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -604,6 +652,7 @@ module.exports = {
   SERVER_VERSION,
   normalizePhone,
   sendWA,
+  sendStudentApprovedEmail,
   waMessage,
   WA_TEMPLATE_DEFAULTS,
   normalizeIcalUrl,
