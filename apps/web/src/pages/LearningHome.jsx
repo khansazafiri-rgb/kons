@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, BookOpenText, CalendarDays, ClipboardList, History, Library, Timer, CalendarClock } from 'lucide-react';
+import { ArrowRight, BookOpenText, CalendarDays, ClipboardList, History, Library, Stethoscope, Timer, CalendarClock } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds, fetchMyClass } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -24,6 +24,12 @@ const cards = [
    title: 'CBT Test',
    desc: 'Kerjakan paket-paket soal tryout dengan mode simulasi ujian atau mode belajar santai.',
    to: '/simulasi-test',
+ },
+ {
+   icon: Stethoscope,
+   title: 'Kalkulator Klinis',
+   desc: 'Coba-coba hitung osmolalitas, klirens kreatinin, dan status gizi anak — lengkap dengan cara hitungnya.',
+   to: '/kalkulator-klinis',
  },
 ];
 
