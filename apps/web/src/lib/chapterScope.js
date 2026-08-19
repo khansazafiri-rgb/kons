@@ -14,40 +14,36 @@ import pb from '@/lib/pocketbaseClient';
 export const KIND_LATIHAN = 'latihan';
 export const KIND_CBT = 'cbt';
 
-// Nilai `university` kosong = BAB dipakai bersama semua universitas. Dipakai
-// juga sebagai jaring pengaman untuk siswa yang asalKuliah-nya belum diisi.
-export const UNIV_SEMUA = '';
+// `universities` kosong ([]) = BAB dipakai bersama SEMUA FK. Dipakai juga
+// sebagai jaring pengaman untuk siswa yang asalKuliah-nya belum diisi.
+// Satu BAB boleh menempel ke banyak FK sekaligus (mis. FIKKIA & FK Unair induk
+// dengan soal yang sama persis) - lihat migration 1786100000.
 export const LABEL_UNIV_SEMUA = 'Semua Universitas';
 
-export const labelUniversitas = (u) => (u && u.trim() ? u : LABEL_UNIV_SEMUA);
+// Field JSON PocketBase kadang datang sebagai byte mentah di JSVM (bukan
+// masalah di sisi web ini, tapi helper dijaga toleran array-kosong juga).
+export const daftarUniversitas = (u) => (Array.isArray(u) ? u : []);
 
-// Di dropdown, string kosong sudah dipakai untuk "belum memilih", jadi pilihan
-// "Semua Universitas" butuh nilai penanda sendiri yang diterjemahkan balik ke
-// string kosong sebelum disimpan.
-export const OPSI_UNIV_SEMUA = '__semua__';
-export const univKeDb = (nilai) => (nilai === OPSI_UNIV_SEMUA ? '' : nilai);
-export const univKeOpsi = (db) => (db && db.trim() ? db : OPSI_UNIV_SEMUA);
+export const labelUniversitas = (universities) => {
+  const arr = daftarUniversitas(universities);
+  return arr.length ? arr.join(', ') : LABEL_UNIV_SEMUA;
+};
+
+// Cocok untuk SATU FK tertentu: BAB "semua FK" (array kosong) selalu cocok,
+// atau FK itu ada persis di dalam array.
+export const cocokUniversitas = (universities, fk) => {
+  const arr = daftarUniversitas(universities);
+  return arr.length === 0 || arr.includes(fk);
+};
 
 // BAB latihan: yang kind-nya "latihan" ATAU masih kosong (data lama).
 export const filterLatihan = () => `(kind = '' || kind = '${KIND_LATIHAN}')`;
 
-// BAB simulasi milik satu universitas tertentu (kosong = semua universitas).
-export const filterCbt = (university) =>
-  pb.filter('kind = {:kind} && university = {:univ}', {
-    kind: KIND_CBT,
-    univ: university || '',
-  });
-
-// Yang boleh DILIHAT siswa: BAB khusus kampusnya + BAB milik semua universitas.
-export const filterCbtUntukSiswa = (asalKuliah) => {
-  const univ = String(asalKuliah || '').trim();
-  if (!univ) return pb.filter('kind = {:kind} && university = {:kosong}', { kind: KIND_CBT, kosong: '' });
-  return pb.filter('kind = {:kind} && (university = {:univ} || university = {:kosong})', {
-    kind: KIND_CBT,
-    univ,
-    kosong: '',
-  });
-};
+// Semua BAB simulasi milik sebuah mata kuliah. Pencocokan FK-nya (banyak-ke-
+// banyak, lewat array JSON) TIDAK bisa diandalkan lewat query filter PocketBase,
+// jadi dilakukan di JS sesudah data diambil - lihat cocokUniversitas() &
+// pemakaiannya di ChapterManager / SimulasiCBT.
+export const filterCbtKind = () => pb.filter('kind = {:kind}', { kind: KIND_CBT });
 
 // ---------------------------------------------------------------------------
 // SEMBUNYIKAN BAB - dipisah per halaman

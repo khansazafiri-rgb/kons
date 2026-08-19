@@ -15,9 +15,9 @@ import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
 import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
-import { KIND_CBT, LABEL_UNIV_SEMUA, OPSI_UNIV_SEMUA, filterLatihan, gabung, labelUniversitas, univKeDb } from '@/lib/chapterScope';
+import { KIND_CBT, filterLatihan } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
-import { FK_INDONESIA } from '@/data/fakultasKedokteran';
+import PilihFakultas from '@/components/PilihFakultas';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 import PetaKonten from '@/pages/admin/PetaKonten';
 
@@ -2002,17 +2002,27 @@ function PreviewModal({ previewData, onClose }) {
 // Soal dikelompokkan per "Paket 1..N" (field database tetap `year`).
 // Paket baru dibuat dengan memilih "+ Paket baru" lalu menyimpan soal pertama.
 // ==========================================
-// Edit Soal Simulasi CBT. Alur: pilih UNIVERSITAS -> mata kuliah -> BAB -> soal.
+// Edit Soal Simulasi CBT. Alur: mata kuliah -> (opsional) saring FK -> BAB -> soal.
 //
 // Dulu soal simulasi dikelompokkan per "Paket" bernomor (field `year`), jadi
-// namanya tidak bisa bebas dan semua kampus dapat soal yang sama. Sekarang
-// pengelompokannya memakai BAB seperti Cicil Belajar - namanya bebas - dan tiap
-// BAB menempel pada satu universitas, supaya siswa FK yang berbeda mendapat
-// soal yang berbeda. BAB "Semua Universitas" dibaca oleh semua siswa.
+// namanya tidak bisa bebas dan semua kampus dapat soal yang sama. Lalu
+// pengelompokannya diganti BAB per SATU universitas - tapi itu berarti soal
+// yang isinya sama persis untuk dua FK (mis. FIKKIA & FK Unair induk) harus
+// diketik ulang di dua BAB kembar.
+//
+// Sekarang satu BAB boleh menempel ke BANYAK FK sekaligus (chapters.universities,
+// array). Chip FK di sini berfungsi RANGKAP: (1) menyaring BAB mana yang
+// ditampilkan di bawah, dan (2) jadi nilai awal BAB baru yang dibuat selagi
+// chip itu aktif. FK tiap BAB tetap bisa diubah kapan saja lewat tombol 🎓 di
+// ChapterManager. Chip kosong = tidak menyaring apa pun (tampil semua BAB).
 export function EditSimulasi({ allowedSubjectIds = null }) {
   const { user } = useAuth();
   const [subjects, setSubjects] = useState([]);
-  const [univOpsi, setUnivOpsi] = useUrlState('univ', '');   // '' = belum memilih
+  // Disimpan di URL sebagai satu string dipisah "|" (nama FK bisa mengandung
+  // koma), supaya link dari Peta Konten & riwayat browser tetap jalan.
+  const [univRaw, setUnivRaw] = useUrlState('univ', '');
+  const universityFilter = univRaw ? univRaw.split('|').filter(Boolean) : [];
+  const setUniversityFilter = (arr) => setUnivRaw(arr.length ? arr.join('|') : '');
   const [subjectId, setSubjectId] = useUrlState('mk', '');
   const [chapterId, setChapterId] = useUrlState('bab', '');
   const [chapterTitle, setChapterTitle] = useState('');
@@ -2024,12 +2034,8 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [bulkStatus, setBulkStatus] = useState('');
 
-  const university = univKeDb(univOpsi); // nilai yang benar-benar disimpan
-  const univDipilih = univOpsi !== '';
-
   const subjectLabel = () => subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
-  const univLabel = () => labelUniversitas(university);
-  const whereLabel = () => `Simulasi CBT ${univLabel()} · ${subjectLabel()} · ${chapterTitle || 'BAB'}`;
+  const whereLabel = () => `Simulasi CBT · ${subjectLabel()} · ${chapterTitle || 'BAB'}`;
 
   useEffect(() => {
     pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
@@ -2037,17 +2043,16 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Ganti universitas atau mata kuliah -> BAB terpilih tidak lagi relevan.
-  // Dijaga supaya hanya berlaku saat pilihannya BENAR-BENAR berganti; kalau
-  // tidak, BAB yang dipulihkan dari URL ikut terhapus tiap halaman dibuka ulang.
-  const lingkupSebelumnya = useRef(`${univOpsi}|${subjectId}`);
+  // Ganti mata kuliah -> BAB terpilih tidak lagi relevan. Sengaja TIDAK ikut
+  // bereaksi ke perubahan chip FK - itu cuma menyaring tampilan, BAB yang
+  // sedang dibuka semestinya tetap terbuka walau chipnya diubah.
+  const subjectSebelumnya = useRef(subjectId);
   useEffect(() => {
-    const sekarang = `${univOpsi}|${subjectId}`;
-    if (lingkupSebelumnya.current !== sekarang) {
-      lingkupSebelumnya.current = sekarang;
+    if (subjectSebelumnya.current !== subjectId) {
+      subjectSebelumnya.current = subjectId;
       setChapterId('');
     }
-  }, [univOpsi, subjectId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [subjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!chapterId) return setChapterTitle('');
@@ -2111,7 +2116,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
   // (retry saat rate limit + jeda antar-soal), jadi tidak "gagal di tengah
   // jalan" ketika soalnya banyak.
   const importBulk = async (bulkText, qtype, onDone) => {
-    if (!subjectId || !chapterId) { setBulkStatus('⚠️ Pilih universitas, mata kuliah, dan BAB dulu.'); return; }
+    if (!subjectId || !chapterId) { setBulkStatus('⚠️ Pilih mata kuliah dan BAB dulu.'); return; }
     let items;
     try {
       items = parseBulkItems(bulkText, qtype);
@@ -2150,33 +2155,27 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
         <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT</h2>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-stone-500">1. Universitas</label>
-          <select value={univOpsi} onChange={(e) => setUnivOpsi(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
-            <option value="">Pilih universitas...</option>
-            <option value={OPSI_UNIV_SEMUA}>{LABEL_UNIV_SEMUA} (dibaca semua siswa)</option>
-            {FK_INDONESIA.map((grup) => (
-              <optgroup key={grup.wilayah} label={grup.wilayah}>
-                {grup.items.map((nama) => <option key={nama} value={nama}>{nama}</option>)}
-              </optgroup>
-            ))}
+          <label className="text-xs font-bold text-stone-500">1. Mata kuliah</label>
+          <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
+            <option value="">Pilih mata kuliah...</option>
+            {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <p className="text-[11px] text-stone-400">
-            Soal di sini hanya muncul untuk siswa yang asal kuliahnya sama persis dengan pilihan ini.
-            Pilih <b>{LABEL_UNIV_SEMUA}</b> kalau soalnya dipakai bersama semua kampus.
-          </p>
         </div>
 
-        {univDipilih && (
+        {subjectId && (
           <div className="space-y-1">
-            <label className="text-xs font-bold text-stone-500">2. Mata kuliah</label>
-            <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} className="w-full rounded-lg border border-alba-300 px-3.5 py-2.5 text-sm bg-alba-50">
-              <option value="">Pilih mata kuliah...</option>
-              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <label className="text-xs font-bold text-stone-500">2. Saring per FK (opsional)</label>
+            <PilihFakultas nilai={universityFilter} onChange={setUniversityFilter} />
+            <p className="text-[11px] text-stone-400">
+              Chip di atas menyaring daftar BAB di bawah, DAN jadi FK bawaan untuk BAB baru yang kamu buat
+              selagi chip ini aktif - jadi satu BAB &amp; satu set soal bisa langsung dipakai bersama beberapa
+              FK sekaligus (mis. FIKKIA dan FK Unair induk), tanpa mengetik ulang soalnya. FK tiap BAB tetap
+              bisa diubah kapan saja lewat tombol 🎓 di sebelah namanya. Kosongkan chip untuk melihat semua BAB.
+            </p>
           </div>
         )}
 
-        {univDipilih && subjectId && (
+        {subjectId && (
           <div className="space-y-1">
             <label className="text-xs font-bold text-stone-500">3. BAB simulasi — namanya bebas</label>
             <ChapterManager
@@ -2186,7 +2185,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
               indicator="soal"
               refreshSignal={soalRefresh}
               kind={KIND_CBT}
-              university={university}
+              universityFilter={universityFilter}
             />
           </div>
         )}
@@ -2883,54 +2882,6 @@ function LinkUndangan() {
         ))}
         {daftar.length === 0 && <p className="text-sm text-stone-400">Belum ada link undangan.</p>}
       </div>
-    </div>
-  );
-}
-
-// Pemilih FK untuk sebuah jadwal ujian. Daftar FK di Indonesia panjang
-// (ratusan), jadi bukan deretan chip semua - dipilih satu per satu lewat
-// dropdown bergrup yang sama dengan halaman Sign Up, lalu yang terpilih muncul
-// sebagai chip yang bisa dilepas.
-//
-// Daftar kosong artinya jadwal berlaku untuk SEMUA FK. Itu yang menjaga jadwal
-// lama tetap tampil seperti sebelumnya setelah fitur ini dipasang.
-function PilihFakultas({ nilai, onChange, ringkas = false }) {
-  const dipilih = Array.isArray(nilai) ? nilai : [];
-  const tambah = (fk) => { if (fk && !dipilih.includes(fk)) onChange([...dipilih, fk]); };
-  const lepas = (fk) => onChange(dipilih.filter((x) => x !== fk));
-
-  return (
-    <div className="space-y-1.5">
-      <select
-        value=""
-        onChange={(e) => { tambah(e.target.value); e.target.value = ''; }}
-        className={`rounded-lg border px-2 py-2 text-xs bg-alba-50 max-w-full ${ringkas ? 'border-dashed border-alba-300' : 'border-alba-300'}`}
-      >
-        <option value="">{dipilih.length ? '+ Tambah FK lain' : 'Semua FK (klik untuk membatasi)'}</option>
-        {FK_INDONESIA.map((g) => (
-          <optgroup key={g.group} label={g.group}>
-            {g.items.filter((fk) => !dipilih.includes(fk)).map((fk) => (
-              <option key={fk} value={fk}>{fk}</option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-      {dipilih.length === 0 ? (
-        <p className="text-[11px] text-stone-400">Tampil ke <b>semua FK</b>.</p>
-      ) : (
-        <div className="flex flex-wrap gap-1">
-          {dipilih.map((fk) => (
-            <button
-              key={fk}
-              onClick={() => lepas(fk)}
-              title="Klik untuk melepas"
-              className="text-[11px] rounded-full border border-maroon-200 bg-maroon-50 text-maroon-700 px-2.5 py-0.5 hover:bg-maroon-100"
-            >
-              {fk} ×
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

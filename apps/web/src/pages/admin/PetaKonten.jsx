@@ -5,6 +5,7 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { GSHEET_SCRIPT } from '@/lib/gsheetScript';
 import useUrlState from '@/lib/useUrlState';
+import { cocokUniversitas } from '@/lib/chapterScope';
 import {
   SHEETS, SHEET_KEYS, isiLengkap, loadContentMap, persen, ringkasPerSubjek,
   rowsForSheet, totalKeseluruhan, unduhCsv,
@@ -55,7 +56,7 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
   const tampil = useMemo(() => {
     let r = rowsForSheet(rows, lembar);
     if (subjectFilter) r = r.filter((x) => x.subjectId === subjectFilter);
-    if (lembar === 'cbt' && univFilter !== '__all__') r = r.filter((x) => x.university === univFilter);
+    if (lembar === 'cbt' && univFilter !== '__all__') r = r.filter((x) => cocokUniversitas(x.universities, univFilter));
     const q = query.trim().toLowerCase();
     if (q) r = r.filter((x) => `${x.title} ${x.subjectName}`.toLowerCase().includes(q));
     if (status !== 'semua') {
@@ -493,9 +494,9 @@ function Penyaring({
 
       {lembar === 'cbt' && (
         <select value={univFilter} onChange={(e) => setUnivFilter(e.target.value)} className={selectCls}>
-          <option value="__all__">Semua universitas</option>
+          <option value="__all__">Semua FK</option>
           {universitas.map((u) => (
-            <option key={u || '__semua__'} value={u}>{u || 'Semua Universitas'}</option>
+            <option key={u} value={u}>{u}</option>
           ))}
         </select>
       )}
@@ -538,7 +539,7 @@ function tautanIsi(row, lembar, basePath, pptTab) {
   } else if (lembar === 'cbt') {
     p.set('tab', 'Edit Soal');
     p.set('jenis', 'cbt');
-    p.set('univ', row.universityOption);
+    p.set('univ', row.universityJumpValue);
     p.set('mk', row.subjectId);
     p.set('bab', row.id);
   } else {
