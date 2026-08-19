@@ -122,6 +122,7 @@ const navItems = [
  { to: '/perdalam-materi', label: 'Perdalam Materi' },
  { to: '/cicil-belajar', label: 'Cicil Belajar!' },
  { to: '/simulasi-test', label: 'Simulasi Test' },
+ { to: '/kalkulator-klinis', label: 'Kalkulator Klinis' },
 ];
 
 export default function Header() {

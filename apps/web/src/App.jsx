@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
@@ -22,6 +22,12 @@ import BankSoal from './pages/BankSoal';
 import JadwalKelas from './pages/JadwalKelas';
 import AdminPanel from './pages/admin/AdminPanel';
 import TeacherPanel from './pages/teacher/TeacherPanel';
+
+// Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
+// pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
+// mengerjakan soal. Dengan dipisah, berkas itu baru diambil saat halamannya
+// benar-benar dibuka.
+const KalkulatorKlinis = lazy(() => import('./pages/KalkulatorKlinis'));
 
 function App() {
  return (
@@ -50,6 +56,16 @@ function App() {
          <Route path="/pembelajaran-ppt" element={<ProtectedRoute><PembelajaranPPT /></ProtectedRoute>} />
          <Route path="/cicil-belajar" element={<ProtectedRoute><CicilBelajar /></ProtectedRoute>} />
          <Route path="/simulasi-test" element={<ProtectedRoute><SimulasiCBT /></ProtectedRoute>} />
+         <Route
+           path="/kalkulator-klinis"
+           element={(
+             <ProtectedRoute>
+               <Suspense fallback={<div className="min-h-screen bg-grid-soft" />}>
+                 <KalkulatorKlinis />
+               </Suspense>
+             </ProtectedRoute>
+           )}
+         />
          {/* Bank Soal: disiapkan tapi tersembunyi - halaman memblokir diri
              sendiri selama saklar showBankSoal di landing_settings masih mati */}
          <Route path="/bank-soal" element={<ProtectedRoute><BankSoal /></ProtectedRoute>} />
