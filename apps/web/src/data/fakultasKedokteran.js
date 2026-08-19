@@ -146,6 +146,7 @@ export const FK_INDONESIA = [
       'FK Universitas Muhammadiyah Malang (Malang)',
       'FK UIN Maulana Malik Ibrahim (Malang)',
       'FK Universitas Jenderal Soedirman Jember (Jember)',
+      'FIKKIA Universitas 17 Agustus 1945 Banyuwangi (Banyuwangi)',
     ],
   },
   {
