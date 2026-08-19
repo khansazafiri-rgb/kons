@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
-import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, filterCbt, filterLatihan, gabung } from '@/lib/chapterScope';
+import PilihFakultas from '@/components/PilihFakultas';
+import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, cocokUniversitas, filterCbtKind, filterLatihan, gabung, labelUniversitas } from '@/lib/chapterScope';
 
 // Manajemen BAB per mata kuliah: tambah, ubah nama, hide/tampilkan, urutkan,
 // hapus, dan PILIH bab. Dipakai bersama di "Edit Soal" (Cicil Belajar) & "PPT
@@ -20,14 +21,19 @@ import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, filterCbt, filterLatihan, gabung } 
 //                        upload PPT / tambah soal dari komponen induk)
 // - kind               : 'latihan' (default) untuk BAB Cicil Belajar & PPT,
 //                        'cbt' untuk BAB Simulasi CBT
-// - university         : hanya dipakai saat kind 'cbt' - universitas pemilik
-//                        BAB. String kosong = dipakai semua universitas.
+// - universityFilter    : hanya dipakai saat kind 'cbt' - daftar FK (array)
+//                        untuk MENYARING BAB mana yang ditampilkan (BAB "semua
+//                        FK" selalu ikut tampil apa pun isi filternya). Array
+//                        kosong = tampilkan semua BAB tanpa disaring. FK yang
+//                        sedang dipilih di filter ini JUGA dipakai sebagai nilai
+//                        awal saat membuat BAB baru, supaya BAB baru langsung
+//                        menempel ke FK yang sedang dilihat admin.
 // - scope              : HALAMAN MANA yang disembunyikan tombol 👁 di sini.
 //                        SCOPE_SOAL (bawaan)  -> field `hidden`, mempengaruhi
 //                          Cicil Belajar / Bank Soal / Simulasi CBT.
 //                        SCOPE_MATERI         -> field `hiddenMateri`,
 //                          mempengaruhi Perdalam Materi saja.
-export default function ChapterManager({ subjectId, selectedChapterId, onSelect, indicator, refreshSignal, kind = 'latihan', university = '', scope = SCOPE_SOAL }) {
+export default function ChapterManager({ subjectId, selectedChapterId, onSelect, indicator, refreshSignal, kind = 'latihan', universityFilter = [], scope = SCOPE_SOAL }) {
   const cbt = kind === KIND_CBT;
   // BAB Simulasi cuma punya satu halaman, jadi di sana tidak ada "halaman
   // sebelah" yang perlu dilaporkan statusnya.
@@ -35,13 +41,12 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
   const namaHalaman = scope === SCOPE_MATERI ? 'Perdalam Materi' : (cbt ? 'Simulasi CBT' : 'Cicil Belajar');
   const namaHalamanLain = scope === SCOPE_MATERI ? 'Cicil Belajar' : 'Perdalam Materi';
   const disembunyikan = (c) => !!c?.[scope];
-  // Ruang lingkup BAB: latihan berlaku umum, cbt dipisah per universitas.
-  const lingkup = cbt ? filterCbt(university) : filterLatihan();
   const [chapters, setChapters] = useState([]);
   const [newTitle, setNewTitle] = useState('');
   const [error, setError] = useState('');
   const [pptSet, setPptSet] = useState(() => new Set()); // chapterId yang sudah punya PPT
   const [soalCount, setSoalCount] = useState({});          // { chapterId: jumlah soal }
+  const [editFkId, setEditFkId] = useState(null);          // id BAB yang popover FK-nya sedang terbuka
 
   const errMsg = (e) => {
     if (e?.status === 404 || e?.status === 403) {
@@ -54,9 +59,16 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
 
   const load = () => {
     if (!subjectId) { setChapters([]); return; }
+    // Query filter cuma menyaring subject + kind - pencocokan FK (array JSON,
+    // banyak-ke-banyak) tidak bisa diandalkan lewat filter PocketBase, jadi
+    // dilakukan di JS sesudah data terunduh (lihat cocokUniversitas()).
+    const lingkup = cbt ? filterCbtKind() : filterLatihan();
     pb.collection('chapters')
       .getFullList({ sort: 'order', filter: gabung(pb.filter('subject = {:s}', { s: subjectId }), lingkup) })
-      .then(setChapters)
+      .then((list) => {
+        if (!cbt || universityFilter.length === 0) return setChapters(list);
+        setChapters(list.filter((c) => universityFilter.some((fk) => cocokUniversitas(c.universities, fk))));
+      })
       .catch((e) => setError('Gagal memuat BAB: ' + (e?.message || '')));
   };
 
@@ -81,7 +93,11 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
   };
 
   const reload = () => { load(); loadIndicators(); };
-  useEffect(() => { setError(''); reload(); }, [subjectId, indicator, refreshSignal, kind, university]); // eslint-disable-line react-hooks/exhaustive-deps
+  // universityFilter dibandingkan sebagai string gabungan, bukan array mentah -
+  // array baru dibuat tiap render di komponen induk, jadi kalau dipakai
+  // langsung sebagai dependency, effect ini akan berjalan ulang terus-menerus.
+  const universityFilterKey = cbt ? universityFilter.join('|') : '';
+  useEffect(() => { setError(''); reload(); }, [subjectId, indicator, refreshSignal, kind, universityFilterKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addChapter = async () => {
     if (!newTitle.trim() || !subjectId) return;
@@ -92,9 +108,21 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
         subject: subjectId,
         order: chapters.length + 1,
         kind,
-        university: cbt ? (university || '') : '',
+        // FK yang sedang dipilih di filter dijadikan nilai awal BAB baru -
+        // kosong (filter tidak menyaring apa pun) berarti BAB baru berlaku
+        // untuk semua FK, konsisten dengan makna array kosong di tempat lain.
+        universities: cbt ? universityFilter : [],
       });
       setNewTitle('');
+      reload();
+    } catch (e) { setError(errMsg(e)); }
+  };
+
+  // Simpan daftar FK baru untuk satu BAB (dipanggil dari popover pemilih FK).
+  const saveUniversities = async (c, universities) => {
+    setError('');
+    try {
+      await pb.collection('chapters').update(c.id, { universities });
       reload();
     } catch (e) { setError(errMsg(e)); }
   };
@@ -221,14 +249,37 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
                   </span>
                 )}
                 {c.title}
+                {/* FK pemilik BAB ini - "Semua FK" kalau kosong. Ditampilkan
+                    supaya admin tidak perlu buka popover cuma untuk tahu BAB
+                    ini sudah menempel ke kampus mana saja. */}
+                {cbt && (
+                  <span className="block text-[10px] font-normal text-stone-400 mt-0.5" title={labelUniversitas(c.universities)}>
+                    🎓 {labelUniversitas(c.universities)}
+                  </span>
+                )}
               </button>
             </div>
             <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto pb-1 sm:pb-0">
               {renderIndicator(c)}
+              {cbt && (
+                <button onClick={() => setEditFkId(editFkId === c.id ? null : c.id)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Atur FK pemilik BAB ini">🎓</button>
+              )}
               <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
               <button onClick={() => toggleHide(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={disembunyikan(c) ? `Tampilkan di ${namaHalaman}` : `Sembunyikan dari ${namaHalaman}`}>{disembunyikan(c) ? '🙈' : '👁'}</button>
               <button onClick={() => remove(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-red-50 hover:text-red-600" title="Hapus BAB">🗑</button>
             </div>
+            {cbt && editFkId === c.id && (
+              <div className="w-full sm:pl-8 pb-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
+                  FK yang boleh membaca BAB &amp; soal ini:
+                </p>
+                <PilihFakultas
+                  ringkas
+                  nilai={Array.isArray(c.universities) ? c.universities : []}
+                  onChange={(v) => saveUniversities(c, v)}
+                />
+              </div>
+            )}
           </div>
         ))}
         {chapters.length === 0 && <p className="text-xs text-stone-400 px-1 py-2">Belum ada BAB.</p>}

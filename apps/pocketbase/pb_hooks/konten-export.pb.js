@@ -21,6 +21,9 @@
 // membaca variabel/fungsi dari lingkup file.
 
 routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
+  // jsonArray: pembaca aman untuk field JSON PocketBase (lihat pcv-shared.js -
+  // di JSVM field JSON kadang datang sebagai byte mentah, bukan array JS).
+  const { jsonArray } = require(`${__hooks}/pcv-shared.js`);
   const q = e.requestInfo().query || {};
   const token = String(q["token"] || "");
   const lembar = String(q["lembar"] || "ringkasan");
@@ -114,6 +117,9 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
     if (namaSubjek[sid] === undefined) return;
     const soal = hitunganSoal[c.id] || { latihan: 0, cbt: 0, bank: 0 };
     const cbt = c.getString("kind") === "cbt";
+    // Satu BAB Simulasi boleh menempel ke banyak FK sekaligus (lihat migration
+    // 1786100000) - array kosong = berlaku untuk semua FK.
+    const universities = cbt ? jsonArray(c.get("universities")) : [];
     rows.push({
       subjectId: sid,
       subjectName: namaSubjek[sid],
@@ -125,7 +131,7 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
       hidden: c.getBool("hidden"),
       hiddenMateri: c.getBool("hiddenMateri"),
       cbt: cbt,
-      universitas: cbt ? (c.getString("university") || "Semua Universitas") : "",
+      universitas: cbt ? (universities.length ? universities.join(", ") : "Semua Universitas") : "",
       ppt: punyaPpt[c.id] || "",
       video: punyaVideo[c.id] ? "ada" : "",
       soalLatihan: soal.latihan,
@@ -137,8 +143,10 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
       linkMateri: asal + "/pembelajaran-ppt?subject=" + sid + "&chapter=" + c.id,
       linkCicil: asal + "/cicil-belajar?subject=" + sid + "&chapter=" + c.id + "&mode=review",
       linkBank: asal + "/bank-soal?subject=" + sid + "&chapter=" + c.id,
+      // FK pertama (kalau ada) dipakai sebagai nilai awal filter di layar Edit
+      // Soal - link cuma perlu satu nilai untuk pra-mengisi, bukan daftarnya.
       linkCbt: asal + "/admin?tab=Edit+Soal&jenis=cbt&univ=" +
-        encodeURIComponent(c.getString("university") || "__semua__") +
+        encodeURIComponent(universities[0] || "") +
         "&mk=" + sid + "&bab=" + c.id,
     });
   });

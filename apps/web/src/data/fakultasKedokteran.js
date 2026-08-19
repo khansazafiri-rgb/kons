@@ -46,6 +46,7 @@ export const FK_INDONESIA = [
       'FK Universitas Tidar (Magelang)',
       'FK Universitas Gadjah Mada (Yogyakarta)',
       'FK Universitas Airlangga (Surabaya)',
+      'FIKKIA Universitas Airlangga (Banyuwangi)',
       'FK Universitas Brawijaya (Malang)',
       'FK Universitas Jember (Jember)',
       'FK Universitas Negeri Surabaya (Surabaya)',
@@ -146,7 +147,6 @@ export const FK_INDONESIA = [
       'FK Universitas Muhammadiyah Malang (Malang)',
       'FK UIN Maulana Malik Ibrahim (Malang)',
       'FK Universitas Jenderal Soedirman Jember (Jember)',
-      'FIKKIA Universitas 17 Agustus 1945 Banyuwangi (Banyuwangi)',
     ],
   },
   {

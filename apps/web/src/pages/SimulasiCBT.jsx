@@ -5,7 +5,7 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import { touchActivity } from '@/lib/activityLog';
-import { filterCbtUntukSiswa, filterTampilSoal, gabung } from '@/lib/chapterScope';
+import { cocokUniversitas, filterCbtKind, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 
 // Soal simulasi dikelompokkan per BAB bernama bebas (bukan lagi "Paket 1/2/3"
@@ -57,11 +57,16 @@ export default function SimulasiCBT() {
      const subs = await pb.collection('subjects').getFullList({ sort: 'order' });
      setSubjects(subs);
      try {
-       const babBoleh = await pb.collection('chapters').getFullList({
+       // `universities` (array JSON) tidak bisa disaring lewat filter PocketBase
+       // untuk kecocokan banyak-ke-banyak, jadi diunduh dulu lalu disaring di JS
+       // dengan cocokUniversitas() - lihat lib/chapterScope.js.
+       const semuaBab = await pb.collection('chapters').getFullList({
          sort: 'order',
-         filter: gabung(filterCbtUntukSiswa(user?.asalKuliah), filterTampilSoal()),
-         fields: 'id,subject,title,order',
+         filter: gabung(filterCbtKind(), filterTampilSoal()),
+         fields: 'id,subject,title,order,universities',
        });
+       const asalKuliah = String(user?.asalKuliah || '').trim();
+       const babBoleh = semuaBab.filter((c) => cocokUniversitas(c.universities, asalKuliah));
        const bolehIds = new Set(babBoleh.map((c) => c.id));
 
        const cbtQs = await pb.collection('questions').getFullList({ filter: "type = 'cbt'", fields: 'subject,chapter' });

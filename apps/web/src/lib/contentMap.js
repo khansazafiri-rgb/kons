@@ -1,5 +1,5 @@
 import pb from '@/lib/pocketbaseClient';
-import { KIND_CBT, labelUniversitas, univKeOpsi } from '@/lib/chapterScope';
+import { KIND_CBT, daftarUniversitas, labelUniversitas } from '@/lib/chapterScope';
 
 // PETA KONTEN - satu tempat untuk menjawab "BAB apa saja yang sudah ada isinya?"
 //
@@ -52,7 +52,7 @@ export async function loadContentMap(allowedSubjectIds = null) {
     pb.collection('chapters').getFullList({
       sort: 'subject,order',
       filter: lingkup,
-      fields: 'id,title,subject,order,hidden,hiddenMateri,kind,university',
+      fields: 'id,title,subject,order,hidden,hiddenMateri,kind,universities',
     }),
     pb.collection('ppt_files').getFullList({ filter: lingkup, fields: 'chapter,file,updated' }),
     pb.collection('questions').getFullList({ filter: lingkup, fields: 'chapter,subject,type' }),
@@ -112,9 +112,12 @@ export async function loadContentMap(allowedSubjectIds = null) {
         hiddenMateri: c.hiddenMateri === true,
         // BAB lama nilainya kosong dan tetap dibaca sebagai latihan.
         kind: cbt ? KIND_CBT : 'latihan',
-        university: cbt ? (c.university || '') : '',
-        universityLabel: cbt ? labelUniversitas(c.university) : '',
-        universityOption: cbt ? univKeOpsi(c.university) : '',
+        universities: cbt ? daftarUniversitas(c.universities) : [],
+        universityLabel: cbt ? labelUniversitas(c.universities) : '',
+        // FK pertama (kalau ada) dipakai sebagai nilai awal saat tombol "isi"
+        // melompat ke Edit Soal - BAB bisa menempel ke banyak FK sekaligus,
+        // tapi link cuma perlu SATU nilai untuk pra-mengisi filternya.
+        universityJumpValue: cbt ? (daftarUniversitas(c.universities)[0] || '') : '',
         subjectId: c.subject,
         subjectName: namaSubjek[c.subject] || '(mata kuliah terhapus)',
         hasPpt: !!ppt,
@@ -143,9 +146,13 @@ export async function loadContentMap(allowedSubjectIds = null) {
       soalBank: s.bank,
     }));
 
-  // Daftar universitas yang benar-benar punya BAB Simulasi, untuk isi dropdown.
-  const universitas = [...new Set(rows.filter((r) => r.kind === KIND_CBT).map((r) => r.university))]
-    .sort((a, b) => labelUniversitas(a).localeCompare(labelUniversitas(b)));
+  // Daftar FK yang benar-benar disebut di suatu BAB Simulasi, untuk isi
+  // dropdown penyaring. BAB "Semua FK" (universities kosong) tidak perlu masuk
+  // sini sebagai entri tersendiri - dia otomatis cocok dengan FK apa pun yang
+  // dipilih (lihat cocokUniversitas), jadi tetap muncul difilter FK manapun.
+  const universitas = [
+    ...new Set(rows.filter((r) => r.kind === KIND_CBT).flatMap((r) => r.universities)),
+  ].sort((a, b) => a.localeCompare(b));
 
   return { subjects: subjekTampil, rows, tanpaBab, universitas };
 }
