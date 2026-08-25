@@ -20,8 +20,9 @@ import useUrlState from '@/lib/useUrlState';
 import PilihFakultas from '@/components/PilihFakultas';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 import PetaKonten from '@/pages/admin/PetaKonten';
+import WebOlimpHub from '@/pages/admin/WebOlimpHub';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp'];
 export default function AdminPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
   const [tab, setTab] = useUrlState('tab', 'Pengajar');
@@ -77,6 +78,10 @@ export default function AdminPanel() {
           {tab === 'Kelas & Reminder' && <KelasReminder />}
           {tab === 'Notifikasi WA' && <WaSettings />}
           {tab === 'Landing Page' && <LandingPageManager />}
+          {/* Pintu ke web kedua. Isinya bukan pengaturan, melainkan peta: di mana
+              Web Olimp berada, siapa yang bisa masuk, dan tombol langsung ke
+              tiap bagiannya. */}
+          {tab === 'Web Olimp' && <WebOlimpHub />}
         </div>
       </div>
     </div>

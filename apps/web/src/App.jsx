@@ -23,11 +23,29 @@ import JadwalKelas from './pages/JadwalKelas';
 import AdminPanel from './pages/admin/AdminPanel';
 import TeacherPanel from './pages/teacher/TeacherPanel';
 
+// Web Olimp - "web kedua" di dalam aplikasi yang sama. Seluruhnya dimuat
+// terpisah (lazy) karena siswa PCV biasa tidak pernah membukanya: tanpa ini,
+// setiap orang yang cuma mau mengerjakan latihan ikut mengunduh seluruh
+// halaman blueprint, kuis, kalender, dan dashboard Olimp.
+const OlimpHome = lazy(() => import('./pages/olimp/OlimpHome'));
+const OlimpBlueprint = lazy(() => import('./pages/olimp/OlimpBlueprint'));
+const OlimpQuiz = lazy(() => import('./pages/olimp/OlimpQuiz'));
+const OlimpResult = lazy(() => import('./pages/olimp/OlimpResult'));
+const OlimpLeaderboard = lazy(() => import('./pages/olimp/OlimpLeaderboard'));
+const OlimpJadwal = lazy(() => import('./pages/olimp/OlimpJadwal'));
+const OlimpProgres = lazy(() => import('./pages/olimp/OlimpProgres'));
+const OlimpAdmin = lazy(() => import('./pages/olimp/admin/OlimpAdmin'));
+
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
 // mengerjakan soal. Dengan dipisah, berkas itu baru diambil saat halamannya
 // benar-benar dibuka.
 const KalkulatorKlinis = lazy(() => import('./pages/KalkulatorKlinis'));
+
+// Layar tunggu seragam untuk semua halaman Olimp yang dimuat terpisah.
+function OlimpFallback({ children }) {
+ return <Suspense fallback={<div className="min-h-screen bg-alba-50" />}>{children}</Suspense>;
+}
 
 function App() {
  return (
@@ -69,8 +87,21 @@ function App() {
          {/* Bank Soal: disiapkan tapi tersembunyi - halaman memblokir diri
              sendiri selama saklar showBankSoal di landing_settings masih mati */}
          <Route path="/bank-soal" element={<ProtectedRoute><BankSoal /></ProtectedRoute>} />
-         <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminPanel /></ProtectedRoute>} />
+         <Route path="/admin" element={<ProtectedRoute roles={['admin', 'super_admin']}><AdminPanel /></ProtectedRoute>} />
          <Route path="/teacher" element={<ProtectedRoute roles={['teacher']}><TeacherPanel /></ProtectedRoute>} />
+
+         {/* ---- Web Olimp ---- */}
+         {/* Semua halaman Olimp memakai OlimpGate di dalamnya untuk memeriksa
+             hak akses & kunci device, jadi di sini cukup dipastikan sudah login.
+             Kecuali dashboard-nya, yang memang khusus admin/super admin. */}
+         <Route path="/olimp" element={<ProtectedRoute><OlimpFallback><OlimpHome /></OlimpFallback></ProtectedRoute>} />
+         <Route path="/olimp/paket/:packageId" element={<ProtectedRoute><OlimpFallback><OlimpBlueprint /></OlimpFallback></ProtectedRoute>} />
+         <Route path="/olimp/kuis/:packageId" element={<ProtectedRoute><OlimpFallback><OlimpQuiz /></OlimpFallback></ProtectedRoute>} />
+         <Route path="/olimp/hasil/:attemptId" element={<ProtectedRoute><OlimpFallback><OlimpResult /></OlimpFallback></ProtectedRoute>} />
+         <Route path="/olimp/peringkat" element={<ProtectedRoute><OlimpFallback><OlimpLeaderboard /></OlimpFallback></ProtectedRoute>} />
+         <Route path="/olimp/jadwal" element={<ProtectedRoute><OlimpFallback><OlimpJadwal /></OlimpFallback></ProtectedRoute>} />
+         <Route path="/olimp/progres" element={<ProtectedRoute><OlimpFallback><OlimpProgres /></OlimpFallback></ProtectedRoute>} />
+         <Route path="/olimp/admin" element={<ProtectedRoute roles={['admin', 'super_admin']}><OlimpFallback><OlimpAdmin /></OlimpFallback></ProtectedRoute>} />
        </Routes>
      </AuthProvider>
    </Router>
