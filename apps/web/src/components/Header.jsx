@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Flame, LogOut, Moon, Sun, UserRound } from 'lucide-react';
+import { Flame, LogOut, Medal, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import pb from '@/lib/pocketbaseClient';
+import { olimpAccess } from '@/lib/olimp';
 
 // Logo asli PCV, dari link Google Drive. Kalau link gagal dimuat, jatuh ke
 // salinan lokal gambar yang sama di public/ - jadi logo PCV selalu tampil.
@@ -128,6 +129,10 @@ const navItems = [
 export default function Header() {
  const { user, role, logout } = useAuth();
  const navigate = useNavigate();
+ // Pintu ke Web Olimp hanya muncul untuk yang memang bisa membukanya: siswa
+ // yang aksesnya sudah dinyalakan admin, pengajar, dan admin. Tanpa saringan
+ // ini, mayoritas siswa melihat menu yang selalu berujung ke halaman tertutup.
+ const bolehOlimp = olimpAccess(user).allowed;
  const [dark, setDark] = useState(() => localStorage.getItem('pcv_theme') === 'dark');
 
  useEffect(() => {
@@ -166,7 +171,12 @@ export default function Header() {
                {item.label}
              </NavLink>
            ))}
-           {role === 'admin' && <NavLink to="/admin" className={linkCls}>Admin Panel</NavLink>}
+           {bolehOlimp && (
+             <NavLink to="/olimp" className={linkCls}>
+               <span className="inline-flex items-center gap-1.5"><Medal size={13} /> Web Olimp</span>
+             </NavLink>
+           )}
+           {(role === 'admin' || role === 'super_admin') && <NavLink to="/admin" className={linkCls}>Admin Panel</NavLink>}
            {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher Panel</NavLink>}
          </nav>
        </div>
@@ -220,7 +230,8 @@ export default function Header() {
            {item.label}
          </NavLink>
        ))}
-       {role === 'admin' && <NavLink to="/admin" className={linkCls}>Admin</NavLink>}
+       {bolehOlimp && <NavLink to="/olimp" className={linkCls}>Olimp</NavLink>}
+       {(role === 'admin' || role === 'super_admin') && <NavLink to="/admin" className={linkCls}>Admin</NavLink>}
        {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher</NavLink>}
      </nav>
    </header>
