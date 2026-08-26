@@ -241,7 +241,11 @@ export function recommendations(summary) {
 // Hak akses
 // ---------------------------------------------------------------------------
 
-export const isOlimpAdmin = (role) => role === 'admin' || role === 'super_admin';
+// Hanya super_admin yang boleh membuka Dashboard Olimp (kelola soal, paket,
+// peserta, SEB). Admin biasa tetap bisa memakai Web Olimp dari sisi peserta
+// (lihat olimpAccess di bawah, kind 'admin' selalu boleh masuk), tapi tidak
+// boleh mengelolanya.
+export const isOlimpAdmin = (role) => role === 'super_admin';
 
 // Apakah orang ini boleh membuka Web Olimp?
 //

@@ -6,11 +6,11 @@ import { studentTypeDevices } from '@/lib/studentType';
 const AuthContext = createContext(null);
 
 // Batas jumlah device per akun:
-// - admin   : BEBAS (tanpa batas, tidak dilacak)
-// - teacher : 1 device
-// - student : sesuai tipenya (reguler & private 1 device, web 2 device)
+// - admin & super_admin : BEBAS (tanpa batas, tidak dilacak)
+// - teacher              : 1 device
+// - student              : sesuai tipenya (reguler & private 1 device, web 2 device)
 export function deviceLimitFor(record) {
-  if (record?.role === 'admin') return Infinity;
+  if (record?.role === 'admin' || record?.role === 'super_admin') return Infinity;
   if (record?.role === 'student') return studentTypeDevices(record.studentType);
   return 1;
 }

@@ -77,15 +77,24 @@ function Angka({ label, value, catatan }) {
 
 export default function WebOlimpHub() {
   const { role } = useAuth();
+  const superAdmin = role === 'super_admin';
   const [stat, setStat] = useState(null);
   const [belumTerpasang, setBelumTerpasang] = useState(false);
 
+  // Admin biasa cuma boleh MEMAKAI Web Olimp (lewat "Tampilan Siswa"), tidak
+  // boleh mengelolanya - jadi kartu yang menuju Dashboard Olimp (/olimp/admin)
+  // disembunyikan untuknya. Ini mengikuti isOlimpAdmin di lib/olimp.js, satu-
+  // satunya sumber kebenaran soal siapa yang boleh masuk dashboard.
+  const pintu = superAdmin ? PINTU : PINTU.filter((p) => !p.to.startsWith('/olimp/admin'));
+
   useEffect(() => {
+    // olimp_users hanya bisa dibaca super_admin (lihat migrasi PB) - admin
+    // biasa melewatinya supaya statistik lain tetap tampil, bukan ikut gagal.
     Promise.all([
       pb.collection('olimp_packages').getFullList({ fields: 'id,status' }),
       pb.collection('olimp_questions').getFullList({ fields: 'id,verifiedStatus' }),
       pb.collection('olimp_subjects').getFullList({ fields: 'id' }),
-      pb.collection('olimp_users').getFullList({ fields: 'id,status' }),
+      superAdmin ? pb.collection('olimp_users').getFullList({ fields: 'id,status' }) : Promise.resolve(null),
       pb.collection('olimp_events').getFullList({ fields: 'id' }),
       pb.collection('olimp_topics').getFullList({ fields: 'id' }),
     ])
@@ -97,13 +106,13 @@ export default function WebOlimpHub() {
           soalVerified: q.filter((x) => x.verifiedStatus === 'VERIFIED').length,
           mataKuliah: s.length,
           topik: t.length,
-          peserta: u.filter((x) => x.status === 'active').length,
-          menunggu: u.filter((x) => x.status === 'pending').length,
+          peserta: u ? u.filter((x) => x.status === 'active').length : null,
+          menunggu: u ? u.filter((x) => x.status === 'pending').length : null,
           agenda: e.length,
         });
       })
       .catch(() => setBelumTerpasang(true));
-  }, []);
+  }, [superAdmin]);
 
   return (
     <div className="space-y-5">
@@ -116,6 +125,12 @@ export default function WebOlimpHub() {
           Bank soal olimpiade FK. Ia berjalan di aplikasi yang sama dengan PCV Classroom, tapi punya alamat,
           tampilan, dan database sendiri — jadi soal olimpiade tidak tercampur dengan soal kuliah.
         </p>
+        {!superAdmin && (
+          <p className="mt-3 rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-2.5 text-[12px] text-stone-600 leading-relaxed max-w-2xl">
+            Akun admin biasa cuma bisa memakai Web Olimp lewat tampilan peserta ("Tampilan Siswa" di bawah).
+            Mengelolanya (Dashboard Olimp) hanya untuk Super Admin.
+          </p>
+        )}
       </header>
 
       {/* Peta alamat: ini bagian yang menjawab "web ke Web Olimp itu di mana". */}
@@ -160,17 +175,19 @@ export default function WebOlimpHub() {
           <Angka label="Mata kuliah" value={stat.mataKuliah} catatan={`${stat.topik} topik`} />
           <Angka label="Paket soal" value={stat.paket} catatan={`${stat.paketTerbit} sudah terbit`} />
           <Angka label="Soal" value={stat.soal} catatan={`${stat.soalVerified} terverifikasi`} />
-          <Angka
-            label="Peserta aktif"
-            value={stat.peserta}
-            catatan={stat.menunggu ? `${stat.menunggu} menunggu ACC` : 'tidak ada antrean ACC'}
-          />
+          {stat.peserta !== null && (
+            <Angka
+              label="Peserta aktif"
+              value={stat.peserta}
+              catatan={stat.menunggu ? `${stat.menunggu} menunggu ACC` : 'tidak ada antrean ACC'}
+            />
+          )}
           <Angka label="Agenda lomba" value={stat.agenda} />
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {PINTU.map((p) => (
+        {pintu.map((p) => (
           <Link
             key={p.to}
             to={p.to}
@@ -206,7 +223,8 @@ export default function WebOlimpHub() {
         </h3>
         <ul className="mt-3 space-y-2 text-sm text-stone-600 leading-relaxed">
           <li>· <span className="font-semibold text-stone-800">Peserta Olimp</span> — akun sendiri di basis data terpisah (<code className="text-[11px]">olimp_users</code>), mendaftar lewat /olimp/daftar. Terkunci ke satu device. <span className="font-semibold">Akun web siswa PCV tidak berlaku di sini</span>, dan sebaliknya.</li>
-          <li>· <span className="font-semibold text-stone-800">Admin &amp; Super Admin PCV</span> — masuk pakai akun PCV yang sudah ada, tanpa perlu akun Olimp terpisah. Akses penuh termasuk Dashboard Olimp, tanpa kunci device.</li>
+          <li>· <span className="font-semibold text-stone-800">Admin PCV</span> — masuk pakai akun PCV yang sudah ada, bisa memakai Web Olimp persis seperti peserta (menu "Tampilan Siswa" di atas), <span className="font-semibold">tapi tidak bisa membuka Dashboard Olimp</span>. Tanpa kunci device.</li>
+          <li>· <span className="font-semibold text-stone-800">Super Admin PCV</span> — satu-satunya yang bisa membuka Dashboard Olimp: kelola paket, soal, peserta, jadwal, dan pengaturan SEB. Tanpa kunci device.</li>
           <li>· <span className="font-semibold text-stone-800">Pengajar PCV</span> — bisa membaca soal &amp; pembahasan untuk meninjau, tanpa dashboard.</li>
           <li>· Akun <span className="font-semibold text-stone-800">Super Admin</span> tetap <span className="font-semibold">hanya bisa dibuat langsung lewat PocketBase</span>, bukan dari web ini (sesuai PRD bagian 4.2).</li>
         </ul>
