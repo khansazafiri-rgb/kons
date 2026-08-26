@@ -4,8 +4,8 @@ import {
   AlertTriangle, BookOpenCheck, CheckCircle2, ChevronLeft, ChevronRight, CloudOff,
   Flag, Lightbulb, ListChecks, RotateCcw, XCircle,
 } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/context/AuthContext';
+import pbo from '@/lib/olimpClient';
+import { useOlimpAuth } from '@/context/OlimpAuthContext';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
 import {
   canOpenPackage, cognitiveLabel, formatClock, olimpLog, questionOptions, questionSeconds,
@@ -31,7 +31,8 @@ function OlimpQuizInner() {
   const { packageId } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const sesi = useOlimpAuth();
+  const { user } = sesi;
 
   const [pkg, setPkg] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -57,12 +58,12 @@ function OlimpQuizInner() {
     let hidup = true;
     (async () => {
       try {
-        const p = await pb.collection('olimp_packages').getOne(packageId);
+        const p = await pbo.collection('olimp_packages').getOne(packageId);
         if (!hidup) return;
         setPkg(p);
         const ids = Array.isArray(p.questionIds) ? p.questionIds : [];
         const soal = ids.length
-          ? await pb.collection('olimp_questions').getFullList({ filter: ids.map((id) => `id = "${id}"`).join(' || ') })
+          ? await pbo.collection('olimp_questions').getFullList({ filter: ids.map((id) => `id = "${id}"`).join(' || ') })
           : [];
         if (!hidup) return;
         const urut = ids.map((id) => soal.find((s) => s.id === id)).filter(Boolean);
@@ -76,16 +77,16 @@ function OlimpQuizInner() {
         const idDiminta = params.get('attempt');
         let a = null;
         if (idDiminta) {
-          a = await pb.collection('olimp_attempts').getOne(idDiminta).catch(() => null);
+          a = await pbo.collection('olimp_attempts').getOne(idDiminta).catch(() => null);
         } else if (!paksaBaru) {
-          const lama = await pb.collection('olimp_attempts').getFullList({
+          const lama = await pbo.collection('olimp_attempts').getFullList({
             filter: `user = "${user.id}" && package = "${p.id}" && status = "in_progress"`,
             sort: '-created',
           }).catch(() => []);
           a = lama[0] || null;
         }
         if (!a) {
-          a = await pb.collection('olimp_attempts').create({
+          a = await pbo.collection('olimp_attempts').create({
             user: user.id,
             package: p.id,
             mode: 'latihan',
@@ -170,7 +171,7 @@ function OlimpQuizInner() {
       localStorage.setItem(cadanganKey(attempt.id), JSON.stringify(jawaban));
     } catch (_) { /* penyimpanan lokal penuh - lanjut saja */ }
     try {
-      await pb.collection('olimp_attempts').update(attempt.id, isi);
+      await pbo.collection('olimp_attempts').update(attempt.id, isi);
       kotor.current = false;
       setTersimpan(true);
     } catch (_) {
@@ -263,7 +264,7 @@ function OlimpQuizInner() {
       </OlimpShell>
     );
   }
-  if (!pkg || !canOpenPackage(user, pkg)) {
+  if (!pkg || !canOpenPackage(sesi, pkg)) {
     return <OlimpShell><p className="text-sm text-stone-600">Paket ini tidak bisa kamu buka.</p></OlimpShell>;
   }
   if (!soal) {

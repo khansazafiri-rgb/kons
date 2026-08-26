@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import pbo from '@/lib/olimpClient';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
 
 // KALENDER LOMBA (PRD bagian 10).
@@ -112,8 +112,8 @@ function OlimpJadwalInner() {
   useEffect(() => {
     let hidup = true;
     Promise.all([
-      pb.collection('olimp_events').getFullList({ sort: 'startDate' }),
-      pb.collection('olimp_packages').getFullList({ sort: '-created' }),
+      pbo.collection('olimp_events').getFullList({ sort: 'startDate' }),
+      pbo.collection('olimp_packages').getFullList({ sort: '-created' }),
     ])
       .then(([e, p]) => { if (hidup) { setEvents(e); setPackages(p); } })
       .catch((err) => hidup && setError('Gagal memuat jadwal: ' + (err?.message || '')))

@@ -3,7 +3,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Flame, LogOut, Medal, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import pb from '@/lib/pocketbaseClient';
-import { olimpAccess } from '@/lib/olimp';
 
 // Logo asli PCV, dari link Google Drive. Kalau link gagal dimuat, jatuh ke
 // salinan lokal gambar yang sama di public/ - jadi logo PCV selalu tampil.
@@ -129,10 +128,13 @@ const navItems = [
 export default function Header() {
  const { user, role, logout } = useAuth();
  const navigate = useNavigate();
- // Pintu ke Web Olimp hanya muncul untuk yang memang bisa membukanya: siswa
- // yang aksesnya sudah dinyalakan admin, pengajar, dan admin. Tanpa saringan
- // ini, mayoritas siswa melihat menu yang selalu berujung ke halaman tertutup.
- const bolehOlimp = olimpAccess(user).allowed;
+ // Pintu ke Web Olimp hanya untuk admin & pengajar.
+ //
+ // Siswa web PCV sengaja TIDAK melihat menu ini: peserta Olimp punya akun
+ // sendiri di basis data terpisah, jadi menu di sini cuma akan mengantar
+ // mereka ke halaman "masuk dulu" dengan akun yang belum tentu mereka punya.
+ // Ajakan mendaftarnya ada di halaman landing Olympiad Program.
+ const bolehOlimp = role === 'admin' || role === 'super_admin' || role === 'teacher';
  const [dark, setDark] = useState(() => localStorage.getItem('pcv_theme') === 'dark');
 
  useEffect(() => {

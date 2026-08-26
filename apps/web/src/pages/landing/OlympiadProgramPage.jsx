@@ -1,34 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Award, CalendarClock, Globe2, MessageCircle, Target, Trophy, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Award, BookOpenCheck, CalendarClock, Globe2, LayoutList, LogIn, MessageCircle, Sparkles, Target, Trophy, Users } from 'lucide-react';
 import LandingLayout, { WA_CP, fadeUp } from './LandingLayout';
 import pb from '@/lib/pocketbaseClient';
+import { OLYMPIADS } from '@/data/olympiads';
 
-// Daftar kesempatan olimpiade FK. Tingkat: N = Nasional, I = Internasional.
-// Data aslinya kini dikelola admin di Dashboard Admin → Landing Page → Tabel
-// Lomba (collection landing_olympiads); daftar di bawah hanya fallback selama
-// database belum terisi/terjangkau.
-const OLYMPIADS = [
-  ['N', 'Baiturrahmah Medical Olympiad (BMO)', 'Universitas Baiturrahmah', 'Padang, Indonesia', 'Januari'],
-  ['N', 'An Adventure Towards The Human Body (AORTA)', 'Universitas Hasanuddin', 'Makassar, Indonesia', 'Januari-Februari'],
-  ['I', 'Siriraj International Medical Microbiology, Parasitology, and Immunology Competition (SIMPIC)', 'Siriraj Hospital Mahidol University', 'Bangkok, Thailand', 'Maret'],
-  ['I', 'USIM International Microbiology Quiz Competition (IMICROBE)', 'Universiti Sains Islam Malaysia', 'Nilai, Malaysia', 'April'],
-  ['N', 'Homeostasis', 'Universitas Hasanuddin', 'Makassar, Indonesia', 'April'],
-  ['N', 'Medsmotion', 'Universitas Sebelas Maret', 'Solo, Indonesia', 'Juli'],
-  ['N', 'Trescom', 'Universitas Warmadewa', 'Bali, Indonesia', 'Agustus'],
-  ['N', 'Annual Medical Career Day (AMCD)', 'Universitas Brawijaya', 'Malang, Indonesia', 'Agustus'],
-  ['N', 'Indonesian Medical Physiology Olympiad (IMPhO)', 'Universitas Airlangga', 'Surabaya, Indonesia', 'September'],
-  ['I', 'Inter-Medical School Physiology Quiz (IMSPQ)', 'Universiti Malaya', 'Kuala Lumpur, Malaysia', 'September'],
-  ['N', 'Regional Medical Olympiad (RMO)', 'Menyesuaikan', 'Indonesia', 'September'],
-  ['N', 'Lambung Mangkurat Medical Pharmacology Championship (LUMOS)', 'Universitas Lambung Mangkurat', 'Banjarmasin, Indonesia', 'Oktober'],
-  ['N', 'Staccatto', 'Universitas Tarumanegara', 'Jakarta, Indonesia', 'Oktober'],
-  ['N', 'Amygdala', 'Universitas Muhammadiyah Malang', 'Malang, Indonesia', 'Oktober'],
-  ['N', 'Scientific Project and Olympiad of Sriwijaya (Spora)', 'Universitas Sriwijaya', 'Palembang, Indonesia', 'Oktober'],
-  ['I', 'International Medical Biochemistry Competition (IMBC)', 'Thai Nguyen University', 'Thai Nguyen, Vietnam', 'November'],
-  ['N', 'Minerfa Health Competition (MHC)', 'Universitas Andalas', 'Padang, Indonesia', 'November'],
-  ['N', 'Indonesian Medical Olympiad (IMO)', 'Menyesuaikan', 'Indonesia', 'November'],
-  ['I', 'Chiang Mai University-International Medical Challenge (CMU-IMC)', 'Chiang Mai University', 'Chiang Mai, Thailand', 'Desember'],
-];
+// Daftar lombanya dipindah ke src/data/olympiads.js supaya halaman pendaftaran
+// Web Olimp memakai daftar yang PERSIS SAMA - lihat catatan di berkas itu.
+// Data yang tampil di sini tetap bisa ditimpa admin lewat landing_olympiads.
+
 
 // Tentor pembina olimpiade beserta prestasi mereka (dari PPT promosi PCV).
 const WINNERS = [
@@ -153,6 +134,102 @@ export default function OlympiadProgramPage() {
         </div>
       </section>
 
+      {/* Web Olimp - bank soalnya, dengan ajakan mendaftar */}
+      <section className="max-w-6xl mx-auto px-6 py-20">
+        <motion.div {...fadeUp} className="rounded-3xl border border-alba-200 bg-gradient-to-br from-maroon-700 to-maroon-900 text-alba-50 overflow-hidden">
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="p-8 sm:p-12">
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-maroon-900/50 border border-gold-400/30 text-gold-200 text-[11px] font-bold tracking-[0.15em] uppercase px-3.5 py-1.5 mb-5">
+                <Sparkles size={12} /> Web Olimp
+              </p>
+              <h2 className="font-display text-3xl sm:text-4xl font-semibold leading-tight mb-4">
+                Bank soal olimpiadenya,<br />bisa kamu buka sendiri.
+              </h2>
+              <p className="text-alba-200 leading-relaxed mb-7 max-w-lg">
+                Selain kelas bersama tentor, peserta program olimpiade dapat akses ke <b className="text-alba-50">Web
+                Olimp</b> — bank soal bergaya kompetisi internasional yang bisa dikerjakan kapan saja, lengkap
+                dengan pembahasannya.
+              </p>
+
+              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 mb-8">
+                {[
+                  { icon: LayoutList, t: 'Blueprint dibuka dulu', d: 'Sebelum mulai, kamu lihat peta domain, level kognitif, dan tingkat kesulitan soal di dalam paketnya.' },
+                  { icon: BookOpenCheck, t: 'Cek jawaban seketika', d: 'Tidak menunggu submit. Satu klik, langsung tahu benar atau salah beserta alasannya.' },
+                  { icon: Award, t: 'Pembahasan 8 bagian', d: 'Alasan, analisis tiap distraktor, jembatan basic ke klinis, sampai high-yield pearl dan referensinya.' },
+                  { icon: Target, t: 'Peta kelemahanmu', d: 'Sesudah selesai, akurasimu dipecah per domain — jadi jelas mana yang harus diulang.' },
+                ].map((f) => (
+                  <div key={f.t} className="flex gap-3">
+                    <f.icon size={17} className="text-gold-200 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-display font-semibold text-alba-50">{f.t}</p>
+                      <p className="text-sm text-alba-200/90 leading-relaxed mt-0.5">{f.d}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to="/olimp/daftar"
+                  className="group inline-flex items-center gap-2 rounded-full bg-gold-400 text-maroon-900 font-bold px-7 py-3.5 hover:bg-gold-200 transition-colors"
+                >
+                  Daftar Program Olimp
+                  <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+                <Link
+                  to="/olimp/masuk"
+                  className="inline-flex items-center gap-2 rounded-full border border-alba-50/30 text-alba-50 font-semibold px-6 py-3.5 hover:bg-alba-50/10 transition-colors"
+                >
+                  <LogIn size={15} /> Sudah punya akun
+                </Link>
+              </div>
+              <p className="mt-4 text-[12px] text-alba-200/70 leading-relaxed max-w-lg">
+                Web Olimp punya akun sendiri, terpisah dari web siswa PCV — jadi kamu mendaftar sekali di sini,
+                tidak perlu ikut kelas reguler dulu. Ada <b className="text-alba-50">Paket Percobaan</b> yang
+                langsung aktif tanpa menunggu konfirmasi.
+              </p>
+            </div>
+
+            {/* Contoh tampilan soalnya, disederhanakan - supaya orang tahu yang
+                dibeli itu apa sebelum menekan tombol daftar. */}
+            <div className="hidden lg:flex items-center justify-center bg-maroon-900/40 border-l border-maroon-400/20 p-10">
+              <div className="w-full max-w-sm rounded-2xl bg-alba-50 text-stone-800 shadow-2xl overflow-hidden">
+                <div className="px-5 py-3 bg-alba-100 border-b border-alba-200 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-maroon-600">Soal 2 dari 20</span>
+                  <span className="text-[10px] font-semibold text-stone-500">01:30</span>
+                </div>
+                <div className="p-5">
+                  <p className="text-[13px] leading-relaxed text-stone-700 mb-4">
+                    A 19-year-old presents with fever, neck stiffness, and a non-blanching petechial rash…
+                  </p>
+                  <div className="space-y-1.5">
+                    {[
+                      ['A', 'Polysaccharide capsule', false],
+                      ['B', 'Lipooligosaccharide (endotoxin)', true],
+                      ['C', 'IgA1 protease', false],
+                    ].map(([k, t, benar]) => (
+                      <div
+                        key={k}
+                        className={`flex items-center gap-2.5 rounded-lg border-2 px-3 py-2 text-[12px] ${
+                          benar ? 'border-emerald-400 bg-emerald-50' : 'border-alba-200'
+                        }`}
+                      >
+                        <span className="w-5 h-5 rounded bg-alba-200 text-stone-600 text-[10px] font-bold flex items-center justify-center">{k}</span>
+                        <span className="text-stone-700">{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 rounded-lg border-2 border-emerald-300 bg-emerald-50 px-3 py-2">
+                    <p className="text-[12px] font-bold text-emerald-700">✓ BENAR!</p>
+                    <p className="text-[11px] text-stone-600 mt-0.5">Pembahasan 8 bagian terbuka di bawah.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
       {/* Belajar dari pemenang */}
       <section className="max-w-6xl mx-auto px-6 py-20">
         <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-12">
@@ -204,14 +281,22 @@ export default function OlympiadProgramPage() {
             Ceritakan target olimpiademu ke admin, kami pasangkan dengan tentor pembina
             yang paling relevan.
           </p>
-          <a
-            href={WA_CP}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-alba-50 text-maroon-700 font-bold px-8 py-3.5 hover:bg-alba-100 transition-colors"
-          >
-            <MessageCircle size={17} /> Hubungi Admin PCV
-          </a>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link
+              to="/olimp/daftar"
+              className="inline-flex items-center gap-2 rounded-full bg-gold-400 text-maroon-900 font-bold px-8 py-3.5 hover:bg-gold-200 transition-colors"
+            >
+              <Trophy size={17} /> Daftar Program Olimp
+            </Link>
+            <a
+              href={WA_CP}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-alba-50 text-maroon-700 font-bold px-8 py-3.5 hover:bg-alba-100 transition-colors"
+            >
+              <MessageCircle size={17} /> Hubungi Admin PCV
+            </a>
+          </div>
         </div>
       </section>
     </LandingLayout>

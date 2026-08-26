@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, Clock, Gauge, Lightbulb, ListChecks, Play, Target } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/context/AuthContext';
+import pbo from '@/lib/olimpClient';
+import { useOlimpAuth } from '@/context/OlimpAuthContext';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
 import DistBar, { DistCard } from '@/components/olimp/DistBar';
 import {
@@ -42,7 +42,8 @@ function Section({ icon: Icon, title, subtitle, children, defaultOpen = false })
 function OlimpBlueprintInner() {
   const { packageId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const sesi = useOlimpAuth();
+  const { user } = sesi;
   const [pkg, setPkg] = useState(null);
   const [subject, setSubject] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -53,21 +54,21 @@ function OlimpBlueprintInner() {
   useEffect(() => {
     let hidup = true;
     setLoading(true);
-    pb.collection('olimp_packages')
+    pbo.collection('olimp_packages')
       .getOne(packageId)
       .then(async (p) => {
         if (!hidup) return;
         setPkg(p);
         const ids = Array.isArray(p.questionIds) ? p.questionIds : [];
         const [subj, soal, att] = await Promise.all([
-          p.subject ? pb.collection('olimp_subjects').getOne(p.subject).catch(() => null) : null,
+          p.subject ? pbo.collection('olimp_subjects').getOne(p.subject).catch(() => null) : null,
           ids.length
-            ? pb.collection('olimp_questions').getFullList({
+            ? pbo.collection('olimp_questions').getFullList({
                 filter: ids.map((id) => `id = "${id}"`).join(' || '),
               })
             : [],
           user?.id
-            ? pb.collection('olimp_attempts').getFullList({
+            ? pbo.collection('olimp_attempts').getFullList({
                 filter: `user = "${user.id}" && package = "${p.id}"`,
                 sort: '-created',
               })
@@ -109,7 +110,7 @@ function OlimpBlueprintInner() {
       </OlimpShell>
     );
   }
-  if (!canOpenPackage(user, pkg)) {
+  if (!canOpenPackage(sesi, pkg)) {
     return (
       <OlimpShell>
         <p className="rounded-xl border border-alba-300 bg-alba-100 text-stone-700 text-sm px-4 py-3">

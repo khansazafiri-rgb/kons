@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Laptop, LogOut, Medal, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { ensureOlimpDevice, isOlimpAdmin, olimpAccess } from '@/lib/olimp';
+import { useOlimpAuth } from '@/context/OlimpAuthContext';
+import { ensureOlimpDevice, olimpAccess, sisaHari } from '@/lib/olimp';
 
 // Kerangka semua halaman Web Olimp.
 //
 // Web Olimp memakai kerangka sendiri, bukan Header PCV, karena tujuannya justru
-// supaya siswa SADAR sedang berpindah "web": tulisan Olimp di kiri atas, aksen
-// emas, dan satu tombol tetap untuk kembali ke PCV Classroom. Palet dan
-// komponennya tetap sama persis dengan PCV (alba + maroon) supaya tidak terasa
-// seperti aplikasi asing.
+// supaya orang SADAR sedang berada di web yang berbeda: nama Olimp di kiri
+// atas, aksen emas, dan akun yang memang bukan akun PCV. Palet dan komponennya
+// tetap sama persis dengan PCV (alba + maroon) supaya tidak terasa asing.
+//
+// Yang ditampilkan berbeda menurut siapa yang masuk:
+//   peserta -> navigasi belajar + sisa hari langganan
+//   admin   -> tambahan tautan Dashboard Olimp + tombol kembali ke web PCV
 
 export function OlimpLogo({ light = false }) {
   return (
@@ -34,24 +37,27 @@ const navItems = [
 ];
 
 export default function OlimpShell({ children, wide = false }) {
-  const { user, role, logout } = useAuth();
+  const { kind, user, isAdmin, logout } = useOlimpAuth();
   const navigate = useNavigate();
-  const [dark, setDark] = React.useState(() => localStorage.getItem('pcv_theme') === 'dark');
+  const [dark, setDark] = useState(() => localStorage.getItem('pcv_theme') === 'dark');
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     localStorage.setItem('pcv_theme', dark ? 'dark' : 'light');
   }, [dark]);
 
-  const doLogout = async () => {
-    await logout();
-    navigate('/login');
+  const keluar = () => {
+    if (isAdmin) { navigate('/admin?tab=Web+Olimp'); return; }
+    logout();
+    navigate('/olimp/masuk');
   };
 
   const linkCls = ({ isActive }) =>
     `relative px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
       isActive ? 'bg-maroon-600 text-alba-50 shadow-sm' : 'text-stone-600 hover:text-maroon-600 hover:bg-maroon-50'
     }`;
+
+  const sisa = kind === 'peserta' ? sisaHari(user) : null;
 
   return (
     <div className="min-h-screen bg-alba-50">
@@ -70,7 +76,7 @@ export default function OlimpShell({ children, wide = false }) {
                   {item.label}
                 </NavLink>
               ))}
-              {isOlimpAdmin(role) && (
+              {isAdmin && (
                 <NavLink to="/olimp/admin" className={linkCls}>
                   <span className="inline-flex items-center gap-1.5"><ShieldCheck size={13} /> Dashboard Olimp</span>
                 </NavLink>
@@ -78,14 +84,25 @@ export default function OlimpShell({ children, wide = false }) {
             </nav>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              to="/beranda"
-              title="Kembali ke PCV Classroom"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold rounded-full border border-alba-300 text-stone-600 px-3.5 py-2 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
-            >
-              <ArrowLeft size={13} />
-              PCV Classroom
-            </Link>
+            {sisa !== null && sisa >= 0 && (
+              <span
+                title="Sisa masa berlaku paketmu"
+                className={`hidden sm:inline-flex items-center rounded-full text-xs font-bold px-3 py-1.5 border ${
+                  sisa <= 3 ? 'bg-maroon-50 border-maroon-200 text-maroon-600' : 'bg-gold-100 border-gold-200 text-gold-600'
+                }`}
+              >
+                {sisa} hari lagi
+              </span>
+            )}
+            {isAdmin && (
+              <Link
+                to="/admin?tab=Web+Olimp"
+                title="Kembali ke Dashboard Admin PCV"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold rounded-full border border-alba-300 text-stone-600 px-3.5 py-2 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
+              >
+                <ArrowLeft size={13} /> Dashboard PCV
+              </Link>
+            )}
             <button
               onClick={() => setDark((d) => !d)}
               title={dark ? 'Mode terang' : 'Mode gelap'}
@@ -93,36 +110,37 @@ export default function OlimpShell({ children, wide = false }) {
             >
               {dark ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            <button
-              onClick={() => navigate('/profile')}
+            <Link
+              to={isAdmin ? '/profile' : '/olimp/akun'}
               className="flex items-center gap-2.5 rounded-full border border-alba-200 bg-alba-100/60 pl-1.5 pr-4 py-1.5 hover:border-maroon-200 hover:bg-maroon-50 transition-colors"
             >
               <span className="w-7 h-7 rounded-full bg-maroon-600 text-alba-50 flex items-center justify-center">
                 <UserRound size={15} />
               </span>
               <span className="text-left hidden sm:block">
-                <span className="block text-xs font-bold leading-tight text-stone-800">{user?.name || user?.email}</span>
-                <span className="block text-[10px] uppercase tracking-widest text-maroon-500 font-semibold leading-tight">{role}</span>
+                <span className="block text-xs font-bold leading-tight text-stone-800">{user?.name || user?.email || 'Tamu'}</span>
+                <span className="block text-[10px] uppercase tracking-widest text-maroon-500 font-semibold leading-tight">
+                  {isAdmin ? 'admin pcv' : 'peserta olimp'}
+                </span>
               </span>
-            </button>
+            </Link>
             <button
-              onClick={doLogout}
-              title="Keluar"
+              onClick={keluar}
+              title={isAdmin ? 'Kembali ke web PCV' : 'Keluar'}
               className="flex items-center gap-1.5 text-xs font-semibold rounded-full border border-alba-300 text-stone-600 px-3.5 py-2 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
             >
               <LogOut size={13} />
-              <span className="hidden sm:inline">Keluar</span>
+              <span className="hidden sm:inline">{isAdmin ? 'Ke PCV' : 'Keluar'}</span>
             </button>
           </div>
         </div>
         <nav className="md:hidden flex items-center gap-1 overflow-x-auto px-4 pb-2.5 text-xs font-semibold">
-          <NavLink to="/beranda" className={linkCls}>PCV</NavLink>
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.end} className={linkCls}>
               {item.label}
             </NavLink>
           ))}
-          {isOlimpAdmin(role) && <NavLink to="/olimp/admin" className={linkCls}>Dashboard</NavLink>}
+          {isAdmin && <NavLink to="/olimp/admin" className={linkCls}>Dashboard</NavLink>}
         </nav>
       </header>
       <main className={`${wide ? 'max-w-7xl' : 'max-w-6xl'} mx-auto px-6 py-10`}>{children}</main>
@@ -130,10 +148,9 @@ export default function OlimpShell({ children, wide = false }) {
   );
 }
 
-// Pembungkus halaman siswa: kalau akses Olimp belum dibuka admin, seluruh
-// halaman diganti satu kartu penjelasan - bukan sekadar dilempar ke /beranda,
-// supaya siswa tahu APA yang harus dilakukan berikutnya.
-function Tertutup({ icon: Icon, judul, pesan }) {
+// Halaman penutup: dipakai untuk semua sebab "tidak bisa masuk", supaya
+// pesannya seragam dan selalu menawarkan langkah berikutnya yang benar.
+function Tertutup({ icon: Icon, judul, pesan, aksi }) {
   return (
     <OlimpShell>
       <div className="max-w-xl mx-auto rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-8 text-center">
@@ -142,20 +159,18 @@ function Tertutup({ icon: Icon, judul, pesan }) {
         </span>
         <h1 className="font-display text-2xl font-semibold text-stone-800">{judul}</h1>
         <p className="mt-3 text-sm text-stone-600 leading-relaxed">{pesan}</p>
-        <Link
-          to="/beranda"
-          className="inline-flex items-center gap-2 mt-6 rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-6 py-2.5 hover:bg-maroon-700 transition-colors"
-        >
-          <ArrowLeft size={14} /> Kembali ke PCV Classroom
-        </Link>
+        <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">{aksi}</div>
       </div>
     </OlimpShell>
   );
 }
 
+const tombolUtama = 'inline-flex items-center justify-center gap-2 rounded-lg bg-maroon-600 text-alba-50 text-sm font-semibold px-6 py-2.5 hover:bg-maroon-700 transition-colors';
+const tombolKedua = 'inline-flex items-center justify-center gap-2 rounded-lg border border-alba-300 text-stone-600 text-sm font-semibold px-6 py-2.5 hover:border-maroon-300 hover:text-maroon-600 transition-colors';
+
 export function OlimpGate({ children }) {
-  const { user } = useAuth();
-  const access = olimpAccess(user);
+  const sesi = useOlimpAuth();
+  const access = olimpAccess(sesi);
   // 'memeriksa' -> 'ok' | 'ditolak' | 'lewat'. Kunci device diperiksa SEKALI
   // saat halaman Olimp pertama dibuka, bukan di tiap perpindahan halaman.
   const [device, setDevice] = useState('memeriksa');
@@ -163,13 +178,31 @@ export function OlimpGate({ children }) {
   useEffect(() => {
     if (!access.allowed) return undefined;
     let hidup = true;
-    ensureOlimpDevice(user).then((r) => { if (hidup) setDevice(r.status); });
+    ensureOlimpDevice(sesi).then((r) => { if (hidup) setDevice(r.status); });
     return () => { hidup = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, access.allowed]);
+  }, [sesi?.user?.id, access.allowed]);
 
   if (!access.allowed) {
-    return <Tertutup icon={Medal} judul="Web Olimp belum terbuka" pesan={access.reason} />;
+    return (
+      <Tertutup
+        icon={Medal}
+        judul={access.perluLogin ? 'Masuk dulu ke Web Olimp' : 'Web Olimp belum terbuka'}
+        pesan={access.reason}
+        aksi={
+          access.perluLogin ? (
+            <>
+              <Link to="/olimp/masuk" className={tombolUtama}>Masuk</Link>
+              <Link to="/olimp/daftar" className={tombolKedua}>Daftar Program Olimp</Link>
+            </>
+          ) : (
+            <Link to="/olympiad-program" className={tombolKedua}>
+              <ArrowLeft size={14} /> Halaman Program Olimpiade
+            </Link>
+          )
+        }
+      />
+    );
   }
   if (device === 'memeriksa') {
     return <OlimpShell><p className="text-sm text-stone-500">Memeriksa device…</p></OlimpShell>;
@@ -180,6 +213,7 @@ export function OlimpGate({ children }) {
         icon={Laptop}
         judul="Device tidak terdaftar"
         pesan="Akses Web Olimp hanya tersedia di device yang kamu pakai pertama kali. Kalau kamu ganti HP/laptop, ganti browser, atau baru saja membersihkan data situs, minta admin melakukan Reset Device Olimp."
+        aksi={<Link to="/olympiad-program" className={tombolKedua}>Halaman Program Olimpiade</Link>}
       />
     );
   }

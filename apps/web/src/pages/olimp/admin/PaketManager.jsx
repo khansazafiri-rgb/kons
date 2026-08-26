@@ -90,6 +90,8 @@ export default function PaketManager() {
   const [packages, setPackages] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [saringTopik, setSaringTopik] = useState('');
   const [pilih, setPilih] = useState(null);   // id paket yang sedang dibuka
   const [draft, setDraft] = useState(null);   // salinan yang sedang disunting
   const [sub, setSub] = useState('Parameter');
@@ -103,8 +105,9 @@ export default function PaketManager() {
       pb.collection('olimp_packages').getFullList({ sort: '-created' }),
       pb.collection('olimp_subjects').getFullList({ sort: 'order' }),
       pb.collection('olimp_questions').getFullList({ sort: 'code' }),
+      pb.collection('olimp_topics').getFullList({ sort: 'order' }),
     ])
-      .then(([p, s, q]) => { setPackages(p); setSubjects(s); setAllQuestions(q); })
+      .then(([p, s, q, t]) => { setPackages(p); setSubjects(s); setAllQuestions(q); setTopics(t); })
       .catch((err) => setError('Gagal memuat data: ' + (err?.message || '')));
   };
   useEffect(muat, []);
@@ -297,8 +300,10 @@ export default function PaketManager() {
   const tanpaPembahasan = soalPaket.filter((q) => !q.explanation || !q.explanation.reasoning);
   if (tanpaPembahasan.length) masalah.push(`${tanpaPembahasan.length} soal belum punya bagian "Alasan Ringkas".`);
 
+  const topikMataKuliah = topics.filter((t) => t.subject === draft.subject);
   const kandidat = allQuestions.filter((q) => {
     if (draft.subject && q.subject !== draft.subject) return false;
+    if (saringTopik === '__tanpa__' ? q.topic : saringTopik && q.topic !== saringTopik) return false;
     const t = cari.trim().toLowerCase();
     if (!t) return true;
     return `${q.code} ${q.primaryDomain} ${q.secondaryTopic} ${q.organismSyndrome} ${q.questionText}`.toLowerCase().includes(t);
@@ -510,10 +515,17 @@ export default function PaketManager() {
 
           <section className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-5">
             <h3 className="font-display text-base font-semibold text-stone-800 mb-3">Bank Soal Tersedia</h3>
-            <div className="relative mb-3">
+            <div className="relative mb-2">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
               <input value={cari} onChange={(e) => setCari(e.target.value)} placeholder="Cari kode, domain, topik…" className={`${inputCls} pl-9`} />
             </div>
+            {/* Saringan topik: begitu bank soal lewat seratus, mencari lewat
+                kata kunci saja tidak cukup - admin biasanya tahu topiknya. */}
+            <select value={saringTopik} onChange={(e) => setSaringTopik(e.target.value)} className={`${inputCls} mb-3`}>
+              <option value="">Semua topik</option>
+              {topikMataKuliah.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+              <option value="__tanpa__">— belum bertopik —</option>
+            </select>
             <ul className="max-h-[520px] overflow-y-auto divide-y divide-alba-100">
               {kandidat.map((q) => {
                 const dipakai = draft.questionIds.includes(q.id);
@@ -524,7 +536,7 @@ export default function PaketManager() {
                         {q.code ? `${q.code} · ` : ''}{q.secondaryTopic || q.primaryDomain || 'Soal'}
                       </span>
                       <span className="block text-[11px] text-stone-500 truncate">
-                        {q.primaryDomain || '—'} · Lv {q.difficulty || '?'} · {cognitiveLabel(q.cognitiveLevel)}
+                        {topics.find((t) => t.id === q.topic)?.title || 'tanpa topik'} · Lv {q.difficulty || '?'} · {cognitiveLabel(q.cognitiveLevel)}
                         {q.verifiedStatus !== 'VERIFIED' && <span className="ml-1.5 text-amber-600 font-semibold">{q.verifiedStatus || 'DRAFT'}</span>}
                       </span>
                     </span>

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Activity, ArrowRight, Clock, Target, TrendingUp } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/context/AuthContext';
+import pbo from '@/lib/olimpClient';
+import { useOlimpAuth } from '@/context/OlimpAuthContext';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
 import DistBar, { DistCard } from '@/components/olimp/DistBar';
 import { formatClock, percentOf, scoreAttempt } from '@/lib/olimp';
@@ -14,7 +14,8 @@ import { formatClock, percentOf, scoreAttempt } from '@/lib/olimp';
 // GABUNGAN seluruh paket, bukan per paket - itu yang membuat sarannya berguna.
 
 function OlimpProgresInner() {
-  const { user } = useAuth();
+  const sesi = useOlimpAuth();
+  const { user } = sesi;
   const [attempts, setAttempts] = useState([]);
   const [packages, setPackages] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -26,8 +27,8 @@ function OlimpProgresInner() {
     (async () => {
       try {
         const [att, pkgs] = await Promise.all([
-          pb.collection('olimp_attempts').getFullList({ filter: `user = "${user.id}"`, sort: '-created' }),
-          pb.collection('olimp_packages').getFullList({ sort: '-created' }),
+          pbo.collection('olimp_attempts').getFullList({ filter: `user = "${user.id}"`, sort: '-created' }),
+          pbo.collection('olimp_packages').getFullList({ sort: '-created' }),
         ]);
         if (!hidup) return;
         setAttempts(att);
@@ -41,7 +42,7 @@ function OlimpProgresInner() {
         });
         const daftar = Array.from(idSoal);
         if (daftar.length) {
-          const soal = await pb.collection('olimp_questions').getFullList({
+          const soal = await pbo.collection('olimp_questions').getFullList({
             filter: daftar.map((id) => `id = "${id}"`).join(' || '),
           });
           if (hidup) setQuestions(soal);

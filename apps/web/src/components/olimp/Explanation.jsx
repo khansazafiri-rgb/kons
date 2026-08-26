@@ -40,7 +40,9 @@ export default function Explanation({ question }) {
   const e = readExplanation(question);
   const status = STATUS_GAYA[question?.verifiedStatus] || STATUS_GAYA.DRAFT;
   const salah = questionOptions(question).filter((o) => o.key !== question?.correctAnswer);
-  const adaDistraktor = salah.some((o) => (e.distractors?.[o.key] || '').trim() !== '');
+  const adaDistraktor = salah.some(
+    (o) => (e.distractors?.[o.key] || '').trim() !== '' || (e.distractorImages?.[o.key] || '').trim() !== '',
+  );
 
   return (
     <section className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card overflow-hidden">
@@ -59,21 +61,43 @@ export default function Explanation({ question }) {
         <p>{e.testedConcept}</p>
       </Bagian>
 
-      <Bagian no={3} icon={Route} title="Alasan Ringkas" defaultOpen kosong={!e.reasoning}>
-        <p className="whitespace-pre-line">{e.reasoning}</p>
+      <Bagian no={3} icon={Route} title="Alasan Ringkas" defaultOpen kosong={!e.reasoning && !e.imageUrl}>
+        {e.reasoning && <p className="whitespace-pre-line">{e.reasoning}</p>}
+        {/* Pembahasan yang isinya screenshot slide - sering satu-satunya bentuk
+            pembahasan yang tersedia, jadi bagiannya tetap tampil walau teksnya
+            kosong. */}
+        {e.imageUrl && (
+          <img
+            src={e.imageUrl}
+            alt="Gambar pembahasan"
+            referrerPolicy="no-referrer"
+            className={`w-full max-w-xl rounded-xl border border-alba-200 ${e.reasoning ? 'mt-3' : ''}`}
+          />
+        )}
       </Bagian>
 
       <Bagian no={4} icon={XOctagon} title="Analisis Distraktor" kosong={!adaDistraktor}>
         <ul className="space-y-3">
           {salah.map((o) => {
             const teks = e.distractors?.[o.key];
-            if (!teks) return null;
+            const gambar = e.distractorImages?.[o.key];
+            if (!teks && !gambar) return null;
             return (
               <li key={o.key} className="flex gap-3">
                 <span className="shrink-0 w-6 h-6 rounded-md bg-red-50 text-red-600 text-[11px] font-bold flex items-center justify-center">
                   {o.key}
                 </span>
-                <span>{teks}</span>
+                <span className="min-w-0 flex-1">
+                  {teks}
+                  {gambar && (
+                    <img
+                      src={gambar}
+                      alt={`Gambar alasan opsi ${o.key}`}
+                      referrerPolicy="no-referrer"
+                      className={`w-full max-w-md rounded-lg border border-alba-200 ${teks ? 'mt-2' : ''}`}
+                    />
+                  )}
+                </span>
               </li>
             );
           })}
