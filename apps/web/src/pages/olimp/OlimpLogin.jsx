@@ -74,7 +74,6 @@ export default function OlimpLogin() {
           <h2 className="font-display text-3xl font-semibold text-stone-800">Masuk ke Web Olimp</h2>
           <p className="mt-2 text-sm text-stone-600 leading-relaxed">
             Pakai akun <span className="font-semibold text-stone-800">Web Olimp</span> — bukan akun web siswa PCV.
-            Belum punya? <Link to="/olimp/daftar" className="font-semibold text-maroon-600 hover:underline">Daftar Program Olimp</Link>.
           </p>
 
           <form onSubmit={submit} className="mt-7 space-y-4">

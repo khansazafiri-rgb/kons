@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Globe2, Loader2, Medal, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Globe2, Loader2, Medal, MessageCircle, Search } from 'lucide-react';
 import pbo from '@/lib/olimpClient';
 import { OLYMPIADS } from '@/data/olympiads';
+import UnduhSeb from '@/components/olimp/UnduhSeb';
+import { WA_CP } from '@/pages/landing/LandingLayout';
 
 // DAFTAR PROGRAM OLIMP
 //
@@ -10,14 +12,27 @@ import { OLYMPIADS } from '@/data/olympiads';
 // (collection `olimp_users`), jadi ini benar-benar akun baru - bukan
 // "aktifkan Olimp pada akun PCV yang sudah ada".
 //
-// Tiga langkah, bukan satu formulir panjang: pilih paket → isi biodata →
-// pilih lomba yang diincar. Alasannya bukan estetika: daftar lombanya ada 19
-// baris, dan menaruhnya di tengah formulir biodata membuat orang berhenti di
-// tengah jalan.
+// Empat langkah, dan yang PERTAMA bukan formulir:
 //
-// Yang menentukan langsung aktif atau menunggu ACC adalah SERVER, dari tanda
-// `autoApprove` pada paketnya (lihat pb_hooks/olimp-signup.pb.js). Halaman ini
-// cuma menampilkan hasilnya.
+//   0. konfirmasi sudah menghubungi admin
+//   1. pilih paket
+//   2. biodata
+//   3. lomba yang diincar
+//
+// Langkah nol itu yang paling menentukan. Pendaftaran Web Olimp memang selalu
+// didahului percakapan dengan admin - paket dan pembayarannya disepakati di
+// sana. Formulir ini cuma merapikan hasil kesepakatan itu ke dalam sistem.
+// Kalau langkah nol dilewati, yang masuk adalah pendaftar yang tidak dikenal
+// admin, dan antrean ACC-nya jadi tumpukan yang harus ditelusuri satu-satu.
+//
+// Setiap pendaftar masuk sebagai "menunggu ACC" - tidak ada lagi jalur aktif
+// otomatis. Yang menegakkannya server (lihat pb_hooks/olimp-signup.pb.js),
+// bukan halaman ini.
+//
+// Langkah terakhir sesudah berhasil: menyiapkan Safe Exam Browser. Sengaja
+// ditaruh di sini, bukan nanti setelah di-ACC, supaya peserta bisa memasang
+// aplikasinya sambil menunggu - bagian yang paling sering jadi penghambat di
+// hari pertama.
 
 const inputCls = 'w-full rounded-xl border border-alba-300 bg-alba-50 px-3.5 py-3 text-sm text-stone-800 focus:border-maroon-300 focus:outline-none';
 
@@ -37,7 +52,8 @@ function Langkah({ no, judul, aktif, selesai }) {
 export default function OlimpSignup() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
+  const [sudahChat, setSudahChat] = useState(null); // null | true | false
   const [cariLomba, setCariLomba] = useState('');
   const [error, setError] = useState('');
   const [sibuk, setSibuk] = useState(false);
@@ -113,17 +129,22 @@ export default function OlimpSignup() {
         // supaya lolos createRule collection-nya.
         status: 'pending',
       });
-      // Status akhirnya ditentukan server, jadi dibaca ulang lewat percobaan
-      // login: kalau paketnya aktif-otomatis, login langsung berhasil.
-      let status = 'pending';
+      // Sesudah akunnya jadi, pendaftar langsung dimasukkan ke sesinya sendiri.
+      //
+      // Bukan supaya bisa mengerjakan soal - statusnya masih "menunggu ACC" dan
+      // gerbang Web Olimp tetap menolaknya. Ini semata supaya ia bisa mengunduh
+      // BERKAS KONFIGURASI SEB miliknya (endpoint itu memang menuntut login),
+      // dan memasang aplikasinya sambil menunggu admin. Itu bagian yang paling
+      // sering jadi penghambat di hari pertama, jadi lebih baik diselesaikan
+      // sekarang.
+      let masuk = false;
       try {
         await pbo.collection('olimp_users').authWithPassword(form.email.trim(), form.password);
-        status = pbo.authStore.record?.status || 'pending';
-        if (status !== 'active') pbo.authStore.clear();
+        masuk = true;
       } catch (_) {
-        status = 'pending';
+        masuk = false;
       }
-      setHasil({ status, namaPaket: paketDipilih?.name || '' });
+      setHasil({ namaPaket: paketDipilih?.name || '', masuk });
     } catch (err) {
       const data = err?.response?.data || {};
       const rincian = Object.entries(data)
@@ -136,35 +157,43 @@ export default function OlimpSignup() {
   };
 
   // ---- layar sesudah berhasil ----
+  //
+  // Selalu "menunggu ACC" - tidak ada lagi jalur aktif otomatis. Yang membuat
+  // layar ini tetap berguna: dua langkah persiapan SEB bisa dikerjakan
+  // sekarang juga, tidak perlu menunggu admin.
   if (hasil) {
-    const aktif = hasil.status === 'active';
     return (
-      <div className="min-h-screen bg-alba-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-lg rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-8 text-center">
-          <span className={`inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-5 ${
-            aktif ? 'bg-emerald-50 text-emerald-600' : 'bg-gold-100 text-gold-600'
-          }`}>
-            {aktif ? <CheckCircle2 size={26} /> : <Medal size={26} />}
-          </span>
-          <h1 className="font-display text-2xl font-semibold text-stone-800">
-            {aktif ? 'Akunmu langsung aktif' : 'Pendaftaran terkirim'}
-          </h1>
-          <p className="mt-3 text-sm text-stone-600 leading-relaxed">
-            {aktif
-              ? `Paket "${hasil.namaPaket}" tidak perlu menunggu konfirmasi. Kamu sudah masuk — silakan langsung mulai.`
-              : `Paket "${hasil.namaPaket}" perlu dikonfirmasi admin dulu (biasanya setelah pembayaran diperiksa). Kami hubungi lewat WhatsApp begitu akunnya dibuka.`}
-          </p>
-          <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
-            {aktif ? (
-              <Link to="/olimp" className="inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-semibold px-6 py-3 hover:bg-maroon-700 transition-colors">
-                Mulai belajar <ArrowRight size={15} />
-              </Link>
-            ) : (
-              <Link to="/olimp/masuk" className="inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-semibold px-6 py-3 hover:bg-maroon-700 transition-colors">
-                Ke halaman masuk
-              </Link>
-            )}
-            <Link to="/olympiad-program" className="inline-flex items-center justify-center rounded-xl border border-alba-300 text-stone-600 text-sm font-semibold px-6 py-3 hover:border-maroon-300 hover:text-maroon-600 transition-colors">
+      <div className="min-h-screen bg-alba-50">
+        <div className="h-1 bg-gradient-to-r from-maroon-700 via-gold-400 to-maroon-700" />
+        <div className="max-w-2xl mx-auto px-6 py-12">
+          <div className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-8 text-center">
+            <span className="inline-flex w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 items-center justify-center mb-5">
+              <CheckCircle2 size={26} />
+            </span>
+            <h1 className="font-display text-2xl font-semibold text-stone-800">Pendaftaran terkirim</h1>
+            <p className="mt-3 text-sm text-stone-600 leading-relaxed">
+              Paket <b>{hasil.namaPaket}</b> menunggu konfirmasi admin. Kami hubungi lewat WhatsApp begitu
+              akunmu dibuka — biasanya setelah pembayaranmu diperiksa.
+            </p>
+          </div>
+
+          {/* Yang bisa dikerjakan SEKARANG, tanpa menunggu admin. */}
+          <div className="mt-4">
+            <UnduhSeb bisaUnduhKonfigurasi={hasil.masuk} />
+          </div>
+
+          {!hasil.masuk && (
+            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800 leading-relaxed">
+              Berkas konfigurasi belum bisa diunduh dari layar ini. Setelah akunmu di-ACC admin, buka Web Olimp
+              lewat berkas yang akan admin kirimkan, atau minta admin mengirim ulang tautan unduhannya.
+            </p>
+          )}
+
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              to="/olympiad-program"
+              className="inline-flex items-center justify-center rounded-xl border border-alba-300 text-stone-600 text-sm font-semibold px-6 py-3 hover:border-maroon-300 hover:text-maroon-600 transition-colors"
+            >
               Kembali ke halaman program
             </Link>
           </div>
@@ -186,17 +215,98 @@ export default function OlimpSignup() {
           <h1 className="mt-1.5 font-display text-3xl font-semibold text-stone-800">Daftar Program Olimp</h1>
           <p className="mt-2 text-sm text-stone-600 leading-relaxed max-w-xl">
             Web Olimp punya basis data peserta sendiri, jadi ini akun baru — terpisah dari akun web siswa PCV.
-            Sudah punya? <Link to="/olimp/masuk" className="font-semibold text-maroon-600 hover:underline">Masuk di sini</Link>.
+            Isi formulirnya <b>setelah</b> kamu menyepakati paket dengan admin.
           </p>
         </header>
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-7 pb-5 border-b border-alba-200">
-          <Langkah no={1} judul="Pilih paket" aktif={step === 1} selesai={step > 1} />
-          <Langkah no={2} judul="Biodata" aktif={step === 2} selesai={step > 2} />
-          <Langkah no={3} judul="Lomba yang diincar" aktif={step === 3} selesai={false} />
+          <Langkah no={1} judul="Hubungi admin" aktif={step === 0} selesai={step > 0} />
+          <Langkah no={2} judul="Pilih paket" aktif={step === 1} selesai={step > 1} />
+          <Langkah no={3} judul="Biodata" aktif={step === 2} selesai={step > 2} />
+          <Langkah no={4} judul="Lomba yang diincar" aktif={step === 3} selesai={false} />
         </div>
 
         {error && <p className="rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3 mb-5 leading-relaxed">{error}</p>}
+
+        {/* ---------- LANGKAH 0: SUDAH HUBUNGI ADMIN? ---------- */}
+        {step === 0 && (
+          <div className="space-y-4">
+            <section className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-6">
+              <h2 className="font-display text-lg font-semibold text-stone-800">
+                Sudah menghubungi admin PCV?
+              </h2>
+              <p className="mt-2 text-sm text-stone-600 leading-relaxed">
+                Pendaftaran Web Olimp dimulai dari percakapan dengan admin — di situ kamu dan admin menyepakati
+                paket mana yang cocok dan bagaimana pembayarannya. Formulir di halaman ini gunanya merapikan
+                hasil kesepakatan itu, jadi diisi <b>sesudah</b> kamu bicara dengan admin.
+              </p>
+
+              <div className="mt-5 grid sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => { setSudahChat(true); setError(''); }}
+                  className={`rounded-2xl border-2 p-5 text-left transition-colors ${
+                    sudahChat === true ? 'border-maroon-500 bg-maroon-50/50' : 'border-alba-200 hover:border-maroon-300'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className={`w-6 h-6 rounded-md flex items-center justify-center ${sudahChat === true ? 'bg-maroon-600 text-alba-50' : 'bg-alba-200'}`}>
+                      {sudahChat === true && <Check size={13} />}
+                    </span>
+                    <span className="font-semibold text-stone-800">Sudah, saya sudah bicara dengan admin</span>
+                  </span>
+                  <span className="block mt-2 text-[13px] text-stone-600 leading-relaxed">
+                    Paketnya sudah disepakati. Lanjut isi formulir.
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => { setSudahChat(false); setError(''); }}
+                  className={`rounded-2xl border-2 p-5 text-left transition-colors ${
+                    sudahChat === false ? 'border-gold-400 bg-gold-100/40' : 'border-alba-200 hover:border-gold-400'
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span className={`w-6 h-6 rounded-md flex items-center justify-center ${sudahChat === false ? 'bg-gold-400 text-maroon-900' : 'bg-alba-200'}`}>
+                      {sudahChat === false && <Check size={13} />}
+                    </span>
+                    <span className="font-semibold text-stone-800">Belum</span>
+                  </span>
+                  <span className="block mt-2 text-[13px] text-stone-600 leading-relaxed">
+                    Hubungi admin dulu lewat WhatsApp, baru kembali ke halaman ini.
+                  </span>
+                </button>
+              </div>
+
+              {sudahChat === false && (
+                <div className="mt-4 rounded-2xl border border-gold-200 bg-gold-100/50 p-5">
+                  <p className="text-sm text-stone-700 leading-relaxed">
+                    Sampaikan ke admin: nama, asal kampus, semester, dan lomba yang kamu incar. Admin akan
+                    menyarankan paket yang cocok dan menjelaskan cara pembayarannya. Setelah itu, kembali ke
+                    halaman ini untuk mengisi formulirnya.
+                  </p>
+                  <a
+                    href={WA_CP}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold px-6 py-3 hover:bg-emerald-700 transition-colors"
+                  >
+                    <MessageCircle size={16} /> Hubungi Admin PCV di WhatsApp
+                  </a>
+                </div>
+              )}
+            </section>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => { setError(''); setStep(1); }}
+                disabled={sudahChat !== true}
+                className="inline-flex items-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-semibold px-6 py-3 hover:bg-maroon-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Lanjut pilih paket <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ---------- LANGKAH 1: PAKET ---------- */}
         {step === 1 && (
@@ -249,7 +359,10 @@ export default function OlimpSignup() {
                 </button>
               );
             })}
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between gap-3 pt-2">
+              <button onClick={() => setStep(0)} className="inline-flex items-center gap-2 rounded-xl border border-alba-300 text-stone-600 text-sm font-semibold px-5 py-3 hover:border-maroon-300 transition-colors">
+                <ArrowLeft size={15} /> Kembali
+              </button>
               <button
                 onClick={() => { setError(''); setStep(2); }}
                 disabled={!form.plan}

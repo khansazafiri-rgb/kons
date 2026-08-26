@@ -50,8 +50,10 @@ dan hitungan sisa hari langganan di kanan atas.
 | `apps/pocketbase/pb_migrations/1786200000_web_olimp.js` | Tujuh collection `olimp_*`, field Olimp pada `users`, role `super_admin` |
 | `apps/pocketbase/pb_migrations/1786200100_web_olimp_seed.js` | Isi contoh: 1 mata kuliah, 5 soal lengkap, 1 paket, 8 agenda lomba |
 | `apps/pocketbase/pb_migrations/1786300000_olimp_topik_dan_akun.js` | Topik per mata kuliah, akun peserta sendiri (`olimp_users`), paket langganan |
+| `apps/pocketbase/pb_migrations/1786400000_olimp_seb.js` | Pengaturan Safe Exam Browser; sekaligus menghapus paket percobaan gratis |
 | `apps/pocketbase/pb_hooks/olimp-leaderboard.pb.js` | `GET /api/olimp/leaderboard` — papan peringkat dihitung di server |
-| `apps/pocketbase/pb_hooks/olimp-signup.pb.js` | Menegakkan status pendaftar & aktif-otomatis untuk paket percobaan |
+| `apps/pocketbase/pb_hooks/olimp-signup.pb.js` | Menegakkan setiap pendaftar masuk sebagai "menunggu ACC" |
+| `apps/pocketbase/pb_hooks/olimp-seb.pb.js` | Membuat berkas `.seb`, dan menolak baca soal dari luar SEB |
 
 Collection yang dibuat:
 
@@ -65,6 +67,7 @@ Collection yang dibuat:
 - `olimp_events` — agenda kalender lomba
 - `olimp_devices` — kunci 1 device per peserta
 - `olimp_logs` — jejak audit
+- `olimp_seb` — pengaturan Safe Exam Browser (satu baris)
 
 Nilai baru pada `users.role`: `super_admin`. (Field `users.olimpEnabled`,
 `olimpUntil`, dan `olimpPackages` dari migrasi pertama sudah **dihapus** —
@@ -90,6 +93,8 @@ mengubahnya sendiri ke bentuk `lh3.googleusercontent.com` saat disimpan.
 | `apps/web/src/lib/olimpJson.js` | Format & pemeriksa kode JSON impor soal, konversi link Drive → lh3 |
 | `apps/web/src/context/OlimpAuthContext.jsx` | Menyatukan dua jenis identitas (peserta Olimp / admin PCV) |
 | `apps/web/src/data/olympiads.js` | Daftar lomba, dipakai bersama landing page & halaman pendaftaran |
+| `apps/web/src/lib/seb.js` | Pengenal SEB di peramban + pengunduh berkas `.seb` |
+| `apps/web/src/components/olimp/UnduhSeb.jsx` | Tiga langkah persiapan SEB, dipakai di layar akhir pendaftaran & halaman akun |
 | `apps/web/src/components/olimp/OlimpShell.jsx` | Kerangka halaman + gerbang hak akses & kunci device |
 | `apps/web/src/components/olimp/Explanation.jsx` | Pembahasan 8 bagian (dipakai di kuis dan di halaman hasil) |
 | `apps/web/src/components/olimp/DistBar.jsx` | Batang distribusi (blueprint, hasil, analitik) |
@@ -103,7 +108,8 @@ mengubahnya sendiri ke bentuk `lh3.googleusercontent.com` saat disimpan.
 /olimp/daftar             pendaftaran peserta baru (akun Olimp)
 /olimp/masuk              halaman masuk peserta Olimp
 /olimp                    beranda peserta — daftar paket
-/olimp/akun               biodata, langganan, device peserta
+/olimp/akun               biodata, langganan, device, persiapan SEB
+/olimp/keluar             tujuan quitURL - dibuka sesaat sebelum SEB menutup diri
 /olimp/paket/:packageId   blueprint sebelum kuis
 /olimp/kuis/:packageId    layar kuis (Cek Jawaban)
 /olimp/hasil/:attemptId   hasil + tinjauan soal + pembahasan
@@ -115,6 +121,78 @@ mengubahnya sendiri ke bentuk `lh3.googleusercontent.com` saat disimpan.
 ```
 
 ---
+
+## Alur mendaftar
+
+Pendaftaran Web Olimp **selalu didahului percakapan dengan admin** — paket dan
+pembayarannya disepakati di sana, dan formulirnya cuma merapikan hasil
+kesepakatan itu ke dalam sistem. Karena itu langkah pertama di `/olimp/daftar`
+bukan formulir, melainkan pertanyaan "sudah menghubungi admin?" — yang menjawab
+"belum" diberi tombol WhatsApp dan tidak bisa lanjut.
+
+```
+hubungi admin (WhatsApp)
+   → /olimp/daftar : konfirmasi sudah chat → pilih paket → biodata → lomba
+   → akun dibuat berstatus "menunggu ACC"
+   → peserta langsung menyiapkan Safe Exam Browser (tidak perlu menunggu admin)
+   → admin meng-ACC di Dashboard Olimp → Peserta
+   → peserta membuka Web Olimp lewat berkas .seb miliknya
+```
+
+Tidak ada lagi jalur aktif-otomatis: **setiap** pendaftar masuk sebagai
+`pending`. Yang menegakkannya server — `createRule` pada `olimp_users` menolak
+kiriman yang mencoba menetapkan status lain, dan
+`pb_hooks/olimp-signup.pb.js` menimpa ulang statusnya. (Sudah diuji: kiriman
+dengan `status: "active"` ditolak 400.)
+
+Halaman masuk `/olimp/masuk` **sengaja tidak ditautkan dari mana pun** di web
+publik. Peserta membukanya lewat berkas konfigurasi SEB, yang `startURL`-nya
+menunjuk ke sana. Menautkannya di landing page akan mengundang orang mencoba
+masuk lewat peramban biasa — persis yang ingin dicegah.
+
+## Safe Exam Browser
+
+### Yang sudah jalan
+
+- **Berkas konfigurasi `.seb` dibuat server**, satu per peserta, lewat
+  `GET /api/olimp/seb-config` (menuntut login peserta Olimp). Bentuknya XML
+  plist polos — bisa dibuka dan diperiksa admin dengan editor teks apa pun.
+  Isinya: alamat mulai, kata sandi keluar & pengaturan (di-hash SHA256 huruf
+  besar, sesuai yang dibaca SEB), penyaring URL, layar penuh tanpa bilah
+  alamat, serta larangan cetak/tangkapan layar/unduh.
+- **Penjagaan di sisi server.** Middleware di `pb_hooks/olimp-seb.pb.js`
+  mencegat pembacaan `olimp_questions` dan `olimp_packages`. Kalau saklar
+  "wajib lewat SEB" menyala, permintaan harus membawa header
+  `X-SafeExamBrowser-RequestHash` yang cocok dengan
+  `SHA256(alamat lengkap + Browser Exam Key)`. Sudah diuji: tanpa header →
+  403 `SEB_REQUIRED`, header salah → 403 `SEB_MISMATCH`, header benar → lolos.
+- **Halaman pengaturan admin** di Dashboard Olimp → tab SEB, beserta urutan
+  pemasangan bernomor.
+- **Halaman persiapan peserta** di layar akhir pendaftaran dan di halaman akun.
+
+### Yang masih tugas manusia
+
+**Browser Exam Key (BEK) tidak bisa dihitung server.** Ia dihasilkan aplikasi
+SEB Config Tool di komputer admin, dari berkas `.seb` yang sudah jadi, lalu
+disalin balik ke pengaturan. Selama kolom BEK kosong, penjagaan **membiarkan
+semua permintaan lewat** meskipun saklarnya dinyalakan — menolak semua orang
+atas dasar yang tidak bisa diperiksa hanya akan mengunci peserta keluar tanpa
+menambah keamanan apa pun. Halaman pengaturan mengatakan ini terang-terangan
+kalau saklarnya menyala tapi BEK-nya kosong.
+
+Urutan pemasangannya ada di layar (Dashboard Olimp → SEB), ringkasnya:
+isi pengaturan → unduh `.seb` lewat akun peserta uji → buka di SEB Config Tool →
+salin BEK & Config Key balik ke pengaturan → sebarkan berkasnya → baru nyalakan
+saklarnya.
+
+### Yang belum
+
+- **Config Key** disimpan tapi belum dipakai memeriksa apa pun. BEK sudah cukup
+  untuk membuktikan permintaan datang dari berkas konfigurasi yang benar.
+- **Kunci device berbasis hardware** masih menunggu: sidik jari browser yang
+  dipakai sekarang berubah kalau peserta ganti peramban.
+- **Pemantauan kecurangan waktu-nyata** (alt-tab, monitor kedua) — itu bagian
+  SEB sendiri; yang belum ada adalah menariknya masuk ke jejak audit Olimp.
 
 ## Alur menulis soal
 
@@ -198,16 +276,19 @@ Semuanya dicatat di sini supaya tidak ada kejutan waktu ditinjau.
    dipikirkan: peserta yang juga siswa PCV punya dua akun, dan admin tetap
    memakai satu akun PCV untuk mengurus dua-duanya.
 
-10. **Pendaftar aktif-otomatis ditentukan paketnya, bukan formulirnya.**
-    Integrasi pembayaran masih PENDING di PRD 17.1. Sebagai gantinya, tiap paket
-    langganan punya tanda `autoApprove`: Paket Percobaan menyala (langsung bisa
-    dipakai), paket berbayar mati (menunggu admin memeriksa pembayaran).
-    Yang menegakkannya **server**, lewat `pb_hooks/olimp-signup.pb.js` — aturan
-    `createRule` memaksa setiap pendaftar masuk sebagai `pending`, jadi tidak ada
-    gunanya mengakali formulirnya dari browser. (Sudah diuji: kiriman dengan
-    `status: "active"` ditolak 400.)
+10. **Pendaftaran didahului percakapan dengan admin, dan semua pendaftar
+    menunggu ACC.** PRD 2.1 menempatkan pendaftaran sebagai langkah pertama;
+    di sini dibalik — orang bicara dengan admin dulu, baru mengisi formulir.
+    Integrasi pembayaran masih PENDING di PRD 17.1, dan percakapan admin itulah
+    penggantinya. Jalur "aktif otomatis" yang sempat ada untuk paket percobaan
+    sudah dihapus.
 
-11. **Soal boleh bergambar di tiga tempat, bukan cuma di soalnya.** PRD 16.2
+11. **Halaman masuk Olimp tidak ditautkan dari web publik.** Satu-satunya jalan
+    masuk peserta adalah berkas konfigurasi SEB. Ini yang membuat penguncian
+    SEB punya arti — tautan masuk yang terpampang di landing page akan
+    mengundang orang mencoba lewat peramban biasa.
+
+12. **Soal boleh bergambar di tiga tempat, bukan cuma di soalnya.** PRD 16.2
     menaruh dukungan gambar di Post-MVP. Dimajukan karena soal olimpiade
     mikrobiologi/parasitologi praktis tidak bisa ditulis tanpa gambar, dan
     pembahasan yang berupa screenshot slide adalah bentuk yang paling sering
@@ -248,12 +329,13 @@ npm run dev
 
 Lalu:
 
-3. Buka `/olimp/daftar`, pilih **Paket Percobaan**, isi biodata, pilih lomba.
-   Paket itu bertanda aktif-otomatis, jadi akunnya langsung bisa dipakai —
-   tidak perlu admin.
-4. Untuk mencoba jalur ACC: daftar sekali lagi dengan **Paket Pembinaan
-   Olimpiade**, lalu masuk sebagai admin PCV → **Dashboard Admin → tab Web
-   Olimp → Peserta** → tombol ACC.
+3. Buka `/olimp/daftar`, jawab "sudah" pada langkah pertama, pilih paket, isi
+   biodata, pilih lomba. Akunnya masuk sebagai **menunggu ACC**.
+4. Masuk sebagai admin PCV → **Dashboard Admin → tab Web Olimp → Peserta** →
+   tombol **ACC**.
+5. Untuk SEB: **Dashboard Olimp → tab SEB**, isi kata sandi keluar & alamat
+   mulai, Simpan. Lalu masuk sebagai peserta tadi → halaman akun → unduh berkas
+   `.seb`-nya.
 
 Catatan untuk server pengembangan: pemberitahuan email pendaftar dikirim di
 dalam permintaan pendaftaran itu sendiri. Kalau SMTP di PocketBase menyala tapi

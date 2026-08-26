@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Laptop, LogOut, Medal, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
+import { ArrowLeft, Laptop, LockKeyhole, LogOut, Medal, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react';
 import { useOlimpAuth } from '@/context/OlimpAuthContext';
 import { ensureOlimpDevice, olimpAccess, sisaHari } from '@/lib/olimp';
+import { ambilInfoSeb, isSeb } from '@/lib/seb';
 
 // Kerangka semua halaman Web Olimp.
 //
@@ -174,11 +175,20 @@ export function OlimpGate({ children }) {
   // 'memeriksa' -> 'ok' | 'ditolak' | 'lewat'. Kunci device diperiksa SEKALI
   // saat halaman Olimp pertama dibuka, bukan di tiap perpindahan halaman.
   const [device, setDevice] = useState('memeriksa');
+  // Layar "buka lewat SEB". Ini SEMATA untuk memberi kalimat yang masuk akal -
+  // yang benar-benar menahan soal adalah server (pb_hooks/olimp-seb.pb.js),
+  // yang menolak permintaan tanpa header hash yang cocok. Tanpa layar ini,
+  // peserta yang membuka dari peramban biasa cuma melihat daftar paket kosong
+  // tanpa tahu sebabnya.
+  const [wajibSeb, setWajibSeb] = useState(false);
 
   useEffect(() => {
     if (!access.allowed) return undefined;
     let hidup = true;
     ensureOlimpDevice(sesi).then((r) => { if (hidup) setDevice(r.status); });
+    ambilInfoSeb().then((info) => {
+      if (hidup) setWajibSeb(!!info?.wajibSeb && !!info?.siapDitegakkan && !isSeb());
+    });
     return () => { hidup = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sesi?.user?.id, access.allowed]);
@@ -206,6 +216,22 @@ export function OlimpGate({ children }) {
   }
   if (device === 'memeriksa') {
     return <OlimpShell><p className="text-sm text-stone-500">Memeriksa device…</p></OlimpShell>;
+  }
+  // Admin PCV dikecualikan - mereka memang meninjau soal dari peramban biasa.
+  if (wajibSeb && !sesi.isAdmin) {
+    return (
+      <Tertutup
+        icon={LockKeyhole}
+        judul="Buka lewat Safe Exam Browser"
+        pesan="Soal Web Olimp sudah dikunci dan hanya bisa dibuka lewat Safe Exam Browser. Jalankan berkas konfigurasi (.seb) yang kamu unduh — kalau belum punya, ambil dari halaman akunmu."
+        aksi={
+          <>
+            <Link to="/olimp/akun" className={tombolUtama}>Halaman akun &amp; unduhan</Link>
+            <Link to="/olympiad-program" className={tombolKedua}>Halaman Program Olimpiade</Link>
+          </>
+        }
+      />
+    );
   }
   if (device === 'ditolak') {
     return (
