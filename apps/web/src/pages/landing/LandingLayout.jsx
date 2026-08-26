@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ArrowRight, Instagram, Medal, Menu, MessageCircle, X } from 'lucide-react';
+import { ArrowRight, Instagram, Menu, MessageCircle, X } from 'lucide-react';
 import { Logo } from '@/components/Header';
 
 // Nomor kontak resmi PCV (dipakai lintas halaman landing)
@@ -25,10 +25,23 @@ export const fadeUp = {
 // Kerangka semua halaman landing: bar maroon tipis, header dengan navigasi
 // antar-halaman (drawer di HP), konten, lalu footer bersama.
 export default function LandingLayout({ children }) {
-  const [drawer, setDrawer] = useState(false);
+  const [menu, setMenu] = useState(false);
+
+  // Menu dibuka lewat tombol strip di SEMUA ukuran layar, bukan cuma di HP.
+  //
+  // Sebelumnya bar atas memuat lima tautan teks plus dua tombol sekaligus -
+  // di layar lebar itu jadi deretan tulisan yang ramai dan menyita perhatian
+  // dari isi halamannya sendiri. Sekarang yang tetap terlihat cuma logo dan
+  // satu tombol strip; sisanya turun sebagai panel begitu stripnya ditekan.
+  //
+  // Panelnya TURUN dari bar atas (bukan menggeser dari samping) supaya
+  // perilakunya sama persis di HP maupun di layar lebar - satu pola untuk
+  // semua, tidak ada yang perlu dipelajari dua kali.
 
   const navLinkCls = ({ isActive }) =>
-    `transition-colors ${isActive ? 'text-maroon-600' : 'hover:text-maroon-600'}`;
+    `rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+      isActive ? 'bg-maroon-600 text-alba-50' : 'text-stone-700 hover:bg-maroon-50 hover:text-maroon-600'
+    }`;
 
   return (
     <div className="min-h-screen bg-alba-50 text-stone-800 flex flex-col">
@@ -36,87 +49,46 @@ export default function LandingLayout({ children }) {
 
       <header className="sticky top-0 z-30 bg-alba-50/90 backdrop-blur border-b border-alba-200">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-          <Link to="/" aria-label="Beranda PCV Classroom"><Logo size="md" /></Link>
+          <Link to="/" aria-label="Beranda PCV Classroom" onClick={() => setMenu(false)}>
+            <Logo size="md" />
+          </Link>
 
-          <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold text-stone-600">
-            {NAV_ITEMS.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={navLinkCls}>
-                {n.label}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-3">
-            {/* Dua pintu masuk yang memang berbeda web: siswa reguler ke PCV,
-                peserta olimpiade ke Web Olimp. Dipisah di sini supaya orang
-                tidak mencoba akun yang salah di halaman yang salah. */}
-            <Link
-              to="/olimp/daftar"
-              className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-gold-400 text-gold-600 text-sm font-semibold px-4 py-2.5 hover:bg-gold-100/60 transition-colors"
-            >
-              <Medal size={15} /> Daftar Program Olimp
-            </Link>
-            <Link
-              to="/login"
-              className="group hidden sm:inline-flex items-center gap-2 rounded-full bg-maroon-600 text-alba-50 text-sm font-semibold px-5 py-2.5 hover:bg-maroon-700 transition-colors shadow-sm"
-            >
-              Pergi Ke Web Siswa
-              <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-            <button
-              onClick={() => setDrawer(true)}
-              aria-label="Buka menu"
-              className="lg:hidden w-10 h-10 rounded-xl border border-alba-300 flex items-center justify-center text-stone-600 hover:text-maroon-600 hover:border-maroon-300 transition-colors"
-            >
-              <Menu size={19} />
-            </button>
-          </div>
+          <button
+            onClick={() => setMenu((m) => !m)}
+            aria-label={menu ? 'Tutup menu' : 'Buka menu'}
+            aria-expanded={menu}
+            className="inline-flex items-center gap-2 rounded-xl border border-alba-300 px-4 py-2.5 text-sm font-semibold text-stone-600 hover:text-maroon-600 hover:border-maroon-300 transition-colors"
+          >
+            {menu ? <X size={18} /> : <Menu size={18} />}
+            <span className="hidden sm:inline">{menu ? 'Tutup' : 'Menu'}</span>
+          </button>
         </div>
-      </header>
 
-      {/* Drawer navigasi (HP/tablet) - shelf dari kanan */}
-      {drawer && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-stone-900/40" onClick={() => setDrawer(false)} />
-          <div className="absolute right-0 top-0 h-full w-72 bg-alba-50 shadow-card-hover p-6 flex flex-col gap-1 animate-fade-in">
-            <div className="flex items-center justify-between mb-5">
-              <Logo />
-              <button onClick={() => setDrawer(false)} aria-label="Tutup menu" className="w-9 h-9 rounded-lg border border-alba-300 flex items-center justify-center text-stone-500">
-                <X size={17} />
-              </button>
-            </div>
-            {NAV_ITEMS.map((n) => (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.to === '/'}
-                onClick={() => setDrawer(false)}
-                className={({ isActive }) =>
-                  `rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
-                    isActive ? 'bg-maroon-600 text-alba-50' : 'text-stone-700 hover:bg-maroon-50 hover:text-maroon-600'
-                  }`
-                }
+        {/* Panel menu - turun dari bar atas, lebarnya mengikuti bar. */}
+        {menu && (
+          <div className="border-t border-alba-200 bg-alba-50 shadow-card">
+            <div className="max-w-6xl mx-auto px-6 py-4 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+              {NAV_ITEMS.map((n) => (
+                <NavLink key={n.to} to={n.to} end={n.to === '/'} onClick={() => setMenu(false)} className={navLinkCls}>
+                  {n.label}
+                </NavLink>
+              ))}
+              {/* Hanya satu pintu masuk yang ditampilkan ke publik: web siswa
+                  PCV. Halaman masuk Web Olimp sengaja TIDAK ditautkan di mana
+                  pun - peserta olimpiade membukanya lewat Secure Exam Browser,
+                  memakai berkas konfigurasi yang mereka unduh setelah
+                  pendaftarannya disetujui admin. */}
+              <Link
+                to="/login"
+                onClick={() => setMenu(false)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-bold px-4 py-3 hover:bg-maroon-700 transition-colors"
               >
-                {n.label}
-              </NavLink>
-            ))}
-            <Link
-              to="/olimp/daftar"
-              onClick={() => setDrawer(false)}
-              className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl border border-gold-400 text-gold-600 text-sm font-bold px-4 py-3"
-            >
-              <Medal size={15} /> Daftar Program Olimp
-            </Link>
-            <Link
-              to="/login"
-              onClick={() => setDrawer(false)}
-              className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-bold px-4 py-3"
-            >
-              Pergi Ke Web Siswa <ArrowRight size={15} />
-            </Link>
+                Pergi Ke Web Siswa <ArrowRight size={15} />
+              </Link>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </header>
 
       <main className="flex-1">{children}</main>
 

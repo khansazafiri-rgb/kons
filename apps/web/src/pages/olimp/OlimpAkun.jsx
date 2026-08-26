@@ -6,6 +6,7 @@ import { useOlimpAuth } from '@/context/OlimpAuthContext';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
 import { OLYMPIADS } from '@/data/olympiads';
 import { sisaHari } from '@/lib/olimp';
+import UnduhSeb from '@/components/olimp/UnduhSeb';
 
 // AKUN SAYA (peserta Olimp).
 //
@@ -164,6 +165,12 @@ function OlimpAkunInner() {
               })}
             </div>
           </section>
+
+          {/* Persiapan SEB ditaruh di halaman akun juga, bukan cuma di layar
+              akhir pendaftaran: berkas konfigurasi bisa hilang, komputer bisa
+              berganti, dan peserta perlu bisa mengunduhnya lagi tanpa bertanya
+              ke admin. */}
+          <UnduhSeb />
 
           <div className="flex items-center gap-3">
             <button

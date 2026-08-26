@@ -66,7 +66,9 @@ onRecordCreateRequest((e) => {
     const appUrl = (settings.meta.appURL || "https://pcvclassroom.com").replace(/\/+$/, "");
     const status = e.record.getString("status");
     const namaPaket = plan ? plan.getString("name") : "(tanpa paket)";
-    const minat = e.record.get("minatLomba");
+    // getStringSlice(), BUKAN get(): untuk field JSON, get() mengembalikan byte
+    // mentahnya, sehingga join() menghasilkan deretan angka, bukan nama lomba.
+    const minat = e.record.getStringSlice("minatLomba");
     const daftarMinat = Array.isArray(minat) && minat.length ? minat.join(", ") : "-";
 
     const judul =

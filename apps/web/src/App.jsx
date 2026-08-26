@@ -39,6 +39,7 @@ const OlimpAdmin = lazy(() => import('./pages/olimp/admin/OlimpAdmin'));
 const OlimpLogin = lazy(() => import('./pages/olimp/OlimpLogin'));
 const OlimpSignup = lazy(() => import('./pages/olimp/OlimpSignup'));
 const OlimpAkun = lazy(() => import('./pages/olimp/OlimpAkun'));
+const OlimpKeluar = lazy(() => import('./pages/olimp/OlimpKeluar'));
 
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
@@ -106,6 +107,10 @@ function App() {
          <Route path="/olimp/daftar" element={<OlimpFallback><OlimpSignup /></OlimpFallback>} />
          <Route path="/olimp" element={<OlimpFallback><OlimpHome /></OlimpFallback>} />
          <Route path="/olimp/akun" element={<OlimpFallback><OlimpAkun /></OlimpFallback>} />
+         {/* Tujuan quitURL di berkas konfigurasi SEB - dibuka sesaat sebelum
+             aplikasinya menutup diri. Tidak dijaga apa pun: pada saat itu
+             sesinya memang sudah selesai. */}
+         <Route path="/olimp/keluar" element={<OlimpFallback><OlimpKeluar /></OlimpFallback>} />
          <Route path="/olimp/paket/:packageId" element={<OlimpFallback><OlimpBlueprint /></OlimpFallback>} />
          <Route path="/olimp/kuis/:packageId" element={<OlimpFallback><OlimpQuiz /></OlimpFallback>} />
          <Route path="/olimp/hasil/:attemptId" element={<OlimpFallback><OlimpResult /></OlimpFallback>} />

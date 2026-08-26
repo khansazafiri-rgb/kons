@@ -11,6 +11,7 @@ import JadwalOlimp from '@/pages/olimp/admin/JadwalOlimp';
 import AnalitikOlimp from '@/pages/olimp/admin/AnalitikOlimp';
 import MataKuliahOlimp from '@/pages/olimp/admin/MataKuliahOlimp';
 import PaketLangganan from '@/pages/olimp/admin/PaketLangganan';
+import SebOlimp from '@/pages/olimp/admin/SebOlimp';
 
 // DASHBOARD OLIMP - panel admin untuk Web Olimp.
 //
@@ -30,6 +31,7 @@ const TABS = [
   { key: 'Peserta', desc: 'Hak akses, langganan, reset device' },
   { key: 'Jadwal Lomba', desc: 'Kalender & agenda perlombaan' },
   { key: 'Analitik', desc: 'Keaktifan, akurasi, siswa tertinggal' },
+  { key: 'SEB', desc: 'Penguncian ujian & berkas konfigurasi' },
 ];
 
 export default function OlimpAdmin() {
@@ -75,6 +77,7 @@ export default function OlimpAdmin() {
           {tab === 'Peserta' && <PesertaOlimp />}
           {tab === 'Jadwal Lomba' && <JadwalOlimp />}
           {tab === 'Analitik' && <AnalitikOlimp />}
+          {tab === 'SEB' && <SebOlimp />}
         </div>
       </div>
     </OlimpShell>
