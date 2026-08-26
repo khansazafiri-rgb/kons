@@ -5,6 +5,7 @@
 // supaya gampang dipakai ulang dan gampang diperiksa ulang.
 
 import pb from '@/lib/pocketbaseClient';
+import pbo from '@/lib/olimpClient';
 
 // ---------------------------------------------------------------------------
 // Nama-nama baku
@@ -44,7 +45,13 @@ export const emptyExplanation = () => ({
   correctStatement: '',
   testedConcept: '',
   reasoning: '',
+  // Pembahasan boleh berupa gambar (screenshot slide) - lihat catatan di
+  // components/olimp/Explanation.jsx.
+  imageUrl: '',
   distractors: { A: '', B: '', C: '', D: '', E: '' },
+  // Gambar untuk ALASAN tiap pilihan yang salah, kalau penjelasannya memang
+  // lebih jelas dalam bentuk bagan daripada kalimat.
+  distractorImages: { A: '', B: '', C: '', D: '', E: '' },
   basicToClinical: '',
   pearl: '',
   references: [],
@@ -63,6 +70,7 @@ export function readExplanation(q) {
     ...base,
     ...obj,
     distractors: { ...base.distractors, ...(obj.distractors || {}) },
+    distractorImages: { ...base.distractorImages, ...(obj.distractorImages || {}) },
     references: Array.isArray(obj.references) ? obj.references : [],
   };
 }
@@ -235,40 +243,79 @@ export function recommendations(summary) {
 
 export const isOlimpAdmin = (role) => role === 'admin' || role === 'super_admin';
 
-// Apakah user boleh membuka Web Olimp sama sekali?
-// Admin & pengajar: selalu boleh (mereka perlu meninjau soal).
-// Siswa: harus dinyalakan admin (olimpEnabled) dan belum lewat masa berlaku.
-export function olimpAccess(user) {
-  const role = user?.role;
-  if (!user?.id) return { allowed: false, reason: 'Silakan login dulu.' };
-  if (isOlimpAdmin(role)) return { allowed: true, reason: '' };
-  if (role === 'teacher') return { allowed: true, reason: '' };
-  if (!user.olimpEnabled) {
+// Apakah orang ini boleh membuka Web Olimp?
+//
+// `sesi` adalah nilai dari useOlimpAuth(): { kind, user }.
+//   kind 'admin'   -> admin PCV, selalu boleh (mereka perlu meninjau soal)
+//   kind 'peserta' -> peserta Olimp, boleh selama statusnya aktif & belum lewat
+//   kind null      -> belum login
+export function olimpAccess(sesi) {
+  const kind = sesi?.kind;
+  const user = sesi?.user;
+  if (kind === 'admin') return { allowed: true, reason: '', perluLogin: false };
+  if (kind !== 'peserta' || !user?.id) {
     return {
       allowed: false,
-      reason: 'Akunmu belum punya akses Web Olimp. Akses dibuka admin setelah pembayaran paket olimpiade dikonfirmasi.',
+      perluLogin: true,
+      reason: 'Masuk dulu dengan akun Web Olimp-mu. Akun web PCV tidak berlaku di sini - keduanya basis datanya terpisah.',
     };
   }
-  if (user.olimpUntil) {
-    const until = new Date(user.olimpUntil);
-    if (!Number.isNaN(until.getTime()) && until.getTime() < Date.now()) {
+  if (user.disabled) {
+    return { allowed: false, perluLogin: false, reason: 'Akun ini dinonaktifkan. Hubungi admin PCV.' };
+  }
+  if (user.status !== 'active') {
+    return {
+      allowed: false,
+      perluLogin: false,
+      reason:
+        user.status === 'pending'
+          ? 'Pendaftaranmu masih menunggu konfirmasi admin.'
+          : user.status === 'expired'
+            ? 'Masa berlaku paketmu sudah berakhir. Hubungi admin untuk memperpanjang.'
+            : 'Akun ini belum aktif. Hubungi admin PCV.',
+    };
+  }
+  if (user.activeUntil) {
+    const sampai = new Date(user.activeUntil);
+    if (!Number.isNaN(sampai.getTime()) && sampai.getTime() < Date.now()) {
       return {
         allowed: false,
-        reason: `Masa berlaku paket Olimp-mu berakhir pada ${until.toLocaleDateString('id-ID', { dateStyle: 'long' })}. Perpanjang lewat admin untuk membukanya lagi.`,
+        perluLogin: false,
+        reason: `Masa berlaku paketmu berakhir pada ${sampai.toLocaleDateString('id-ID', { dateStyle: 'long' })}. Hubungi admin untuk memperpanjang.`,
       };
     }
   }
-  return { allowed: true, reason: '' };
+  return { allowed: true, reason: '', perluLogin: false };
 }
 
-// Paket mana yang boleh dibuka user ini. Daftar olimpPackages kosong = boleh
-// semua paket yang sudah di-publish (paket langganan "semua mata kuliah").
-export function canOpenPackage(user, pkg) {
+// Sisa hari langganan; null kalau tidak ada batas waktu.
+export function sisaHari(user) {
+  if (!user?.activeUntil) return null;
+  const sampai = new Date(user.activeUntil);
+  if (Number.isNaN(sampai.getTime())) return null;
+  return Math.ceil((sampai.getTime() - Date.now()) / 86400000);
+}
+
+// Paket soal mana yang boleh dibuka peserta ini.
+//
+// Urutan yang menentukan, dari yang paling khusus:
+//   1. `packageIds` di akun peserta (diatur admin per orang)
+//   2. `packageIds` di paket langganannya
+//   3. kosong dua-duanya = semua paket soal yang sudah terbit
+//
+// Paket langganannya dibaca dari `sesi.plan` (dimuat sekali di
+// OlimpAuthContext); kalau belum termuat, lapis kedua dilewati saja.
+export function canOpenPackage(sesi, pkg) {
   if (!pkg) return false;
-  if (isOlimpAdmin(user?.role)) return true;
+  if (sesi?.kind === 'admin') return true;
   if (pkg.status !== 'PUBLISHED') return false;
-  const allowed = Array.isArray(user?.olimpPackages) ? user.olimpPackages : [];
-  return allowed.length === 0 || allowed.includes(pkg.id);
+  const user = sesi?.user;
+  const plan = sesi?.plan;
+  const perAkun = Array.isArray(user?.packageIds) ? user.packageIds : [];
+  if (perAkun.length) return perAkun.includes(pkg.id);
+  const perPaket = Array.isArray(plan?.packageIds) ? plan.packageIds : [];
+  if (perPaket.length) return perPaket.includes(pkg.id);
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -279,8 +326,16 @@ export function canOpenPackage(user, pkg) {
 // jadi kegagalannya sengaja ditelan diam-diam (sama seperti lib/activityLog PCV).
 export async function olimpLog(action, detail, severity = 'info') {
   try {
-    await pb.collection('olimp_logs').create({
-      user: pb.authStore.record?.id || null,
+    // Dua jenis orang menulis jejak di sini, dan mereka memakai klien yang
+    // berbeda: peserta lewat pbo (olimp_users), admin lewat pb (users PCV).
+    // Yang dipakai adalah klien yang memang sedang login.
+    const peserta = pbo.authStore.isValid;
+    const klien = peserta ? pbo : pb;
+    if (!klien.authStore.isValid) return;
+    // Field `user` hanya diisi untuk peserta - id admin berasal dari collection
+    // lain dan tidak sah dipasang di relasi yang menunjuk olimp_users.
+    await klien.collection('olimp_logs').create({
+      user: peserta ? pbo.authStore.record?.id : null,
       action,
       detail: String(detail || '').slice(0, 2000),
       deviceId: localStorage.getItem('pcv_device_id') || '',
@@ -347,27 +402,30 @@ export function olimpDeviceName() {
 //   { status: 'lewat' }     - admin/pengajar, tidak dikunci
 // Kegagalan jaringan sengaja dianggap 'lewat': kunci device tidak boleh
 // mengunci siswa keluar hanya karena satu permintaan gagal.
-export async function ensureOlimpDevice(user) {
+export async function ensureOlimpDevice(sesi) {
+  const user = sesi?.user;
   if (!user?.id) return { status: 'lewat' };
-  if (isOlimpAdmin(user.role) || user.role === 'teacher') return { status: 'lewat' };
+  // Admin tidak dikunci device - mereka perlu bisa membuka Olimp dari mana pun
+  // untuk meninjau soal (PRD 4.2).
+  if (sesi?.kind !== 'peserta') return { status: 'lewat' };
 
   const fingerprint = olimpFingerprint();
   try {
-    const milik = await pb.collection('olimp_devices').getFullList({
+    const milik = await pbo.collection('olimp_devices').getFullList({
       filter: `user = "${user.id}" && status = "active"`,
     });
     const cocok = milik.find((d) => d.fingerprint === fingerprint);
     if (cocok) {
       // Catat kunjungan terakhir - dipakai admin untuk melihat device mana yang
       // masih aktif dipakai. Gagal memperbaruinya tidak masalah.
-      pb.collection('olimp_devices').update(cocok.id, { lastLoginAt: new Date().toISOString() }).catch(() => {});
+      pbo.collection('olimp_devices').update(cocok.id, { lastLoginAt: new Date().toISOString() }).catch(() => {});
       return { status: 'ok', device: cocok };
     }
     if (milik.length > 0) {
       olimpLog('device_rejected', `Device ${fingerprint} ditolak (sudah terkunci ke ${milik[0].fingerprint})`, 'alert');
       return { status: 'ditolak', device: milik[0] };
     }
-    const baru = await pb.collection('olimp_devices').create({
+    const baru = await pbo.collection('olimp_devices').create({
       user: user.id,
       fingerprint,
       deviceName: olimpDeviceName(),

@@ -9,23 +9,35 @@ lihat artifact "Web Olimp" yang dibagikan bersama pekerjaan ini.
 
 ---
 
-## Keputusan besar: satu aplikasi, dua web
+## Keputusan besar: satu aplikasi, dua web, dua basis data peserta
 
 Web Olimp **tidak** dibuat sebagai aplikasi terpisah. Ia hidup di dalam `apps/web`
-yang sama dengan PCV Classroom, di cabang alamat `/olimp`.
+yang sama dengan PCV Classroom, di cabang alamat `/olimp`. Tidak perlu domain,
+server, sertifikat, atau pipeline deploy baru.
 
-Alasannya:
+Tapi **akun pesertanya benar-benar terpisah**. Ini menyimpang dari PRD bagian
+14.1 (yang meminta akun dibagi bersama Web PCV), atas permintaan pemilik produk:
+peserta olimpiade tidak harus jadi siswa PCV dulu, dan sebaliknya. Jadi:
 
-- PRD bagian 14.1 memang meminta **akun dibagi bersama** dengan Web PCV. Kalau
-  dipisah jadi dua aplikasi, sinkronisasi akun jadi pekerjaan tersendiri yang
-  besar dan rawan — padahal yang dibutuhkan cuma "login yang sama".
-- Yang PRD minta **dipisah** adalah soal, progres, dan hasil ujian. Itu dicapai
-  dengan memisahkan *collection*-nya (`olimp_*`), bukan aplikasinya.
-- Tidak perlu domain, server, sertifikat, atau pipeline deploy baru.
+| | Web PCV | Web Olimp |
+|---|---|---|
+| Akun siswa/peserta | `users` | `olimp_users` |
+| Login | `/login` | `/olimp/masuk` |
+| Daftar | `/signup` | `/olimp/daftar` |
+| Penyimpanan sesi di browser | `pocketbase_auth` | `olimp_auth` |
+
+Satu orang yang ikut dua-duanya punya **dua akun berbeda**, dan bisa membuka
+kedua web berdampingan di browser yang sama tanpa saling menendang (lihat
+`lib/olimpClient.js`).
+
+Yang TIDAK dipisah: **admin**. Dashboard Olimp dibuka admin PCV yang sudah ada —
+tidak ada gunanya admin punya dua password. Karena itu `OlimpAuthContext`
+menerima dua jenis identitas sekaligus dan memilih klien PocketBase yang tepat
+untuk masing-masing.
 
 Yang membuatnya tetap terasa "web lain": kerangka halaman sendiri
 (`components/olimp/OlimpShell.jsx`) dengan nama, aksen emas, navigasi sendiri,
-dan satu tombol tetap untuk kembali ke PCV Classroom.
+dan hitungan sisa hari langganan di kanan atas.
 
 ---
 
@@ -37,26 +49,47 @@ dan satu tombol tetap untuk kembali ke PCV Classroom.
 |---|---|
 | `apps/pocketbase/pb_migrations/1786200000_web_olimp.js` | Tujuh collection `olimp_*`, field Olimp pada `users`, role `super_admin` |
 | `apps/pocketbase/pb_migrations/1786200100_web_olimp_seed.js` | Isi contoh: 1 mata kuliah, 5 soal lengkap, 1 paket, 8 agenda lomba |
+| `apps/pocketbase/pb_migrations/1786300000_olimp_topik_dan_akun.js` | Topik per mata kuliah, akun peserta sendiri (`olimp_users`), paket langganan |
 | `apps/pocketbase/pb_hooks/olimp-leaderboard.pb.js` | `GET /api/olimp/leaderboard` — papan peringkat dihitung di server |
+| `apps/pocketbase/pb_hooks/olimp-signup.pb.js` | Menegakkan status pendaftar & aktif-otomatis untuk paket percobaan |
 
 Collection yang dibuat:
 
+- `olimp_users` — **akun peserta Olimp** (collection auth tersendiri)
+- `olimp_plans` — paket berlangganan yang dipilih saat mendaftar
 - `olimp_subjects` — cabang olimpiade; kodenya jadi awalan nomor soal (`ID-06`)
-- `olimp_questions` — soal A–E + metadata blueprint + pembahasan 8 bagian
+- `olimp_topics` — **topik per mata kuliah**, padanan "BAB" di web PCV
+- `olimp_questions` — soal A–E + metadata blueprint + pembahasan 8 bagian + gambar
 - `olimp_packages` — paket soal + blueprint distribusi + status terbit
 - `olimp_attempts` — satu kali pengerjaan paket oleh satu peserta
 - `olimp_events` — agenda kalender lomba
 - `olimp_devices` — kunci 1 device per peserta
 - `olimp_logs` — jejak audit
 
-Field baru pada `users`: `olimpEnabled`, `olimpUntil`, `olimpPackages`.
-Nilai baru pada `users.role`: `super_admin`.
+Nilai baru pada `users.role`: `super_admin`. (Field `users.olimpEnabled`,
+`olimpUntil`, dan `olimpPackages` dari migrasi pertama sudah **dihapus** —
+urusannya pindah ke `olimp_users`.)
+
+### Tiga tempat gambar pada satu soal
+
+| Field | Tampil di mana |
+|---|---|
+| `imageUrl` | di atas teks soal, di layar kuis |
+| `explanation.imageUrl` | di bagian 3 pembahasan (Alasan Ringkas) |
+| `explanation.distractorImages.{A..E}` | di bawah alasan tiap pilihan yang salah |
+
+Semuanya opsional dan menerima link Google Drive apa adanya — `lib/olimpJson.js`
+mengubahnya sendiri ke bentuk `lh3.googleusercontent.com` saat disimpan.
 
 ### Web
 
 | Berkas | Isi |
 |---|---|
 | `apps/web/src/lib/olimp.js` | Aturan main bersama: nama baku, hitungan blueprint, penilaian, hak akses, sidik jari device |
+| `apps/web/src/lib/olimpClient.js` | Klien PocketBase kedua, dengan penyimpanan sesi sendiri |
+| `apps/web/src/lib/olimpJson.js` | Format & pemeriksa kode JSON impor soal, konversi link Drive → lh3 |
+| `apps/web/src/context/OlimpAuthContext.jsx` | Menyatukan dua jenis identitas (peserta Olimp / admin PCV) |
+| `apps/web/src/data/olympiads.js` | Daftar lomba, dipakai bersama landing page & halaman pendaftaran |
 | `apps/web/src/components/olimp/OlimpShell.jsx` | Kerangka halaman + gerbang hak akses & kunci device |
 | `apps/web/src/components/olimp/Explanation.jsx` | Pembahasan 8 bagian (dipakai di kuis dan di halaman hasil) |
 | `apps/web/src/components/olimp/DistBar.jsx` | Batang distribusi (blueprint, hasil, analitik) |
@@ -67,7 +100,10 @@ Nilai baru pada `users.role`: `super_admin`.
 ### Alamat
 
 ```
+/olimp/daftar             pendaftaran peserta baru (akun Olimp)
+/olimp/masuk              halaman masuk peserta Olimp
 /olimp                    beranda peserta — daftar paket
+/olimp/akun               biodata, langganan, device peserta
 /olimp/paket/:packageId   blueprint sebelum kuis
 /olimp/kuis/:packageId    layar kuis (Cek Jawaban)
 /olimp/hasil/:attemptId   hasil + tinjauan soal + pembahasan
@@ -79,6 +115,38 @@ Nilai baru pada `users.role`: `super_admin`.
 ```
 
 ---
+
+## Alur menulis soal
+
+Sengaja dibuat sama persis dengan Edit Soal di web PCV, karena admin yang sama
+mengurus dua-duanya:
+
+```
+Dashboard Olimp → Edit Soal
+   → pilih mata kuliah          (bisa ditambah dari halaman yang sama)
+   → pilih topik                (bisa ditambah / diubah nama / diurutkan / dihapus)
+   → tulis soal satu-satu, ATAU tempel kode JSON untuk puluhan sekaligus
+```
+
+Bedanya dengan PCV cuma satu: **tidak ada pemilih "tipe soal"**. Di Olimp semua
+soal bentuknya sama — MCQ lima opsi — jadi bergambar atau tidak ditentukan
+semata-mata oleh ada tidaknya `imageUrl`. Itu juga yang membuat impor JSON-nya
+tidak perlu mode "Acak" seperti di PCV.
+
+Untuk soal yang ditulis guru di Google Docs, alurnya:
+
+```
+guru menulis di template Google Docs
+   → (opsional) skill "Olimp - Blueprint"   ....... menulis draf pembahasannya
+   → guru meninjau & menyunting
+   → skill "Olimp - Konverter Soal"  ............. jadi array JSON + laporan
+   → tempel di kotak "Tempel Kode JSON"
+```
+
+Kedua skill itu sumbernya ada di [`skills/`](skills/) dan **sudah disesuaikan**
+dengan dukungan gambar. Template Google Docs-nya sendiri masih perlu diperbarui
+— perintah siap tempelnya ada di
+[OLIMP_TEMPLATE_GDOC_PROMPT.md](OLIMP_TEMPLATE_GDOC_PROMPT.md).
 
 ## Penyimpangan dari PRD (disengaja)
 
@@ -125,9 +193,25 @@ Semuanya dicatat di sini supaya tidak ada kejutan waktu ditinjau.
    miliknya sendiri, karena di dalamnya ada jawaban per soal). Melonggarkannya
    demi peringkat akan membuka seluruh jawaban semua orang.
 
-9. **Hak akses Olimp dinyalakan manual.** Integrasi pembayaran masih PENDING di
-   PRD 17.1, jadi `users.olimpEnabled` yang dipegang admin adalah penggantinya
-   untuk sekarang.
+9. **Basis data peserta dipisah dari Web PCV.** PRD 14.1 meminta akun dibagi
+   bersama; ini dibalik atas permintaan pemilik produk. Konsekuensinya sudah
+   dipikirkan: peserta yang juga siswa PCV punya dua akun, dan admin tetap
+   memakai satu akun PCV untuk mengurus dua-duanya.
+
+10. **Pendaftar aktif-otomatis ditentukan paketnya, bukan formulirnya.**
+    Integrasi pembayaran masih PENDING di PRD 17.1. Sebagai gantinya, tiap paket
+    langganan punya tanda `autoApprove`: Paket Percobaan menyala (langsung bisa
+    dipakai), paket berbayar mati (menunggu admin memeriksa pembayaran).
+    Yang menegakkannya **server**, lewat `pb_hooks/olimp-signup.pb.js` — aturan
+    `createRule` memaksa setiap pendaftar masuk sebagai `pending`, jadi tidak ada
+    gunanya mengakali formulirnya dari browser. (Sudah diuji: kiriman dengan
+    `status: "active"` ditolak 400.)
+
+11. **Soal boleh bergambar di tiga tempat, bukan cuma di soalnya.** PRD 16.2
+    menaruh dukungan gambar di Post-MVP. Dimajukan karena soal olimpiade
+    mikrobiologi/parasitologi praktis tidak bisa ditulis tanpa gambar, dan
+    pembahasan yang berupa screenshot slide adalah bentuk yang paling sering
+    tersedia dari pengajar.
 
 ---
 
@@ -164,10 +248,18 @@ npm run dev
 
 Lalu:
 
-3. Masuk sebagai admin → **Dashboard Admin → tab Web Olimp** → *Peserta & Hak
-   Akses* → nyalakan saklar akses untuk satu akun siswa.
-4. Masuk sebagai siswa itu. Menu **Web Olimp** muncul di header, atau langsung
-   ke `/olimp`.
+3. Buka `/olimp/daftar`, pilih **Paket Percobaan**, isi biodata, pilih lomba.
+   Paket itu bertanda aktif-otomatis, jadi akunnya langsung bisa dipakai —
+   tidak perlu admin.
+4. Untuk mencoba jalur ACC: daftar sekali lagi dengan **Paket Pembinaan
+   Olimpiade**, lalu masuk sebagai admin PCV → **Dashboard Admin → tab Web
+   Olimp → Peserta** → tombol ACC.
+
+Catatan untuk server pengembangan: pemberitahuan email pendaftar dikirim di
+dalam permintaan pendaftaran itu sendiri. Kalau SMTP di PocketBase menyala tapi
+tidak bisa dihubungi, tombol "Daftar" akan menggantung sampai koneksinya
+menyerah. `pb_hooks/olimp-signup.pb.js` sudah melewati pengiriman email kalau
+SMTP **dimatikan**, jadi di server pengembangan matikan saja setelan SMTP-nya.
 
 Isi contohnya (1 cabang Infectious Disease, 1 paket berisi 5 soal lengkap dengan
 pembahasan 8 bagian, dan kalender 8 lomba) masuk otomatis lewat migrasi, dan

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowUpRight, BookOpen, CalendarDays, ExternalLink, LayoutDashboard, Medal,
-  ShieldCheck, Trophy, Users,
+  ShieldCheck, Trophy, UserPlus, Users,
 } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -28,16 +28,22 @@ const PINTU = [
     utama: true,
   },
   {
-    to: '/olimp/admin?tab=Bank%20Soal',
+    to: '/olimp/admin?tab=Edit%20Soal',
     icon: BookOpen,
-    judul: 'Bank Soal Olimp',
-    isi: 'Soal A-E dengan metadata blueprint dan pembahasan 8 bagian. Terpisah dari bank soal PCV.',
+    judul: 'Edit Soal Olimp',
+    isi: 'Mata kuliah → topik → soal, sama seperti alur Edit Soal di web PCV. Bisa tulis satu-satu atau tempel kode JSON.',
   },
   {
     to: '/olimp/admin?tab=Peserta',
     icon: Users,
-    judul: 'Peserta & Hak Akses',
-    isi: 'Nyalakan akses Olimp per siswa, atur masa berlaku, pilih paket, dan reset kunci device.',
+    judul: 'Peserta & ACC Pendaftar',
+    isi: 'ACC pendaftar baru, atur masa berlaku dan paket soalnya, reset kunci device.',
+  },
+  {
+    to: '/olimp/daftar',
+    icon: UserPlus,
+    judul: 'Halaman Pendaftaran',
+    isi: 'Yang dilihat calon peserta: pilih paket langganan, isi biodata, pilih lomba yang diincar.',
   },
   {
     to: '/olimp/admin?tab=Jadwal%20Lomba',
@@ -79,17 +85,20 @@ export default function WebOlimpHub() {
       pb.collection('olimp_packages').getFullList({ fields: 'id,status' }),
       pb.collection('olimp_questions').getFullList({ fields: 'id,verifiedStatus' }),
       pb.collection('olimp_subjects').getFullList({ fields: 'id' }),
-      pb.collection('users').getFullList({ filter: "role = 'student' && olimpEnabled = true", fields: 'id' }),
+      pb.collection('olimp_users').getFullList({ fields: 'id,status' }),
       pb.collection('olimp_events').getFullList({ fields: 'id' }),
+      pb.collection('olimp_topics').getFullList({ fields: 'id' }),
     ])
-      .then(([p, q, s, u, e]) => {
+      .then(([p, q, s, u, e, t]) => {
         setStat({
           paket: p.length,
           paketTerbit: p.filter((x) => x.status === 'PUBLISHED').length,
           soal: q.length,
           soalVerified: q.filter((x) => x.verifiedStatus === 'VERIFIED').length,
           mataKuliah: s.length,
-          peserta: u.length,
+          topik: t.length,
+          peserta: u.filter((x) => x.status === 'active').length,
+          menunggu: u.filter((x) => x.status === 'pending').length,
           agenda: e.length,
         });
       })
@@ -116,6 +125,8 @@ export default function WebOlimpHub() {
         </h3>
         <dl className="mt-3 space-y-2 text-sm">
           {[
+            ['/olimp/daftar', 'Pendaftaran peserta baru (akun Olimp, bukan akun PCV)'],
+            ['/olimp/masuk', 'Halaman masuk peserta Olimp'],
             ['/olimp', 'Beranda Web Olimp — daftar paket soal untuk peserta'],
             ['/olimp/paket/:id', 'Halaman blueprint sebelum kuis dimulai'],
             ['/olimp/kuis/:id', 'Layar kuis dengan tombol Cek Jawaban'],
@@ -146,10 +157,14 @@ export default function WebOlimpHub() {
         <p className="text-sm text-stone-500">Memeriksa isi Web Olimp…</p>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Angka label="Mata kuliah" value={stat.mataKuliah} />
-          <Angka label="Paket" value={stat.paket} catatan={`${stat.paketTerbit} sudah terbit`} />
+          <Angka label="Mata kuliah" value={stat.mataKuliah} catatan={`${stat.topik} topik`} />
+          <Angka label="Paket soal" value={stat.paket} catatan={`${stat.paketTerbit} sudah terbit`} />
           <Angka label="Soal" value={stat.soal} catatan={`${stat.soalVerified} terverifikasi`} />
-          <Angka label="Peserta aktif" value={stat.peserta} catatan="punya akses Olimp" />
+          <Angka
+            label="Peserta aktif"
+            value={stat.peserta}
+            catatan={stat.menunggu ? `${stat.menunggu} menunggu ACC` : 'tidak ada antrean ACC'}
+          />
           <Angka label="Agenda lomba" value={stat.agenda} />
         </div>
       )}
@@ -190,10 +205,10 @@ export default function WebOlimpHub() {
           <ShieldCheck size={16} className="text-maroon-600" /> Siapa yang bisa masuk
         </h3>
         <ul className="mt-3 space-y-2 text-sm text-stone-600 leading-relaxed">
-          <li>· <span className="font-semibold text-stone-800">Siswa</span> — hanya kalau saklar akses Olimp-nya dinyalakan admin di tab Peserta. Terkunci ke satu device.</li>
-          <li>· <span className="font-semibold text-stone-800">Pengajar</span> — bisa membaca soal & pembahasan, tanpa kunci device, tanpa dashboard.</li>
-          <li>· <span className="font-semibold text-stone-800">Admin</span> — akses penuh termasuk Dashboard Olimp, tanpa kunci device.</li>
-          <li>· <span className="font-semibold text-stone-800">Super Admin</span> — sama seperti admin. Akun ini <span className="font-semibold">hanya bisa dibuat langsung lewat PocketBase</span>, bukan dari web ini (sesuai PRD bagian 4.2).</li>
+          <li>· <span className="font-semibold text-stone-800">Peserta Olimp</span> — akun sendiri di basis data terpisah (<code className="text-[11px]">olimp_users</code>), mendaftar lewat /olimp/daftar. Terkunci ke satu device. <span className="font-semibold">Akun web siswa PCV tidak berlaku di sini</span>, dan sebaliknya.</li>
+          <li>· <span className="font-semibold text-stone-800">Admin &amp; Super Admin PCV</span> — masuk pakai akun PCV yang sudah ada, tanpa perlu akun Olimp terpisah. Akses penuh termasuk Dashboard Olimp, tanpa kunci device.</li>
+          <li>· <span className="font-semibold text-stone-800">Pengajar PCV</span> — bisa membaca soal &amp; pembahasan untuk meninjau, tanpa dashboard.</li>
+          <li>· Akun <span className="font-semibold text-stone-800">Super Admin</span> tetap <span className="font-semibold">hanya bisa dibuat langsung lewat PocketBase</span>, bukan dari web ini (sesuai PRD bagian 4.2).</li>
         </ul>
         {role === 'super_admin' && (
           <p className="mt-3 rounded-xl bg-gold-100/60 border border-gold-200 px-4 py-2.5 text-[12px] font-semibold text-gold-600">
@@ -207,7 +222,7 @@ export default function WebOlimpHub() {
         <ul className="mt-2.5 space-y-1.5 text-sm text-amber-900 leading-relaxed">
           <li>· <span className="font-semibold">Secure Exam Browser (SEB)</span> — unduh config, pemeriksaan header, dan penguncian layar. Saklar “hanya lewat SEB” per paket sudah ada dan tersimpan, tapi belum berpengaruh.</li>
           <li>· <span className="font-semibold">Kunci device berbasis hardware</span> — sekarang masih sidik jari browser. Hardware ID datang bersama SEB.</li>
-          <li>· <span className="font-semibold">Pembayaran otomatis</span> — akses Olimp masih dinyalakan manual oleh admin di tab Peserta.</li>
+          <li>· <span className="font-semibold">Pembayaran otomatis</span> — pendaftar paket berbayar masuk sebagai “menunggu ACC”, lalu diaktifkan manual oleh admin di tab Peserta. Paket Percobaan sudah bisa aktif sendiri.</li>
           <li>· <span className="font-semibold">Email pengingat jadwal</span> — penandanya sudah ada di tiap agenda, pengirimannya menyusul.</li>
         </ul>
       </section>

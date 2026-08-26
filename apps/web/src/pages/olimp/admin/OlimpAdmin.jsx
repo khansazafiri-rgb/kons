@@ -5,11 +5,12 @@ import { useAuth } from '@/context/AuthContext';
 import useUrlState from '@/lib/useUrlState';
 import { isOlimpAdmin } from '@/lib/olimp';
 import PaketManager from '@/pages/olimp/admin/PaketManager';
-import BankSoalOlimp from '@/pages/olimp/admin/BankSoalOlimp';
+import EditSoalOlimp from '@/pages/olimp/admin/EditSoalOlimp';
 import PesertaOlimp from '@/pages/olimp/admin/PesertaOlimp';
 import JadwalOlimp from '@/pages/olimp/admin/JadwalOlimp';
 import AnalitikOlimp from '@/pages/olimp/admin/AnalitikOlimp';
 import MataKuliahOlimp from '@/pages/olimp/admin/MataKuliahOlimp';
+import PaketLangganan from '@/pages/olimp/admin/PaketLangganan';
 
 // DASHBOARD OLIMP - panel admin untuk Web Olimp.
 //
@@ -23,8 +24,9 @@ import MataKuliahOlimp from '@/pages/olimp/admin/MataKuliahOlimp';
 
 const TABS = [
   { key: 'Paket Soal', desc: 'Rancang paket, blueprint, dan terbitkan' },
-  { key: 'Bank Soal', desc: 'Tulis soal + pembahasan 8 bagian' },
+  { key: 'Edit Soal', desc: 'Mata kuliah → topik → soal' },
   { key: 'Mata Kuliah', desc: 'Cabang olimpiade & kode soal' },
+  { key: 'Paket Langganan', desc: 'Yang dipilih peserta saat mendaftar' },
   { key: 'Peserta', desc: 'Hak akses, langganan, reset device' },
   { key: 'Jadwal Lomba', desc: 'Kalender & agenda perlombaan' },
   { key: 'Analitik', desc: 'Keaktifan, akurasi, siswa tertinggal' },
@@ -67,8 +69,9 @@ export default function OlimpAdmin() {
             dalam kolomnya, bukan melebarkan seluruh halaman. */}
         <div className="min-w-0">
           {tab === 'Paket Soal' && <PaketManager />}
-          {tab === 'Bank Soal' && <BankSoalOlimp />}
+          {tab === 'Edit Soal' && <EditSoalOlimp />}
           {tab === 'Mata Kuliah' && <MataKuliahOlimp />}
+          {tab === 'Paket Langganan' && <PaketLangganan />}
           {tab === 'Peserta' && <PesertaOlimp />}
           {tab === 'Jadwal Lomba' && <JadwalOlimp />}
           {tab === 'Analitik' && <AnalitikOlimp />}

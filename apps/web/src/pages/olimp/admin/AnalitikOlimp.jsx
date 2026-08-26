@@ -25,7 +25,7 @@ export default function AnalitikOlimp() {
   useEffect(() => {
     Promise.all([
       pb.collection('olimp_attempts').getFullList({ sort: '-created' }),
-      pb.collection('users').getFullList({ filter: "role = 'student' && olimpEnabled = true", sort: 'name' }),
+      pb.collection('olimp_users').getFullList({ filter: "status = 'active'", sort: 'name' }),
       pb.collection('olimp_questions').getFullList({ sort: 'code' }),
       pb.collection('olimp_logs').getFullList({ sort: '-created', perPage: 50 }).catch(() => []),
     ])

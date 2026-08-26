@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, ChevronDown, Clock, Lightbulb, RotateCcw, Target, Trophy, XCircle } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import pbo from '@/lib/olimpClient';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
 import DistBar, { DistCard } from '@/components/olimp/DistBar';
 import Explanation from '@/components/olimp/Explanation';
@@ -97,15 +97,15 @@ function OlimpResultInner() {
     let hidup = true;
     (async () => {
       try {
-        const a = await pb.collection('olimp_attempts').getOne(attemptId);
+        const a = await pbo.collection('olimp_attempts').getOne(attemptId);
         if (!hidup) return;
         setAttempt(a);
-        const p = await pb.collection('olimp_packages').getOne(a.package);
+        const p = await pbo.collection('olimp_packages').getOne(a.package);
         if (!hidup) return;
         setPkg(p);
         const ids = Array.isArray(p.questionIds) ? p.questionIds : [];
         const soal = ids.length
-          ? await pb.collection('olimp_questions').getFullList({ filter: ids.map((id) => `id = "${id}"`).join(' || ') })
+          ? await pbo.collection('olimp_questions').getFullList({ filter: ids.map((id) => `id = "${id}"`).join(' || ') })
           : [];
         if (!hidup) return;
         setQuestions(ids.map((id) => soal.find((s) => s.id === id)).filter(Boolean));

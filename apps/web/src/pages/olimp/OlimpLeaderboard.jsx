@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Crown, Info, Medal, Trophy } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import pbo from '@/lib/olimpClient';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
 import { formatClock } from '@/lib/olimp';
 
@@ -54,8 +54,8 @@ function OlimpLeaderboardInner() {
 
   useEffect(() => {
     Promise.all([
-      pb.collection('olimp_subjects').getFullList({ sort: 'order' }),
-      pb.collection('olimp_packages').getFullList({ sort: '-created' }),
+      pbo.collection('olimp_subjects').getFullList({ sort: 'order' }),
+      pbo.collection('olimp_packages').getFullList({ sort: '-created' }),
     ])
       .then(([s, p]) => { setSubjects(s); setPackages(p); })
       .catch(() => { /* saringan opsional - papan peringkat tetap bisa tampil */ });
@@ -68,7 +68,7 @@ function OlimpLeaderboardInner() {
     const q = new URLSearchParams({ periode });
     if (subjectId) q.set('subject', subjectId);
     if (packageId) q.set('package', packageId);
-    pb.send(`/api/olimp/leaderboard?${q.toString()}`, { method: 'GET' })
+    pbo.send(`/api/olimp/leaderboard?${q.toString()}`, { method: 'GET' })
       .then((r) => {
         if (!hidup) return;
         setRows(Array.isArray(r?.rows) ? r.rows : []);

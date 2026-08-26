@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, CalendarDays, CheckCircle2, Clock, Layers, Search, Trophy } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/context/AuthContext';
+import pbo from '@/lib/olimpClient';
+import { useOlimpAuth } from '@/context/OlimpAuthContext';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
-import { canOpenPackage, formatClock, isOlimpAdmin, percentOf, readBlueprint, sumValues } from '@/lib/olimp';
+import { canOpenPackage, formatClock, percentOf, readBlueprint, sumValues } from '@/lib/olimp';
 
 // Beranda Web Olimp: daftar paket soal yang boleh dibuka siswa ini, plus
 // ringkasan progresnya sendiri. Halaman ini sengaja menjadi satu-satunya pintu
@@ -88,7 +88,8 @@ function PackageCard({ pkg, subject, attempts }) {
 }
 
 function OlimpHomeInner() {
-  const { user, role } = useAuth();
+  const sesi = useOlimpAuth();
+  const { user } = sesi;
   const [packages, setPackages] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [attempts, setAttempts] = useState([]);
@@ -101,12 +102,12 @@ function OlimpHomeInner() {
   useEffect(() => {
     let hidup = true;
     Promise.all([
-      pb.collection('olimp_packages').getFullList({ sort: '-created' }),
-      pb.collection('olimp_subjects').getFullList({ sort: 'order' }),
+      pbo.collection('olimp_packages').getFullList({ sort: '-created' }),
+      pbo.collection('olimp_subjects').getFullList({ sort: 'order' }),
       user?.id
-        ? pb.collection('olimp_attempts').getFullList({ filter: `user = "${user.id}"`, sort: '-created' })
+        ? pbo.collection('olimp_attempts').getFullList({ filter: `user = "${user.id}"`, sort: '-created' })
         : Promise.resolve([]),
-      pb.collection('olimp_events').getFullList({ sort: 'startDate' }),
+      pbo.collection('olimp_events').getFullList({ sort: 'startDate' }),
     ])
       .then(([p, s, a, e]) => {
         if (!hidup) return;
@@ -121,8 +122,8 @@ function OlimpHomeInner() {
   }, [user?.id]);
 
   const terlihat = useMemo(
-    () => packages.filter((p) => canOpenPackage(user, p)),
-    [packages, user],
+    () => packages.filter((p) => canOpenPackage(sesi, p)),
+    [packages, sesi],
   );
 
   const tersaring = useMemo(() => {
@@ -209,7 +210,7 @@ function OlimpHomeInner() {
           <BookOpen size={26} className="mx-auto text-stone-400" />
           <p className="mt-3 text-sm font-semibold text-stone-700">Belum ada paket yang bisa dibuka.</p>
           <p className="mt-1 text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-            {isOlimpAdmin(role)
+            {sesi.isAdmin
               ? 'Buat paket pertama lewat Dashboard Olimp → tab Paket Soal.'
               : 'Paket akan muncul di sini begitu admin menerbitkannya untuk akunmu.'}
           </p>

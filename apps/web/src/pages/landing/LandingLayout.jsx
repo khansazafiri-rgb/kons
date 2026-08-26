@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ArrowRight, Instagram, Menu, MessageCircle, X } from 'lucide-react';
+import { ArrowRight, Instagram, Medal, Menu, MessageCircle, X } from 'lucide-react';
 import { Logo } from '@/components/Header';
 
 // Nomor kontak resmi PCV (dipakai lintas halaman landing)
@@ -47,6 +47,15 @@ export default function LandingLayout({ children }) {
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* Dua pintu masuk yang memang berbeda web: siswa reguler ke PCV,
+                peserta olimpiade ke Web Olimp. Dipisah di sini supaya orang
+                tidak mencoba akun yang salah di halaman yang salah. */}
+            <Link
+              to="/olimp/daftar"
+              className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-gold-400 text-gold-600 text-sm font-semibold px-4 py-2.5 hover:bg-gold-100/60 transition-colors"
+            >
+              <Medal size={15} /> Daftar Program Olimp
+            </Link>
             <Link
               to="/login"
               className="group hidden sm:inline-flex items-center gap-2 rounded-full bg-maroon-600 text-alba-50 text-sm font-semibold px-5 py-2.5 hover:bg-maroon-700 transition-colors shadow-sm"
@@ -92,9 +101,16 @@ export default function LandingLayout({ children }) {
               </NavLink>
             ))}
             <Link
+              to="/olimp/daftar"
+              onClick={() => setDrawer(false)}
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl border border-gold-400 text-gold-600 text-sm font-bold px-4 py-3"
+            >
+              <Medal size={15} /> Daftar Program Olimp
+            </Link>
+            <Link
               to="/login"
               onClick={() => setDrawer(false)}
-              className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-bold px-4 py-3"
+              className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-bold px-4 py-3"
             >
               Pergi Ke Web Siswa <ArrowRight size={15} />
             </Link>

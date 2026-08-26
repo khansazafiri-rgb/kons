@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
+import { OlimpAuthProvider } from './context/OlimpAuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomeLanding from './pages/landing/HomeLanding';
 import StudentProgramPage from './pages/landing/StudentProgramPage';
@@ -35,6 +36,9 @@ const OlimpLeaderboard = lazy(() => import('./pages/olimp/OlimpLeaderboard'));
 const OlimpJadwal = lazy(() => import('./pages/olimp/OlimpJadwal'));
 const OlimpProgres = lazy(() => import('./pages/olimp/OlimpProgres'));
 const OlimpAdmin = lazy(() => import('./pages/olimp/admin/OlimpAdmin'));
+const OlimpLogin = lazy(() => import('./pages/olimp/OlimpLogin'));
+const OlimpSignup = lazy(() => import('./pages/olimp/OlimpSignup'));
+const OlimpAkun = lazy(() => import('./pages/olimp/OlimpAkun'));
 
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
@@ -51,6 +55,9 @@ function App() {
  return (
    <Router>
      <AuthProvider>
+       {/* OlimpAuthProvider ada DI DALAM AuthProvider karena ia perlu tahu
+           apakah yang sedang membuka adalah admin PCV. */}
+       <OlimpAuthProvider>
        <ScrollToTop />
        <Routes>
          <Route path="/" element={<HomeLanding />} />
@@ -91,18 +98,25 @@ function App() {
          <Route path="/teacher" element={<ProtectedRoute roles={['teacher']}><TeacherPanel /></ProtectedRoute>} />
 
          {/* ---- Web Olimp ---- */}
-         {/* Semua halaman Olimp memakai OlimpGate di dalamnya untuk memeriksa
-             hak akses & kunci device, jadi di sini cukup dipastikan sudah login.
-             Kecuali dashboard-nya, yang memang khusus admin/super admin. */}
-         <Route path="/olimp" element={<ProtectedRoute><OlimpFallback><OlimpHome /></OlimpFallback></ProtectedRoute>} />
-         <Route path="/olimp/paket/:packageId" element={<ProtectedRoute><OlimpFallback><OlimpBlueprint /></OlimpFallback></ProtectedRoute>} />
-         <Route path="/olimp/kuis/:packageId" element={<ProtectedRoute><OlimpFallback><OlimpQuiz /></OlimpFallback></ProtectedRoute>} />
-         <Route path="/olimp/hasil/:attemptId" element={<ProtectedRoute><OlimpFallback><OlimpResult /></OlimpFallback></ProtectedRoute>} />
-         <Route path="/olimp/peringkat" element={<ProtectedRoute><OlimpFallback><OlimpLeaderboard /></OlimpFallback></ProtectedRoute>} />
-         <Route path="/olimp/jadwal" element={<ProtectedRoute><OlimpFallback><OlimpJadwal /></OlimpFallback></ProtectedRoute>} />
-         <Route path="/olimp/progres" element={<ProtectedRoute><OlimpFallback><OlimpProgres /></OlimpFallback></ProtectedRoute>} />
+         {/* TIDAK memakai ProtectedRoute: itu memeriksa akun web PCV, sedangkan
+             peserta Olimp punya basis data akun sendiri (olimp_users). Yang
+             memeriksa hak masuk adalah OlimpGate di dalam tiap halaman - dan ia
+             menerima DUA jenis identitas: peserta Olimp, atau admin PCV. */}
+         <Route path="/olimp/masuk" element={<OlimpFallback><OlimpLogin /></OlimpFallback>} />
+         <Route path="/olimp/daftar" element={<OlimpFallback><OlimpSignup /></OlimpFallback>} />
+         <Route path="/olimp" element={<OlimpFallback><OlimpHome /></OlimpFallback>} />
+         <Route path="/olimp/akun" element={<OlimpFallback><OlimpAkun /></OlimpFallback>} />
+         <Route path="/olimp/paket/:packageId" element={<OlimpFallback><OlimpBlueprint /></OlimpFallback>} />
+         <Route path="/olimp/kuis/:packageId" element={<OlimpFallback><OlimpQuiz /></OlimpFallback>} />
+         <Route path="/olimp/hasil/:attemptId" element={<OlimpFallback><OlimpResult /></OlimpFallback>} />
+         <Route path="/olimp/peringkat" element={<OlimpFallback><OlimpLeaderboard /></OlimpFallback>} />
+         <Route path="/olimp/jadwal" element={<OlimpFallback><OlimpJadwal /></OlimpFallback>} />
+         <Route path="/olimp/progres" element={<OlimpFallback><OlimpProgres /></OlimpFallback>} />
+         {/* Dashboard Olimp tetap dijaga ProtectedRoute: yang membukanya memang
+             admin web PCV, bukan peserta. */}
          <Route path="/olimp/admin" element={<ProtectedRoute roles={['admin', 'super_admin']}><OlimpFallback><OlimpAdmin /></OlimpFallback></ProtectedRoute>} />
        </Routes>
+       </OlimpAuthProvider>
      </AuthProvider>
    </Router>
  );
