@@ -21,8 +21,9 @@ import PilihFakultas from '@/components/PilihFakultas';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 import PetaKonten from '@/pages/admin/PetaKonten';
 import WebOlimpHub from '@/pages/admin/WebOlimpHub';
+import EventManager from '@/pages/admin/event/EventManager';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'Event/Lomba'];
 export default function AdminPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
   const [tab, setTab] = useUrlState('tab', 'Pengajar');
@@ -82,6 +83,12 @@ export default function AdminPanel() {
               Web Olimp berada, siapa yang bisa masuk, dan tombol langsung ke
               tiap bagiannya. */}
           {tab === 'Web Olimp' && <WebOlimpHub />}
+          {/* Event/Lomba sengaja di SINI, bukan di Dashboard Olimp: PRD bagian
+              13 memberi hak kelola event ke Admin maupun Super Admin, sedangkan
+              Dashboard Olimp khusus super_admin. Menaruhnya di sini memenuhi
+              keduanya, sekaligus menjawab PRD bagian 9.1 yang memang meminta
+              menu ini terpisah dari bank soal Web Olimp. */}
+          {tab === 'Event/Lomba' && <EventManager />}
         </div>
       </div>
     </div>

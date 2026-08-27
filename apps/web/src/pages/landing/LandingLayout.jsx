@@ -11,6 +11,10 @@ export const NAV_ITEMS = [
   { to: '/', label: 'Home' },
   { to: '/student-program', label: 'Student Program' },
   { to: '/olympiad-program', label: 'Olympiad Program' },
+  // Lomba berkala. Ditautkan terbuka - beda dari halaman masuk Web Olimp yang
+  // sengaja disembunyikan: lomba justru perlu ditemukan calon peserta, karena
+  // pendaftarannya memang dibuka untuk umum.
+  { to: '/event', label: 'Event & Lomba' },
   { to: '/tim', label: 'Tim Kami' },
   { to: '/student-web', label: 'Student Web' },
 ];
