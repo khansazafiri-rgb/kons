@@ -7,6 +7,12 @@ letaknya, di mana ia sengaja menyimpang dari PRD, dan apa yang belum dipasang**.
 Pratinjau visual seluruh layarnya (tangkapan dari aplikasi yang berjalan):
 lihat artifact "Web Olimp" yang dibagikan bersama pekerjaan ini.
 
+> **Mencari lomba berkala** ("Lomba Fisiologi Batch 3", dst)? Itu modul lain:
+> [EVENT_LOMBA.md](EVENT_LOMBA.md). Bank soal di sini sifatnya latihan
+> berlangganan dengan "Cek Jawaban" instan; lomba di sana ujian sekali jalan yang
+> hasilnya baru terlihat setelah dirilis admin. Keduanya memakai ulang baseline
+> SEB yang sama, tapi data, pendaftaran, dan kunci perangkatnya terpisah penuh.
+
 ---
 
 ## Keputusan besar: satu aplikasi, dua web, dua basis data peserta

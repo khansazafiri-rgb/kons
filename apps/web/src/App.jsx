@@ -41,6 +41,15 @@ const OlimpSignup = lazy(() => import('./pages/olimp/OlimpSignup'));
 const OlimpAkun = lazy(() => import('./pages/olimp/OlimpAkun'));
 const OlimpKeluar = lazy(() => import('./pages/olimp/OlimpKeluar'));
 
+// Event/Lomba - halaman publik lomba berkala. Ikut dimuat terpisah (lazy)
+// dengan alasan yang sama seperti Web Olimp: siswa yang cuma mau mengerjakan
+// latihan tidak perlu ikut mengunduh layar ujian lomba beserta timernya.
+const EventList = lazy(() => import('./pages/event/EventList'));
+const EventDetail = lazy(() => import('./pages/event/EventDetail'));
+const EventDaftar = lazy(() => import('./pages/event/EventDaftar'));
+const EventUjian = lazy(() => import('./pages/event/EventUjian'));
+const EventHasil = lazy(() => import('./pages/event/EventHasil'));
+
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
 // mengerjakan soal. Dengan dipisah, berkas itu baru diambil saat halamannya
@@ -120,6 +129,18 @@ function App() {
          {/* Dashboard Olimp tetap dijaga ProtectedRoute: yang membukanya memang
              admin web PCV, bukan peserta. */}
          <Route path="/olimp/admin" element={<ProtectedRoute roles={['admin', 'super_admin']}><OlimpFallback><OlimpAdmin /></OlimpFallback></ProtectedRoute>} />
+
+         {/* ---- Event / Lomba berkala ---- */}
+         {/* Terbuka tanpa login: halaman listing & detail lomba itu halaman
+             promosi. Yang butuh identitas (daftar, ujian, hasil) memeriksanya
+             sendiri di dalam halaman - dan peserta lomba bisa datang dari DUA
+             collection akun (users PCV atau olimp_users), yang tidak bisa
+             diperiksa ProtectedRoute karena ia cuma tahu akun PCV. */}
+         <Route path="/event" element={<OlimpFallback><EventList /></OlimpFallback>} />
+         <Route path="/event/:slug" element={<OlimpFallback><EventDetail /></OlimpFallback>} />
+         <Route path="/event/:slug/daftar" element={<OlimpFallback><EventDaftar /></OlimpFallback>} />
+         <Route path="/event/:slug/ujian" element={<OlimpFallback><EventUjian /></OlimpFallback>} />
+         <Route path="/event/:slug/hasil" element={<OlimpFallback><EventHasil /></OlimpFallback>} />
        </Routes>
        </OlimpAuthProvider>
      </AuthProvider>
