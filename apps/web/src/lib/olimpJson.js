@@ -10,28 +10,13 @@
 
 import { fixText, fixDeep } from '@/lib/textRepair';
 import { OPTION_KEYS, emptyExplanation } from '@/lib/olimp';
+import { bacaArraySoal, driveToLh3, normalisasiMcq } from '@/lib/soalBentuk';
 
-// ---------------------------------------------------------------------------
-// Link gambar
-// ---------------------------------------------------------------------------
-
-// Google Drive tidak bisa dipakai langsung sebagai sumber <img> - link
-// "drive.google.com/file/d/ID/view" menampilkan halaman pratinjau, bukan
-// gambarnya. Yang bisa ditempel di <img> adalah bentuk lh3. Konversinya
-// dilakukan di sini supaya admin boleh menempel link Drive apa adanya.
-export function driveToLh3(url) {
-  const s = String(url || '').trim();
-  if (!s) return '';
-  if (s.startsWith('https://lh3.googleusercontent.com/')) return s;
-  const m =
-    s.match(/drive\.google\.com\/file\/d\/([A-Za-z0-9_-]{10,})/) ||
-    s.match(/drive\.google\.com\/(?:open|uc)\?(?:export=view&)?id=([A-Za-z0-9_-]{10,})/) ||
-    s.match(/docs\.google\.com\/[^?]*[?&]id=([A-Za-z0-9_-]{10,})/);
-  if (m) return `https://lh3.googleusercontent.com/d/${m[1]}`;
-  // FILE_ID mentah (tanpa http) - sering ditempel begitu saja dari Drive.
-  if (/^[A-Za-z0-9_-]{20,}$/.test(s)) return `https://lh3.googleusercontent.com/d/${s}`;
-  return s;
-}
+// Konversi link Drive -> lh3 sekarang tinggal di lib/soalBentuk.js supaya
+// Edit Soal PCV, Web Olimp, dan Event/Lomba memakai aturan yang sama persis.
+// Diekspor ulang di sini karena beberapa halaman Olimp sudah mengimpornya
+// dari berkas ini.
+export { driveToLh3 };
 
 // ---------------------------------------------------------------------------
 // Contoh & format yang disalin admin
@@ -133,35 +118,18 @@ const STATUS_VALID = ['DRAFT', 'NEEDS_REVIEW', 'VERIFIED'];
 // Melempar Error dengan pesan yang menyebut NOMOR SOAL-nya kalau ada yang
 // tidak beres, supaya admin tahu baris mana yang harus dibetulkan.
 export function parseOlimpBulk(teks) {
-  const bersih = String(teks || '').trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '');
-  if (!bersih) throw new Error('Kotaknya masih kosong.');
-
-  let parsed;
-  try {
-    // eslint-disable-next-line no-new-func
-    parsed = Function('return (' + bersih + ')')();
-  } catch (e) {
-    throw new Error('Kodenya tidak bisa dibaca sebagai array. Pastikan diawali "[" dan diakhiri "]", dan tidak ada teks lain di luar itu. (' + e.message + ')');
-  }
-  if (!Array.isArray(parsed)) throw new Error('Isinya harus berupa daftar [ ... ], bukan satu objek { ... }.');
-  if (parsed.length === 0) throw new Error('Daftarnya kosong - tidak ada soal untuk di-import.');
+  const parsed = bacaArraySoal(teks);
 
   return parsed.map((item, i) => {
     const no = i + 1;
     const kode = item?.code ? ` (${item.code})` : '';
     const gagal = (pesan) => { throw new Error(`Soal #${no}${kode}: ${pesan}`); };
 
-    if (!item || typeof item !== 'object') gagal('bukan objek soal.');
-    const questionText = fixText(item.questionText || item.text || '');
-    if (!questionText.trim()) gagal('"questionText" kosong.');
-
-    const opsi = {};
-    OPTION_KEYS.forEach((k) => { opsi[k] = fixText(item[`option${k}`] || item[`option${k.toLowerCase()}`] || ''); });
-    if (!opsi.A.trim() || !opsi.B.trim()) gagal('minimal opsi A dan B harus terisi.');
-
-    const kunci = String(item.correctAnswer || '').trim().toUpperCase();
-    if (!OPTION_KEYS.includes(kunci)) gagal(`"correctAnswer" harus salah satu dari A/B/C/D/E, bukan "${item.correctAnswer ?? '(kosong)'}".`);
-    if (!opsi[kunci].trim()) gagal(`kunci jawabannya ${kunci}, tapi opsi ${kunci} tidak diisi.`);
+    // Penyeragaman bentuk dikerjakan lib/soalBentuk.js, jadi kode yang sudah
+    // jadi untuk Edit Soal PCV ({ text, options: [ { text, correct,
+    // explanation } ] }) bisa ditempel di sini apa adanya.
+    const n = normalisasiMcq(item, no);
+    const { questionText, opsi, kunci } = n;
 
     const cognitive = String(item.cognitiveLevel || '').trim();
     if (cognitive && !COGNITIVE_VALID.includes(cognitive)) {
@@ -178,8 +146,19 @@ export function parseOlimpBulk(teks) {
     }
 
     const exSumber = item.explanation && typeof item.explanation === 'object' ? item.explanation : {};
+
+    // Penjelasan per opsi dari bentuk Edit Soal PCV dipetakan ke tempat yang
+    // setara di sini: penjelasan opsi BENAR jadi "reasoning", penjelasan opsi
+    // SALAH jadi "distractors". Yang ditulis dalam bentuk Olimp tetap menang -
+    // ini cuma cadangan supaya kode PCV tidak masuk tanpa pembahasan.
+    //
+    // Sengaja TIDAK dipetakan ke "optionReasons": kolom itu ditampilkan
+    // SEBELUM jawaban dicek, sedangkan penjelasan PCV memang ditulis untuk
+    // dibaca sesudahnya - menaruhnya di sana akan membocorkan kuncinya.
     const distraktor = { ...emptyExplanation().distractors };
-    OPTION_KEYS.forEach((k) => { distraktor[k] = fixText((exSumber.distractors || {})[k] || ''); });
+    OPTION_KEYS.forEach((k) => {
+      distraktor[k] = fixText((exSumber.distractors || {})[k] || '') || n.alasanSalah[k] || '';
+    });
     const distraktorGambar = {};
     OPTION_KEYS.forEach((k) => { distraktorGambar[k] = driveToLh3((exSumber.distractorImages || {})[k] || ''); });
 
@@ -189,7 +168,7 @@ export function parseOlimpBulk(teks) {
     return {
       code: String(item.code || '').trim(),
       questionText,
-      imageUrl: driveToLh3(item.imageUrl || ''),
+      imageUrl: n.imageUrl,
       optionA: opsi.A, optionB: opsi.B, optionC: opsi.C, optionD: opsi.D, optionE: opsi.E,
       correctAnswer: kunci,
       optionReasons: alasanOpsi,
@@ -201,12 +180,12 @@ export function parseOlimpBulk(teks) {
       estimatedTimeSeconds: Number(item.estimatedTimeSeconds) || 90,
       learningObjective: fixText(item.learningObjective || ''),
       questionArchitecture: fixText(item.questionArchitecture || ''),
-      hint: fixText(item.hint || ''),
+      hint: n.hint,
       verifiedStatus: status,
       explanation: {
         correctStatement: fixText(exSumber.correctStatement || ''),
         testedConcept: fixText(exSumber.testedConcept || ''),
-        reasoning: fixText(exSumber.reasoning || ''),
+        reasoning: fixText(exSumber.reasoning || '') || n.alasanBenar || '',
         imageUrl: driveToLh3(exSumber.imageUrl || ''),
         distractors: distraktor,
         distractorImages: distraktorGambar,

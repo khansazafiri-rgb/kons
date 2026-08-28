@@ -253,9 +253,48 @@ Diuji end-to-end terhadap PocketBase yang benar-benar berjalan (bukan mock):
   di-ACC, ditolak, H-1 ujian, dan hasil dirilis. Belum ada satu pun.
 - **Unggah banner.** Sekarang berupa tautan gambar, bukan unggahan berkas.
 - **Template Google Docs + skill konverter versi lomba** (PRD bagian 10.3).
-  Sebagai gantinya sudah ada **Tempel kode** yang menerima JSON dan mengenali
-  beberapa bentuk nama field, jadi keluaran konverter Olimp/PCV bisa ditempel
+  Sebagai gantinya sudah ada **Tempel kode** yang menerima dua bentuk sekaligus
+  (lihat bagian di bawah), jadi keluaran konverter yang sudah ada bisa ditempel
   apa adanya.
+
+---
+
+## Bentuk kode yang diterima saat menempel
+
+Dulu tiga tempat penempelan kode di web ini punya bentuk sendiri-sendiri,
+sehingga kode yang sudah jadi untuk Edit Soal PCV ditolak mentah-mentah di Web
+Olimp dan Event. Sekarang ketiganya membaca lewat `lib/soalBentuk.js` yang sama,
+dan **dua bentuk diterima di mana pun**:
+
+```jsonc
+// Bentuk Edit Soal PCV
+{ "text": "…", "hint": "…",
+  "options": [ { "text": "…", "correct": true, "explanation": "…" } ] }
+
+// Bentuk Web Olimp
+{ "questionText": "…", "optionA": "…", "optionB": "…", "correctAnswer": "B" }
+```
+
+Yang ikut dimengerti tanpa perlu dirapikan dulu:
+
+- pagar tiga-backtick, awalan `const soal =` / `export default`, titik koma penutup
+- kunci jawaban ditulis sebagai huruf (`"B"`), angka (`2`), atau teks pilihannya utuh
+- opsi sebagai string biasa, bukan objek
+- link Google Drive apa adanya — diubah sendiri ke `lh3.googleusercontent.com`
+
+Pemetaan penjelasan per opsi:
+
+| Dari bentuk PCV | Masuk ke Web Olimp | Masuk ke Event |
+|---|---|---|
+| `explanation` opsi **benar** | `explanation.reasoning` | digabung jadi satu blok pembahasan |
+| `explanation` opsi **salah** | `explanation.distractors[huruf]` | ikut digabung sebagai "kenapa pilihan lain kurang tepat" |
+
+Penjelasan per opsi sengaja **tidak** dipetakan ke `optionReasons` milik Olimp:
+kolom itu ditampilkan *sebelum* jawaban dicek, sedangkan penjelasan PCV memang
+ditulis untuk dibaca sesudahnya — menaruhnya di sana akan membocorkan kuncinya.
+
+Soal isian singkat (`subQuestions`) tetap ditolak di kedua tempat, tapi sekarang
+dengan sebab yang jelas, bukan keluhan "opsi A kosong" yang menyesatkan.
 - **Payment gateway** — pembayaran tetap manual lewat WhatsApp, sesuai PRD.
 - **Analitik per lomba** dan **sertifikat otomatis** (PRD bagian 17.3, Post-MVP).
 
