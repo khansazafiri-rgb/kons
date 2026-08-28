@@ -16,7 +16,8 @@
 // Tes koneksi gateway dari dashboard admin.
 routerAdd("POST", "/api/pcv/wa-test", (e) => {
   const auth = e.auth;
-  if (!auth || auth.get("role") !== "admin") {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(auth)) {
     return e.json(403, { message: "Hanya admin yang boleh mengetes WA." });
   }
   const body = new DynamicModel({ phone: "" });
@@ -39,7 +40,8 @@ routerAdd("POST", "/api/pcv/wa-test", (e) => {
 // dengan yang dipakai pengiriman otomatis.
 routerAdd("POST", "/api/pcv/wa-send", (e) => {
   const auth = e.auth;
-  if (!auth || auth.get("role") !== "admin") {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(auth)) {
     return e.json(403, { message: "Hanya admin yang boleh mengirim WA." });
   }
 
@@ -161,7 +163,8 @@ onRecordUpdateRequest((e) => {
     hadDevices = Array.isArray(before) ? before.length > 0 : !!before;
   } catch (_) {}
 
-  const byAdmin = !!(e.auth && e.auth.get("role") === "admin" && e.auth.id !== e.record.id);
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  const byAdmin = !!(e.auth && isAdmin(e.auth) && e.auth.id !== e.record.id);
 
   e.next();
 

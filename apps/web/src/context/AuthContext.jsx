@@ -5,12 +5,21 @@ import { studentTypeDevices } from '@/lib/studentType';
 
 const AuthContext = createContext(null);
 
+// Pengurus web utama: "admin" DAN "super_admin".
+//
+// super_admin ditambahkan belakangan untuk Web Olimp, dan tiap layar yang lupa
+// menyebutnya jadi setengah terkunci - menunya terlihat, isinya tidak bisa
+// dipakai. Semua pemeriksaan peran pengurus lewat sini supaya penambahan peran
+// berikutnya cukup diubah di satu tempat. (Layar khusus Olimp sengaja TIDAK
+// memakai ini - di sana memang hanya super_admin yang boleh.)
+export const isAdminRole = (role) => role === 'admin' || role === 'super_admin';
+
 // Batas jumlah device per akun:
 // - admin & super_admin : BEBAS (tanpa batas, tidak dilacak)
 // - teacher              : 1 device
 // - student              : sesuai tipenya (reguler & private 1 device, web 2 device)
 export function deviceLimitFor(record) {
-  if (record?.role === 'admin' || record?.role === 'super_admin') return Infinity;
+  if (isAdminRole(record?.role)) return Infinity;
   if (record?.role === 'student') return studentTypeDevices(record.studentType);
   return 1;
 }

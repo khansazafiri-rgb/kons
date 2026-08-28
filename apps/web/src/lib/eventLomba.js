@@ -13,6 +13,7 @@
 
 import pb from '@/lib/pocketbaseClient';
 import pbo from '@/lib/olimpClient';
+import { isAdminRole } from '@/context/AuthContext';
 
 // Siapa yang sedang login, dan token siapa yang harus dipakai.
 //
@@ -31,7 +32,7 @@ export function identitasEvent() {
       wa: rec.whatsapp || rec.noWa || '',
       asal: rec.asalKuliah || rec.asalKampus || '',
       // Admin boleh melihat-lihat, tapi tidak boleh ikut jadi peserta.
-      isAdmin: rec.role === 'admin' || rec.role === 'super_admin',
+      isAdmin: isAdminRole(rec.role),
     };
   }
   if (pbo.authStore.isValid && pbo.authStore.record?.id) {
