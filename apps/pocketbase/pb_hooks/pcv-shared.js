@@ -8,7 +8,7 @@
 // apps/web/src/lib/appVersion.js — dipakai tab admin Kelas & Reminder untuk
 // mendeteksi deploy yang belum lengkap (mis. web sudah di-build tapi
 // PocketBase belum di-restart, sehingga hook masih versi lama).
-const SERVER_VERSION = "v10.0";
+const SERVER_VERSION = "v10.1";
 
 // "0823..." / "+62 823..." / "62823..." -> "62823..." (format target gateway).
 function normalizePhone(raw) {
@@ -648,7 +648,21 @@ function buildStatusText(info) {
   return "KOSONG: kalender berhasil diunduh tapi memang belum berisi jadwal apa pun.";
 }
 
+// Peran yang boleh mengurus web: "admin" dan "super_admin".
+//
+// super_admin ditambahkan belakangan untuk Web Olimp, tapi pemeriksaan peran
+// yang sudah ada terlanjur menulis 'admin' saja. Akibatnya super_admin bisa
+// membuka Dashboard Admin (halaman webnya mengizinkan) tapi setiap tindakannya
+// ditolak server. Semua pemeriksaan peran kini lewat helper ini supaya
+// penambahan peran berikutnya cukup diubah di satu tempat.
+function isAdmin(auth) {
+  if (!auth) return false;
+  const peran = auth.get("role");
+  return peran === "admin" || peran === "super_admin";
+}
+
 module.exports = {
+  isAdmin,
   SERVER_VERSION,
   normalizePhone,
   sendWA,

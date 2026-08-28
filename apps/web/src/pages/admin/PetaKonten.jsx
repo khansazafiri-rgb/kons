@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Check, CheckCircle2, Copy, Download, ExternalLink, EyeOff, FileText, PlayCircle, RefreshCw, Search, Table2 } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, isAdminRole } from '@/context/AuthContext';
 import { GSHEET_SCRIPT } from '@/lib/gsheetScript';
 import useUrlState from '@/lib/useUrlState';
 import { cocokUniversitas } from '@/lib/chapterScope';
@@ -177,7 +177,7 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
 
       {/* Sambungan Google Sheets khusus admin - token & saklarnya memang hanya
           bisa dibaca admin. */}
-      {role === 'admin' && <SambunganSheets />}
+      {isAdminRole(role) && <SambunganSheets />}
     </div>
   );
 }
