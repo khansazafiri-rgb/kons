@@ -165,8 +165,9 @@ export default function WebOlimpHub() {
 
       {belumTerpasang ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm px-4 py-3 leading-relaxed">
-          Database Web Olimp belum terpasang di server ini. Jalankan migrasi PocketBase
-          (<code className="text-[12px]">npm run migrations:up --prefix apps/pocketbase</code>), lalu muat ulang halaman ini.
+          Database Web Olimp belum terpasang di server ini. Jalankan
+          {' '}<code className="text-[12px]">bash /opt/pcv/kons/deploy/update.sh</code> di server —
+          PocketBase menerapkan migrasinya sendiri saat di-restart. Setelah itu muat ulang halaman ini.
         </p>
       ) : !stat ? (
         <p className="text-sm text-stone-500">Memeriksa isi Web Olimp…</p>
