@@ -69,6 +69,7 @@ function eventBaru() {
     sebQuitPassword: '',
     sebAdminPassword: '',
     sebBrowserExamKey: '',
+    sebConfigKey: '',
     sebAllowedUrls: [],
     sebAllowCalculator: false,
   };
@@ -212,10 +213,11 @@ export default function EventManager() {
       salin.name = `${ev.name} (salinan)`;
       salin.slug = `${buatSlug(ev.name)}-${Date.now().toString(36)}`;
       salin.status = 'DRAFT';
-      // Browser Exam Key TIDAK ikut disalin: ia dihitung dari isi berkas .seb,
+      // Kunci SEB TIDAK ikut disalin: keduanya dihitung dari isi berkas .seb,
       // dan berkas lomba baru alamat mulainya berbeda - kunci lama tidak akan
       // pernah cocok, dan menyalinnya cuma bikin admin mengira sudah beres.
       salin.sebBrowserExamKey = '';
+      salin.sebConfigKey = '';
       salin.createdBy = user?.name || user?.email || 'admin';
 
       const rec = await pb.collection('events').create(salin);

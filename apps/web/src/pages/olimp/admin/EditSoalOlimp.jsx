@@ -651,6 +651,13 @@ function ImporKode({ subjectId, topicId, onSelesai }) {
           lalu tempel hasilnya di kotak ini. Soal bergambar dan yang tidak boleh dicampur dalam satu tempelan —
           yang menentukan hanya ada tidaknya <span className="font-mono text-[11px]">imageUrl</span>.
         </p>
+        <p className="mt-1.5 rounded-lg bg-alba-100/60 px-3 py-2 text-[12px] leading-relaxed text-stone-600">
+          Kode bentuk <span className="font-semibold">Edit Soal web biasa</span> juga diterima di sini
+          (<span className="font-mono text-[11px]">text</span> + <span className="font-mono text-[11px]">options: [{'{'} text, correct, explanation {'}'}]</span>) —
+          tidak perlu diubah dulu. Penjelasan opsi benar masuk ke <span className="font-semibold">Alasan</span> pembahasan,
+          penjelasan opsi salah ke <span className="font-semibold">Analisis distraktor</span>. Bagian pembahasan
+          lain yang khas Olimp tetap kosong dan bisa diisi belakangan.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">

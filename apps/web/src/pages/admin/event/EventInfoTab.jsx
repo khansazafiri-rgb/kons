@@ -102,6 +102,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
         sebQuitPassword: f.sebQuitPassword,
         sebAdminPassword: f.sebAdminPassword,
         sebBrowserExamKey: f.sebBrowserExamKey,
+        sebConfigKey: f.sebConfigKey,
         sebAllowCalculator: !!f.sebAllowCalculator,
         sebAllowedUrls: String(f.sebAllowedUrls || '')
           .split('\n')
@@ -288,13 +289,13 @@ export default function EventInfoTab({ ev, onSimpan }) {
           isi="Kalau mati, peserta bisa mengerjakan dari browser biasa."
         />
 
-        {f.sebRequired && !f.sebBrowserExamKey && (
+        {f.sebRequired && !f.sebBrowserExamKey && !f.sebConfigKey && (
           <p className="flex items-start gap-2 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-3 text-[12px] leading-relaxed text-gold-600">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             <span>
-              Saklarnya menyala tapi Browser Exam Key masih kosong, jadi penjagaannya
-              <span className="font-semibold"> membiarkan semua permintaan lewat</span> — server
-              belum punya pembanding untuk memverifikasi. Isi kuncinya lewat langkah di bawah.
+              Saklarnya menyala tapi Config Key dan Browser Exam Key dua-duanya masih kosong, jadi
+              penjagaannya <span className="font-semibold">membiarkan semua permintaan lewat</span> —
+              server belum punya pembanding untuk memverifikasi. Isi kuncinya lewat langkah di bawah.
             </span>
           </p>
         )}
@@ -312,8 +313,36 @@ export default function EventInfoTab({ ev, onSimpan }) {
         </div>
 
         <div>
-          <label htmlFor="ev-bek" className={labelCls}>Browser Exam Key</label>
-          <input id="ev-bek" value={f.sebBrowserExamKey || ''} onChange={ubah('sebBrowserExamKey')} className={`${inputCls} font-mono text-[12px]`} />
+          <label htmlFor="ev-ck" className={labelCls}>Config Key</label>
+          <input
+            id="ev-ck"
+            value={f.sebConfigKey || ''}
+            onChange={ubah('sebConfigKey')}
+            className={`${inputCls} font-mono text-[12px]`}
+            placeholder="64 karakter, tempel dari SEB Config Tool"
+          />
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+            Paling praktis: <span className="font-semibold">satu nilai berlaku untuk semua platform</span>
+            {' '}(Windows, Mac, iPad), karena versi SEB tidak ikut dihitung.
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="ev-bek" className={labelCls}>Browser Exam Key — boleh lebih dari satu</label>
+          <textarea
+            id="ev-bek"
+            rows={3}
+            value={f.sebBrowserExamKey || ''}
+            onChange={ubah('sebBrowserExamKey')}
+            className={`${inputCls} font-mono text-[12px]`}
+            placeholder={'a1b2… (SEB Windows)\nc3d4… (SEB macOS)'}
+          />
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+            Satu kunci per baris. BEK <span className="font-semibold">ikut menghitung versi SEB</span>,
+            jadi Windows, Mac, dan iPad menghasilkan nilai yang berbeda untuk berkas yang sama —
+            daftarkan semua versi yang dipakai pesertamu, atau cukup isi Config Key di atas.
+          </p>
+
           <div className="mt-2 rounded-xl border border-alba-200 bg-alba-100/50 p-4">
             <p className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-stone-700">
               <ShieldCheck size={13} className="text-maroon-600" /> Cara mengisinya
@@ -322,11 +351,13 @@ export default function EventInfoTab({ ev, onSimpan }) {
               <li>1. Simpan pengaturan ini dulu, lalu ACC satu pendaftar (boleh akunmu sendiri).</li>
               <li>2. Unduh berkas .seb lomba ini dari halaman publiknya.</li>
               <li>3. Buka berkas itu di aplikasi <span className="font-semibold">SEB Config Tool</span> di komputermu.</li>
-              <li>4. Salin nilai <span className="font-semibold">Browser Exam Key</span> dari sana, tempel ke kolom di atas, simpan.</li>
+              <li>4. Buka tab <span className="font-semibold">Exam</span>, salin Config Key (dan/atau Browser Exam Key), tempel ke kolom di atas, simpan.</li>
             </ol>
             <p className="mt-2 text-[11px] leading-relaxed text-stone-500">
-              Kunci ini tidak bisa dihitung server — ia dihasilkan dari isi berkas .seb yang
-              sudah jadi. Kunci lomba lain tidak akan cocok, karena alamat mulainya berbeda.
+              Kunci ini tidak bisa dihitung server — ia dihasilkan dari isi berkas .seb yang sudah jadi.
+              <span className="font-semibold"> Tiap kali kamu mengubah pengaturan SEB di atas, kuncinya berubah</span> —
+              unduh ulang berkasnya dan salin kuncinya lagi. Kunci lomba lain juga tidak akan cocok,
+              karena alamat mulainya berbeda.
             </p>
           </div>
         </div>

@@ -262,6 +262,16 @@ function soalEvent(app, eventId) {
 // Pengaturan SEB dibaca berlapis: yang diisi di event dipakai, yang dikosongkan
 // jatuh ke pengaturan global `olimp_seb`. Dengan begitu admin cukup mengisi hal
 // yang memang berbeda untuk lomba ini saja (PRD bagian 5.2).
+// Satu kotak isian bisa memuat beberapa kunci - dipisah baris baru, koma, atau
+// spasi. Yang bukan heksadesimal 64 karakter dibuang diam-diam: itu biasanya
+// keterangan yang ikut tersalin ("Windows:", "macOS 3.2", dst).
+function pisahKunci(teks) {
+  return String(teks || "")
+    .split(/[\s,;]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => /^[0-9a-f]{64}$/.test(s));
+}
+
 function sebSetelan(app, ev) {
   let global = null;
   try {
@@ -276,7 +286,15 @@ function sebSetelan(app, ev) {
 
   return {
     wajib: ev.getBool("sebRequired"),
-    bek: pilih(ev.getString("sebBrowserExamKey"), g("browserExamKey")),
+    // Beberapa Browser Exam Key sekaligus - satu per baris. BEK memuat versi
+    // SEB, jadi tiap platform/versi menghasilkan nilai berbeda untuk berkas
+    // konfigurasi yang sama; menerima hanya satu berarti mengunci semua
+    // peserta yang build SEB-nya tidak persis sama dengan komputer admin.
+    beks: pisahKunci(pilih(ev.getString("sebBrowserExamKey"), g("browserExamKey"))),
+    // Config Key TIDAK memuat versi SEB, jadi satu nilai berlaku untuk semua
+    // platform. Ini jalan keluar yang lebih rapi daripada mendaftar BEK satu
+    // per satu.
+    configKey: pisahKunci(pilih(ev.getString("sebConfigKey"), g("configKey")))[0] || "",
     quitPassword: pilih(ev.getString("sebQuitPassword"), g("quitPassword")),
     adminPassword: pilih(ev.getString("sebAdminPassword"), g("adminPassword")),
     allowedUrls: izin.length ? izin : izinGlobal,
@@ -299,32 +317,45 @@ function sebSetelan(app, ev) {
 // Mengembalikan null kalau lolos, atau { pesan, kode } kalau ditolak.
 function periksaSeb(e, ev, setelan) {
   if (!setelan.wajib) return null;
-  // Tanpa Browser Exam Key tidak ada pembanding, jadi tidak ada yang bisa
+  // Tanpa satu pun kunci tidak ada pembanding, jadi tidak ada yang bisa
   // dibuktikan. Membiarkan lewat lebih jujur daripada menolak semua orang atas
   // dasar yang tidak bisa diperiksa - halaman admin sudah memperingatkan bahwa
   // penjagaannya belum benar-benar hidup.
-  if (!setelan.bek) return null;
+  if (!setelan.beks.length && !setelan.configKey) return null;
 
   // Kuncinya `message`, BUKAN `pesan`: seluruh endpoint lain memakai `message`,
   // dan pembaca di sisi web (panggilEvent) juga membaca `message`. Kalau di
   // sini berbeda, penolakan SEB sampai ke peserta sebagai "Permintaan gagal."
   // tanpa keterangan apa pun - persis pada saat mereka paling butuh tahu.
-  const kiriman = e.request.header.get("X-SafeExamBrowser-RequestHash") || "";
-  if (!kiriman) {
+  const hashBek = e.request.header.get("X-SafeExamBrowser-RequestHash") || "";
+  const hashConfig = e.request.header.get("X-SafeExamBrowser-ConfigKeyHash") || "";
+  if (!hashBek && !hashConfig) {
     return {
       kode: "SEB_REQUIRED",
       message: "Soal lomba ini hanya bisa dibuka lewat Safe Exam Browser. Jalankan berkas konfigurasi yang kamu unduh dari halaman pendaftaranmu.",
     };
   }
+
   const penuh =
     (e.request.tls ? "https" : "http") + "://" + e.request.host + e.request.url.requestURI();
-  if ($security.sha256(penuh + setelan.bek).toLowerCase() !== kiriman.toLowerCase()) {
-    return {
-      kode: "SEB_MISMATCH",
-      message: "Berkas konfigurasi SEB yang kamu pakai bukan berkas untuk lomba ini. Unduh ulang dari halaman pendaftaranmu.",
-    };
+
+  // Config Key diperiksa lebih dulu: satu nilai berlaku untuk semua platform,
+  // jadi kalau admin sudah mengisinya, ini jalur yang paling mungkin cocok.
+  if (setelan.configKey && hashConfig) {
+    if ($security.sha256(penuh + setelan.configKey).toLowerCase() === hashConfig.toLowerCase()) return null;
   }
-  return null;
+  // Kalau tidak, cukup SALAH SATU Browser Exam Key yang terdaftar cocok.
+  if (hashBek) {
+    const diminta = hashBek.toLowerCase();
+    for (let i = 0; i < setelan.beks.length; i += 1) {
+      if ($security.sha256(penuh + setelan.beks[i]).toLowerCase() === diminta) return null;
+    }
+  }
+
+  return {
+    kode: "SEB_MISMATCH",
+    message: "Berkas konfigurasi SEB yang kamu pakai belum terdaftar untuk lomba ini. Beri tahu admin versi SEB yang kamu pakai (Windows/Mac/iPad) supaya kuncinya ditambahkan.",
+  };
 }
 
 // ---------------------------------------------------------------------------

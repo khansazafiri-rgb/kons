@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Code2, Eye, Plus, Save, Trash2, X } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
+import { bacaArraySoal, gabungPembahasan, normalisasiMcq } from '@/lib/soalBentuk';
 
 // TAB 2 - SOAL (PRD bagian 10)
 //
@@ -108,33 +109,31 @@ function TempelKode({ onImpor, onTutup, sibuk }) {
 
   const jalan = () => {
     setGalat('');
-    let data;
+    let bersih;
     try {
-      data = JSON.parse(teks);
+      // Penyeragaman bentuk dikerjakan lib/soalBentuk.js - sama persis dengan
+      // yang dipakai Web Olimp. Jadi kode yang sudah jadi untuk Edit Soal PCV
+      // ({ text, options: [ { text, correct, explanation } ] }) bisa ditempel
+      // di sini apa adanya, tanpa diubah dulu.
+      bersih = bacaArraySoal(teks).map((item, i) => {
+        const n = normalisasiMcq(item, i + 1);
+        return {
+          questionText: n.questionText,
+          optionA: n.opsi.A,
+          optionB: n.opsi.B,
+          optionC: n.opsi.C,
+          optionD: n.opsi.D,
+          optionE: n.opsi.E,
+          correctAnswer: n.kunci,
+          // Pembahasan lomba cuma satu blok, bukan delapan bagian seperti
+          // Web Olimp - jadi penjelasan per opsi digabung jadi satu.
+          explanation: String(item.explanation ?? item.pembahasan ?? '').trim() || gabungPembahasan(n),
+          imageUrl: n.imageUrl,
+          points: Number(item.points ?? item.poin ?? 1) || 1,
+        };
+      });
     } catch (err) {
-      setGalat('Bukan JSON yang sah: ' + (err?.message || ''));
-      return;
-    }
-    if (!Array.isArray(data)) { setGalat('Isinya harus berupa array [ … ].'); return; }
-
-    // Nama field diterima dalam beberapa bentuk supaya kode dari konverter
-    // soal PCV/Olimp bisa ditempel apa adanya tanpa diedit dulu.
-    const bersih = data.map((r) => ({
-      questionText: String(r.questionText ?? r.question ?? r.teks ?? '').trim(),
-      optionA: String(r.optionA ?? r.a ?? (r.options && r.options[0]) ?? '').trim(),
-      optionB: String(r.optionB ?? r.b ?? (r.options && r.options[1]) ?? '').trim(),
-      optionC: String(r.optionC ?? r.c ?? (r.options && r.options[2]) ?? '').trim(),
-      optionD: String(r.optionD ?? r.d ?? (r.options && r.options[3]) ?? '').trim(),
-      optionE: String(r.optionE ?? r.e ?? (r.options && r.options[4]) ?? '').trim(),
-      correctAnswer: String(r.correctAnswer ?? r.answer ?? r.kunci ?? 'A').trim().toUpperCase().slice(0, 1),
-      explanation: String(r.explanation ?? r.pembahasan ?? '').trim(),
-      imageUrl: String(r.imageUrl ?? r.gambar ?? '').trim(),
-      points: Number(r.points ?? r.poin ?? 1) || 1,
-    }));
-
-    const rusak = bersih.findIndex((r) => !r.questionText || !r.optionA || !r.optionB || !OPSI.includes(r.correctAnswer));
-    if (rusak >= 0) {
-      setGalat(`Soal ke-${rusak + 1} belum lengkap (teks, opsi A & B, dan kunci A–E wajib ada).`);
+      setGalat(err?.message || 'Kodenya tidak bisa dibaca.');
       return;
     }
     onImpor(bersih);
@@ -147,16 +146,30 @@ function TempelKode({ onImpor, onTutup, sibuk }) {
         <button onClick={onTutup} className="text-stone-400 hover:text-stone-600" aria-label="Tutup"><X size={16} /></button>
       </div>
       <p className="mt-1 text-[12px] leading-relaxed text-stone-600">
-        Bentuknya array objek. Field yang dibaca: <code className="text-[11px]">questionText</code>,
-        {' '}<code className="text-[11px]">optionA</code>–<code className="text-[11px]">optionE</code>,
-        {' '}<code className="text-[11px]">correctAnswer</code>, <code className="text-[11px]">explanation</code>,
-        {' '}<code className="text-[11px]">imageUrl</code>, <code className="text-[11px]">points</code>.
+        Bentuknya array objek. <span className="font-semibold">Dua bentuk diterima</span>, jadi kode
+        yang sudah kamu buat untuk <span className="font-semibold">Edit Soal</span> web biasa bisa
+        ditempel di sini apa adanya:
+      </p>
+      <ul className="mt-1.5 space-y-1 text-[12px] leading-relaxed text-stone-600">
+        <li>
+          · <code className="text-[11px]">text</code> + <code className="text-[11px]">options: [{'{'} text, correct, explanation {'}'}]</code>
+          {' '}— bentuk Edit Soal PCV
+        </li>
+        <li>
+          · <code className="text-[11px]">questionText</code> + <code className="text-[11px]">optionA</code>–<code className="text-[11px]">optionE</code> + <code className="text-[11px]">correctAnswer</code>
+          {' '}— bentuk Web Olimp
+        </li>
+      </ul>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-stone-500">
+        Tambahan opsional di kedua bentuk: <code className="text-[11px]">imageUrl</code> (link Drive
+        boleh apa adanya), <code className="text-[11px]">hint</code>, <code className="text-[11px]">points</code>.
+        Penjelasan tiap opsi otomatis digabung jadi pembahasan soal.
       </p>
       <textarea
         rows={10}
         value={teks}
         onChange={(e) => setTeks(e.target.value)}
-        placeholder={'[\n  {\n    "questionText": "Apa fungsi utama nefron?",\n    "optionA": "…",\n    "optionB": "…",\n    "correctAnswer": "B",\n    "points": 1\n  }\n]'}
+        placeholder={'[\n  {\n    "text": "Apa fungsi utama nefron?",\n    "hint": "",\n    "options": [\n      { "text": "Filtrasi darah", "correct": true, "explanation": "Nefron menyaring…" },\n      { "text": "Produksi empedu", "correct": false, "explanation": "Itu hati." }\n    ]\n  }\n]'}
         className={`mt-3 ${inputCls} font-mono text-[12px]`}
       />
       {galat && <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[12px] text-red-700">{galat}</p>}
