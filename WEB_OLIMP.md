@@ -168,33 +168,40 @@ masuk lewat peramban biasa — persis yang ingin dicegah.
   alamat, serta larangan cetak/tangkapan layar/unduh.
 - **Penjagaan di sisi server.** Middleware di `pb_hooks/olimp-seb.pb.js`
   mencegat pembacaan `olimp_questions` dan `olimp_packages`. Kalau saklar
-  "wajib lewat SEB" menyala, permintaan harus membawa header
-  `X-SafeExamBrowser-RequestHash` yang cocok dengan
-  `SHA256(alamat lengkap + Browser Exam Key)`. Sudah diuji: tanpa header →
-  403 `SEB_REQUIRED`, header salah → 403 `SEB_MISMATCH`, header benar → lolos.
+  "wajib lewat SEB" menyala, permintaan harus membawa header berisi
+  `SHA256(alamat lengkap + kunci)` — `X-SafeExamBrowser-ConfigKeyHash` untuk
+  Config Key, atau `X-SafeExamBrowser-RequestHash` untuk salah satu Browser
+  Exam Key yang terdaftar. Sudah diuji: tanpa header → 403 `SEB_REQUIRED`,
+  kunci asing → 403 `SEB_MISMATCH`, Config Key benar → lolos, dan dua BEK
+  berbeda sama-sama lolos.
 - **Halaman pengaturan admin** di Dashboard Olimp → tab SEB, beserta urutan
   pemasangan bernomor.
 - **Halaman persiapan peserta** di layar akhir pendaftaran dan di halaman akun.
 
 ### Yang masih tugas manusia
 
-**Browser Exam Key (BEK) tidak bisa dihitung server.** Ia dihasilkan aplikasi
-SEB Config Tool di komputer admin, dari berkas `.seb` yang sudah jadi, lalu
-disalin balik ke pengaturan. Selama kolom BEK kosong, penjagaan **membiarkan
-semua permintaan lewat** meskipun saklarnya dinyalakan — menolak semua orang
-atas dasar yang tidak bisa diperiksa hanya akan mengunci peserta keluar tanpa
-menambah keamanan apa pun. Halaman pengaturan mengatakan ini terang-terangan
-kalau saklarnya menyala tapi BEK-nya kosong.
+**Kunci SEB tidak bisa dihitung server.** Baik Config Key maupun Browser Exam
+Key dihasilkan aplikasi SEB Config Tool di komputer admin, dari berkas `.seb`
+yang sudah jadi, lalu disalin balik ke pengaturan. Selama kedua kolomnya kosong,
+penjagaan **membiarkan semua permintaan lewat** meskipun saklarnya dinyalakan —
+menolak semua orang atas dasar yang tidak bisa diperiksa hanya akan mengunci
+peserta keluar tanpa menambah keamanan apa pun. Halaman pengaturan mengatakan
+ini terang-terangan kalau saklarnya menyala tapi kuncinya kosong.
+
+**Pakai Config Key kalau ragu.** BEK ikut menghitung versi SEB, jadi SEB
+Windows, macOS, dan iPad menghasilkan nilai yang berbeda untuk berkas yang sama;
+Config Key tidak, sehingga satu nilai berlaku lintas platform. Kolom BEK tetap
+ada dan sekarang menerima **beberapa kunci sekaligus, satu per baris**, untuk
+yang mau mendaftarkan tiap versi satu per satu.
 
 Urutan pemasangannya ada di layar (Dashboard Olimp → SEB), ringkasnya:
-isi pengaturan → unduh `.seb` lewat akun peserta uji → buka di SEB Config Tool →
-salin BEK & Config Key balik ke pengaturan → sebarkan berkasnya → baru nyalakan
-saklarnya.
+isi pengaturan → unduh `.seb` lewat akun peserta uji → buka di SEB Config Tool
+tab **Exam** → salin Config Key (dan/atau BEK) balik ke pengaturan → sebarkan
+berkasnya → baru nyalakan saklarnya. **Tiap kali pengaturan diubah, kuncinya
+berubah** — ulangi langkah ini, atau semua peserta kena `SEB_MISMATCH`.
 
 ### Yang belum
 
-- **Config Key** disimpan tapi belum dipakai memeriksa apa pun. BEK sudah cukup
-  untuk membuktikan permintaan datang dari berkas konfigurasi yang benar.
 - **Kunci device berbasis hardware** masih menunggu: sidik jari browser yang
   dipakai sekarang berubah kalau peserta ganti peramban.
 - **Pemantauan kecurangan waktu-nyata** (alt-tab, monitor kedua) — itu bagian

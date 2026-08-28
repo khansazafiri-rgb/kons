@@ -183,21 +183,44 @@ Urutan pemasangannya, sama polanya dengan Web Olimp:
 1. Isi pengaturan SEB di tab **Info Dasar**, simpan
 2. ACC satu pendaftar (boleh akunmu sendiri)
 3. Unduh berkas `.seb` lomba ini dari halaman publiknya
-4. Buka berkas itu di **SEB Config Tool** di komputer admin
-5. Salin **Browser Exam Key**-nya, tempel balik ke kolom di tab Info Dasar, simpan
+4. Buka berkas itu di **SEB Config Tool** di komputer admin, buka tab **Exam**
+5. Salin **Config Key**-nya, tempel balik ke kolom di tab Info Dasar, simpan
 
-> **Browser Exam Key tidak bisa dihitung server.** Ia dihasilkan dari isi berkas
-> `.seb` yang sudah jadi. Selama kolomnya kosong, penjagaan **membiarkan semua
-> permintaan lewat** meskipun saklarnya menyala — server tidak punya pembanding
-> untuk memverifikasi. Tab Info Dasar dan Review & Publish sama-sama
-> memperingatkan keadaan ini.
+### Config Key vs Browser Exam Key
+
+Keduanya sama-sama sidik jari berkas `.seb`, dan **tidak bisa dihitung server** —
+keduanya dihasilkan SEB Config Tool dari berkas yang sudah jadi. Bedanya satu hal
+yang menentukan di praktik:
+
+| | Ikut menghitung versi SEB? | Akibatnya |
+|---|---|---|
+| **Config Key** | tidak | **satu nilai berlaku untuk semua platform** — Windows, Mac, iPad |
+| **Browser Exam Key** | ya | **beda nilai per versi & platform** — perlu didaftarkan satu per satu |
+
+Karena itu **Config Key yang dianjurkan**. Kalau tetap memakai BEK, kolomnya
+menerima **beberapa kunci sekaligus, satu per baris** — daftarkan semua versi
+SEB yang dipakai peserta. Sebelum ini kolomnya cuma menerima satu nilai, yang
+artinya semua peserta dengan build SEB berbeda dari komputer admin ikut tertolak
+tanpa cara memperbaikinya sendiri.
+
+Isi **salah satu saja sudah cukup**; kalau dua-duanya diisi, Config Key diperiksa
+lebih dulu lalu BEK sebagai cadangan.
+
+> **Selama kedua kolomnya kosong**, penjagaan **membiarkan semua permintaan
+> lewat** meskipun saklarnya menyala — server tidak punya pembanding untuk
+> memverifikasi. Tab Info Dasar dan Review & Publish sama-sama memperingatkan
+> keadaan ini.
 >
-> Kunci lomba lain **tidak akan cocok**, karena alamat mulainya berbeda. Karena
-> itu "Gandakan" sengaja tidak menyalin Browser Exam Key.
+> **Tiap kali pengaturan SEB diubah, kedua kunci itu berubah.** Unduh ulang
+> berkasnya dan salin kuncinya lagi — kalau tidak, semua peserta kena
+> `SEB_MISMATCH`. Kunci lomba lain juga tidak akan cocok karena alamat mulainya
+> berbeda; karena itu "Gandakan" sengaja tidak menyalin kunci apa pun.
 
-Cara SEB membuktikan dirinya: tiap permintaan diberi header
-`X-SafeExamBrowser-RequestHash = SHA256(alamat lengkap + BEK)`; server menghitung
-ulang nilai yang sama dan membandingkannya.
+Cara SEB membuktikan dirinya: tiap permintaan diberi header berisi
+`SHA256(alamat lengkap + kunci)` —
+`X-SafeExamBrowser-ConfigKeyHash` untuk Config Key dan
+`X-SafeExamBrowser-RequestHash` untuk BEK. Server menghitung ulang nilai yang
+sama dan membandingkannya.
 
 ---
 

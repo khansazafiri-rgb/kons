@@ -185,23 +185,35 @@ export default function SebOlimp() {
           </h3>
           <p className="mt-1 text-[13px] text-stone-600 leading-relaxed">
             Dua nilai ini <b>tidak bisa dibuat server</b> — keduanya dihasilkan aplikasi SEB Config Tool dari
-            berkas .seb yang sudah jadi. Yang dipakai server untuk memeriksa permintaan adalah
-            <b> Browser Exam Key</b>.
+            berkas .seb yang sudah jadi. Isi <b>salah satu saja sudah cukup</b>; kalau ragu, isi Config Key.
           </p>
         </div>
 
-        <Field label="Browser Exam Key (BEK)" hint="Server menghitung SHA256(alamat + BEK) dan membandingkannya dengan header yang dikirim SEB.">
-          <input className={`${inputCls} font-mono text-[12px]`} value={draft.browserExamKey || ''} onChange={(e) => setDraft({ ...draft, browserExamKey: e.target.value })} placeholder="tempel dari SEB Config Tool" />
-        </Field>
-        <Field label="Config Key" hint="Belum dipakai untuk pemeriksaan. Disimpan supaya tidak hilang saat nanti diperlukan.">
-          <input className={`${inputCls} font-mono text-[12px]`} value={draft.configKey || ''} onChange={(e) => setDraft({ ...draft, configKey: e.target.value })} />
+        <Field
+          label="Config Key"
+          hint="Paling praktis: satu nilai berlaku untuk SEMUA platform (Windows, Mac, iPad), karena versi SEB tidak ikut dihitung."
+        >
+          <input className={`${inputCls} font-mono text-[12px]`} value={draft.configKey || ''} onChange={(e) => setDraft({ ...draft, configKey: e.target.value })} placeholder="64 karakter, tempel dari SEB Config Tool" />
         </Field>
 
-        {!adaBek && (
+        <Field
+          label="Browser Exam Key (BEK) — boleh lebih dari satu"
+          hint="Satu kunci per baris. BEK ikut menghitung versi SEB, jadi Windows, Mac, dan iPad menghasilkan nilai yang BERBEDA untuk berkas yang sama — daftarkan semua versi yang dipakai pesertamu."
+        >
+          <textarea
+            rows={3}
+            className={`${inputCls} font-mono text-[12px]`}
+            value={draft.browserExamKey || ''}
+            onChange={(e) => setDraft({ ...draft, browserExamKey: e.target.value })}
+            placeholder={'a1b2… (SEB Windows)\nc3d4… (SEB macOS)'}
+          />
+        </Field>
+
+        {!adaBek && !(draft.configKey || '').trim() && (
           <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800 leading-relaxed">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-            Selama BEK kosong, penjagaan tidak bisa memverifikasi apa pun dan akan membiarkan semua permintaan lewat —
-            meskipun saklar di bawah dinyalakan.
+            Selama Config Key dan BEK dua-duanya kosong, penjagaan tidak bisa memverifikasi apa pun dan akan
+            membiarkan semua permintaan lewat — meskipun saklar di bawah dinyalakan.
           </p>
         )}
       </section>

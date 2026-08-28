@@ -139,9 +139,11 @@ export default function EventPublishTab({ ev, onSimpan, onKeTab }) {
     {
       key: 'bek',
       wajib: false,
-      lolos: !ev.sebRequired || !!(ev.sebBrowserExamKey || '').trim(),
-      judul: 'Browser Exam Key terisi',
-      isi: 'Saklar SEB menyala tapi kuncinya kosong — penjagaannya membiarkan semua lewat.',
+      lolos: !ev.sebRequired
+        || !!(ev.sebConfigKey || '').trim()
+        || !!(ev.sebBrowserExamKey || '').trim(),
+      judul: 'Kunci SEB terisi (Config Key atau Browser Exam Key)',
+      isi: 'Saklar SEB menyala tapi kedua kuncinya kosong — penjagaannya membiarkan semua lewat.',
       aksi: 'Ke Info Dasar',
       tab: 'Info Dasar',
     },

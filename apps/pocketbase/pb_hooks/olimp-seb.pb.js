@@ -226,31 +226,55 @@ routerUse((e) => {
   }
   if (!cfg || !cfg.getBool("enforce")) return e.next();
 
-  const bek = cfg.getString("browserExamKey");
-  // Tanpa Browser Exam Key tidak ada pembanding, jadi tidak ada yang bisa
+  // Satu kotak isian boleh memuat BEBERAPA Browser Exam Key - satu per baris.
+  //
+  // Alasannya: BEK dihitung dari isi berkas .seb DITAMBAH string versi SEB-nya,
+  // jadi SEB Windows, SEB macOS, dan SEB iPad menghasilkan nilai yang berbeda
+  // untuk berkas yang sama persis. Kalau server cuma menerima satu, semua
+  // peserta yang build SEB-nya berbeda dari komputer admin ikut tertolak.
+  //
+  // Config Key TIDAK memuat versi SEB, jadi satu nilai berlaku lintas platform.
+  const pisah = (teks) => String(teks || "")
+    .split(/[\s,;]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => /^[0-9a-f]{64}$/.test(s));
+
+  const beks = pisah(cfg.getString("browserExamKey"));
+  const configKey = pisah(cfg.getString("configKey"))[0] || "";
+
+  // Tanpa satu pun kunci tidak ada pembanding, jadi tidak ada yang bisa
   // dibuktikan. Membiarkan lewat lebih jujur daripada menolak semua orang atas
   // dasar yang tidak bisa diperiksa - dan halaman pengaturan admin sudah
   // memperingatkan bahwa penjagaannya belum benar-benar hidup.
-  if (!bek) return e.next();
+  if (!beks.length && !configKey) return e.next();
 
-  const kiriman = e.request.header.get("X-SafeExamBrowser-RequestHash") || "";
-  if (!kiriman) {
+  const hashBek = e.request.header.get("X-SafeExamBrowser-RequestHash") || "";
+  const hashConfig = e.request.header.get("X-SafeExamBrowser-ConfigKeyHash") || "";
+  if (!hashBek && !hashConfig) {
     return e.json(403, {
       message: "Soal Web Olimp hanya bisa dibuka lewat Safe Exam Browser. Jalankan berkas konfigurasi yang kamu unduh dari halaman akunmu.",
       kode: "SEB_REQUIRED",
     });
   }
 
-  // SEB menghitung SHA256(alamat lengkap + Browser Exam Key). Alamat lengkapnya
-  // harus persis seperti yang diminta peramban, termasuk query string-nya.
+  // SEB menghitung SHA256(alamat lengkap + kunci). Alamat lengkapnya harus
+  // persis seperti yang diminta peramban, termasuk query string-nya.
   const penuh =
     (e.request.tls ? "https" : "http") + "://" + e.request.host + e.request.url.requestURI();
-  if ($security.sha256(penuh + bek).toLowerCase() !== kiriman.toLowerCase()) {
-    return e.json(403, {
-      message: "Berkas konfigurasi SEB yang kamu pakai tidak cocok dengan yang terpasang di server. Unduh ulang dari halaman akunmu.",
-      kode: "SEB_MISMATCH",
-    });
+
+  if (configKey && hashConfig
+      && $security.sha256(penuh + configKey).toLowerCase() === hashConfig.toLowerCase()) {
+    return e.next();
+  }
+  if (hashBek) {
+    const diminta = hashBek.toLowerCase();
+    for (let i = 0; i < beks.length; i += 1) {
+      if ($security.sha256(penuh + beks[i]).toLowerCase() === diminta) return e.next();
+    }
   }
 
-  return e.next();
+  return e.json(403, {
+    message: "Berkas konfigurasi SEB yang kamu pakai belum terdaftar di server. Beri tahu admin versi SEB yang kamu pakai (Windows/Mac/iPad) supaya kuncinya ditambahkan.",
+    kode: "SEB_MISMATCH",
+  });
 });
