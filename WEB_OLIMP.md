@@ -333,12 +333,16 @@ Semuanya sudah punya tempat di kode dan database, jadi tidak perlu bongkar ulang
 ## Cara mencobanya
 
 ```bash
-# 1. migrasi database (struktur + isi contoh)
-npm run migrations:up --prefix apps/pocketbase
-
-# 2. jalankan PocketBase + web
+# Jalankan PocketBase + web. Migrasi (struktur + isi contoh) diterapkan
+# sendiri oleh PocketBase saat dinyalakan - tidak ada langkah terpisah.
 npm run dev
 ```
+
+> Di server, yang dipakai adalah `bash /opt/pcv/kons/deploy/update.sh`, yang
+> me-restart PocketBase dan dengan begitu menjalankan migrasinya.
+> `npm run migrations:up` bukan bagian dari alur mana pun — ia menunjuk
+> `./pb_data` di dalam repo dan cuma pintu darurat kalau migrasi otomatisnya
+> gagal.
 
 Lalu:
 

@@ -325,9 +325,20 @@ dengan sebab yang jelas, bukan keluhan "opsi A kosong" yang menyesatkan.
 
 ## Menjalankan migrasinya
 
+**Tidak ada perintah migrasi terpisah.** PocketBase menerapkan semua migrasi
+yang belum jalan secara otomatis waktu dinyalakan. Di server, cukup:
+
 ```bash
-npm run migrations:up --prefix apps/pocketbase
+bash /opt/pcv/kons/deploy/update.sh
 ```
 
-Selama migrasi belum dijalankan, tab Event/Lomba di dashboard menampilkan
-peringatan yang menyebutkan perintah di atas, bukan galat mentah.
+Skrip itu menarik kode terbaru, membangun ulang web, lalu me-restart PocketBase —
+dan restart itulah yang menjalankan migrasinya.
+
+> Jangan memakai `npm run migrations:up`. Skrip itu menunjuk `./pb_data` di
+> dalam repo, bukan data sungguhan di `/opt/pcv/pb_data`, jadi ia gagal dengan
+> `invalid settings db data or missing encryption key ""`. Ia cuma pintu darurat
+> untuk pengembangan lokal, bukan bagian dari alur deploy.
+
+Selama migrasi belum jalan, tab Event/Lomba di dashboard menampilkan peringatan
+yang menyebutkan langkah di atas, bukan galat mentah.
