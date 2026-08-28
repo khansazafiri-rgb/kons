@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Flame, LogOut, Medal, Moon, Sun, UserRound } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, isAdminRole } from '@/context/AuthContext';
 import pb from '@/lib/pocketbaseClient';
 
 // Logo asli PCV, dari link Google Drive. Kalau link gagal dimuat, jatuh ke
@@ -134,7 +134,7 @@ export default function Header() {
  // sendiri di basis data terpisah, jadi menu di sini cuma akan mengantar
  // mereka ke halaman "masuk dulu" dengan akun yang belum tentu mereka punya.
  // Ajakan mendaftarnya ada di halaman landing Olympiad Program.
- const bolehOlimp = role === 'admin' || role === 'super_admin' || role === 'teacher';
+ const bolehOlimp = isAdminRole(role) || role === 'teacher';
  const [dark, setDark] = useState(() => localStorage.getItem('pcv_theme') === 'dark');
 
  useEffect(() => {
@@ -178,7 +178,7 @@ export default function Header() {
                <span className="inline-flex items-center gap-1.5"><Medal size={13} /> Web Olimp</span>
              </NavLink>
            )}
-           {(role === 'admin' || role === 'super_admin') && <NavLink to="/admin" className={linkCls}>Admin Panel</NavLink>}
+           {isAdminRole(role) && <NavLink to="/admin" className={linkCls}>Admin Panel</NavLink>}
            {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher Panel</NavLink>}
          </nav>
        </div>
@@ -233,7 +233,7 @@ export default function Header() {
          </NavLink>
        ))}
        {bolehOlimp && <NavLink to="/olimp" className={linkCls}>Olimp</NavLink>}
-       {(role === 'admin' || role === 'super_admin') && <NavLink to="/admin" className={linkCls}>Admin</NavLink>}
+       {isAdminRole(role) && <NavLink to="/admin" className={linkCls}>Admin</NavLink>}
        {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher</NavLink>}
      </nav>
    </header>

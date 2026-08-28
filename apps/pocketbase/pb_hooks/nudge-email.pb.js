@@ -19,7 +19,8 @@
 routerAdd("POST", "/api/pcv/nudge", (e) => {
   // ---- 1. Hanya admin yang boleh memicu pengiriman ----------------------
   const auth = e.auth;
-  if (!auth || auth.get("role") !== "admin") {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(auth)) {
     return e.json(403, { message: "Hanya admin yang boleh mengirim email ini." });
   }
 

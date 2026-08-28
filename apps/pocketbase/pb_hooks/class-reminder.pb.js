@@ -103,7 +103,8 @@ cronAdd("pcvClassReminderH1", "0 10 * * *", () => {
 
 routerAdd("POST", "/api/pcv/class-schedule/refresh", (e) => {
   const auth = e.auth;
-  if (!auth || auth.get("role") !== "admin") {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(auth)) {
     return e.json(403, { message: "Hanya admin yang boleh me-refresh jadwal." });
   }
   const { refreshClassSchedules } = require(`${__hooks}/pcv-shared.js`);
@@ -168,7 +169,8 @@ routerAdd("GET", "/api/pcv/version", (e) => {
 // langsung kelihatan di layar, bukan jadi tebak-tebakan.
 routerAdd("POST", "/api/pcv/ical-test", (e) => {
   const auth = e.auth;
-  if (!auth || auth.get("role") !== "admin") {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(auth)) {
     return e.json(403, { message: "Hanya admin yang boleh mengetes link." });
   }
   const body = new DynamicModel({ url: "" });

@@ -43,7 +43,8 @@ onRecordCreateRequest((e) => {
 
   // Admin yang sudah login boleh membuat akun apa pun lewat tab Tambah Akun.
   const auth = e.auth;
-  if (auth && auth.get("role") === "admin") {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (isAdmin(auth)) {
     e.next();
     return;
   }
