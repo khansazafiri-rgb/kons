@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import {
-  STATUS_BAYAR, identitasEvent, panggilEvent, rupiah, sisaWaktuKalimat,
+  STATUS_BAYAR, TIPE_EVENT, identitasEvent, panggilEvent, rupiah, sisaWaktuKalimat,
   tanggalPanjang, tautanWaPembayaran, unduhSebEvent,
 } from '@/lib/eventLomba';
 
@@ -193,7 +193,9 @@ function AjakanDaftar({ ev, identitas }) {
       <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-center">
         <p className="text-sm font-semibold text-red-700">Kuota peserta sudah penuh</p>
         <p className="mt-1 text-[13px] text-red-600">
-          Semua {ev.kuota} kursi sudah terisi.
+          {ev.kuota > 0
+            ? `Semua ${ev.kuota} kursi sudah terisi.`
+            : 'Semua kursi yang tersedia sudah terisi.'}
         </p>
       </div>
     );
@@ -271,6 +273,7 @@ export default function EventDetail() {
     );
   }
 
+  const tipe = TIPE_EVENT[ev.tipe] || TIPE_EVENT.LOMBA;
   const modelWaktu = ev.modelWaktu === 'FIXED_WINDOW'
     ? 'Serentak — semua peserta mengerjakan dalam jendela waktu yang sama'
     : `Timer pribadi ${ev.durasiMenit || 0} menit, dimulai saat kamu menekan Mulai`;
@@ -291,11 +294,16 @@ export default function EventDetail() {
         )}
 
         <header className="mt-6">
-          {ev.subjek && (
-            <span className="inline-flex rounded-full border border-gold-200 bg-gold-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gold-600">
-              {ev.subjek}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${tipe.cls}`}>
+              {tipe.teks}
             </span>
-          )}
+            {ev.subjek && (
+              <span className="inline-flex rounded-full border border-alba-300 bg-alba-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-600">
+                {ev.subjek}
+              </span>
+            )}
+          </div>
           <h1 className="mt-2 font-display text-3xl font-semibold text-stone-800 sm:text-4xl">
             {ev.nama}
           </h1>
@@ -330,14 +338,24 @@ export default function EventDetail() {
                 <Baris icon={CalendarDays} label="Pendaftaran ditutup" isi={tanggalPanjang(ev.tutupPendaftaran)} />
                 <Baris icon={Clock} label="Ujian mulai" isi={tanggalPanjang(ev.mulaiUjian)} />
                 <Baris icon={Clock} label="Ujian selesai" isi={tanggalPanjang(ev.selesaiUjian)} />
-                <Baris icon={Timer} label="Cara pengerjaan" isi={modelWaktu} />
-                <Baris
-                  icon={Users}
-                  label="Peserta"
-                  isi={`${ev.terdaftar} pendaftar`}
-                  catatan={ev.kuota > 0 ? `Kuota ${ev.kuota} orang` : 'Tanpa batas kuota'}
-                />
-                <Baris icon={Trophy} label="Jumlah soal" isi={`${ev.jumlahSoal} soal`} />
+                {/* Cara pengerjaan, jumlah peserta, dan jumlah soal disembunyikan
+                    dari umum (PRD Revisi 2 bagian 3.1). Peserta yang sudah di-ACC
+                    melihatnya, karena mereka memang perlu tahu sebelum mengerjakan
+                    (bagian 3.4) - yang menentukan itu server, bukan halaman ini. */}
+                {ev.tampilkan?.caraPengerjaan && (
+                  <Baris icon={Timer} label="Cara pengerjaan" isi={modelWaktu} />
+                )}
+                {ev.tampilkan?.jumlahPeserta && (
+                  <Baris
+                    icon={Users}
+                    label="Peserta"
+                    isi={`${ev.terdaftar} pendaftar`}
+                    catatan={ev.kuota > 0 ? `Kuota ${ev.kuota} orang` : 'Tanpa batas kuota'}
+                  />
+                )}
+                {ev.tampilkan?.jumlahSoal && (
+                  <Baris icon={Trophy} label="Jumlah soal" isi={`${ev.jumlahSoal} soal`} />
+                )}
                 <Baris
                   icon={ShieldCheck}
                   label="Pengawasan"

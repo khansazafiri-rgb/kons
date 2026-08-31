@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, KeyRound, Mail, Medal } from 'lucide-react';
 import { useOlimpAuth } from '@/context/OlimpAuthContext';
+import { tujuanSetelahMasuk } from '@/lib/returnTo';
 
 // MASUK KE WEB OLIMP
 //
@@ -23,7 +24,9 @@ export default function OlimpLogin() {
     setSibuk(true);
     try {
       await login(email.trim(), password);
-      navigate('/olimp');
+      // Peserta Olimp juga bisa datang dari halaman lomba (Event/Lomba menerima
+      // dua jenis akun), jadi titipan alamatnya dihormati di sini juga.
+      navigate(tujuanSetelahMasuk('/olimp'), { replace: true });
     } catch (err) {
       setError(err?.message || 'Email atau password salah.');
     } finally {

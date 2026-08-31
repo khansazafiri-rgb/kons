@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Loader2, ShieldCheck, Timer,
 } from 'lucide-react';
@@ -49,7 +49,15 @@ function Pesan({ judul, isi, anak }) {
 
 export default function EventUjian() {
   const { slug } = useParams();
+  const [params] = useSearchParams();
   const identitas = identitasEvent();
+
+  // Token dari berkas .seb. Berkas itu membersihkan sesi saat dijalankan
+  // (clearSessionOnStart), jadi di dalam SEB peserta SELALU dalam keadaan
+  // logout - token inilah yang mengenalinya ke server. Tanpa meneruskannya,
+  // peserta yang sudah terdaftar dan sudah di-ACC tetap ditolak "belum
+  // terdaftar" (PRD Revisi 2 bagian 6.2).
+  const token = params.get('t') || '';
 
   const [keadaan, setKeadaan] = useState('memuat'); // memuat|siap|mengerjakan|selesai|galat
   const [pesan, setPesan] = useState('');
@@ -66,14 +74,14 @@ export default function EventUjian() {
   const sudahKumpul = useRef(false);
 
   const detail = useCallback(async () => {
-    const d = await panggilEvent('/api/event/detail', { query: { slug } });
+    const d = await panggilEvent('/api/event/detail', { query: { slug, t: token } });
     setEv(d);
     return d;
-  }, [slug]);
+  }, [slug, token]);
 
   // --- memuat soal (dipanggil setelah "Mulai", dan saat membuka ulang) ---
   const muatSoal = useCallback(async () => {
-    const d = await panggilEvent('/api/event/soal', { query: { slug } });
+    const d = await panggilEvent('/api/event/soal', { query: { slug, t: token } });
     setSoal(d.soal || []);
     const awal = {};
     (d.soal || []).forEach((s) => { if (s.jawabanku) awal[s.id] = s.jawabanku; });
@@ -89,7 +97,7 @@ export default function EventUjian() {
     // putus di tengah tidak perlu menggulung dari nomor satu lagi.
     const pertamaKosong = (d.soal || []).findIndex((s) => !awal[s.id]);
     setNomor(pertamaKosong >= 0 ? pertamaKosong : 0);
-  }, [slug]);
+  }, [slug, token]);
 
   // --- pemuatan awal ---
   useEffect(() => {
@@ -100,7 +108,9 @@ export default function EventUjian() {
         if (!hidup) return;
         setTanggalRilis(d.tanggalRilis || '');
 
-        if (!identitas) { setKeadaan('galat'); setKode('PERLU_MASUK'); return; }
+        // Di dalam SEB tidak ada sesi login sama sekali - yang mengenali
+        // peserta cuma token dari berkas .seb. Jadi cukup salah satu ada.
+        if (!identitas && !token) { setKeadaan('galat'); setKode('PERLU_MASUK'); return; }
         if (!d.saya) { setKeadaan('galat'); setKode('BELUM_DAFTAR'); return; }
         if (d.saya.status !== 'APPROVED') { setKeadaan('galat'); setKode('BELUM_ACC'); return; }
         if (d.saya.sudahKumpul) { sudahKumpul.current = true; setKeadaan('selesai'); return; }
@@ -123,7 +133,7 @@ export default function EventUjian() {
     })();
     return () => { hidup = false; };
     // identitas sengaja tidak masuk daftar: nilainya objek baru tiap render,
-    // dan yang menentukan pemuatan ulang cuma slug-nya.
+    // dan yang menentukan pemuatan ulang cuma slug & tokennya.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail, muatSoal]);
 
@@ -135,7 +145,7 @@ export default function EventUjian() {
     try {
       const hasil = await panggilEvent('/api/event/selesai', {
         method: 'POST',
-        body: { slug, otomatis: !!otomatis },
+        body: { slug, t: token, otomatis: !!otomatis },
       });
       setTanggalRilis(hasil.tanggalRilis || '');
     } catch (_) {
@@ -146,7 +156,7 @@ export default function EventUjian() {
       setSibuk(false);
       setKeadaan('selesai');
     }
-  }, [slug]);
+  }, [slug, token]);
 
   // --- penghitung mundur ---
   useEffect(() => {
@@ -164,6 +174,7 @@ export default function EventUjian() {
         method: 'POST',
         body: {
           slug,
+          t: token,
           deviceId: olimpFingerprint(),
           deviceName: olimpDeviceName(),
           userAgent: navigator.userAgent || '',
@@ -186,7 +197,7 @@ export default function EventUjian() {
     try {
       const hasil = await panggilEvent('/api/event/jawab', {
         method: 'POST',
-        body: { slug, soal: soalId, jawaban: pilih, deviceId: olimpFingerprint() },
+        body: { slug, t: token, soal: soalId, jawaban: pilih, deviceId: olimpFingerprint() },
       });
       // Sisa waktu diselaraskan dari server tiap kali menyimpan - inilah yang
       // membuat jam peramban yang dimajukan tidak berguna.

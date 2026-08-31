@@ -101,8 +101,24 @@ function ms(rec, field) {
 // Field event yang AMAN dibaca siapa pun. Kata sandi & Browser Exam Key
 // sengaja tidak pernah ikut - itu sebabnya collection `events` dikunci untuk
 // admin saja dan halaman publik dilayani lewat endpoint.
-function eventPublik(ev) {
+//
+// `bolehLihatRahasia` membuka tiga keterangan yang PRD Revisi 2 bagian 3 minta
+// disembunyikan dari umum: jumlah soal, cara pengerjaan, dan jumlah peserta.
+// Yang boleh melihatnya cuma admin, dan peserta yang pendaftarannya sudah
+// di-ACC (bagian 3.4 - orang yang sebentar lagi mengerjakan memang perlu tahu
+// "30 soal, 60 menit"). Tiap keterangan juga punya saklarnya sendiri, kalau
+// suatu saat admin ingin membukanya untuk umum di lomba tertentu.
+function eventPublik(ev, bolehLihatRahasia) {
+  const buka = !!bolehLihatRahasia;
+  const bolehSoal = buka || ev.getBool("showQuestionCountPublic");
+  const bolehCara = buka || ev.getBool("showMechanismPublic");
+  const bolehPeserta = buka || ev.getBool("showParticipantCountPublic");
+
   return {
+    // Dipakai halaman web untuk tahu apa yang boleh ia tampilkan, supaya ia
+    // tidak menampilkan "0 soal" untuk angka yang sebenarnya disembunyikan.
+    tampilkan: { jumlahSoal: bolehSoal, caraPengerjaan: bolehCara, jumlahPeserta: bolehPeserta },
+    tipe: ev.getString("eventType") || "LOMBA",
     id: ev.id,
     slug: ev.getString("slug"),
     nama: ev.getString("name"),
@@ -110,15 +126,17 @@ function eventPublik(ev) {
     banner: ev.getString("bannerUrl"),
     deskripsi: ev.getString("description"),
     harga: ev.getInt("price"),
-    kuota: ev.getInt("quota"),
+    // Kuota ikut disembunyikan bersama jumlah peserta - dari kuota orang bisa
+    // menyimpulkan skala lombanya, dan PRD bagian 3.1 menyebut keduanya.
+    kuota: bolehPeserta ? ev.getInt("quota") : null,
     // Tanggal dikirim sebagai ISO supaya new Date(...) di peramban membacanya
     // sama persis di semua mesin.
     bukaPendaftaran: iso(ev, "registrationOpenAt"),
     tutupPendaftaran: iso(ev, "registrationCloseAt"),
     mulaiUjian: iso(ev, "examStartAt"),
     selesaiUjian: iso(ev, "examEndAt"),
-    modelWaktu: ev.getString("timingModel") || "PERSONAL_DURATION",
-    durasiMenit: ev.getInt("durationMinutes"),
+    modelWaktu: bolehCara ? (ev.getString("timingModel") || "PERSONAL_DURATION") : "",
+    durasiMenit: bolehCara ? ev.getInt("durationMinutes") : null,
     waPembayaran: ev.getString("paymentContactWa"),
     aturan: ev.getString("rulesText"),
     status: ev.getString("status"),
@@ -207,6 +225,130 @@ function jendelaUjian(ev, reg, now) {
 // ---------------------------------------------------------------------------
 // Pendaftaran
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Siapa yang sedang mengerjakan: lewat token berkas .seb, atau lewat login
+// ---------------------------------------------------------------------------
+//
+// KENAPA TOKEN ADA, dan kenapa ini penting:
+//
+// Berkas .seb yang kita terbitkan menyalakan clearSessionOnStart dan
+// examSessionClearCookiesOnStart - itu memang disengaja, supaya peserta tidak
+// bisa membawa sesi lain masuk ke ruang ujian. Akibatnya SEB SELALU membuka
+// halaman ujian dalam keadaan LOGOUT.
+//
+// Karena itu alamat mulai di berkas .seb membawa ?t=<sebConfigToken>. Token
+// itulah yang mengenali pendaftaran di dalam SEB - tanpa dia, peserta yang
+// sudah mendaftar dan sudah di-ACC tetap tertolak dengan pesan "belum
+// terdaftar", karena dari sudut pandang server memang tidak ada siapa-siapa
+// di sana. (Ini persis keluhan di PRD Revisi 2 bagian 6.2.)
+//
+// Token diperlakukan sebagai kredensial: acak 40 karakter, unik di database,
+// dan hanya ada di dalam berkas .seb milik satu orang.
+function pendaftaranDariToken(app, token) {
+  const t = String(token || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 60);
+  if (t.length < 20) return null;
+  try {
+    return app.findFirstRecordByData("event_registrations", "sebConfigToken", t);
+  } catch (_) {
+    return null;
+  }
+}
+
+// Menyelesaikan "pendaftaran mana ini" dari salah satu dari dua jalur, lalu
+// memeriksa kelayakannya.
+//
+// Mengembalikan { reg } kalau lolos, atau { tolak: { status, kode, message } }.
+// Kode penolakannya SENGAJA dibedakan satu per satu (PRD Revisi 2 bagian 6.3):
+// "belum login", "belum terdaftar", "belum di-ACC", dan "ditolak" adalah empat
+// keadaan yang berbeda, dan satu pesan generik untuk keempatnya membuat peserta
+// maupun admin tidak tahu harus berbuat apa.
+function pendaftaranUntuk(e, ev, token) {
+  const lewatToken = pendaftaranDariToken(e.app, token);
+  if (lewatToken) {
+    if (lewatToken.getString("event") !== ev.id) {
+      return { tolak: {
+        status: 403,
+        kode: "TOKEN_LOMBA_LAIN",
+        message: "Berkas konfigurasi yang kamu jalankan milik lomba lain. Unduh berkas untuk lomba ini dari halaman pendaftaranmu.",
+      } };
+    }
+    return periksaKelayakan(lewatToken, "token");
+  }
+
+  // Token diberikan tapi tidak dikenali - jangan diam-diam jatuh ke jalur login,
+  // karena pesannya jadi menyesatkan ("masuk dulu" padahal dia sedang di dalam
+  // SEB dan tidak punya cara untuk login).
+  if (String(token || "").trim() !== "") {
+    return { tolak: {
+      status: 403,
+      kode: "TOKEN_TIDAK_DIKENAL",
+      message: "Berkas konfigurasi ini tidak dikenali server - mungkin pendaftarannya sudah dihapus, atau berkasnya sudah lama. Unduh ulang dari halaman lomba.",
+    } };
+  }
+
+  const peserta = pesertaDari(e);
+  if (!peserta) {
+    return { tolak: {
+      status: 401,
+      kode: "PERLU_MASUK",
+      message: "Masuk dulu dengan akunmu untuk membuka lomba ini.",
+    } };
+  }
+  const reg = cariPendaftaran(e.app, ev.id, peserta);
+  if (!reg) {
+    return { tolak: {
+      status: 404,
+      kode: "BELUM_DAFTAR",
+      message: "Akun ini belum terdaftar di lomba tersebut.",
+    } };
+  }
+  return periksaKelayakan(reg, "login");
+}
+
+function periksaKelayakan(reg, jalur) {
+  if (iso(reg, "deletedAt") !== "") {
+    return { tolak: {
+      status: 403,
+      kode: "PENDAFTARAN_DIHAPUS",
+      message: "Pendaftaran ini sudah dihapus admin. Hubungi admin kalau menurutmu ini keliru.",
+    } };
+  }
+  const status = reg.getString("paymentStatus");
+  if (status === "REJECTED") {
+    const alasan = reg.getString("rejectionReason");
+    return { tolak: {
+      status: 403,
+      kode: "DITOLAK",
+      message: "Pendaftaranmu untuk lomba ini ditolak admin."
+        + (alasan ? " Alasan: " + alasan : ""),
+    } };
+  }
+  if (status !== "APPROVED") {
+    return { tolak: {
+      status: 403,
+      kode: "BELUM_ACC",
+      message: status === "PENDING_PAYMENT"
+        ? "Pembayaranmu belum dikonfirmasi admin, jadi pendaftaranmu belum disetujui."
+        : "Pendaftaranmu untuk lomba ini belum disetujui admin.",
+    } };
+  }
+  return { reg, jalur };
+}
+
+// Catatan diagnostik saat sebuah permintaan ujian ditolak (PRD Revisi 2 bagian
+// 6.3). Ditulis ke log server, BUKAN dikirim ke peserta - isinya untuk admin
+// yang menelusuri keluhan, dan peserta sudah dapat pesannya sendiri.
+function catatTolakan(ev, tolak, tambahan) {
+  try {
+    console.log("[event-seb] ditolak: " + JSON.stringify({
+      lomba: ev ? ev.getString("slug") : "?",
+      kode: tolak.kode,
+      status: tolak.status,
+      detail: tambahan || {},
+    }));
+  } catch (_) { /* log tidak boleh menjatuhkan permintaan */ }
+}
+
 function cariPendaftaran(app, eventId, peserta) {
   if (!peserta) return null;
   const ev = amanId(eventId);
@@ -232,10 +374,11 @@ function hitungTerdaftar(app, eventId) {
   if (!ev) return 0;
   try {
     // Yang menghabiskan kuota: yang sudah bayar/di-ACC dan yang masih menunggu
-    // pembayaran. Yang ditolak & dibatalkan mengembalikan kursinya.
+    // pembayaran. Yang ditolak, dibatalkan, dan dihapus mengembalikan kursinya.
     return app.findRecordsByFilter(
       "event_registrations",
-      "event = '" + ev + "' && paymentStatus != 'REJECTED' && paymentStatus != 'CANCELLED'",
+      "event = '" + ev + "' && paymentStatus != 'REJECTED' && paymentStatus != 'CANCELLED'"
+      + " && deletedAt = ''",
       "",
       0,
       0,
@@ -402,6 +545,9 @@ module.exports = {
   batasWaktu,
   jendelaUjian,
   cariPendaftaran,
+  pendaftaranDariToken,
+  pendaftaranUntuk,
+  catatTolakan,
   hitungTerdaftar,
   soalEvent,
   sebSetelan,

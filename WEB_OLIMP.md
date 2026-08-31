@@ -330,6 +330,31 @@ Semuanya sudah punya tempat di kode dan database, jadi tidak perlu bongkar ulang
 
 ---
 
+## Revisi 2 — yang menyentuh Web Olimp
+
+Sebagian besar Revisi 2 mengenai modul Event/Lomba (catatannya di
+`EVENT_LOMBA.md`). Tiga hal ikut mengubah Web Olimp:
+
+**Email peserta kini terbaca admin.** Kolom email di Dashboard Olimp → Peserta
+dulu selalu kosong. Bukan karena datanya hilang: PocketBase menyembunyikan field
+`email` sebuah akun dari semua pembaca kecuali pemiliknya sendiri dan superuser,
+kecuali `emailVisibility` dinyalakan pada baris akunnya — dan admin masuk sebagai
+akun `users` biasa, bukan superuser. `OlimpSignup.jsx` sekarang menyalakannya
+untuk pendaftar baru; migrasi `1786900000_email_terlihat_admin.js` menyalakannya
+untuk akun yang sudah terlanjur ada.
+
+**Hapus peserta.** Tombol Hapus di daftar peserta menandai `deletedAt`, bukan
+membuang barisnya — peringkat dan hasil lama tetap utuh. Yang menutup pintu
+masuknya adalah `authRule` (`deletedAt = ''`) pada `olimp_users`, dipasang oleh
+migrasi `1786800000_revisi2_event_akun.js`; tanpa itu akun "yang sudah dihapus"
+masih bisa login seperti biasa.
+
+**`return_to` di `/olimp/masuk`.** Peserta yang membuka halaman ber-login lalu
+diminta masuk dikembalikan ke halaman asalnya, bukan ke beranda Olimp. Hanya
+alamat internal yang diterima — lihat `lib/returnTo.js`.
+
+---
+
 ## Cara mencobanya
 
 ```bash

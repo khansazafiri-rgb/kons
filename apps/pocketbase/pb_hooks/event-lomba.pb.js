@@ -49,10 +49,14 @@ routerAdd("GET", "/api/event/list", (e) => {
     return e.json(200, { terpasang: false, event: [] });
   }
 
+  // Di halaman daftar, keterangan yang disembunyikan (jumlah soal & peserta)
+  // hanya dibuka untuk admin - peserta yang sudah di-ACC melihatnya nanti di
+  // halaman detail lombanya sendiri, bukan di daftar semua lomba.
+  const adminPcv = H.isAdminPcv(e);
   const isi = daftar.map((ev) => {
-    const p = H.eventPublik(ev);
-    p.jumlahSoal = H.soalEvent(e.app, ev.id).length;
-    p.terdaftar = H.hitungTerdaftar(e.app, ev.id);
+    const p = H.eventPublik(ev, adminPcv);
+    if (p.tampilkan.jumlahSoal) p.jumlahSoal = H.soalEvent(e.app, ev.id).length;
+    if (p.tampilkan.jumlahPeserta) p.terdaftar = H.hitungTerdaftar(e.app, ev.id);
     p.fasePendaftaran = H.fasePendaftaran(ev, Date.now());
     return p;
   });
@@ -74,32 +78,47 @@ routerAdd("GET", "/api/event/detail", (e) => {
   }
 
   const now = Date.now();
-  const isi = H.eventPublik(ev);
-  isi.jumlahSoal = H.soalEvent(e.app, ev.id).length;
-  isi.terdaftar = H.hitungTerdaftar(e.app, ev.id);
-  isi.fasePendaftaran = H.fasePendaftaran(ev, now);
-  const kuota = ev.getInt("quota");
-  isi.kuotaPenuh = kuota > 0 && isi.terdaftar >= kuota;
+  const adminPcv = H.isAdminPcv(e);
 
   // Keadaan orang yang sedang membuka - yang membuat tombol di halaman detail
   // tahu harus bilang "Daftar Sekarang" atau "Masuk Ujian".
+  //
+  // Dicari LEBIH DULU daripada menyusun jawabannya, karena peserta yang sudah
+  // di-ACC berhak melihat keterangan yang disembunyikan dari umum (PRD Revisi 2
+  // bagian 3.4) - jadi hasil pencarian ini ikut menentukan isi jawabannya.
   const peserta = H.pesertaDari(e);
+  const lewatToken = H.pendaftaranDariToken(e.app, e.request.url.query().get("t"));
+  const regSaya = (lewatToken && lewatToken.getString("event") === ev.id)
+    ? lewatToken
+    : (peserta ? H.cariPendaftaran(e.app, ev.id, peserta) : null);
+  const sudahAcc = !!regSaya
+    && regSaya.getString("paymentStatus") === "APPROVED"
+    && H.iso(regSaya, "deletedAt") === "";
+
+  const isi = H.eventPublik(ev, adminPcv || sudahAcc);
+  if (isi.tampilkan.jumlahSoal) isi.jumlahSoal = H.soalEvent(e.app, ev.id).length;
+  const terdaftar = H.hitungTerdaftar(e.app, ev.id);
+  if (isi.tampilkan.jumlahPeserta) isi.terdaftar = terdaftar;
+  isi.fasePendaftaran = H.fasePendaftaran(ev, now);
+  // Kuota penuh TETAP diberitahukan walau angkanya disembunyikan - calon
+  // peserta harus tahu pendaftarannya sudah tidak bisa, dan itu tidak
+  // membocorkan jumlahnya.
+  const kuota = ev.getInt("quota");
+  isi.kuotaPenuh = kuota > 0 && terdaftar >= kuota;
+
   let saya = null;
-  if (peserta) {
-    const reg = H.cariPendaftaran(e.app, ev.id, peserta);
-    if (reg) {
-      const jendela = H.jendelaUjian(ev, reg, now);
-      saya = {
-        pendaftaranId: reg.id,
-        status: reg.getString("paymentStatus"),
-        alasanTolak: reg.getString("rejectionReason"),
-        sudahMulai: H.iso(reg, "examStartedAt") !== "",
-        sudahKumpul: H.iso(reg, "examSubmittedAt") !== "",
-        deviceTerkunci: reg.getString("deviceId") !== "",
-        bolehUjian: jendela.boleh,
-        kodeJendela: jendela.kode,
-      };
-    }
+  if (regSaya && H.iso(regSaya, "deletedAt") === "") {
+    const jendela = H.jendelaUjian(ev, regSaya, now);
+    saya = {
+      pendaftaranId: regSaya.id,
+      status: regSaya.getString("paymentStatus"),
+      alasanTolak: regSaya.getString("rejectionReason"),
+      sudahMulai: H.iso(regSaya, "examStartedAt") !== "",
+      sudahKumpul: H.iso(regSaya, "examSubmittedAt") !== "",
+      deviceTerkunci: regSaya.getString("deviceId") !== "",
+      bolehUjian: jendela.boleh,
+      kodeJendela: jendela.kode,
+    };
   }
   isi.saya = saya;
   isi.login = peserta ? peserta.kind : null;
@@ -178,9 +197,15 @@ routerAdd("POST", "/api/event/register", (e) => {
   reg.set("rank", null);
   // Token unduhan berkas .seb - personal, jadi berkas orang lain tidak bisa
   // diambil dengan menebak alamat.
+  // Token dibuat SEKALI dan tidak pernah diganti selama pendaftarannya hidup
+  // (PRD Revisi 2 bagian 6.3). Kalau ia digenerate ulang tiap kali, berkas .seb
+  // yang sudah terlanjur diunduh peserta mendadak tidak berlaku tanpa sebab
+  // yang bisa mereka lihat.
   if (!reg.getString("sebConfigToken")) {
     reg.set("sebConfigToken", $security.randomString(40));
+    reg.set("configTokenGeneratedAt", new Date().toISOString());
   }
+  reg.set("deletedAt", null);
   e.app.save(reg);
 
   return e.json(200, {
@@ -201,22 +226,19 @@ routerAdd("POST", "/api/event/register", (e) => {
 routerAdd("GET", "/api/event/seb-config", (e) => {
   const H = require(`${__hooks}/event-shared.js`);
 
-  const peserta = H.pesertaDari(e);
-  if (!peserta) {
-    return e.json(401, { message: "Masuk dulu untuk mengunduh berkas konfigurasi." });
-  }
   const ev = H.cariEventBySlug(e.app, e.request.url.query().get("slug"));
   if (!ev) return e.json(404, { message: "Lomba tidak ditemukan." });
 
-  const reg = H.cariPendaftaran(e.app, ev.id, peserta);
-  if (!reg) return e.json(404, { message: "Kamu belum terdaftar di lomba ini." });
-  // PRD bagian 5.3: config baru boleh diambil setelah pendaftarannya di-ACC.
-  if (reg.getString("paymentStatus") !== "APPROVED") {
-    return e.json(403, {
-      message: "Berkas konfigurasi baru bisa diunduh setelah pendaftaranmu disetujui admin.",
-      kode: "BELUM_ACC",
-    });
+  // Berkasnya diunduh dari web sambil login biasa, bukan dari dalam SEB - jadi
+  // di sini tidak ada jalur token. Pesan penolakannya tetap yang spesifik
+  // (PRD Revisi 2 bagian 6.3), supaya "belum di-ACC" tidak tertukar dengan
+  // "belum terdaftar".
+  const siapa = H.pendaftaranUntuk(e, ev, "");
+  if (siapa.tolak) {
+    H.catatTolakan(ev, siapa.tolak, { langkah: "unduh-config" });
+    return e.json(siapa.tolak.status, siapa.tolak);
   }
+  const reg = siapa.reg;
 
   const setelan = H.sebSetelan(e.app, ev);
   const appUrl = (e.app.settings().meta.appURL || "").replace(/\/+$/, "");
@@ -289,13 +311,24 @@ routerAdd("GET", "/api/event/seb-config", (e) => {
     "  <key>examSessionClearCookiesOnStart</key><true/>\n" +
     "</dict>\n</plist>\n";
 
+  // Jejak untuk menelusuri keluhan "berkas saya ditolak" (PRD Revisi 2 bagian
+  // 6.2): kapan berkas ini terakhir diunduh. Kegagalan menyimpannya tidak boleh
+  // menggagalkan unduhannya - itu cuma catatan.
+  try {
+    reg.set("configLastDownloadedAt", new Date().toISOString());
+    if (!reg.getString("configTokenGeneratedAt")) {
+      reg.set("configTokenGeneratedAt", new Date().toISOString());
+    }
+    e.app.save(reg);
+  } catch (_) { /* catatan diagnostik, bukan bagian dari alurnya */ }
+
   const bersih = (s) =>
     String(s || "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
 
   e.response.header().set("Content-Type", "application/seb");
   e.response.header().set(
     "Content-Disposition",
-    'attachment; filename="' + bersih(slug) + "-" + bersih(peserta.nama || "peserta") + '.seb"',
+    'attachment; filename="' + bersih(slug) + "-" + bersih(reg.getString("pesertaNama") || "peserta") + '.seb"',
   );
   return e.string(200, plist);
 });
@@ -306,26 +339,31 @@ routerAdd("GET", "/api/event/seb-config", (e) => {
 routerAdd("POST", "/api/event/mulai", (e) => {
   const H = require(`${__hooks}/event-shared.js`);
 
-  const peserta = H.pesertaDari(e);
-  if (!peserta) return e.json(401, { message: "Masuk dulu untuk mengerjakan lomba." });
-
   const body = e.requestInfo().body || {};
   const ev = H.cariEventBySlug(e.app, body.slug);
   if (!ev) return e.json(404, { message: "Lomba tidak ditemukan." });
 
-  const reg = H.cariPendaftaran(e.app, ev.id, peserta);
-  if (!reg) return e.json(404, { message: "Kamu belum terdaftar di lomba ini." });
-  if (reg.getString("paymentStatus") !== "APPROVED") {
-    return e.json(403, { message: "Pendaftaranmu belum disetujui admin.", kode: "BELUM_ACC" });
+  // Token berkas .seb didahulukan: di dalam SEB sesinya memang kosong.
+  const siapa = H.pendaftaranUntuk(e, ev, body.t);
+  if (siapa.tolak) {
+    H.catatTolakan(ev, siapa.tolak, { langkah: "mulai" });
+    return e.json(siapa.tolak.status, siapa.tolak);
   }
+  const reg = siapa.reg;
 
   const setelan = H.sebSetelan(e.app, ev);
   const tolakSeb = H.periksaSeb(e, ev, setelan);
-  if (tolakSeb) return e.json(403, tolakSeb);
+  if (tolakSeb) {
+    H.catatTolakan(ev, tolakSeb, { langkah: "mulai", pendaftaran: reg.id });
+    return e.json(403, tolakSeb);
+  }
 
   const now = Date.now();
   const jendela = H.jendelaUjian(ev, reg, now);
-  if (!jendela.boleh) return e.json(403, { message: jendela.pesan, kode: jendela.kode });
+  if (!jendela.boleh) {
+    H.catatTolakan(ev, { kode: jendela.kode, status: 403 }, { langkah: "mulai", pendaftaran: reg.id });
+    return e.json(403, { message: jendela.pesan, kode: jendela.kode });
+  }
 
   // --- Kunci device, PER PENDAFTARAN (PRD bagian 6) ---
   //
@@ -339,6 +377,11 @@ routerAdd("POST", "/api/event/mulai", (e) => {
     return e.json(400, { message: "Penanda perangkat tidak terbaca. Muat ulang halamannya." });
   }
   if (terkunci && terkunci !== sidik) {
+    H.catatTolakan(ev, { kode: "DEVICE_LAIN", status: 403 }, {
+      langkah: "mulai",
+      pendaftaran: reg.id,
+      resetDibuka: reg.getBool("deviceResetPending"),
+    });
     if (reg.getBool("deviceResetPending")) {
       // Admin sudah menyetujui penggantian perangkat - device baru menggantikan
       // yang lama, lalu izinnya ditutup lagi supaya tidak bisa dipakai berulang.
@@ -379,21 +422,22 @@ routerAdd("POST", "/api/event/mulai", (e) => {
 routerAdd("GET", "/api/event/soal", (e) => {
   const H = require(`${__hooks}/event-shared.js`);
 
-  const peserta = H.pesertaDari(e);
-  if (!peserta) return e.json(401, { message: "Masuk dulu untuk mengerjakan lomba." });
-
   const ev = H.cariEventBySlug(e.app, e.request.url.query().get("slug"));
   if (!ev) return e.json(404, { message: "Lomba tidak ditemukan." });
 
-  const reg = H.cariPendaftaran(e.app, ev.id, peserta);
-  if (!reg) return e.json(404, { message: "Kamu belum terdaftar di lomba ini." });
-  if (reg.getString("paymentStatus") !== "APPROVED") {
-    return e.json(403, { message: "Pendaftaranmu belum disetujui admin.", kode: "BELUM_ACC" });
+  const siapa = H.pendaftaranUntuk(e, ev, e.request.url.query().get("t"));
+  if (siapa.tolak) {
+    H.catatTolakan(ev, siapa.tolak, { langkah: "soal" });
+    return e.json(siapa.tolak.status, siapa.tolak);
   }
+  const reg = siapa.reg;
 
   const setelan = H.sebSetelan(e.app, ev);
   const tolakSeb = H.periksaSeb(e, ev, setelan);
-  if (tolakSeb) return e.json(403, tolakSeb);
+  if (tolakSeb) {
+    H.catatTolakan(ev, tolakSeb, { langkah: "soal", pendaftaran: reg.id });
+    return e.json(403, tolakSeb);
+  }
 
   const now = Date.now();
   const jendela = H.jendelaUjian(ev, reg, now);
@@ -471,22 +515,23 @@ routerAdd("GET", "/api/event/soal", (e) => {
 routerAdd("POST", "/api/event/jawab", (e) => {
   const H = require(`${__hooks}/event-shared.js`);
 
-  const peserta = H.pesertaDari(e);
-  if (!peserta) return e.json(401, { message: "Masuk dulu untuk mengerjakan lomba." });
-
   const body = e.requestInfo().body || {};
   const ev = H.cariEventBySlug(e.app, body.slug);
   if (!ev) return e.json(404, { message: "Lomba tidak ditemukan." });
 
-  const reg = H.cariPendaftaran(e.app, ev.id, peserta);
-  if (!reg) return e.json(404, { message: "Kamu belum terdaftar di lomba ini." });
-  if (reg.getString("paymentStatus") !== "APPROVED") {
-    return e.json(403, { message: "Pendaftaranmu belum disetujui admin.", kode: "BELUM_ACC" });
+  const siapa = H.pendaftaranUntuk(e, ev, body.t);
+  if (siapa.tolak) {
+    H.catatTolakan(ev, siapa.tolak, { langkah: "jawab" });
+    return e.json(siapa.tolak.status, siapa.tolak);
   }
+  const reg = siapa.reg;
 
   const setelan = H.sebSetelan(e.app, ev);
   const tolakSeb = H.periksaSeb(e, ev, setelan);
-  if (tolakSeb) return e.json(403, tolakSeb);
+  if (tolakSeb) {
+    H.catatTolakan(ev, tolakSeb, { langkah: "jawab", pendaftaran: reg.id });
+    return e.json(403, tolakSeb);
+  }
 
   // Device yang mengerjakan harus device yang sama dengan yang dikunci saat
   // menekan Mulai - kalau tidak, berkas konfigurasi yang diteruskan ke teman
@@ -494,9 +539,10 @@ routerAdd("POST", "/api/event/jawab", (e) => {
   const sidik = String(body.deviceId || "").slice(0, 200);
   const terkunci = reg.getString("deviceId");
   if (terkunci && sidik && terkunci !== sidik) {
+    H.catatTolakan(ev, { kode: "DEVICE_LAIN", status: 403 }, { langkah: "jawab", pendaftaran: reg.id });
     return e.json(403, {
       kode: "DEVICE_LAIN",
-      message: "Perangkat ini bukan perangkat yang dipakai memulai ujian.",
+      message: "Perangkat ini bukan perangkat yang dipakai memulai ujian. Kalau kamu memang berganti perangkat, minta admin melakukan Reset Perangkat untuk lomba ini.",
     });
   }
 
@@ -550,15 +596,16 @@ routerAdd("POST", "/api/event/jawab", (e) => {
 routerAdd("POST", "/api/event/selesai", (e) => {
   const H = require(`${__hooks}/event-shared.js`);
 
-  const peserta = H.pesertaDari(e);
-  if (!peserta) return e.json(401, { message: "Masuk dulu untuk mengerjakan lomba." });
-
   const body = e.requestInfo().body || {};
   const ev = H.cariEventBySlug(e.app, body.slug);
   if (!ev) return e.json(404, { message: "Lomba tidak ditemukan." });
 
-  const reg = H.cariPendaftaran(e.app, ev.id, peserta);
-  if (!reg) return e.json(404, { message: "Kamu belum terdaftar di lomba ini." });
+  const siapa = H.pendaftaranUntuk(e, ev, body.t);
+  if (siapa.tolak) {
+    H.catatTolakan(ev, siapa.tolak, { langkah: "selesai" });
+    return e.json(siapa.tolak.status, siapa.tolak);
+  }
+  const reg = siapa.reg;
 
   // Mengumpulkan dua kali tidak dianggap galat: peramban yang mengirim ulang
   // karena koneksi putus tidak boleh melihat pesan error yang menakutkan.
@@ -599,13 +646,16 @@ routerAdd("GET", "/api/event/hasil", (e) => {
   }
 
   const reg = H.cariPendaftaran(e.app, ev.id, peserta);
-  if (!reg) return e.json(404, { message: "Kamu tidak terdaftar di lomba ini." });
+  if (!reg || H.iso(reg, "deletedAt") !== "") {
+    return e.json(404, { kode: "BELUM_DAFTAR", message: "Akun ini tidak terdaftar di lomba tersebut." });
+  }
 
   let peringkatTotal = 0;
   try {
     peringkatTotal = e.app.findRecordsByFilter(
       "event_registrations",
-      "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''",
+      "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''"
+      + " && deletedAt = ''",
       "",
       0,
       0,
@@ -644,7 +694,8 @@ routerAdd("GET", "/api/event/peringkat", (e) => {
   try {
     baris = e.app.findRecordsByFilter(
       "event_registrations",
-      "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''",
+      "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''"
+      + " && deletedAt = ''",
       "rank",
       100,
       0,
@@ -700,7 +751,7 @@ routerAdd("POST", "/api/event/rilis", (e) => {
   try {
     baris = e.app.findRecordsByFilter(
       "event_registrations",
-      "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED'",
+      "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && deletedAt = ''",
       "",
       0,
       0,

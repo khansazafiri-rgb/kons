@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, Download, Laptop, RotateCcw, Search, Wallet, X } from 'lucide-react';
+import { Check, Download, Laptop, RotateCcw, Search, Trash2, Wallet, X } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { STATUS_BAYAR, tanggalPendek } from '@/lib/eventLomba';
+import { hapusLunak, konfirmasiHapus, yangAktif } from '@/lib/akun';
 
 // TAB 3 - PESERTA (PRD bagian 9.2)
 //
@@ -41,7 +42,9 @@ export default function EventPesertaTab({ ev }) {
   const muat = useCallback(() => {
     pb.collection('event_registrations')
       .getFullList({ filter: `event = "${ev.id}"`, sort: '-created' })
-      .then((r) => {
+      .then((semua) => {
+        // Pendaftaran yang sudah dihapus admin tidak ikut ditampilkan.
+        const r = yangAktif(semua);
         setBaris(r);
         setPertama((awal) => {
           if (!awal) return false;
@@ -100,6 +103,24 @@ export default function EventPesertaTab({ ev }) {
   const resetDevice = (r) => {
     if (!window.confirm(`Izinkan ${r.pesertaNama || r.pesertaEmail} memakai perangkat baru untuk lomba ini?`)) return;
     simpan(r, { deviceResetPending: true });
+  };
+
+  // Hapus LUNAK sebuah pendaftaran. Tokennya ikut mati seketika: server
+  // menolak token milik pendaftaran yang bertanda terhapus, jadi berkas .seb
+  // yang sudah terlanjur diunduh tidak bisa dipakai lagi (PRD Revisi 2 bagian 7.3).
+  const hapus = async (r) => {
+    if (!window.confirm(konfirmasiHapus(r.pesertaEmail || r.pesertaNama || 'pendaftar ini', 'pendaftaran'))) return;
+    setSibuk(r.id);
+    setError('');
+    try {
+      await hapusLunak('event_registrations', r.id);
+      setBaris((lama) => (lama || []).filter((x) => x.id !== r.id));
+      if (buka?.id === r.id) setBuka(null);
+    } catch (err) {
+      setError('Gagal menghapus pendaftaran: ' + (err?.message || ''));
+    } finally {
+      setSibuk('');
+    }
   };
 
   const accSemua = async () => {
@@ -283,6 +304,15 @@ export default function EventPesertaTab({ ev }) {
                 )}
                 <button onClick={() => setBuka(buka?.id === r.id ? null : r)} className="rounded-lg px-3 py-1.5 text-[12px] font-semibold text-maroon-600 hover:bg-maroon-50">
                   {buka?.id === r.id ? 'Tutup detail' : 'Detail'}
+                </button>
+                <button
+                  onClick={() => hapus(r)}
+                  disabled={kerja}
+                  title="Hapus pendaftaran ini"
+                  aria-label={`Hapus pendaftaran ${r.pesertaEmail || r.pesertaNama}`}
+                  className="ml-auto rounded-lg p-1.5 text-stone-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
                 </button>
               </div>
 

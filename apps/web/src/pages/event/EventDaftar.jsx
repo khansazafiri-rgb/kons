@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, LogIn, Wallet } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import { identitasEvent, panggilEvent, rupiah, tautanWaPembayaran } from '@/lib/eventLomba';
+import { tautanMasuk } from '@/lib/returnTo';
 
 // FORMULIR PENDAFTARAN LOMBA (/event/:slug/daftar)
 //
@@ -20,7 +21,9 @@ const inputCls =
 // Belum login: peserta bisa datang dari dua ekosistem akun, jadi keduanya
 // ditawarkan apa adanya daripada menebak yang mana yang dia punya.
 function PerluMasuk({ slug }) {
-  const tujuan = encodeURIComponent(`/event/${slug}/daftar`);
+  // Dua-duanya membawa titipan alamat, jadi setelah masuk orangnya kembali ke
+  // formulir ini - bukan terlempar ke beranda platform asal akunnya.
+  const kembali = `/event/${slug}/daftar`;
   return (
     <div className="rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
       <h2 className="font-display text-lg font-semibold text-stone-800">Masuk dulu untuk mendaftar</h2>
@@ -30,7 +33,7 @@ function PerluMasuk({ slug }) {
       </p>
       <div className="mt-4 space-y-2.5">
         <Link
-          to={`/login?next=${tujuan}`}
+          to={tautanMasuk('/login', kembali)}
           className="flex items-center justify-between rounded-xl border border-maroon-200 bg-maroon-50/50 px-4 py-3 transition-colors hover:border-maroon-300"
         >
           <span>
@@ -40,7 +43,7 @@ function PerluMasuk({ slug }) {
           <ArrowRight size={16} className="shrink-0 text-maroon-600" />
         </Link>
         <Link
-          to="/olimp/masuk"
+          to={tautanMasuk('/olimp/masuk', kembali)}
           className="flex items-center justify-between rounded-xl border border-alba-300 px-4 py-3 transition-colors hover:border-maroon-300"
         >
           <span>
@@ -51,7 +54,7 @@ function PerluMasuk({ slug }) {
         </Link>
       </div>
       <p className="mt-4 text-[12px] leading-relaxed text-stone-500">
-        Belum punya keduanya? <Link to="/signup" className="font-semibold text-maroon-600 hover:underline">Daftar akun PCV dulu</Link>,
+        Belum punya keduanya? <Link to={tautanMasuk('/signup', kembali)} className="font-semibold text-maroon-600 hover:underline">Daftar akun PCV dulu</Link>,
         lalu kembali ke halaman ini.
       </p>
     </div>

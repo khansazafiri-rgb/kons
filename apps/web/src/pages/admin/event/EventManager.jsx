@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Copy, ExternalLink, Plus, Search, Trophy } from 'lucide-react';
+import { ArrowLeft, Copy, Eye, ExternalLink, Plus, Search, Trophy } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { STATUS_EVENT, buatSlug, rupiah, tanggalPendek } from '@/lib/eventLomba';
@@ -8,6 +8,7 @@ import EventSoalTab from '@/pages/admin/event/EventSoalTab';
 import EventPesertaTab from '@/pages/admin/event/EventPesertaTab';
 import EventHasilTab from '@/pages/admin/event/EventHasilTab';
 import EventPublishTab from '@/pages/admin/event/EventPublishTab';
+import EventPreview from '@/pages/admin/event/EventPreview';
 
 // DASHBOARD EVENT/LOMBA - tab "Event/Lomba" di Dashboard Admin PCV.
 //
@@ -46,6 +47,12 @@ function eventBaru() {
   return {
     name: '',
     slug: '',
+    eventType: 'LOMBA',
+    // Tiga keterangan yang PRD Revisi 2 bagian 3 minta disembunyikan dari umum.
+    // Lahir mati = tersembunyi; admin yang membukanya kalau memang perlu.
+    showQuestionCountPublic: false,
+    showMechanismPublic: false,
+    showParticipantCountPublic: false,
     subject: '',
     bannerUrl: '',
     description: '',
@@ -134,6 +141,9 @@ export default function EventManager() {
   const [saring, setSaring] = useState('');
   const [buka, setBuka] = useState(null);
   const [tab, setTab] = useState('Info Dasar');
+  // Preview tersedia di SEMUA status, termasuk DRAFT - justru di situ gunanya
+  // (PRD Revisi 2 bagian 4.2).
+  const [pratinjau, setPratinjau] = useState(false);
   const [error, setError] = useState('');
   const [belumTerpasang, setBelumTerpasang] = useState(false);
 
@@ -207,7 +217,8 @@ export default function EventManager() {
         'durationMinutes', 'paymentContactWa', 'rulesText', 'resultsReleaseMode',
         'showExplanationAfterRelease', 'leaderboardPublic', 'leaderboardDisplay',
         'sebRequired', 'sebQuitPassword', 'sebAdminPassword', 'sebAllowedUrls',
-        'sebAllowCalculator',
+        'sebAllowCalculator', 'eventType',
+        'showQuestionCountPublic', 'showMechanismPublic', 'showParticipantCountPublic',
       ].forEach((k) => { if (ev[k] !== undefined && ev[k] !== null) salin[k] = ev[k]; });
 
       salin.name = `${ev.name} (salinan)`;
@@ -272,16 +283,24 @@ export default function EventManager() {
           >
             <ArrowLeft size={14} /> Semua lomba
           </button>
-          {buka.status !== 'DRAFT' && (
-            <a
-              href={`/event/${buka.slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-stone-500 hover:text-maroon-600"
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setPratinjau(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-maroon-300 px-4 py-2 text-[12px] font-semibold text-maroon-600 transition-colors hover:bg-maroon-50"
             >
-              <ExternalLink size={12} /> Lihat halaman publik
-            </a>
-          )}
+              <Eye size={13} /> Pratinjau
+            </button>
+            {buka.status !== 'DRAFT' && (
+              <a
+                href={`/event/${buka.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-stone-500 hover:text-maroon-600"
+              >
+                <ExternalLink size={12} /> Lihat halaman publik
+              </a>
+            )}
+          </div>
         </div>
 
         <header>
@@ -313,6 +332,8 @@ export default function EventManager() {
             <EventPublishTab ev={buka} onSimpan={perbarui} onKeTab={setTab} />
           )}
         </div>
+
+        {pratinjau && <EventPreview ev={buka} onTutup={() => setPratinjau(false)} />}
       </div>
     );
   }
