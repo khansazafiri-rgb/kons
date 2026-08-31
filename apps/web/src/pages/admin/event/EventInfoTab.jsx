@@ -103,6 +103,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
         paymentContactWa: f.paymentContactWa,
         rulesText: f.rulesText,
         sebRequired: !!f.sebRequired,
+        watermarkOff: !!f.watermarkOff,
         sebQuitPassword: f.sebQuitPassword,
         sebAdminPassword: f.sebAdminPassword,
         sebBrowserExamKey: f.sebBrowserExamKey,
@@ -339,6 +340,16 @@ export default function EventInfoTab({ ev, onSimpan }) {
           onUbah={(v) => set('sebRequired', v)}
           judul="Wajib dikerjakan lewat Safe Exam Browser"
           isi="Kalau mati, peserta bisa mengerjakan dari browser biasa."
+        />
+
+        {/* Disimpan terbalik (`watermarkOff`): bawaan boolean PocketBase adalah
+            false, jadi lomba lama dan baris yang lupa diisi otomatis jatuh ke
+            sisi yang MENANDAI, bukan yang membiarkan. */}
+        <Saklar
+          nyala={!f.watermarkOff}
+          onUbah={(v) => set('watermarkOff', !v)}
+          judul="Tanda air identitas di layar soal"
+          isi="Nama, email, dan kode peserta tercetak samar menyilang di seluruh layar selama ia mengerjakan. SEB memblokir tangkapan layar bawaan sistem, tapi tidak bisa mencegah soal difoto pakai HP — tanda air membuat foto yang beredar menunjuk balik ke orang yang memotretnya."
         />
 
         {f.sebRequired && !f.sebBrowserExamKey && !f.sebConfigKey && (

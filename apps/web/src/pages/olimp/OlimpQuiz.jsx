@@ -7,6 +7,8 @@ import {
 import pbo from '@/lib/olimpClient';
 import { useOlimpAuth } from '@/context/OlimpAuthContext';
 import OlimpShell, { OlimpGate } from '@/components/olimp/OlimpShell';
+import TandaAirUjian from '@/components/TandaAirUjian';
+import { ambilInfoSeb } from '@/lib/seb';
 import {
   canOpenPackage, cognitiveLabel, formatClock, olimpLog, questionOptions, questionSeconds,
 } from '@/lib/olimp';
@@ -48,10 +50,29 @@ function OlimpQuizInner() {
   const [online, setOnline] = useState(() => navigator.onLine);
   const [tersimpan, setTersimpan] = useState(true);
   const [selesai, setSelesai] = useState(false);
+  // Saklar tanda air, dibaca dari pengaturan SEB global. Bawaannya MENYALA:
+  // kalau pengaturannya gagal diambil (atau belum pernah dibuat), yang benar
+  // adalah tetap menandai, bukan diam-diam berhenti menandai.
+  const [tandaAirAktif, setTandaAirAktif] = useState(true);
 
   const kotor = useRef(false);           // ada perubahan yang belum tersimpan
   const mulaiSoal = useRef(Date.now());  // penanda waktu masuk soal ini
   const jawabanRef = useRef({});         // salinan terkini untuk timer & unload
+
+  // Dibaca lewat /api/olimp/seb-info, BUKAN dari collection olimp_seb langsung:
+  // baris itu memuat kata sandi keluar dan kunci SEB, jadi aturannya memang
+  // tertutup untuk peserta - membacanya dari sini akan selalu gagal, dan
+  // saklarnya jadi tidak pernah benar-benar berlaku.
+  useEffect(() => {
+    let hidup = true;
+    ambilInfoSeb().then((info) => {
+      if (!hidup) return;
+      // `terpasang: false` berarti pengaturannya belum pernah dibuat. Yang benar
+      // di keadaan itu adalah tetap menandai, bukan diam-diam berhenti.
+      if (info?.terpasang && typeof info.tandaAir === 'boolean') setTandaAirAktif(info.tandaAir);
+    });
+    return () => { hidup = false; };
+  }, []);
 
   // --- muat paket + soal + attempt -----------------------------------------
   useEffect(() => {
@@ -273,6 +294,17 @@ function OlimpQuizInner() {
 
   return (
     <OlimpShell>
+      {/* Tanda air identitas — lihat components/TandaAirUjian.jsx.
+          Identitasnya diambil dari sesi yang sedang berjalan: berbeda dari
+          layar ujian lomba, Web Olimp memang selalu menuntut login, jadi di
+          sini sesi itu pasti ada. */}
+      <TandaAirUjian
+        aktif={tandaAirAktif}
+        nama={user?.name}
+        email={user?.email}
+        kode={String(user?.id || '').slice(0, 8).toUpperCase()}
+      />
+
       {/* ---- kepala: nomor, kemajuan, status simpan ---- */}
       <div className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-5 mb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

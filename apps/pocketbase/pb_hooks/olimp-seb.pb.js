@@ -58,6 +58,15 @@ routerAdd("GET", "/api/olimp/seb-info", (e) => {
     },
     sebVersion: cfg.getString("sebVersion"),
     catatan: cfg.getString("notes"),
+    // Saklar tanda air ikut lewat sini, BUKAN dibaca langsung dari collection
+    // olimp_seb: baris itu memuat kata sandi keluar dan kunci SEB, jadi
+    // aturannya tertutup rapat untuk peserta - dan memang harus begitu.
+    // Sifatnya sendiri tidak rahasia (peserta melihat tanda airnya di layar),
+    // jadi tempatnya di sini, bersama keterangan aman yang lain.
+    //
+    // Dibalik jadi `tandaAir` yang positif supaya halaman tidak perlu ikut
+    // memikirkan penamaan terbaliknya.
+    tandaAir: !cfg.getBool("watermarkOff"),
   });
 });
 

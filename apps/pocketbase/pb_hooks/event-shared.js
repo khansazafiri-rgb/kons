@@ -533,6 +533,55 @@ function nilaiSatu(app, reg, soal) {
   return { skor, total, benar, dijawab: Object.keys(pilihan).filter((k) => pilihan[k]).length };
 }
 
+// Apakah dua lomba bisa dibuka dengan berkas .seb yang sama?
+//
+// Dipakai Pusat Ujian untuk memperingatkan lebih awal. Peserta yang sedang
+// menjalankan berkas milik lomba A lalu menekan tombol lomba B akan ditolak
+// `periksaSeb` dengan SEB_MISMATCH - penolakan yang benar, tapi datang pada
+// saat paling buruk: setelah ia mengira ujiannya sudah dimulai.
+//
+// Yang menentukan cocok-tidaknya cuma kuncinya, bukan pengaturan lain: itulah
+// yang sungguh-sungguh diperiksa `periksaSeb`. Kalau admin memakai satu Config
+// Key untuk semua lomba (cara yang paling lapang), semua lomba jadi setara dan
+// satu berkas cukup untuk semuanya.
+function kunciSetara(app, eventIdA, evB) {
+  const evA = cariEventById(app, eventIdA);
+  if (!evA || !evB) return false;
+  const a = sebSetelan(app, evA);
+  const b = sebSetelan(app, evB);
+
+  if (a.configKey !== "" && a.configKey === b.configKey) return true;
+
+  // Tanpa Config Key, satu berkas baru berlaku di dua lomba kalau daftar
+  // Browser Exam Key-nya benar-benar bersinggungan.
+  const punyaB = {};
+  b.beks.forEach((k) => { punyaB[k] = true; });
+  return a.beks.some((k) => punyaB[k] === true);
+}
+
+// Identitas yang dicetak sebagai tanda air di layar ujian.
+//
+// Tiga potong, dan ketiganya ada alasannya:
+//   - nama  : yang langsung dikenali manusia saat melihat fotonya
+//   - email : pembeda kalau ada dua peserta bernama sama
+//   - kode  : delapan huruf pertama id pendaftaran. Nama dan email bisa
+//             terpotong di tepi foto; kode yang pendek jauh lebih besar
+//             peluangnya tercetak utuh di suatu tempat pada potongan mana pun,
+//             dan tetap menunjuk ke satu baris pendaftaran.
+//
+// `aktif` mengikuti saklar per lomba. Ditulis sebagai `watermarkOff` di basis
+// data - bukan `watermarkOn` - supaya nilai bawaan boolean PocketBase (false)
+// berarti tanda airnya MENYALA. Lomba yang dibuat sebelum saklar ini ada, dan
+// baris apa pun yang lupa diisi, otomatis jatuh ke sisi yang melindungi.
+function tandaAirDari(ev, reg) {
+  return {
+    aktif: !ev.getBool("watermarkOff"),
+    nama: reg.getString("pesertaNama"),
+    email: reg.getString("pesertaEmail"),
+    kode: String(reg.id || "").slice(0, 8).toUpperCase(),
+  };
+}
+
 module.exports = {
   amanId,
   jsonArray,
@@ -551,6 +600,8 @@ module.exports = {
   hitungTerdaftar,
   soalEvent,
   sebSetelan,
+  kunciSetara,
+  tandaAirDari,
   periksaSeb,
   nilaiSatu,
   ms,

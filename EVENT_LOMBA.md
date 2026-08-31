@@ -42,6 +42,7 @@ sendiri ada di collection `events`.
 | `/event/:slug/daftar` | Formulir pendaftaran |
 | `/event/:slug/ujian` | Layar ujian (countdown → Mulai → soal → kumpul) |
 | `/event/:slug/hasil` | Skor, tinjauan jawaban, papan peringkat |
+| `/ujian` | **Pusat Ujian** — tempat mendaratnya semua berkas `.seb`: login, lalu daftar lomba yang diikuti beserta hitungan mundurnya |
 
 Ditautkan dari menu landing sebagai **"Event & Lomba"**. Ini beda perlakuan dari
 halaman masuk Web Olimp yang sengaja disembunyikan: lomba justru perlu ditemukan
@@ -292,6 +293,42 @@ dari nol:
   tidak ada penyaringan penugasan yang mengenainya
 - Email peserta terbaca admin setelah migrasi `1786900000`
 
+Tanda air diuji di kedua layar soal, di peramban sungguhan:
+
+- Lomba: 28 cetakan, menutupi seluruh viewport, teksnya
+  `Peserta Uji · peserta@test.local · #LCFG7CW4 · 31 Agu 2026, 09.31`
+- Web Olimp: sama, dengan identitas diambil dari sesi
+- `pointer-events: none` terbukti — opsi jawaban tetap bisa diklik lewat
+  lapisannya, dan soal tetap terbaca
+- Saklar per lomba dan saklar global Olimp dua-duanya mematikan lalu
+  menyalakannya lagi
+- Mode gelap Web Olimp: warnanya berganti jadi terang
+  (`rgba(255,228,228,0.15)`) — tanda air maroon di latar gelap sama saja
+  dengan tidak ada
+- `/api/olimp/seb-info` membawa saklarnya tanpa ikut membocorkan kata sandi
+  keluar maupun kunci SEB
+
+Pusat Ujian diuji dengan satu peserta yang terdaftar di **tiga lomba berbeda
+tanggal** (satu sedang berjalan, satu besok, satu sudah lewat):
+
+- Berkas `.seb` mendarat di `/ujian`, bukan lagi di halaman ujian satu lomba
+- Belum login + token: cuma lomba milik berkas itu yang tampil, dan namanya
+  disebut di layar masuk
+- Setelah login: ketiganya tampil, terurut (yang sedang berjalan di atas), dan
+  yang sesuai berkasnya ditandai **Berkas ini**
+- Hitungan mundur berjalan, menyentuh nol, lalu halaman **mengambil ulang
+  daftarnya sendiri** dan tombol Mulai Ujian muncul — tanpa muat ulang manual
+- "Sisa waktu" hanya muncul untuk ujian yang benar-benar sudah dimulai
+  (90 menit sejak Mulai → terbaca 53:42 setelah 36 menit)
+- `perluBerkasLain` benar di tiga keadaan: kunci berbeda → peringatan muncul;
+  BEK sama → tidak; BEK berbeda tapi Config Key sama → tidak
+- Akun admin ditolak masuk Pusat Ujian (`ADMIN_BUKAN_PESERTA`)
+- Login `olimp_users`: 15,08 detik sebelum migrasi `1787000000`, 0,077 detik
+  sesudahnya
+- Admin bisa membuka `/event/<slug>` lomba berstatus DRAFT lewat tautan
+  "Pratinjau draf", dan halamannya memasang penanda draf; pengunjung biasa
+  tetap menerima "Lomba tidak ditemukan"
+
 ---
 
 ## Yang BELUM dipasang
@@ -466,6 +503,213 @@ tidak pernah menyalakan saklar itu.
 Diperbaiki di dua sisi: `OlimpSignup.jsx` menyalakannya untuk pendaftar baru, dan
 migrasi `1786900000_email_terlihat_admin.js` menyalakannya untuk akun yang sudah
 terlanjur ada.
+
+---
+
+## Pusat Ujian — satu ruang tunggu untuk semua lomba
+
+### Masalahnya
+
+Berkas `.seb` dulu menunjuk **langsung** ke halaman ujian satu lomba
+(`/event/<slug>/ujian?t=…`). Peserta yang membukanya di luar jam ujian —
+mencoba berkasnya sehari sebelumnya, atau datang kepagian — disambut satu
+kalimat: *"belum waktunya ujian"*. Layarnya buntu. Tidak ada keterangan kapan
+ujiannya mulai, tidak ada cara melihat lomba lain yang mungkin justru sedang
+berjalan untuknya, dan tidak ada yang bisa ditekan.
+
+Padahal satu orang bisa terdaftar di beberapa lomba dengan tanggal yang
+berbeda-beda.
+
+### Bentuknya sekarang
+
+Semua berkas `.seb` mendarat di **`/ujian`** — satu halaman yang sama untuk
+lomba mana pun:
+
+```
+buka berkas .seb  →  /ujian?t=<token>
+   → login (akun PCV atau akun Web Olimp, satu kotak isian untuk keduanya)
+   → daftar SEMUA lomba yang diikuti akun itu:
+        jadwal · durasi · cara pengerjaan · status · hitungan mundur
+   → tombol masuk menyala sendiri saat waktunya tiba
+```
+
+Yang disatukan **layarnya**, bukan konfigurasinya. Tiap lomba tetap punya
+berkas `.seb` sendiri dengan kunci, kata sandi keluar, dan daftar alamatnya
+masing-masing.
+
+### Keputusan yang menopangnya
+
+**Hitungan mundur tidak memakai jam komputer peserta.** Server mengirim
+`sekarang` bersama daftarnya; halaman menghitung selisih dengan jam lokalnya
+sekali, lalu memakai selisih itu seterusnya. Peserta yang memundurkan jam
+komputernya tidak mendapat tambahan waktu sedetik pun.
+
+**Boleh-tidaknya masuk tetap diputuskan server** lewat `jendelaUjian` yang sama
+persis dipakai `/api/event/mulai`. Halaman tidak menghitung ulang jadwal — kalau
+ia menghitung sendiri, cepat atau lambat akan ada dua pendapat berbeda soal
+apakah ujian sudah dibuka. Saat hitungan menyentuh nol, daftarnya diambil ulang
+sekali; peserta tidak perlu menutup lalu membuka SEB lagi.
+
+**Login di sini TIDAK lewat `AuthContext.login`.** Berkas `.seb` menyalakan
+`clearSessionOnStart`, yang menghapus seluruh penyimpanan peramban tiap kali
+dijalankan — termasuk `pcv_device_id`. Artinya SEB memperkenalkan diri sebagai
+device **baru** setiap kali dibuka. Siswa dengan jatah satu device akan
+menghabiskan jatahnya pada percobaan pertama lalu terkunci di luar pada
+percobaan kedua, tepat di hari ujian. Yang benar-benar menjaga ujian bukan itu,
+melainkan kunci per pendaftaran (`event_registrations.deviceId`) — dan itu tetap
+berlaku penuh.
+
+**`/api/event/saya` tidak memeriksa header SEB.** Halaman ini cuma daftar; yang
+dijaga adalah pintu ujiannya. Memeriksanya di sini justru merusak: berkas milik
+lomba A punya kunci berbeda dari lomba B, jadi ruang tunggunya akan menolak
+dirinya sendiri begitu peserta memegang lebih dari satu lomba.
+
+**Peringatan berkas yang salah datang sebelum ditekan, bukan sesudah.** Kalau
+peserta menjalankan berkas lomba A lalu melihat lomba B yang juga butuh SEB,
+server membandingkan kuncinya (`kunciSetara`) dan menandai `perluBerkasLain`.
+Tanpa itu, ia baru tahu setelah ditolak `SEB_MISMATCH` — pada saat ia mengira
+ujiannya sudah dimulai. Kalau admin memakai satu Config Key untuk semua lomba,
+semua lomba jadi setara dan satu berkas cukup untuk semuanya.
+
+### Layar buntu yang lain ikut diberi jalan keluar
+
+Semua layar penolakan di `/event/<slug>/ujian` dulu menawarkan satu tautan:
+halaman publik lomba itu. Di dalam SEB itu jalan buntu yang lain. Sekarang
+semuanya mengarah ke Pusat Ujian, dengan token ikut dibawa.
+
+---
+
+## Login peserta Olimp yang menggantung 15 detik
+
+Ketahuan saat menguji Pusat Ujian: login `olimp_users` memakan **15 detik**,
+sementara login `users` di server yang sama selesai dalam 80 milidetik. Sama
+lambatnya dengan hooks dimatikan seluruhnya, jadi bukan kode kita.
+
+Sebabnya `authAlert` — PocketBase menyalakannya secara bawaan untuk setiap
+collection auth yang baru dibuat. Saat seseorang login dari "lokasi baru",
+PocketBase mengirim email peringatan, dan pengirimannya terjadi **di dalam**
+permintaan login itu. Kalau SMTP tidak bisa dihubungi, login menunggu sampai
+koneksinya menyerah. Collection `users` sudah lama dimatikan authAlert-nya;
+`olimp_users` dibuat belakangan dan ikut membawa nilai bawaannya.
+
+Ini paling merepotkan tepat di saat paling genting: `.seb` menghapus penyimpanan
+peramban tiap kali dijalankan, jadi SEB **selalu** tampak sebagai "lokasi baru".
+Setiap peserta, setiap kali membuka SEB di hari ujian, menunggu email terkirim
+sebelum boleh masuk — lalu menerima email "ada login dari lokasi baru" yang
+membuatnya cemas padahal itu dirinya sendiri.
+
+Dimatikan lewat migrasi `1787000000_olimp_login_tanpa_email_alert.js`. Setelahnya:
+**77 milidetik**.
+
+---
+
+## Pratinjau lomba yang masih draf
+
+Tautan "Halaman publik" dulu disembunyikan selama lombanya masih `DRAFT` — dan
+justru saat itulah admin paling ingin melihat hasilnya. Servernya sendiri sudah
+melayani draf kepada admin (`/api/event/detail` mengecualikan admin dari penjaga
+`DRAFT`), jadi yang menghalangi cuma tombol yang tidak ada.
+
+Sekarang tautannya selalu ada, dengan sebutan "Pratinjau draf", dan halamannya
+memasang penanda supaya admin tidak mengira lombanya sudah terbuka untuk umum.
+
+---
+
+## Layar putih tanpa pesan
+
+Halaman Olimp dan Event dimuat terpisah (`lazy`). Kalau berkas potongannya gagal
+diambil, `import()` menolak — dan `Suspense` tidak menangani penolakan, cuma
+penundaan. Tanpa error boundary, React membuang seluruh pohonnya dan yang
+tersisa adalah kotak kosong: tanpa pesan, tanpa tombol, tanpa petunjuk.
+
+Paling sering terjadi **tepat setelah deploy**: nama berkas potongan memuat hash
+isinya, jadi build baru menghasilkan nama baru, sementara tab yang sudah terbuka
+sejak sebelum deploy masih memegang daftar nama yang lama.
+
+Sekarang `OlimpFallback` memasang error boundary yang mengubah kegagalan jadi
+kalimat yang bisa dibaca, plus tombol muat ulang — yang memang menyelesaikan
+kasus di atas. Layar tunggunya juga tidak lagi kosong.
+
+---
+
+## Tanda air identitas di layar soal
+
+### Apa yang sebenarnya dijaga
+
+Yang paling sering bocor dari ujian bukan berkas, melainkan **foto layar yang
+diambil pakai HP** — dan Safe Exam Browser tidak bisa mencegah itu, sekeras apa
+pun penguncian aplikasinya. SEB memblokir tangkapan layar bawaan sistem, tapi
+kamera di tangan orang lain berada di luar jangkauannya.
+
+Karena tidak bisa dicegah, yang masuk akal adalah membuatnya **bisa dilacak**.
+Selama peserta membuka soal, tiga hal tercetak samar menyilang di seluruh layar:
+
+```
+Nama Peserta · email@nya · #KODE8 · 31 Agu 2026, 09.31
+```
+
+| Bagian | Kenapa ada |
+|---|---|
+| nama | yang langsung dikenali manusia saat melihat fotonya |
+| email | pembeda kalau ada dua peserta bernama sama |
+| kode | 8 huruf pertama id pendaftaran — nama dan email bisa terpotong di tepi foto, kode pendek jauh lebih besar peluangnya tercetak utuh di potongan mana pun |
+| waktu | mencocokkan foto dengan sesi mana; diperbarui tiap menit |
+
+### Kenapa miring dan berulang, bukan satu di tengah
+
+Satu tanda di tengah gampang dihindari — foto dipotong, atau soalnya difoto
+sepotong-sepotong. Dengan 28 cetakan menyilang di seluruh layar (baris ganjil
+digeser setengah kolom supaya tidak terbentuk lorong kosong vertikal), potongan
+sekecil apa pun yang masih memuat satu soal utuh hampir pasti ikut memuat
+sebagian identitasnya.
+
+Miring 30° supaya tidak sejajar dengan baris teks soal: kalau sejajar, keduanya
+saling menyamarkan dan dua-duanya jadi lebih sulit dibaca.
+
+### Identitasnya datang dari server, bukan dari sesi
+
+Untuk lomba, `/api/event/soal` mengirim `tandaAir` bersama soalnya. Dua alasan:
+
+1. Di dalam SEB **tidak ada sesi login yang bisa dibaca halaman** — berkas
+   `.seb` menghapus penyimpanan peramban tiap kali dijalankan, dan peserta bisa
+   masuk cuma dengan token. Kalau tanda airnya mengambil nama dari sesi, di
+   sanalah ia justru kosong: tepat di tempat yang paling perlu ditandai.
+2. Isinya jadi tidak bisa dipalsukan dari layar — yang tercetak adalah pemilik
+   pendaftaran menurut basis data.
+
+Web Olimp berbeda: di sana login memang selalu wajib, jadi identitasnya diambil
+dari sesi yang sedang berjalan.
+
+### Saklarnya
+
+| Di mana | Field | Lingkup |
+|---|---|---|
+| Tab Info Dasar tiap lomba | `events.watermarkOff` | per lomba |
+| Dashboard Olimp → Safe Exam Browser | `olimp_seb.watermarkOff` | global untuk Web Olimp |
+
+Namanya sengaja **terbalik**. Nilai bawaan sebuah boolean di PocketBase adalah
+`false`; kalau field-nya dinamai `watermarkOn`, semua lomba yang dibuat sebelum
+migrasi ini — dan tiap baris yang lupa diisi — akan lahir dengan tanda air mati,
+yaitu sisi yang tidak melindungi. Dengan nama terbalik, bawaan `false` berarti
+tanda airnya **menyala**. Pola yang sama dipakai saklar penyembunyian info
+publik, dengan alasan yang sama persis.
+
+Saklar Olimp dibaca lewat `/api/olimp/seb-info`, **bukan** dari collection
+`olimp_seb` langsung: baris itu memuat kata sandi keluar dan kunci SEB, jadi
+aturannya memang tertutup untuk peserta — membacanya dari sana akan selalu gagal
+dan saklarnya tidak pernah benar-benar berlaku. Sifat tanda airnya sendiri tidak
+rahasia (pesertanya melihatnya di layar), jadi tempatnya di endpoint keterangan
+aman itu.
+
+### Yang TIDAK dijanjikan
+
+Ini **jejak, bukan penghalang**. Orang yang paham peramban dan bisa membuka alat
+pengembang tetap bisa menghapus lapisannya. Di dalam SEB alat itu terkunci, jadi
+jejaknya berlaku penuh; di luar SEB — lomba yang memang tidak mewajibkannya —
+anggap tanda air ini menghalangi yang tidak niat, bukan yang sudah niat.
+
+Lapisannya juga `pointer-events: none` dan `user-select: none`: ia tidak pernah
+menghalangi klik peserta, dan tidak ikut tersalin saat teks soal diblok.
 
 ---
 

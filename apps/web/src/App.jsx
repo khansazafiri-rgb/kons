@@ -49,6 +49,7 @@ const EventDetail = lazy(() => import('./pages/event/EventDetail'));
 const EventDaftar = lazy(() => import('./pages/event/EventDaftar'));
 const EventUjian = lazy(() => import('./pages/event/EventUjian'));
 const EventHasil = lazy(() => import('./pages/event/EventHasil'));
+const PusatUjian = lazy(() => import('./pages/event/PusatUjian'));
 
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
@@ -56,9 +57,86 @@ const EventHasil = lazy(() => import('./pages/event/EventHasil'));
 // benar-benar dibuka.
 const KalkulatorKlinis = lazy(() => import('./pages/KalkulatorKlinis'));
 
-// Layar tunggu seragam untuk semua halaman Olimp yang dimuat terpisah.
+// KENAPA HALAMAN INI PERNAH TAMPIL PUTIH POLOS
+//
+// Halaman Olimp dan Event dimuat terpisah (lazy). Kalau berkas potongannya
+// gagal diambil, `import()` menolak - dan Suspense TIDAK menangani penolakan,
+// cuma penundaan. Tanpa error boundary, React membuang seluruh pohonnya dan
+// yang tersisa di layar adalah kotak kosong: tanpa pesan, tanpa tombol, tanpa
+// petunjuk apa pun tentang apa yang salah.
+//
+// Itu paling sering terjadi TEPAT SETELAH DEPLOY. Nama berkas potongan memuat
+// hash isinya, jadi build baru menghasilkan nama baru; tab yang sudah terbuka
+// sejak sebelum deploy masih memegang daftar nama yang lama, dan begitu
+// halamannya dibuka, berkas yang dimintanya sudah tidak ada lagi di server.
+//
+// Karena itu di sini ada dua hal, bukan satu:
+//   - layar tunggu yang benar-benar terlihat sedang menunggu (bukan kosong),
+//   - error boundary yang mengubah kegagalan jadi kalimat yang bisa dibaca,
+//     lengkap dengan tombol muat ulang - yang memang menyelesaikan kasus
+//     "berkasnya sudah berganti nama" di atas.
+class BatasGalat extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { galat: null };
+  }
+
+  static getDerivedStateFromError(galat) {
+    return { galat };
+  }
+
+  render() {
+    if (!this.state.galat) return this.props.children;
+
+    const pesan = String(this.state.galat?.message || '');
+    // Gagal mengambil potongan berkas: penyebabnya hampir selalu deploy baru,
+    // dan muat ulang menyelesaikannya. Dibedakan supaya sarannya tepat.
+    const versiBaru = /dynamically imported module|Importing a module script failed|Loading chunk|Failed to fetch/i
+      .test(pesan);
+
+    return (
+      <div className="min-h-screen bg-alba-50 px-6 py-24">
+        <div className="mx-auto max-w-md rounded-2xl border border-alba-200 bg-white p-8 text-center shadow-card">
+          <h1 className="font-display text-xl font-semibold text-stone-800">
+            {versiBaru ? 'Halamannya baru diperbarui' : 'Halaman ini gagal dibuka'}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-stone-600">
+            {versiBaru
+              ? 'Ada versi baru web ini sejak tab kamu terbuka, jadi berkas halamannya sudah berganti. Muat ulang sekali dan halamannya akan terbuka normal.'
+              : 'Terjadi galat saat menampilkan halaman ini. Muat ulang dulu; kalau masih sama, tunjukkan keterangan di bawah ke admin.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-5 rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700"
+          >
+            Muat ulang halaman
+          </button>
+          {!versiBaru && pesan && (
+            <p className="mt-5 break-words rounded-xl border border-alba-200 bg-alba-100 px-4 py-3 text-left font-mono text-[11px] leading-relaxed text-stone-500">
+              {pesan}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+}
+
+// Layar tunggu seragam untuk semua halaman Olimp/Event yang dimuat terpisah.
 function OlimpFallback({ children }) {
- return <Suspense fallback={<div className="min-h-screen bg-alba-50" />}>{children}</Suspense>;
+ return (
+   <BatasGalat>
+     <Suspense
+       fallback={(
+         <div className="grid min-h-screen place-items-center bg-alba-50">
+           <p className="animate-pulse text-sm font-semibold text-stone-400">Memuat…</p>
+         </div>
+       )}
+     >
+       {children}
+     </Suspense>
+   </BatasGalat>
+ );
 }
 
 function App() {
@@ -136,6 +214,10 @@ function App() {
              sendiri di dalam halaman - dan peserta lomba bisa datang dari DUA
              collection akun (users PCV atau olimp_users), yang tidak bisa
              diperiksa ProtectedRoute karena ia cuma tahu akun PCV. */}
+         {/* Pusat Ujian: tempat mendaratnya SEMUA berkas .seb lomba.
+             Sengaja di akar dan sependek mungkin - kalau berkasnya bermasalah,
+             alamat ini yang harus bisa diketik ulang peserta dari ingatan. */}
+         <Route path="/ujian" element={<OlimpFallback><PusatUjian /></OlimpFallback>} />
          <Route path="/event" element={<OlimpFallback><EventList /></OlimpFallback>} />
          <Route path="/event/:slug" element={<OlimpFallback><EventDetail /></OlimpFallback>} />
          <Route path="/event/:slug/daftar" element={<OlimpFallback><EventDaftar /></OlimpFallback>} />

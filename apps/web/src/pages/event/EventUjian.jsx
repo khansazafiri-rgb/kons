@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Loader2, ShieldCheck, Timer,
+  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, LayoutList, Loader2, ShieldCheck, Timer,
 } from 'lucide-react';
 import { identitasEvent, jamMundur, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
 import { olimpDeviceName, olimpFingerprint } from '@/lib/olimp';
 import { isSeb } from '@/lib/seb';
+import TandaAirUjian from '@/components/TandaAirUjian';
 
 // LAYAR UJIAN LOMBA (/event/:slug/ujian)
 //
@@ -47,6 +48,28 @@ function Pesan({ judul, isi, anak }) {
   );
 }
 
+// KE MANA PESERTA DILEMPAR DARI LAYAR YANG BUNTU
+//
+// Dulu semua layar penolakan menawarkan satu tautan: halaman publik lomba ini.
+// Di dalam SEB itu jalan buntu yang lain - halaman publik penuh tombol yang
+// tidak bisa dipakai dari sana, dan tetap tidak menjawab pertanyaan yang
+// sebenarnya ("kalau bukan sekarang, kapan? lomba saya yang lain bagaimana?").
+//
+// Pusat Ujian menjawabnya: daftar semua lomba yang ia ikuti, hitungan mundur
+// masing-masing, dan tombol yang menyala sendiri. Jadi dari layar buntu mana
+// pun, ke sanalah tujuannya - dan tokennya ikut dibawa supaya ia tidak perlu
+// login ulang kalau memang sedang di dalam SEB.
+function KePusat({ token, teks = 'Ke Pusat Ujian' }) {
+  return (
+    <Link
+      to={token ? `/ujian?t=${encodeURIComponent(token)}` : '/ujian'}
+      className="inline-flex items-center gap-2 rounded-xl bg-maroon-600 px-6 py-2.5 text-sm font-semibold text-alba-50"
+    >
+      <LayoutList size={15} /> {teks}
+    </Link>
+  );
+}
+
 export default function EventUjian() {
   const { slug } = useParams();
   const [params] = useSearchParams();
@@ -69,6 +92,10 @@ export default function EventUjian() {
   const [sisa, setSisa] = useState(null);
   const [sibuk, setSibuk] = useState(false);
   const [tanggalRilis, setTanggalRilis] = useState('');
+  // Identitas untuk tanda air. Datang dari SERVER bersama soalnya, bukan dari
+  // sesi login: di dalam SEB tidak ada sesi yang bisa dibaca halaman, dan di
+  // situlah justru tanda airnya paling perlu ada.
+  const [tandaAir, setTandaAir] = useState(null);
 
   // Dipakai supaya penghitung mundur & auto-kumpul tidak menembak dua kali.
   const sudahKumpul = useRef(false);
@@ -83,6 +110,7 @@ export default function EventUjian() {
   const muatSoal = useCallback(async () => {
     const d = await panggilEvent('/api/event/soal', { query: { slug, t: token } });
     setSoal(d.soal || []);
+    setTandaAir(d.tandaAir || null);
     const awal = {};
     (d.soal || []).forEach((s) => { if (s.jawabanku) awal[s.id] = s.jawabanku; });
     setJawaban(awal);
@@ -224,12 +252,8 @@ export default function EventUjian() {
       return (
         <Pesan
           judul="Masuk dulu"
-          isi="Layar ujian cuma bisa dibuka peserta yang sudah terdaftar dan disetujui."
-          anak={
-            <Link to={`/event/${slug}`} className="mt-5 inline-block rounded-xl bg-maroon-600 px-6 py-2.5 text-sm font-semibold text-alba-50">
-              Ke halaman lomba
-            </Link>
-          }
+          isi="Layar ujian cuma bisa dibuka peserta yang sudah terdaftar dan disetujui. Masuk lewat Pusat Ujian dulu."
+          anak={<div className="mt-5"><KePusat token={token} teks="Masuk lewat Pusat Ujian" /></div>}
         />
       );
     }
@@ -237,12 +261,15 @@ export default function EventUjian() {
       return (
         <Pesan
           judul="Ujian belum dimulai"
-          isi={`Ujian dibuka ${tanggalPanjang(ev?.mulaiUjian)}. Buka halaman ini lagi saat waktunya tiba — layarnya akan langsung berganti jadi soal.`}
-          anak={
-            <p className="mt-5 inline-flex items-center gap-2 rounded-xl bg-alba-100 px-4 py-2.5 text-sm font-semibold text-stone-700">
-              <Clock size={15} className="text-maroon-500" /> {tanggalPanjang(ev?.mulaiUjian)}
-            </p>
-          }
+          isi={`Ujian dibuka ${tanggalPanjang(ev?.mulaiUjian)}. Di Pusat Ujian ada hitungan mundurnya, dan tombolnya menyala sendiri begitu waktunya tiba.`}
+          anak={(
+            <div className="mt-5 space-y-4">
+              <p className="inline-flex items-center gap-2 rounded-xl bg-alba-100 px-4 py-2.5 text-sm font-semibold text-stone-700">
+                <Clock size={15} className="text-maroon-500" /> {tanggalPanjang(ev?.mulaiUjian)}
+              </p>
+              <div><KePusat token={token} /></div>
+            </div>
+          )}
         />
       );
     }
@@ -268,11 +295,7 @@ export default function EventUjian() {
           SUDAH_SELESAI: 'Jendela waktu ujian sudah ditutup.',
           WAKTU_HABIS: 'Waktu pengerjaanmu sudah habis.',
         }[kode] || 'Layar ujian belum bisa dibuka.'}
-        anak={
-          <Link to={`/event/${slug}`} className="mt-5 inline-block rounded-xl bg-maroon-600 px-6 py-2.5 text-sm font-semibold text-alba-50">
-            Ke halaman lomba
-          </Link>
-        }
+        anak={<div className="mt-5"><KePusat token={token} /></div>}
       />
     );
   }
@@ -292,8 +315,11 @@ export default function EventUjian() {
               <CheckCircle2 size={16} /> Jawaban tersimpan
             </p>
             <div>
-              <Link to={`/event/${slug}`} className="inline-block rounded-xl border border-alba-300 px-6 py-2.5 text-sm font-semibold text-stone-700">
-                Kembali ke halaman lomba
+              <Link
+                to={isSeb() ? (token ? `/ujian?t=${encodeURIComponent(token)}` : '/ujian') : `/event/${slug}`}
+                className="inline-block rounded-xl border border-alba-300 px-6 py-2.5 text-sm font-semibold text-stone-700"
+              >
+                {isSeb() ? 'Kembali ke Pusat Ujian' : 'Kembali ke halaman lomba'}
               </Link>
             </div>
             {isSeb() && (
@@ -359,6 +385,15 @@ export default function EventUjian() {
   return (
     <div className="min-h-screen bg-alba-50">
       <div className="h-1 bg-gradient-to-r from-maroon-600 via-gold-400 to-maroon-600" />
+
+      {/* Tanda air identitas. Menutupi SELURUH layar, termasuk gambar soal -
+          foto sepotong pun ikut membawa nama pemotretnya. */}
+      <TandaAirUjian
+        aktif={tandaAir?.aktif}
+        nama={tandaAir?.nama}
+        email={tandaAir?.email}
+        kode={tandaAir?.kode}
+      />
 
       {/* Bilah atas: nomor soal, sisa waktu, nama lomba (PRD 8.2) */}
       <header className="sticky top-0 z-20 border-b border-alba-200 bg-alba-50/95 backdrop-blur">

@@ -117,16 +117,23 @@ function KartuDaftar({ ev, jumlahSoal, jumlahPeserta, onBuka, onGandakan }) {
         >
           <Copy size={12} /> Gandakan
         </button>
-        {ev.status !== 'DRAFT' && (
-          <a
-            href={`/event/${ev.slug}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-alba-300 px-3 py-1.5 text-[12px] font-semibold text-stone-600 hover:border-maroon-300"
-          >
-            <ExternalLink size={12} /> Halaman publik
-          </a>
-        )}
+        {/* Tautan ini dulu disembunyikan selama lombanya masih draf - dan
+            justru saat itulah admin paling ingin melihat hasilnya. Servernya
+            sendiri sudah melayani draf kepada admin (lihat penjaga status
+            DRAFT di /api/event/detail), jadi yang menghalangi cuma tombol yang
+            tidak ada. Sekarang selalu ada, dengan sebutan yang jujur supaya
+            tidak dikira halamannya sudah terbuka untuk umum. */}
+        <a
+          href={`/event/${ev.slug}`}
+          target="_blank"
+          rel="noreferrer"
+          title={ev.status === 'DRAFT'
+            ? 'Masih draf - cuma admin yang bisa membukanya'
+            : 'Halaman yang dilihat pengunjung'}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-alba-300 px-3 py-1.5 text-[12px] font-semibold text-stone-600 hover:border-maroon-300"
+        >
+          <ExternalLink size={12} /> {ev.status === 'DRAFT' ? 'Pratinjau draf' : 'Halaman publik'}
+        </a>
       </div>
     </div>
   );
@@ -290,16 +297,15 @@ export default function EventManager() {
             >
               <Eye size={13} /> Pratinjau
             </button>
-            {buka.status !== 'DRAFT' && (
-              <a
-                href={`/event/${buka.slug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-stone-500 hover:text-maroon-600"
-              >
-                <ExternalLink size={12} /> Lihat halaman publik
-              </a>
-            )}
+            <a
+              href={`/event/${buka.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-stone-500 hover:text-maroon-600"
+            >
+              <ExternalLink size={12} />
+              {buka.status === 'DRAFT' ? 'Lihat pratinjau draf' : 'Lihat halaman publik'}
+            </a>
           </div>
         </div>
 

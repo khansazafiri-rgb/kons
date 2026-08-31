@@ -355,6 +355,50 @@ alamat internal yang diterima — lihat `lib/returnTo.js`.
 
 ---
 
+## Tanda air identitas di layar soal
+
+Yang paling sering bocor bukan berkas, melainkan foto layar yang diambil pakai
+HP — dan SEB tidak bisa mencegah itu. SEB memblokir tangkapan layar bawaan
+sistem, tapi kamera di tangan orang lain di luar jangkauannya.
+
+Jadi selama peserta mengerjakan, nama, email, kode akun, dan jam tercetak samar
+menyilang di seluruh layar. Kalau fotonya beredar, yang menyebarkannya ikut
+beredar bersamanya. Rinciannya (kenapa miring, kenapa berulang, apa yang tidak
+dijanjikan) ada di `EVENT_LOMBA.md` — komponennya satu dan dipakai bersama oleh
+layar kuis Olimp dan layar ujian lomba.
+
+Saklarnya di **Dashboard Olimp → Safe Exam Browser**, berlaku global untuk Web
+Olimp. Disimpan sebagai `olimp_seb.watermarkOff` — terbalik, supaya nilai bawaan
+`false` berarti tanda airnya menyala. Halaman kuis membacanya lewat
+`/api/olimp/seb-info`, bukan dari collection `olimp_seb` langsung: baris itu
+memuat kata sandi keluar dan kunci SEB, jadi aturannya tertutup untuk peserta.
+
+Warnanya ikut mode gelap. Maroon samar di atas latar gelap praktis tidak
+terlihat, dan tanda air yang tidak terlihat sama saja dengan tidak ada.
+
+---
+
+## Login peserta yang menggantung 15 detik
+
+Login `olimp_users` dulu memakan 15 detik, sementara login `users` di server yang
+sama selesai dalam 80 milidetik. Sebabnya `authAlert`: PocketBase menyalakannya
+secara bawaan untuk setiap collection auth baru, dan email "login dari lokasi
+baru" itu dikirim **di dalam** permintaan login — kalau SMTP tidak terjawab,
+login menunggu sampai koneksinya menyerah. Collection `users` sudah lama
+dimatikan authAlert-nya; `olimp_users` dibuat belakangan dan ikut membawa nilai
+bawaannya.
+
+Paling merepotkan di dalam SEB: berkas konfigurasi menghapus penyimpanan
+peramban tiap kali dijalankan, jadi SEB **selalu** tampak sebagai lokasi baru —
+setiap peserta menunggu email terkirim sebelum boleh masuk, lalu menerima
+peringatan yang membuatnya cemas padahal itu dirinya sendiri.
+
+Dimatikan lewat migrasi `1787000000_olimp_login_tanpa_email_alert.js`. Yang
+menjaga akun peserta tetap kunci device (`olimp_devices`) dan kunci per
+pendaftaran di lomba — dua-duanya lebih ketat daripada email pemberitahuan.
+
+---
+
 ## Cara mencobanya
 
 ```bash

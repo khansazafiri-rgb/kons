@@ -63,6 +63,7 @@ export default function SebOlimp() {
         browserExamKey: (draft.browserExamKey || '').trim(),
         configKey: (draft.configKey || '').trim(),
         allowedUrls: draft.allowedUrls,
+        watermarkOff: !!draft.watermarkOff,
         notes: draft.notes || '',
       };
       const hasil = await pb.collection('olimp_seb').update(cfg.id, isi);
@@ -227,6 +228,29 @@ export default function SebOlimp() {
           <span className="font-semibold text-stone-800 block">Wajib lewat SEB</span>
           Kalau menyala, soal Olimp menolak dibaca dari peramban biasa — peserta yang belum menyiapkan SEB akan
           terkunci di luar. Nyalakan hanya setelah berkas konfigurasinya sudah sampai ke semua peserta.
+        </span>
+      </label>
+
+      {/* Tanda air identitas.
+          Disimpan terbalik (`watermarkOff`) supaya nilai bawaan boolean
+          PocketBase - false - berarti tanda airnya MENYALA. Kalau namanya
+          lurus, pemasangan yang lupa diisi akan jatuh ke sisi yang tidak
+          melindungi. */}
+      <label className={`flex items-start gap-3 rounded-2xl border-2 px-5 py-4 cursor-pointer transition-colors ${
+        draft.watermarkOff ? 'border-alba-300 bg-alba-50' : 'border-maroon-400 bg-maroon-50/50'
+      }`}>
+        <input
+          type="checkbox"
+          checked={!draft.watermarkOff}
+          onChange={(e) => setDraft({ ...draft, watermarkOff: !e.target.checked })}
+          className="mt-1"
+        />
+        <span className="text-sm text-stone-600 leading-relaxed">
+          <span className="font-semibold text-stone-800 block">Tanda air identitas di layar soal</span>
+          Nama, email, dan kode peserta tercetak samar menyilang di seluruh layar selama ia
+          mengerjakan. SEB memblokir tangkapan layar bawaan sistem, tapi tidak bisa mencegah
+          soal difoto pakai HP — tanda air membuat foto yang beredar menunjuk balik ke orang
+          yang memotretnya. Biarkan menyala kecuali ada alasan khusus.
         </span>
       </label>
 
