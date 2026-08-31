@@ -48,8 +48,14 @@ routerAdd("GET", "/api/olimp/seb-info", (e) => {
   return e.json(200, {
     terpasang: true,
     wajibSeb: cfg.getBool("enforce"),
-    // Penjagaan cuma benar-benar bisa bekerja kalau BEK sudah diisi.
-    siapDitegakkan: cfg.getString("browserExamKey") !== "",
+    // Penjagaan bisa bekerja kalau ADA pembanding - Config Key ATAU Browser
+    // Exam Key, tidak harus dua-duanya. Dulu di sini cuma BEK yang diperiksa,
+    // jadi admin yang sudah memasang Config Key (cara yang justru dianjurkan,
+    // karena satu nilai berlaku lintas platform) tetap diberi tahu bahwa
+    // penjagaannya belum hidup - padahal middleware-nya memang sudah
+    // memverifikasi Config Key sejak awal.
+    siapDitegakkan:
+      cfg.getString("configKey") !== "" || cfg.getString("browserExamKey") !== "",
     startUrl: cfg.getString("startUrl") || (appUrl ? appUrl + "/olimp/masuk" : "/olimp/masuk"),
     installer: {
       windows: cfg.getString("installerWindows"),

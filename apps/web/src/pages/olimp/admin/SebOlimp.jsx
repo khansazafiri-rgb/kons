@@ -88,7 +88,14 @@ export default function SebOlimp() {
   if (!draft) return <p className="text-sm text-stone-500">Memuat pengaturan SEB…</p>;
 
   const adaBek = (draft.browserExamKey || '').trim() !== '';
-  const menyalaTapiKosong = draft.enforce && !adaBek;
+  const adaConfigKey = (draft.configKey || '').trim() !== '';
+  // Yang dibutuhkan server cuma ADA pembanding, tidak harus dua-duanya:
+  // periksaSeb mencocokkan Config Key lebih dulu, baru Browser Exam Key. Dulu
+  // peringatan ini cuma melihat BEK, jadi admin yang sudah memasang Config Key
+  // - cara yang justru dianjurkan, karena satu nilai berlaku lintas platform -
+  // tetap diberi tahu bahwa penjagaannya belum hidup. Keliru, dan bikin orang
+  // mengisi BEK yang sebenarnya tidak perlu.
+  const menyalaTapiKosong = draft.enforce && !adaBek && !adaConfigKey;
 
   return (
     <div className="space-y-4">
@@ -116,7 +123,7 @@ export default function SebOlimp() {
         </p>
         <p className="mt-1.5 text-sm text-stone-700 leading-relaxed">
           {menyalaTapiKosong
-            ? 'Browser Exam Key masih kosong, jadi server tidak punya pembanding untuk memeriksa permintaan yang masuk — semua permintaan tetap dibiarkan lewat. Isi BEK-nya di bawah supaya penjagaannya benar-benar hidup.'
+            ? 'Config Key dan Browser Exam Key dua-duanya masih kosong, jadi server tidak punya pembanding untuk memeriksa permintaan yang masuk — semua permintaan tetap dibiarkan lewat. Isi SALAH SATUNYA di bawah supaya penjagaannya benar-benar hidup; Config Key saja sudah cukup, dan itu yang paling lapang karena satu nilai berlaku untuk semua platform.'
             : draft.enforce
               ? 'Soal Olimp menolak dibaca dari peramban biasa. Admin & pengajar PCV tetap bisa meninjau soal seperti biasa.'
               : 'Untuk sekarang Web Olimp masih bisa dibuka dari peramban biasa. Nyalakan setelah berkas konfigurasi disebarkan ke peserta dan BEK-nya sudah dipasang.'}
@@ -210,7 +217,7 @@ export default function SebOlimp() {
           />
         </Field>
 
-        {!adaBek && !(draft.configKey || '').trim() && (
+        {!adaBek && !adaConfigKey && (
           <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800 leading-relaxed">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             Selama Config Key dan BEK dua-duanya kosong, penjagaan tidak bisa memverifikasi apa pun dan akan

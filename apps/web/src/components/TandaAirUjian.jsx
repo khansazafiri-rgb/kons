@@ -45,7 +45,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 const BARIS = 7;
 const KOLOM = 4;
 
-export default function TandaAirUjian({ nama, email, kode, aktif = true }) {
+// `dalamKotak` mengubah lapisannya dari menutupi SELURUH layar (fixed) jadi
+// menutupi kotak induknya saja (absolute). Dipakai pratinjau admin, yang
+// menampilkan layar ujian di dalam sebuah modal: kalau di sana ia tetap fixed,
+// tanda airnya akan tumpah keluar modal dan menutupi dashboard di belakangnya.
+// Induknya harus `position: relative`.
+export default function TandaAirUjian({ nama, email, kode, aktif = true, dalamKotak = false }) {
   // Jam ikut dicetak supaya foto yang beredar bisa dicocokkan dengan sesi mana.
   // Diperbarui tiap menit, bukan tiap detik: yang dibutuhkan ketelitian menit,
   // dan menyegarkan tiap detik cuma membuat 28 simpul teks digambar ulang
@@ -95,7 +100,8 @@ export default function TandaAirUjian({ nama, email, kode, aktif = true }) {
       // maroon samar di atas latar gelap praktis tidak terlihat - tanda air
       // yang tidak terlihat sama saja dengan tidak ada.
       className={
-        'pointer-events-none fixed inset-0 z-40 select-none overflow-hidden '
+        'pointer-events-none inset-0 z-40 select-none overflow-hidden '
+        + (dalamKotak ? 'absolute ' : 'fixed ')
         + 'text-[rgba(120,53,53,0.13)] dark:text-[rgba(255,228,228,0.15)]'
       }
       style={{
