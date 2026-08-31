@@ -243,7 +243,9 @@ routerAdd("GET", "/api/event/seb-config", (e) => {
   const setelan = H.sebSetelan(e.app, ev);
   const appUrl = (e.app.settings().meta.appURL || "").replace(/\/+$/, "");
   const slug = ev.getString("slug");
-  const token = reg.getString("sebConfigToken");
+  // Tokennya sengaja TIDAK ikut ke dalam berkas - lihat catatan di startUrl
+  // di bawah. Ia tetap hidup di basis data sebagai kredensial cadangan untuk
+  // berkas lama yang terlanjur diunduh.
   // BERKAS .seb MENDARAT DI PUSAT UJIAN, BUKAN LANGSUNG DI SOAL.
   //
   // Dulu ia menunjuk langsung ke halaman ujian lomba ini. Itu berarti peserta
@@ -256,10 +258,30 @@ routerAdd("GET", "/api/event/seb-config", (e) => {
   // lomba yang ia ikuti beserta hitungan mundurnya, lalu masuk lewat tombol
   // yang menyala sendiri saat waktunya tiba.
   //
-  // Tokennya tetap dibawa: ia menandai berkas ini milik lomba yang mana, dan
-  // tetap dipakai sebagai jalan masuk kalau peserta lebih memilih langsung
-  // menekan tombol lombanya tanpa login.
-  const startUrl = appUrl + "/ujian?t=" + token;
+  // ALAMATNYA TIDAK MEMBAWA TOKEN. Ini yang membuat SATU Config Key cukup
+  // untuk semua orang.
+  //
+  // Config Key dan Browser Exam Key dihitung SEB Config Tool dari ISI berkas
+  // .seb, dan startURL termasuk yang ikut dihitung. Selama alamat itu memuat
+  // token personal, tiap peserta memegang berkas yang berbeda satu baris - dan
+  // satu baris berbeda sudah cukup untuk menghasilkan kunci yang berbeda pula.
+  // Akibatnya kunci yang didaftarkan admin (diambil dari berkas satu akun uji)
+  // cuma cocok untuk akun uji itu; semua peserta lain kena SEB_MISMATCH di hari
+  // ujian, dan sebabnya sama sekali tidak kelihatan dari layar mana pun.
+  //
+  // Tanpa token, berkas semua peserta di satu lomba jadi identik byte per byte
+  // - dan antar lomba pun identik selama pengaturan SEB-nya sama - sehingga
+  // satu kunci benar-benar berlaku untuk semuanya.
+  //
+  // Yang hilang tidak ada: tokennya dulu berguna waktu berkas ini menunjuk
+  // langsung ke satu halaman ujian. Sekarang ia mendarat di Pusat Ujian, tempat
+  // peserta memang login lebih dulu, jadi identitasnya datang dari sesi itu.
+  // Server TETAP menerima `?t=` (lihat pendaftaranUntuk) supaya berkas lama yang
+  // terlanjur diunduh tidak mendadak mati.
+  //
+  // Sekalian menutup satu celah: berkas .seb yang bocor tidak lagi membawa
+  // kredensial siapa pun - ia cuma alamat, dan tetap harus login.
+  const startUrl = appUrl + "/ujian";
 
   // SEB menyimpan kata sandi sebagai SHA256 heksadesimal HURUF BESAR.
   const hash = (teks) => (teks ? $security.sha256(teks).toUpperCase() : "");

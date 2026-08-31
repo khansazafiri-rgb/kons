@@ -207,6 +207,34 @@ tanpa cara memperbaikinya sendiri.
 Isi **salah satu saja sudah cukup**; kalau dua-duanya diisi, Config Key diperiksa
 lebih dulu lalu BEK sebagai cadangan.
 
+#### Syarat "satu kunci untuk semua": berkasnya harus identik
+
+Kedua kunci dihitung dari **isi berkas `.seb`**. Jadi satu kunci berlaku untuk
+sekumpulan orang persis sejauh berkas mereka sama.
+
+Ini sempat tidak terpenuhi. `startURL` dulu memuat token personal
+(`/ujian?t=<token>`), jadi berkas tiap peserta berbeda satu baris - dan satu
+baris berbeda sudah cukup menghasilkan kunci yang berbeda. Akibatnya kunci yang
+didaftarkan admin, yang diambil dari berkas satu akun uji, cuma cocok untuk akun
+uji itu; **semua peserta lain kena `SEB_MISMATCH` di hari ujian**, dan sebabnya
+tidak kelihatan dari layar mana pun.
+
+Sekarang `startURL` cuma `{alamat-aplikasi}/ujian`, tanpa token. Berkas semua
+peserta jadi identik byte per byte, dan **antar lomba pun identik selama
+pengaturan SEB-nya sama**. Tokennya tidak hilang - ia tetap hidup di basis data
+dan server tetap menerima `?t=` supaya berkas lama yang terlanjur diunduh tidak
+mendadak mati - cuma tidak lagi ikut ditulis ke dalam berkas. Sekalian menutup
+satu celah: berkas yang bocor tidak lagi membawa kredensial siapa pun.
+
+Yang **masih** membuat berkas (dan kuncinya) berbeda antar lomba adalah empat
+pengaturan SEB per lomba: kata sandi keluar, kata sandi pengaturan, alamat lain
+yang boleh dibuka, dan izin kalkulator. Keempatnya ikut ditulis ke dalam berkas.
+
+Jadi kalau kamu memang mau **satu Config Key untuk semua lomba**: kosongkan
+keempatnya di tiap lomba dan biarkan mengikuti pengaturan SEB global. Begitu
+satu lomba diberi kata sandi keluarnya sendiri, lomba itu butuh kuncinya
+sendiri.
+
 > **Selama kedua kolomnya kosong**, penjagaan **membiarkan semua permintaan
 > lewat** meskipun saklarnya menyala — server tidak punya pembanding untuk
 > memverifikasi. Tab Info Dasar dan Review & Publish sama-sama memperingatkan
@@ -307,6 +335,16 @@ Tanda air diuji di kedua layar soal, di peramban sungguhan:
   dengan tidak ada
 - `/api/olimp/seb-info` membawa saklarnya tanpa ikut membocorkan kata sandi
   keluar maupun kunci SEB
+
+Berkas `.seb` sesudah token dikeluarkan dari `startURL`:
+
+- Berkas untuk dua lomba berbeda, diunduh akun yang sama: **identik byte per
+  byte** (`diff` bersih) - jadi satu Config Key cukup untuk dua-duanya
+- Begitu satu lomba diberi kata sandi keluarnya sendiri, berkasnya berubah
+  (`hashedQuitPassword`) - kunci lomba itu jadi berbeda, seperti yang memang
+  diharapkan
+- Membuka `/ujian` polos tanpa token: layar masuk tampil, lalu ketiga lomba
+  keluar setelah login, tombol masuk ada di yang sedang berjalan
 
 Pusat Ujian diuji dengan satu peserta yang terdaftar di **tiga lomba berbeda
 tanggal** (satu sedang berjalan, satu besok, satu sudah lewat):
@@ -526,16 +564,17 @@ Semua berkas `.seb` mendarat di **`/ujian`** — satu halaman yang sama untuk
 lomba mana pun:
 
 ```
-buka berkas .seb  →  /ujian?t=<token>
+buka berkas .seb  →  /ujian
    → login (akun PCV atau akun Web Olimp, satu kotak isian untuk keduanya)
    → daftar SEMUA lomba yang diikuti akun itu:
         jadwal · durasi · cara pengerjaan · status · hitungan mundur
    → tombol masuk menyala sendiri saat waktunya tiba
 ```
 
-Yang disatukan **layarnya**, bukan konfigurasinya. Tiap lomba tetap punya
-berkas `.seb` sendiri dengan kunci, kata sandi keluar, dan daftar alamatnya
-masing-masing.
+Yang disatukan **layarnya**. Konfigurasinya boleh tetap berbeda per lomba kalau
+memang perlu (kata sandi keluar, daftar alamat) - tapi kalau keempat pengaturan
+SEB per lomba dibiarkan kosong, berkasnya identik untuk semua lomba dan **satu
+Config Key cukup untuk semuanya**. Lihat bagian Config Key vs BEK di atas.
 
 ### Keputusan yang menopangnya
 
@@ -700,6 +739,23 @@ aturannya memang tertutup untuk peserta — membacanya dari sana akan selalu gag
 dan saklarnya tidak pernah benar-benar berlaku. Sifat tanda airnya sendiri tidak
 rahasia (pesertanya melihatnya di layar), jadi tempatnya di endpoint keterangan
 aman itu.
+
+### Melihatnya tanpa masuk SEB
+
+Tombol **Pratinjau → Layar ujian** di editor lomba menampilkan tanda airnya
+juga, dengan saklar lomba itu benar-benar dihormati — jadi admin bisa
+memastikan tanda airnya menyala sebelum hari ujian tanpa harus menyamar jadi
+peserta dan masuk ke SEB.
+
+Identitas yang tercetak di pratinjau sengaja **contoh** (`Nama Peserta ·
+email@peserta · #A1B2C3D4`), bukan milik admin yang sedang melihat: yang
+tercetak pada ujian sungguhan adalah identitas pesertanya, dan menampilkan nama
+admin di sini justru menyesatkan. Keterangan di bawah lembarnya mengatakan itu,
+dan berganti jadi peringatan kalau saklarnya sedang mati.
+
+Di dalam pratinjau lapisannya memakai `absolute`, bukan `fixed` (prop
+`dalamKotak`), supaya tidak tumpah keluar modal dan menutupi dashboard di
+belakangnya.
 
 ### Yang TIDAK dijanjikan
 

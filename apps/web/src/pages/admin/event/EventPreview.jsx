@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { jamMundur, rupiah, tanggalPanjang } from '@/lib/eventLomba';
+import TandaAirUjian from '@/components/TandaAirUjian';
 
 // PREVIEW MODE (PRD Revisi 2 bagian 4)
 //
@@ -147,7 +148,26 @@ function PreviewUjian({ ev, soal }) {
   const opsiTersedia = OPSI.filter((k) => (aktif[`option${k}`] || '').trim() !== '');
 
   return (
-    <div className="bg-alba-50">
+    // `relative` wajib: tanda air di bawah memakai `absolute inset-0`, dan
+    // tanpa induk yang relative ia akan berpatokan ke viewport lalu tumpah
+    // keluar modal.
+    <div className="relative bg-alba-50">
+      {/* Tanda air, ditampilkan PERSIS seperti yang akan dilihat peserta -
+          termasuk mati kalau saklarnya dimatikan. Ini yang membuat admin bisa
+          memastikan tanda airnya benar-benar menyala sebelum hari ujian, tanpa
+          harus menyamar jadi peserta dan masuk ke SEB.
+
+          Identitasnya sengaja CONTOH, bukan milik admin yang sedang melihat:
+          yang tercetak pada ujian sungguhan adalah identitas pesertanya, dan
+          menampilkan nama admin di sini justru menyesatkan. */}
+      <TandaAirUjian
+        dalamKotak
+        aktif={!ev.watermarkOff}
+        nama="Nama Peserta"
+        email="email@peserta"
+        kode="A1B2C3D4"
+      />
+
       <header className="border-b border-alba-200 bg-alba-50/95 px-6 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
           <div className="min-w-0">
@@ -237,6 +257,17 @@ function PreviewUjian({ ev, soal }) {
         <p className="mt-4 rounded-xl bg-alba-100/60 px-4 py-2.5 text-center text-[11px] leading-relaxed text-stone-500">
           Persis seperti yang dilihat peserta: tanpa tanda benar/salah, tanpa pembahasan.
           Jawaban yang kamu klik di sini tidak tersimpan ke mana pun.
+          {ev.watermarkOff ? (
+            <>
+              {' '}Tanda air identitas <span className="font-semibold">sedang dimatikan</span> untuk
+              lomba ini — nyalakan di tab Info Dasar kalau kamu ingin foto yang bocor bisa dilacak.
+            </>
+          ) : (
+            <>
+              {' '}Tanda air di belakang memakai identitas contoh; pada ujian sungguhan yang
+              tercetak adalah nama, email, dan kode pendaftaran pesertanya sendiri.
+            </>
+          )}
         </p>
       </main>
     </div>
