@@ -6,6 +6,7 @@ import {
 import { identitasEvent, jamMundur, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
 import { olimpDeviceName, olimpFingerprint } from '@/lib/olimp';
 import { isSeb } from '@/lib/seb';
+import TandaAirUjian from '@/components/TandaAirUjian';
 
 // LAYAR UJIAN LOMBA (/event/:slug/ujian)
 //
@@ -91,6 +92,10 @@ export default function EventUjian() {
   const [sisa, setSisa] = useState(null);
   const [sibuk, setSibuk] = useState(false);
   const [tanggalRilis, setTanggalRilis] = useState('');
+  // Identitas untuk tanda air. Datang dari SERVER bersama soalnya, bukan dari
+  // sesi login: di dalam SEB tidak ada sesi yang bisa dibaca halaman, dan di
+  // situlah justru tanda airnya paling perlu ada.
+  const [tandaAir, setTandaAir] = useState(null);
 
   // Dipakai supaya penghitung mundur & auto-kumpul tidak menembak dua kali.
   const sudahKumpul = useRef(false);
@@ -105,6 +110,7 @@ export default function EventUjian() {
   const muatSoal = useCallback(async () => {
     const d = await panggilEvent('/api/event/soal', { query: { slug, t: token } });
     setSoal(d.soal || []);
+    setTandaAir(d.tandaAir || null);
     const awal = {};
     (d.soal || []).forEach((s) => { if (s.jawabanku) awal[s.id] = s.jawabanku; });
     setJawaban(awal);
@@ -379,6 +385,15 @@ export default function EventUjian() {
   return (
     <div className="min-h-screen bg-alba-50">
       <div className="h-1 bg-gradient-to-r from-maroon-600 via-gold-400 to-maroon-600" />
+
+      {/* Tanda air identitas. Menutupi SELURUH layar, termasuk gambar soal -
+          foto sepotong pun ikut membawa nama pemotretnya. */}
+      <TandaAirUjian
+        aktif={tandaAir?.aktif}
+        nama={tandaAir?.nama}
+        email={tandaAir?.email}
+        kode={tandaAir?.kode}
+      />
 
       {/* Bilah atas: nomor soal, sisa waktu, nama lomba (PRD 8.2) */}
       <header className="sticky top-0 z-20 border-b border-alba-200 bg-alba-50/95 backdrop-blur">

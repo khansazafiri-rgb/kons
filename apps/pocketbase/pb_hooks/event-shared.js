@@ -559,6 +559,29 @@ function kunciSetara(app, eventIdA, evB) {
   return a.beks.some((k) => punyaB[k] === true);
 }
 
+// Identitas yang dicetak sebagai tanda air di layar ujian.
+//
+// Tiga potong, dan ketiganya ada alasannya:
+//   - nama  : yang langsung dikenali manusia saat melihat fotonya
+//   - email : pembeda kalau ada dua peserta bernama sama
+//   - kode  : delapan huruf pertama id pendaftaran. Nama dan email bisa
+//             terpotong di tepi foto; kode yang pendek jauh lebih besar
+//             peluangnya tercetak utuh di suatu tempat pada potongan mana pun,
+//             dan tetap menunjuk ke satu baris pendaftaran.
+//
+// `aktif` mengikuti saklar per lomba. Ditulis sebagai `watermarkOff` di basis
+// data - bukan `watermarkOn` - supaya nilai bawaan boolean PocketBase (false)
+// berarti tanda airnya MENYALA. Lomba yang dibuat sebelum saklar ini ada, dan
+// baris apa pun yang lupa diisi, otomatis jatuh ke sisi yang melindungi.
+function tandaAirDari(ev, reg) {
+  return {
+    aktif: !ev.getBool("watermarkOff"),
+    nama: reg.getString("pesertaNama"),
+    email: reg.getString("pesertaEmail"),
+    kode: String(reg.id || "").slice(0, 8).toUpperCase(),
+  };
+}
+
 module.exports = {
   amanId,
   jsonArray,
@@ -578,6 +601,7 @@ module.exports = {
   soalEvent,
   sebSetelan,
   kunciSetara,
+  tandaAirDari,
   periksaSeb,
   nilaiSatu,
   ms,

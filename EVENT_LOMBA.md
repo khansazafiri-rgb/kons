@@ -293,6 +293,21 @@ dari nol:
   tidak ada penyaringan penugasan yang mengenainya
 - Email peserta terbaca admin setelah migrasi `1786900000`
 
+Tanda air diuji di kedua layar soal, di peramban sungguhan:
+
+- Lomba: 28 cetakan, menutupi seluruh viewport, teksnya
+  `Peserta Uji · peserta@test.local · #LCFG7CW4 · 31 Agu 2026, 09.31`
+- Web Olimp: sama, dengan identitas diambil dari sesi
+- `pointer-events: none` terbukti — opsi jawaban tetap bisa diklik lewat
+  lapisannya, dan soal tetap terbaca
+- Saklar per lomba dan saklar global Olimp dua-duanya mematikan lalu
+  menyalakannya lagi
+- Mode gelap Web Olimp: warnanya berganti jadi terang
+  (`rgba(255,228,228,0.15)`) — tanda air maroon di latar gelap sama saja
+  dengan tidak ada
+- `/api/olimp/seb-info` membawa saklarnya tanpa ikut membocorkan kata sandi
+  keluar maupun kunci SEB
+
 Pusat Ujian diuji dengan satu peserta yang terdaftar di **tiga lomba berbeda
 tanggal** (satu sedang berjalan, satu besok, satu sudah lewat):
 
@@ -614,6 +629,87 @@ sejak sebelum deploy masih memegang daftar nama yang lama.
 Sekarang `OlimpFallback` memasang error boundary yang mengubah kegagalan jadi
 kalimat yang bisa dibaca, plus tombol muat ulang — yang memang menyelesaikan
 kasus di atas. Layar tunggunya juga tidak lagi kosong.
+
+---
+
+## Tanda air identitas di layar soal
+
+### Apa yang sebenarnya dijaga
+
+Yang paling sering bocor dari ujian bukan berkas, melainkan **foto layar yang
+diambil pakai HP** — dan Safe Exam Browser tidak bisa mencegah itu, sekeras apa
+pun penguncian aplikasinya. SEB memblokir tangkapan layar bawaan sistem, tapi
+kamera di tangan orang lain berada di luar jangkauannya.
+
+Karena tidak bisa dicegah, yang masuk akal adalah membuatnya **bisa dilacak**.
+Selama peserta membuka soal, tiga hal tercetak samar menyilang di seluruh layar:
+
+```
+Nama Peserta · email@nya · #KODE8 · 31 Agu 2026, 09.31
+```
+
+| Bagian | Kenapa ada |
+|---|---|
+| nama | yang langsung dikenali manusia saat melihat fotonya |
+| email | pembeda kalau ada dua peserta bernama sama |
+| kode | 8 huruf pertama id pendaftaran — nama dan email bisa terpotong di tepi foto, kode pendek jauh lebih besar peluangnya tercetak utuh di potongan mana pun |
+| waktu | mencocokkan foto dengan sesi mana; diperbarui tiap menit |
+
+### Kenapa miring dan berulang, bukan satu di tengah
+
+Satu tanda di tengah gampang dihindari — foto dipotong, atau soalnya difoto
+sepotong-sepotong. Dengan 28 cetakan menyilang di seluruh layar (baris ganjil
+digeser setengah kolom supaya tidak terbentuk lorong kosong vertikal), potongan
+sekecil apa pun yang masih memuat satu soal utuh hampir pasti ikut memuat
+sebagian identitasnya.
+
+Miring 30° supaya tidak sejajar dengan baris teks soal: kalau sejajar, keduanya
+saling menyamarkan dan dua-duanya jadi lebih sulit dibaca.
+
+### Identitasnya datang dari server, bukan dari sesi
+
+Untuk lomba, `/api/event/soal` mengirim `tandaAir` bersama soalnya. Dua alasan:
+
+1. Di dalam SEB **tidak ada sesi login yang bisa dibaca halaman** — berkas
+   `.seb` menghapus penyimpanan peramban tiap kali dijalankan, dan peserta bisa
+   masuk cuma dengan token. Kalau tanda airnya mengambil nama dari sesi, di
+   sanalah ia justru kosong: tepat di tempat yang paling perlu ditandai.
+2. Isinya jadi tidak bisa dipalsukan dari layar — yang tercetak adalah pemilik
+   pendaftaran menurut basis data.
+
+Web Olimp berbeda: di sana login memang selalu wajib, jadi identitasnya diambil
+dari sesi yang sedang berjalan.
+
+### Saklarnya
+
+| Di mana | Field | Lingkup |
+|---|---|---|
+| Tab Info Dasar tiap lomba | `events.watermarkOff` | per lomba |
+| Dashboard Olimp → Safe Exam Browser | `olimp_seb.watermarkOff` | global untuk Web Olimp |
+
+Namanya sengaja **terbalik**. Nilai bawaan sebuah boolean di PocketBase adalah
+`false`; kalau field-nya dinamai `watermarkOn`, semua lomba yang dibuat sebelum
+migrasi ini — dan tiap baris yang lupa diisi — akan lahir dengan tanda air mati,
+yaitu sisi yang tidak melindungi. Dengan nama terbalik, bawaan `false` berarti
+tanda airnya **menyala**. Pola yang sama dipakai saklar penyembunyian info
+publik, dengan alasan yang sama persis.
+
+Saklar Olimp dibaca lewat `/api/olimp/seb-info`, **bukan** dari collection
+`olimp_seb` langsung: baris itu memuat kata sandi keluar dan kunci SEB, jadi
+aturannya memang tertutup untuk peserta — membacanya dari sana akan selalu gagal
+dan saklarnya tidak pernah benar-benar berlaku. Sifat tanda airnya sendiri tidak
+rahasia (pesertanya melihatnya di layar), jadi tempatnya di endpoint keterangan
+aman itu.
+
+### Yang TIDAK dijanjikan
+
+Ini **jejak, bukan penghalang**. Orang yang paham peramban dan bisa membuka alat
+pengembang tetap bisa menghapus lapisannya. Di dalam SEB alat itu terkunci, jadi
+jejaknya berlaku penuh; di luar SEB — lomba yang memang tidak mewajibkannya —
+anggap tanda air ini menghalangi yang tidak niat, bukan yang sudah niat.
+
+Lapisannya juga `pointer-events: none` dan `user-select: none`: ia tidak pernah
+menghalangi klik peserta, dan tidak ikut tersalin saat teks soal diblok.
 
 ---
 

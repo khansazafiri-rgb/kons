@@ -517,6 +517,17 @@ routerAdd("GET", "/api/event/soal", (e) => {
     batas: batas ? new Date(batas).toISOString() : "",
     sisaDetik: batas ? Math.max(0, Math.floor((batas - now) / 1000)) : 0,
     soal: isi,
+    // IDENTITAS UNTUK TANDA AIR - dikirim SERVER, bukan dibaca dari sesi.
+    //
+    // Di dalam SEB tidak ada sesi login yang bisa dibaca halaman: berkas .seb
+    // menghapus penyimpanan peramban tiap kali dijalankan, dan peserta bisa
+    // masuk cuma dengan token. Kalau tanda airnya mengambil nama dari sesi, di
+    // sanalah ia justru kosong - tepat di tempat yang paling perlu ditandai.
+    //
+    // Dikirim di sini juga berarti isinya tidak bisa dipalsukan dari layar:
+    // yang tercetak adalah pemilik pendaftaran menurut basis data, bukan yang
+    // diketik orangnya sendiri.
+    tandaAir: H.tandaAirDari(ev, reg),
   });
 });
 
