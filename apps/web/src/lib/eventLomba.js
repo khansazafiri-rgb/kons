@@ -209,3 +209,69 @@ export function buatSlug(nama) {
     .replace(/^-+|-+$/g, '')
     .slice(0, 120);
 }
+
+// MASUK DARI PUSAT UJIAN
+//
+// Satu kotak isian untuk dua jenis akun. Peserta lomba bisa memakai akun PCV
+// atau akun Web Olimp (lihat identitasEvent di atas), dan di dalam SEB ia tidak
+// punya cara memilih - yang ada cuma satu layar. Jadi yang dicoba akun PCV
+// dulu, lalu akun Olimp.
+//
+// KENAPA TIDAK LEWAT AuthContext.login:
+//
+// Login lewat sana ikut mendaftarkan "device" ke akunnya, dan di dalam SEB itu
+// merusak. Berkas .seb menyalakan clearSessionOnStart, yang menghapus seluruh
+// penyimpanan peramban tiap kali dijalankan - termasuk `pcv_device_id`. Artinya
+// SEB memperkenalkan diri sebagai device BARU setiap kali dibuka. Siswa dengan
+// jatah satu device akan menghabiskan jatahnya pada percobaan pertama, lalu
+// terkunci di luar pada percobaan kedua - tepat di hari ujian.
+//
+// Kunci yang benar-benar menjaga ujian bukan itu, melainkan kunci per
+// pendaftaran (`event_registrations.deviceId`): satu pendaftaran terikat ke
+// perangkat yang dipakai menekan Mulai, dan admin bisa me-resetnya. Kunci itu
+// tetap berlaku penuh - yang dilewati di sini cuma kunci device tingkat akun,
+// yang memang dibuat untuk membatasi berbagi akun materi kuliah, bukan ujian.
+export async function masukPeserta(identity, password) {
+  const id = String(identity || '').trim();
+
+  // Galat yang memang ingin ditampilkan apa adanya diberi tanda, supaya tidak
+  // ikut jatuh ke percobaan akun Olimp dan berakhir jadi "password salah".
+  const pasti = (pesan) => Object.assign(new Error(pesan), { pastiSalah: true });
+
+  try {
+    await pb.collection('users').authWithPassword(id, password);
+    const rec = pb.authStore.record;
+    if (rec?.signupPending) {
+      pb.authStore.clear();
+      throw pasti('Akun ini belum diverifikasi admin. Hubungi admin dulu.');
+    }
+    if (rec?.disabled) {
+      pb.authStore.clear();
+      throw pasti('Akun ini dinonaktifkan. Hubungi admin.');
+    }
+    if (isAdminRole(rec?.role)) {
+      pb.authStore.clear();
+      throw pasti('Akun admin tidak ikut lomba sebagai peserta. Pakai akun pesertamu.');
+    }
+    return { kind: 'users', record: rec };
+  } catch (err) {
+    if (err?.pastiSalah) throw err;
+    pb.authStore.clear();
+  }
+
+  try {
+    await pbo.collection('olimp_users').authWithPassword(id, password);
+    return { kind: 'olimp_users', record: pbo.authStore.record };
+  } catch (_) {
+    pbo.authStore.clear();
+  }
+
+  throw new Error('Email/Login ID atau passwordnya tidak cocok. Periksa lagi, atau hubungi admin.');
+}
+
+// Keluar dari kedua jenis akun sekaligus - Pusat Ujian tidak tahu (dan tidak
+// perlu tahu) yang mana yang tadi dipakai.
+export function keluarPeserta() {
+  pb.authStore.clear();
+  pbo.authStore.clear();
+}

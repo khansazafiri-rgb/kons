@@ -533,6 +533,32 @@ function nilaiSatu(app, reg, soal) {
   return { skor, total, benar, dijawab: Object.keys(pilihan).filter((k) => pilihan[k]).length };
 }
 
+// Apakah dua lomba bisa dibuka dengan berkas .seb yang sama?
+//
+// Dipakai Pusat Ujian untuk memperingatkan lebih awal. Peserta yang sedang
+// menjalankan berkas milik lomba A lalu menekan tombol lomba B akan ditolak
+// `periksaSeb` dengan SEB_MISMATCH - penolakan yang benar, tapi datang pada
+// saat paling buruk: setelah ia mengira ujiannya sudah dimulai.
+//
+// Yang menentukan cocok-tidaknya cuma kuncinya, bukan pengaturan lain: itulah
+// yang sungguh-sungguh diperiksa `periksaSeb`. Kalau admin memakai satu Config
+// Key untuk semua lomba (cara yang paling lapang), semua lomba jadi setara dan
+// satu berkas cukup untuk semuanya.
+function kunciSetara(app, eventIdA, evB) {
+  const evA = cariEventById(app, eventIdA);
+  if (!evA || !evB) return false;
+  const a = sebSetelan(app, evA);
+  const b = sebSetelan(app, evB);
+
+  if (a.configKey !== "" && a.configKey === b.configKey) return true;
+
+  // Tanpa Config Key, satu berkas baru berlaku di dua lomba kalau daftar
+  // Browser Exam Key-nya benar-benar bersinggungan.
+  const punyaB = {};
+  b.beks.forEach((k) => { punyaB[k] = true; });
+  return a.beks.some((k) => punyaB[k] === true);
+}
+
 module.exports = {
   amanId,
   jsonArray,
@@ -551,6 +577,7 @@ module.exports = {
   hitungTerdaftar,
   soalEvent,
   sebSetelan,
+  kunciSetara,
   periksaSeb,
   nilaiSatu,
   ms,

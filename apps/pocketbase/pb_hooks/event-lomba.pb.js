@@ -244,7 +244,22 @@ routerAdd("GET", "/api/event/seb-config", (e) => {
   const appUrl = (e.app.settings().meta.appURL || "").replace(/\/+$/, "");
   const slug = ev.getString("slug");
   const token = reg.getString("sebConfigToken");
-  const startUrl = appUrl + "/event/" + slug + "/ujian?t=" + token;
+  // BERKAS .seb MENDARAT DI PUSAT UJIAN, BUKAN LANGSUNG DI SOAL.
+  //
+  // Dulu ia menunjuk langsung ke halaman ujian lomba ini. Itu berarti peserta
+  // yang membukanya di luar jam ujian - untuk mencoba berkasnya, atau karena
+  // datang kepagian - disambut "belum waktunya ujian" dan berhenti di situ.
+  // Layarnya buntu: tidak ada keterangan kapan mulainya, dan tidak ada jalan ke
+  // lomba lain yang mungkin memang sedang berjalan untuknya.
+  //
+  // Sekarang mendarat di ruang tunggu bersama. Peserta login, melihat semua
+  // lomba yang ia ikuti beserta hitungan mundurnya, lalu masuk lewat tombol
+  // yang menyala sendiri saat waktunya tiba.
+  //
+  // Tokennya tetap dibawa: ia menandai berkas ini milik lomba yang mana, dan
+  // tetap dipakai sebagai jalan masuk kalau peserta lebih memilih langsung
+  // menekan tombol lombanya tanpa login.
+  const startUrl = appUrl + "/ujian?t=" + token;
 
   // SEB menyimpan kata sandi sebagai SHA256 heksadesimal HURUF BESAR.
   const hash = (teks) => (teks ? $security.sha256(teks).toUpperCase() : "");
@@ -786,5 +801,177 @@ routerAdd("POST", "/api/event/rilis", (e) => {
     ok: true,
     dinilai: hasil.length,
     mengumpulkan: hasil.filter((h) => h.kumpul > 0).length,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12. Pusat Ujian: semua lomba yang diikuti SATU akun
+// ---------------------------------------------------------------------------
+//
+// Kenapa ini ada. Berkas .seb dulu menunjuk langsung ke halaman ujian satu
+// lomba. Akibatnya peserta yang membukanya di luar jam ujian cuma disambut
+// "belum waktunya ujian" - layar buntu, tanpa jalan ke mana pun, dan tanpa
+// keterangan kapan sebenarnya ujiannya mulai.
+//
+// Padahal satu orang bisa terdaftar di beberapa lomba yang tanggalnya
+// berbeda-beda. Yang ia butuhkan bukan pintu ke satu lomba, melainkan ruang
+// tunggu: daftar lomba yang ia ikuti, jadwal masing-masing, hitungan mundur,
+// dan tombol yang menyala sendiri begitu waktunya tiba.
+//
+// Endpoint ini yang mengisi ruang tunggu itu.
+//
+// TIGA HAL YANG SENGAJA:
+//
+// 1. TIDAK memeriksa header SEB. Halaman ini cuma daftar; yang dijaga adalah
+//    pintu ujiannya (`mulai`, `soal`, `jawab`). Memeriksanya di sini justru
+//    merusak: berkas .seb milik lomba A punya kunci yang berbeda dari lomba B,
+//    jadi ruang tunggunya akan menolak dirinya sendiri begitu peserta memegang
+//    lebih dari satu lomba.
+//
+// 2. `sekarang` ikut dikirim. Hitungan mundur di layar TIDAK boleh memakai jam
+//    peramban - peserta bisa memundurkan jam komputernya sendiri. Halaman
+//    menghitung selisih jam server dengan jam lokalnya sekali, lalu memakai
+//    selisih itu seterusnya.
+//
+// 3. Yang menentukan boleh-tidaknya masuk tetap server, lewat `jendelaUjian`
+//    yang sama persis dipakai endpoint `mulai`. Tombol di layar cuma mengikuti
+//    jawabannya - tidak ada logika jadwal kedua yang bisa berbeda pendapat.
+routerAdd("GET", "/api/event/saya", (e) => {
+  const H = require(`${__hooks}/event-shared.js`);
+
+  // Dua cara mengenali orangnya, sama seperti pintu ujian: sesi login biasa,
+  // atau token dari berkas .seb. Token dipakai supaya ruang tunggu tetap
+  // berguna pada detik-detik pertama di dalam SEB - sebelum peserta sempat
+  // login, ia sudah bisa melihat lomba mana yang berkas ini miliki.
+  const token = e.request.url.query().get("t");
+  const lewatToken = H.pendaftaranDariToken(e.app, token);
+  const peserta = H.pesertaDari(e);
+
+  if (!peserta && !lewatToken) {
+    return e.json(401, {
+      kode: "PERLU_MASUK",
+      message: "Masuk dulu dengan akunmu untuk melihat daftar lomba yang kamu ikuti.",
+    });
+  }
+  if (peserta && peserta.isAdmin) {
+    return e.json(403, {
+      kode: "ADMIN_BUKAN_PESERTA",
+      message: "Akun admin tidak ikut lomba sebagai peserta. Pakai akun peserta untuk membuka Pusat Ujian.",
+    });
+  }
+
+  // Lomba yang berkas .seb-nya sedang dijalankan. Dipakai halaman untuk
+  // menandai "berkas ini untuk lomba yang ini", dan untuk memperingatkan
+  // sebelum peserta menekan tombol lomba lain yang butuh berkasnya sendiri.
+  const berkasUntuk = lewatToken ? lewatToken.getString("event") : "";
+
+  // Kalau yang membuka baru memegang token (belum login), yang bisa
+  // ditampilkan hanya pendaftaran milik token itu. Setelah login, seluruh
+  // pendaftarannya keluar.
+  let baris = [];
+  if (peserta) {
+    const kolom = peserta.kind === "users" ? "user" : "olimpUser";
+    try {
+      baris = e.app.findRecordsByFilter(
+        "event_registrations",
+        kolom + " = '" + peserta.id + "' && deletedAt = ''",
+        "-created",
+        200,
+        0,
+      );
+    } catch (_) { baris = []; }
+  } else if (H.iso(lewatToken, "deletedAt") === "") {
+    baris = [lewatToken];
+  }
+
+  const now = Date.now();
+  const daftar = [];
+
+  baris.forEach((reg) => {
+    const ev = H.cariEventById(e.app, reg.getString("event"));
+    if (!ev) return;
+    const status = ev.getString("status");
+    // Lomba yang belum terbit / sudah diarsipkan tidak perlu memenuhi ruang
+    // tunggu peserta.
+    if (status === "DRAFT" || status === "ARCHIVED") return;
+
+    const bayar = reg.getString("paymentStatus");
+    const disetujui = bayar === "APPROVED";
+    // Peserta yang sudah di-ACC berhak tahu jadwal dan cara pengerjaan lombanya
+    // - saklar penyembunyian hanya berlaku untuk pengunjung umum.
+    const isi = H.eventPublik(ev, disetujui);
+    const jendela = H.jendelaUjian(ev, reg, now);
+    const setelan = H.sebSetelan(e.app, ev);
+
+    daftar.push({
+      pendaftaranId: reg.id,
+      slug: ev.getString("slug"),
+      nama: ev.getString("name"),
+      tipe: isi.tipe,
+      subjek: ev.getString("subject"),
+      statusLomba: status,
+
+      // Keadaan pendaftarannya
+      statusBayar: bayar,
+      disetujui: disetujui,
+      alasanTolak: reg.getString("rejectionReason"),
+
+      // Jadwal - dipakai untuk hitungan mundur di layar
+      mulaiUjian: H.iso(ev, "examStartAt"),
+      selesaiUjian: H.iso(ev, "examEndAt"),
+      modelWaktu: isi.modelWaktu,
+      durasiMenit: isi.durasiMenit,
+
+      // Kemajuan pengerjaannya
+      sudahMulai: H.iso(reg, "examStartedAt") !== "",
+      sudahKumpul: H.iso(reg, "examSubmittedAt") !== "",
+      batas: jendela.batas ? new Date(jendela.batas).toISOString() : "",
+
+      // Putusan server soal boleh masuk atau belum - halaman tidak menghitung
+      // ulang, cuma menampilkan
+      bolehUjian: disetujui && jendela.boleh,
+      kodeJendela: jendela.kode,
+
+      hasilDirilis: H.iso(ev, "resultsReleasedAt") !== "",
+      peringkatPublik: ev.getBool("leaderboardPublic"),
+
+      // Soal berkas konfigurasi
+      wajibSeb: setelan.wajib,
+      iniBerkasnya: berkasUntuk !== "" && berkasUntuk === ev.id,
+      // Lomba lain yang juga butuh SEB berarti butuh berkasnya SENDIRI, kecuali
+      // kunci keduanya kebetulan sama persis. Diperiksa di server supaya
+      // peserta diberi tahu SEBELUM menekan tombol, bukan setelah ditolak.
+      perluBerkasLain:
+        setelan.wajib && berkasUntuk !== "" && berkasUntuk !== ev.id
+          ? !H.kunciSetara(e.app, berkasUntuk, ev)
+          : false,
+    });
+  });
+
+  // Yang paling dekat waktunya di atas: yang sedang boleh dikerjakan dulu, lalu
+  // yang paling cepat mulai. Peserta membuka halaman ini justru untuk tahu
+  // "yang mana sekarang", jadi jawabannya harus ada di baris pertama.
+  const bobot = (d) => {
+    if (d.bolehUjian) return 0;
+    if (d.kodeJendela === "BELUM_MULAI") return 1;
+    if (!d.disetujui) return 2;
+    return 3;
+  };
+  daftar.sort((a, b) => {
+    const w = bobot(a) - bobot(b);
+    if (w !== 0) return w;
+    const am = Date.parse(a.mulaiUjian || "") || 0;
+    const bm = Date.parse(b.mulaiUjian || "") || 0;
+    return am - bm;
+  });
+
+  return e.json(200, {
+    sekarang: new Date(now).toISOString(),
+    berkasUntuk: berkasUntuk,
+    perluLogin: !peserta,
+    peserta: peserta
+      ? { nama: peserta.nama, email: peserta.email, kind: peserta.kind }
+      : null,
+    daftar: daftar,
   });
 });

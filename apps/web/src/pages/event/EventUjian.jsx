@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Loader2, ShieldCheck, Timer,
+  AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, LayoutList, Loader2, ShieldCheck, Timer,
 } from 'lucide-react';
 import { identitasEvent, jamMundur, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
 import { olimpDeviceName, olimpFingerprint } from '@/lib/olimp';
@@ -44,6 +44,28 @@ function Pesan({ judul, isi, anak }) {
         {anak}
       </div>
     </Layar>
+  );
+}
+
+// KE MANA PESERTA DILEMPAR DARI LAYAR YANG BUNTU
+//
+// Dulu semua layar penolakan menawarkan satu tautan: halaman publik lomba ini.
+// Di dalam SEB itu jalan buntu yang lain - halaman publik penuh tombol yang
+// tidak bisa dipakai dari sana, dan tetap tidak menjawab pertanyaan yang
+// sebenarnya ("kalau bukan sekarang, kapan? lomba saya yang lain bagaimana?").
+//
+// Pusat Ujian menjawabnya: daftar semua lomba yang ia ikuti, hitungan mundur
+// masing-masing, dan tombol yang menyala sendiri. Jadi dari layar buntu mana
+// pun, ke sanalah tujuannya - dan tokennya ikut dibawa supaya ia tidak perlu
+// login ulang kalau memang sedang di dalam SEB.
+function KePusat({ token, teks = 'Ke Pusat Ujian' }) {
+  return (
+    <Link
+      to={token ? `/ujian?t=${encodeURIComponent(token)}` : '/ujian'}
+      className="inline-flex items-center gap-2 rounded-xl bg-maroon-600 px-6 py-2.5 text-sm font-semibold text-alba-50"
+    >
+      <LayoutList size={15} /> {teks}
+    </Link>
   );
 }
 
@@ -224,12 +246,8 @@ export default function EventUjian() {
       return (
         <Pesan
           judul="Masuk dulu"
-          isi="Layar ujian cuma bisa dibuka peserta yang sudah terdaftar dan disetujui."
-          anak={
-            <Link to={`/event/${slug}`} className="mt-5 inline-block rounded-xl bg-maroon-600 px-6 py-2.5 text-sm font-semibold text-alba-50">
-              Ke halaman lomba
-            </Link>
-          }
+          isi="Layar ujian cuma bisa dibuka peserta yang sudah terdaftar dan disetujui. Masuk lewat Pusat Ujian dulu."
+          anak={<div className="mt-5"><KePusat token={token} teks="Masuk lewat Pusat Ujian" /></div>}
         />
       );
     }
@@ -237,12 +255,15 @@ export default function EventUjian() {
       return (
         <Pesan
           judul="Ujian belum dimulai"
-          isi={`Ujian dibuka ${tanggalPanjang(ev?.mulaiUjian)}. Buka halaman ini lagi saat waktunya tiba — layarnya akan langsung berganti jadi soal.`}
-          anak={
-            <p className="mt-5 inline-flex items-center gap-2 rounded-xl bg-alba-100 px-4 py-2.5 text-sm font-semibold text-stone-700">
-              <Clock size={15} className="text-maroon-500" /> {tanggalPanjang(ev?.mulaiUjian)}
-            </p>
-          }
+          isi={`Ujian dibuka ${tanggalPanjang(ev?.mulaiUjian)}. Di Pusat Ujian ada hitungan mundurnya, dan tombolnya menyala sendiri begitu waktunya tiba.`}
+          anak={(
+            <div className="mt-5 space-y-4">
+              <p className="inline-flex items-center gap-2 rounded-xl bg-alba-100 px-4 py-2.5 text-sm font-semibold text-stone-700">
+                <Clock size={15} className="text-maroon-500" /> {tanggalPanjang(ev?.mulaiUjian)}
+              </p>
+              <div><KePusat token={token} /></div>
+            </div>
+          )}
         />
       );
     }
@@ -268,11 +289,7 @@ export default function EventUjian() {
           SUDAH_SELESAI: 'Jendela waktu ujian sudah ditutup.',
           WAKTU_HABIS: 'Waktu pengerjaanmu sudah habis.',
         }[kode] || 'Layar ujian belum bisa dibuka.'}
-        anak={
-          <Link to={`/event/${slug}`} className="mt-5 inline-block rounded-xl bg-maroon-600 px-6 py-2.5 text-sm font-semibold text-alba-50">
-            Ke halaman lomba
-          </Link>
-        }
+        anak={<div className="mt-5"><KePusat token={token} /></div>}
       />
     );
   }
@@ -292,8 +309,11 @@ export default function EventUjian() {
               <CheckCircle2 size={16} /> Jawaban tersimpan
             </p>
             <div>
-              <Link to={`/event/${slug}`} className="inline-block rounded-xl border border-alba-300 px-6 py-2.5 text-sm font-semibold text-stone-700">
-                Kembali ke halaman lomba
+              <Link
+                to={isSeb() ? (token ? `/ujian?t=${encodeURIComponent(token)}` : '/ujian') : `/event/${slug}`}
+                className="inline-block rounded-xl border border-alba-300 px-6 py-2.5 text-sm font-semibold text-stone-700"
+              >
+                {isSeb() ? 'Kembali ke Pusat Ujian' : 'Kembali ke halaman lomba'}
               </Link>
             </div>
             {isSeb() && (

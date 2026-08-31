@@ -285,6 +285,18 @@ export default function EventDetail() {
           ← Semua lomba
         </Link>
 
+        {/* Halaman ini bisa dibuka admin walau lombanya masih draf - itu
+            memang gunanya, supaya hasilnya bisa diperiksa sebelum terbit.
+            Tapi tanpa penanda, admin gampang mengira lombanya sudah terbuka
+            untuk umum dan lupa menekan Terbitkan. */}
+        {ev.status === 'DRAFT' && (
+          <p className="mt-4 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3 text-[13px] font-semibold text-gold-700">
+            Ini pratinjau draf — lombanya belum terbit, jadi cuma admin yang
+            bisa membuka halaman ini. Pengunjung biasa menerima
+            &ldquo;Lomba tidak ditemukan&rdquo;.
+          </p>
+        )}
+
         {ev.banner ? (
           <img src={ev.banner} alt="" className="mt-4 h-48 w-full rounded-2xl object-cover sm:h-64" />
         ) : (

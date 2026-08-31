@@ -284,16 +284,14 @@ export default function EventPreview({ ev, onTutup }) {
                 </button>
               ))}
             </div>
-            {ev.status !== 'DRAFT' && (
-              <a
-                href={`/event/${ev.slug}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[12px] font-semibold text-stone-500 hover:text-maroon-600"
-              >
-                <ExternalLink size={12} /> Buka aslinya
-              </a>
-            )}
+            <a
+              href={`/event/${ev.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-[12px] font-semibold text-stone-500 hover:text-maroon-600"
+            >
+              <ExternalLink size={12} /> Buka aslinya
+            </a>
             <button onClick={onTutup} className="rounded-lg p-1 text-stone-500 hover:text-stone-800" aria-label="Tutup pratinjau">
               <X size={17} />
             </button>

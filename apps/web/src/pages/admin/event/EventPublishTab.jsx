@@ -251,11 +251,13 @@ export default function EventPublishTab({ ev, onSimpan, onKeTab }) {
         {pesan && <p className="mt-3 text-[13px] font-semibold text-emerald-700">{pesan}</p>}
         {error && <p className="mt-3 text-[13px] font-semibold text-red-700">{error}</p>}
 
-        {ev.status !== 'DRAFT' && (
-          <p className="mt-4 font-mono text-[12px] text-stone-500">
-            Halaman publik: <a href={`/event/${ev.slug}`} target="_blank" rel="noreferrer" className="font-semibold text-maroon-600 hover:underline">/event/{ev.slug}</a>
-          </p>
-        )}
+        <p className="mt-4 font-mono text-[12px] text-stone-500">
+          {ev.status === 'DRAFT' ? 'Pratinjau draf: ' : 'Halaman publik: '}
+          <a href={`/event/${ev.slug}`} target="_blank" rel="noreferrer" className="font-semibold text-maroon-600 hover:underline">/event/{ev.slug}</a>
+          {ev.status === 'DRAFT' && (
+            <span className="ml-1.5 font-sans text-stone-400">(cuma admin yang bisa membukanya)</span>
+          )}
+        </p>
       </section>
     </div>
   );
