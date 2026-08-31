@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, Clock, Laptop, Loader2, RotateCcw, Search, ShieldCheck, X } from 'lucide-react';
+import { Check, Clock, Laptop, Loader2, RotateCcw, Search, ShieldCheck, Trash2, X } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import { formatClock, olimpLog, percentOf } from '@/lib/olimp';
+import { hapusLunak, konfirmasiHapus, yangAktif } from '@/lib/akun';
 
 // PESERTA OLIMP - basis data akun yang TERPISAH dari siswa web PCV.
 //
@@ -51,7 +52,9 @@ export default function PesertaOlimp() {
       pb.collection('olimp_devices').getFullList({ sort: '-created' }),
       pb.collection('olimp_attempts').getFullList({ filter: "status = 'finished'", sort: '-created' }),
     ])
-      .then(([u, pl, pk, d, a]) => { setPeserta(u); setPlans(pl); setPackages(pk); setDevices(d); setAttempts(a); })
+      // Akun yang sudah dihapus admin tidak ikut ditampilkan (PRD Revisi 2
+      // bagian 7.3) - datanya tetap ada, cuma tidak muncul di daftar aktif.
+      .then(([u, pl, pk, d, a]) => { setPeserta(yangAktif(u)); setPlans(pl); setPackages(pk); setDevices(d); setAttempts(a); })
       .catch((err) => setError('Gagal memuat data peserta: ' + (err?.message || '')));
   };
   useEffect(muat, []);
@@ -113,6 +116,23 @@ export default function PesertaOlimp() {
   const tolak = (u) => {
     if (!window.confirm(`Tolak pendaftaran ${u.name || u.email}?`)) return;
     simpan(u, { status: 'rejected' }, 'Tolak pendaftar');
+  };
+
+  // Hapus LUNAK: peserta hilang dari daftar & tidak bisa masuk lagi, tapi
+  // percobaan kuis dan peringkatnya tetap utuh.
+  const hapus = async (u) => {
+    if (!window.confirm(konfirmasiHapus(u.email || u.name || 'peserta ini'))) return;
+    setSibuk(u.id);
+    setError('');
+    try {
+      await hapusLunak('olimp_users', u.id);
+      setPeserta((lama) => lama.filter((x) => x.id !== u.id));
+      olimpLog('peserta_hapus', `Hapus peserta ${u.name || u.email}`, 'warning');
+    } catch (err) {
+      setError('Gagal menghapus akun: ' + (err?.message || ''));
+    } finally {
+      setSibuk('');
+    }
   };
 
   const resetDevice = async (u) => {
@@ -246,6 +266,15 @@ export default function PesertaOlimp() {
                     Aktifkan lagi
                   </button>
                 )}
+                <button
+                  onClick={() => hapus(u)}
+                  disabled={sibuk === u.id}
+                  title="Hapus akun peserta ini"
+                  aria-label={`Hapus akun ${u.email || u.name}`}
+                  className="shrink-0 rounded-lg p-2 text-stone-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
 
                 <button
                   onClick={() => setBuka(terbuka ? null : u.id)}

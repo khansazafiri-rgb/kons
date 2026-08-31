@@ -12,6 +12,7 @@ import { LANDING_TEXT_GROUPS, resolveLandingTexts } from '@/lib/landingContent';
 import { WA_TEMPLATES, resolveWaTemplates } from '@/lib/waTemplates';
 import { APP_VERSION } from '@/lib/appVersion';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
+import { hapusLunak, konfirmasiHapus, saringAktif } from '@/lib/akun';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
 import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
@@ -105,7 +106,7 @@ function Pengajar() {
   const load = () => {
     setError('');
     pb.collection('users')
-      .getFullList({ filter: "role = 'teacher'" })
+      .getFullList({ filter: saringAktif("role = 'teacher'") })
       .then(setTeachers)
       .catch((err) => setError('Gagal memuat daftar pengajar: ' + (err?.message || 'terjadi kesalahan.')));
   };
@@ -138,9 +139,11 @@ function Pengajar() {
   };
   const remove = async (t) => {
     if (!t?.id) return;
-    if (!confirm('Hapus akun pengajar ini?')) return;
+    // Hapus LUNAK - lihat lib/akun.js. Akunnya langsung tidak bisa masuk dan
+    // hilang dari daftar, tapi jejaknya di data lama tidak ikut rusak.
+    if (!confirm(konfirmasiHapus(t.email || t.name || 'pengajar ini'))) return;
     try {
-      await pb.collection('users').delete(t.id);
+      await hapusLunak('users', t.id);
       load();
     } catch (err) {
       setError(err?.status === 404 ? 'Akun pengajar ini sudah tidak ada.' : 'Gagal menghapus akun: ' + (err?.message || ''));
@@ -210,7 +213,7 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     setError('');
     try {
       const [st, subs, chs, prog, cls] = await Promise.all([
-        pb.collection('users').getFullList({ filter: "role = 'student'" }),
+        pb.collection('users').getFullList({ filter: saringAktif("role = 'student'") }),
         pb.collection('subjects').getFullList({ sort: 'order', fields: 'id,name' }),
         pb.collection('chapters').getFullList({ filter: filterLatihan(), fields: 'id,subject,title' }),
         pb.collection('soal_progress').getFullList({ filter: "status = 'completed'", fields: 'owner,chapter,updated' }).catch(() => []),
@@ -333,8 +336,8 @@ export function StudentCards({ adminMode = false, subjectScope = null }) {
     catch (err) { setError('Gagal memperbarui status akun: ' + (err?.message || '')); }
   };
   const remove = async (s) => {
-    if (!confirm('Hapus akun siswa ini?')) return;
-    try { await pb.collection('users').delete(s.id); load(); }
+    if (!confirm(konfirmasiHapus(s.email || s.name || 'siswa ini'))) return;
+    try { await hapusLunak('users', s.id); load(); }
     catch (err) { setError('Gagal menghapus akun: ' + (err?.message || '')); }
   };
   const resetDevice = async (s) => {

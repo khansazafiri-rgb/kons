@@ -85,6 +85,10 @@ export default function EventInfoTab({ ev, onSimpan }) {
       const isi = {
         name: f.name,
         slug: buatSlug(f.slug || f.name),
+        eventType: f.eventType || 'LOMBA',
+        showQuestionCountPublic: !!f.showQuestionCountPublic,
+        showMechanismPublic: !!f.showMechanismPublic,
+        showParticipantCountPublic: !!f.showParticipantCountPublic,
         subject: f.subject,
         bannerUrl: f.bannerUrl,
         description: f.description,
@@ -122,6 +126,30 @@ export default function EventInfoTab({ ev, onSimpan }) {
   return (
     <div className="space-y-5">
       <Bagian judul="Identitas lomba">
+        <div>
+          <p className={labelCls}>Tipe</p>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {[
+              ['LOMBA', 'Lomba', 'Label bawaan untuk kompetisi biasa.'],
+              ['OLIMPIADE', 'Olimpiade', 'Label untuk olimpiade. Cara kerjanya sama persis — yang beda cuma sebutannya di halaman publik.'],
+            ].map(([nilai, judul, isi]) => (
+              <button
+                key={nilai}
+                type="button"
+                onClick={() => set('eventType', nilai)}
+                className={`rounded-xl border p-4 text-left transition-colors ${
+                  (f.eventType || 'LOMBA') === nilai
+                    ? 'border-maroon-300 bg-maroon-50 ring-1 ring-maroon-200'
+                    : 'border-alba-200 bg-alba-50 hover:border-maroon-200'
+                }`}
+              >
+                <span className="block text-[13px] font-semibold text-stone-800">{judul}</span>
+                <span className="mt-0.5 block text-[12px] leading-relaxed text-stone-500">{isi}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div>
           <label htmlFor="ev-name" className={labelCls}>Nama lomba</label>
           <input
@@ -209,6 +237,30 @@ export default function EventInfoTab({ ev, onSimpan }) {
           Begitu kuota tercapai, tombol daftar di halaman publik menutup sendiri — tidak ada
           daftar tunggu. Pendaftar yang kamu tolak mengembalikan kursinya.
         </p>
+      </Bagian>
+
+      <Bagian
+        judul="Apa yang boleh dilihat umum"
+        catatan="Tiga keterangan ini disembunyikan dari halaman publik. Peserta yang pendaftarannya sudah kamu ACC tetap melihatnya — mereka memang perlu tahu sebelum mengerjakan."
+      >
+        <Saklar
+          nyala={!!f.showQuestionCountPublic}
+          onUbah={(v) => set('showQuestionCountPublic', v)}
+          judul="Tampilkan jumlah soal ke umum"
+          isi="Mati = pengunjung tidak tahu ada berapa soal."
+        />
+        <Saklar
+          nyala={!!f.showMechanismPublic}
+          onUbah={(v) => set('showMechanismPublic', v)}
+          judul="Tampilkan cara pengerjaan ke umum"
+          isi="Mati = model waktu & durasi tidak muncul di halaman publik."
+        />
+        <Saklar
+          nyala={!!f.showParticipantCountPublic}
+          onUbah={(v) => set('showParticipantCountPublic', v)}
+          judul="Tampilkan jumlah pendaftar & kuota ke umum"
+          isi='Mati = angkanya disembunyikan. Tanda "kuota penuh" tetap muncul supaya calon peserta tahu pendaftarannya sudah tutup.'
+        />
       </Bagian>
 
       <Bagian

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, KeyRound, IdCard } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Logo } from '@/components/Header';
+import { tujuanSetelahMasuk } from '@/lib/returnTo';
 
 export default function LoginPage() {
  const { login } = useAuth();
@@ -18,7 +19,9 @@ export default function LoginPage() {
    setLoading(true);
    try {
      await login(userId.trim(), password);
-     navigate('/beranda');
+     // Kembali ke halaman yang tadi mau dibuka kalau ada titipannya; kalau
+     // tidak, tetap ke beranda seperti dulu (PRD Revisi 2 bagian 2.3).
+     navigate(tujuanSetelahMasuk('/beranda'), { replace: true });
    } catch (err) {
      setError(err?.message || 'Login gagal. Periksa Login ID / Email dan password.');
    } finally {

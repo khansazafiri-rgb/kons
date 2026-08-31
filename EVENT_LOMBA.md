@@ -265,6 +265,33 @@ Diuji end-to-end terhadap PocketBase yang benar-benar berjalan (bukan mock):
 - Lomba berstatus DRAFT tidak terlihat publik
 - Peserta `olimp_users` bisa mendaftar (penyimpangan nomor 2)
 
+Revisi 2 diuji ulang terhadap PocketBase yang berjalan + peramban sungguhan
+(Chromium lewat Playwright), memakai basis data bersih yang migrasinya dijalankan
+dari nol:
+
+- **Masuk hanya dengan `?t=<token>`, tanpa login sama sekali** — `detail`
+  membuka info yang disembunyikan dari publik, `mulai` mengunci perangkat,
+  `soal` keluar tanpa kunci jawaban, `jawab` tersimpan, `selesai` menutup
+- Perangkat kedua yang memakai token yang sama tetap ditolak (`DEVICE_LAIN`)
+- Tiap sebab penolakan keluar dengan kodenya sendiri: `BELUM_ACC`, `DITOLAK`,
+  `PENDAFTARAN_DIHAPUS`, `TOKEN_TIDAK_DIKENAL`, `PERLU_MASUK`
+- Pendaftaran ditandai terhapus → token yang sama **langsung** ditolak
+- `configTokenGeneratedAt` terisi saat ACC, `configLastDownloadedAt` saat
+  berkas `.seb` benar-benar diunduh
+- Halaman publik `/event` dan `/event/<slug>` **tidak** menyebut jumlah soal
+  maupun durasi selama saklarnya mati; peserta ber-token tetap melihatnya
+- Akun ber-`deletedAt` **gagal login** di `users` maupun `olimp_users` (403),
+  dan bisa login lagi setelah dipulihkan
+- `return_to` internal mengembalikan ke halaman asal; `https://jahat.example`
+  dan `//jahat.example` jatuh ke `/beranda`
+- Pratinjau: kedua lembar tampil, layar ujian memuat soal tanpa tanda
+  benar/salah, tidak ada yang tersimpan
+- Tombol Hapus bekerja di ketiga tempat (siswa PCV, peserta Olimp, pendaftar
+  lomba) dengan kalimat konfirmasi yang sesuai jenisnya
+- Super Admin membuka Dashboard Admin dan melihat **semua** mata kuliah —
+  tidak ada penyaringan penugasan yang mengenainya
+- Email peserta terbaca admin setelah migrasi `1786900000`
+
 ---
 
 ## Yang BELUM dipasang
@@ -279,6 +306,8 @@ Diuji end-to-end terhadap PocketBase yang benar-benar berjalan (bukan mock):
   Sebagai gantinya sudah ada **Tempel kode** yang menerima dua bentuk sekaligus
   (lihat bagian di bawah), jadi keluaran konverter yang sudah ada bisa ditempel
   apa adanya.
+- **Payment gateway** — pembayaran tetap manual lewat WhatsApp, sesuai PRD.
+- **Analitik per lomba** dan **sertifikat otomatis** (PRD bagian 17.3, Post-MVP).
 
 ---
 
@@ -318,8 +347,125 @@ ditulis untuk dibaca sesudahnya — menaruhnya di sana akan membocorkan kuncinya
 
 Soal isian singkat (`subQuestions`) tetap ditolak di kedua tempat, tapi sekarang
 dengan sebab yang jelas, bukan keluhan "opsi A kosong" yang menyesatkan.
-- **Payment gateway** — pembayaran tetap manual lewat WhatsApp, sesuai PRD.
-- **Analitik per lomba** dan **sertifikat otomatis** (PRD bagian 17.3, Post-MVP).
+
+---
+
+## Revisi 2 — yang berubah
+
+Revisi 2 bersifat **menambah**, bukan mengganti: tidak ada endpoint, field, atau
+alur lama yang dibuang, jadi lomba yang sudah berjalan tidak perlu disentuh.
+
+### 1. Masuk ujian dari dalam SEB (bug yang paling menggigit)
+
+Gejalanya: peserta yang **sudah di-ACC** membuka berkas `.seb` miliknya, lalu
+disambut "kamu belum terdaftar".
+
+Sebabnya dua hal yang bertemu. Berkas `.seb` menyalakan `clearSessionOnStart`
+dan `examSessionClearCookiesOnStart` — memang disengaja, supaya tidak ada sesi
+orang lain yang terbawa — sehingga SEB **selalu** membuka halaman dalam keadaan
+belum login. Sementara itu `?t=<token>` yang sudah ikut ditulis di `startURL`
+tidak pernah dibaca oleh siapa pun di sisi server. Jadi begitu SEB terbuka,
+server melihat pengunjung anonim dan menjawab apa adanya.
+
+Sekarang token itu **diperlakukan sebagai kredensial**. `pendaftaranUntuk()`
+memeriksa token lebih dulu, baru sesi login:
+
+| Cara masuk | Dipakai di | Hasil |
+|---|---|---|
+| `?t=<token>` | di dalam SEB | dikenali sebagai pemilik pendaftaran itu |
+| sesi login biasa | di peramban | seperti sebelumnya |
+
+Token itu personal, dibuat sekali seumur pendaftaran, dan **mati seketika**
+kalau pendaftarannya dihapus admin (lihat nomor 4).
+
+`/api/event/seb-config` sengaja **tidak** menerima token: berkasnya diunduh dari
+halaman web sambil login biasa, jadi tidak ada gunanya jalur token di sana —
+dan membukanya justru akan membuat berkas `.seb` bisa dipakai mengunduh dirinya
+sendiri berkali-kali dari mana saja.
+
+### 2. Penolakan yang menyebut sebabnya
+
+Dulu semua kegagalan masuk ujian berakhir di satu kalimat yang sama. Sekarang
+tiap sebab punya kodenya sendiri, dan setiap penolakan ikut dicatat ke log
+server (`[event-seb] ditolak: …`) supaya bisa ditelusuri belakangan:
+
+| Kode | Artinya bagi peserta |
+|---|---|
+| `BELUM_ACC` | pembayarannya belum dikonfirmasi admin |
+| `DITOLAK` | pendaftarannya ditolak — alasannya ikut disebut |
+| `PENDAFTARAN_DIHAPUS` | pendaftarannya dihapus admin |
+| `TOKEN_TIDAK_DIKENAL` | berkas `.seb`-nya sudah kedaluwarsa/asing → unduh ulang |
+| `PERLU_MASUK` | memang belum login dan tidak membawa token |
+
+Dua tanggal baru di tiap pendaftaran membantu admin menjawab "berkasnya sudah
+diunduh belum?": `configTokenGeneratedAt` dan `configLastDownloadedAt`.
+
+### 3. Info lomba yang disembunyikan dari publik
+
+Tiga saklar di tab Info Dasar: jumlah soal, cara pengerjaan (model waktu &
+durasi), dan jumlah pendaftar/kuota. Semuanya **mati secara bawaan**.
+
+Ditulis sebagai `show…Public` (bukan `hide…Public`) dengan sengaja: nilai bawaan
+sebuah boolean di PocketBase adalah `false`, jadi lomba yang dibuat sebelum
+migrasi ini otomatis jatuh ke sisi yang aman — tersembunyi — bukan ke sisi yang
+membocorkan.
+
+Yang disembunyikan hanya hilang dari **pengunjung**. Peserta yang sudah di-ACC
+(termasuk yang masuk lewat token dari dalam SEB) tetap melihat semuanya.
+
+### 4. Menghapus akun & pendaftaran
+
+Hapus di sini **lunak**: barisnya ditandai `deletedAt`, hilang dari semua daftar,
+dan pintu masuknya ditutup — bukan dibuang. Alasannya bukan kehati-hatian
+berlebihan: peringkat, hasil ujian, dan laporan lama semuanya menunjuk ke baris
+itu, dan membuangnya membuat angka-angka historis bolong tanpa cara memulihkan.
+
+Yang menutup pintunya adalah server, lewat `authRule` (`deletedAt = ''`) untuk
+`users` dan `olimp_users`, dan lewat pemeriksaan token untuk `event_registrations`.
+Tanpa itu, akun "yang sudah dihapus" masih bisa login seperti biasa.
+
+Kalimat konfirmasinya dibedakan, karena akibatnya memang tidak sama: menghapus
+**akun** menutup login orangnya di seluruh aplikasi; menghapus **pendaftaran**
+cuma mengeluarkan dia dari satu lomba dan mematikan berkas `.seb`-nya.
+
+### 5. Kembali ke halaman yang tadi dibuka (`return_to`)
+
+Orang yang sedang membuka halaman lomba lalu diminta login tidak lagi dilempar
+ke beranda. Alamat asalnya dititipkan sebagai `?return_to=…`, lalu dipakai lagi
+setelah login berhasil.
+
+Hanya alamat internal yang diterima (`lib/returnTo.js`). `https://…`, `//host`,
+dan `/\host` ditolak dan jatuh ke beranda — tanpa itu, `/login?return_to=…` bisa
+dipakai memancing orang: mereka melihat domain kita di bilah alamat, login
+betulan, lalu dilempar ke situs tiruan milik orang lain.
+
+### 6. Pratinjau lomba
+
+Tombol **Pratinjau** di editor lomba membuka dua lembar: **halaman publik**
+persis seperti yang dilihat pengunjung (lengkap dengan saklar penyembunyian yang
+sedang aktif), dan **layar ujian** persis seperti yang dilihat peserta — tanpa
+tanda benar/salah, tanpa pembahasan. Jawaban yang diklik di sana hidup di memori
+saja dan tidak pernah dikirim ke server.
+
+### 7. Tipe event: Lomba atau Olimpiade
+
+Cuma label. Cara kerjanya identik; yang berbeda hanya sebutannya di halaman
+publik, supaya satu modul ini bisa dipakai untuk keduanya tanpa menggandakan kode.
+
+### 8. Email peserta yang tidak terlihat admin
+
+Bukan bagian dari PRD, tapi ketahuan saat mengujinya: kolom email di daftar
+peserta selalu kosong.
+
+PocketBase menyembunyikan field `email` sebuah akun dari semua pembaca kecuali
+pemiliknya sendiri dan superuser, kecuali `emailVisibility` dinyalakan pada baris
+akunnya. Admin masuk sebagai akun `users` biasa — bukan superuser — jadi ia ikut
+tersembunyi, berapa pun longgarnya `listRule`. Halaman pendaftaran Web Olimp
+tidak pernah menyalakan saklar itu.
+
+Diperbaiki di dua sisi: `OlimpSignup.jsx` menyalakannya untuk pendaftar baru, dan
+migrasi `1786900000_email_terlihat_admin.js` menyalakannya untuk akun yang sudah
+terlanjur ada.
 
 ---
 

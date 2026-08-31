@@ -5,6 +5,7 @@ import { Logo } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { resolveSignupTexts } from '@/lib/signupContent';
 import { FK_INDONESIA, FK_LAINNYA } from '@/data/fakultasKedokteran';
+import { bacaReturnTo, tautanMasuk } from '@/lib/returnTo';
 
 // Halaman pendaftaran siswa (Sign Up).
 // Alur: pendaftar mengisi form -> akun dibuat dengan role student, status
@@ -15,6 +16,9 @@ import { FK_INDONESIA, FK_LAINNYA } from '@/data/fakultasKedokteran';
 // lihat lib/signupContent.js). Tipe siswa dari sign up hanya "reguler" atau
 // "private" - tipe "web" khusus dibuat admin.
 export default function SignupPage() {
+  // Alamat yang tadi dituju sebelum diminta mendaftar - diteruskan ke tautan
+  // login di halaman ini supaya rantainya tidak putus di tengah.
+  const kembali = bacaReturnTo();
   const [settings, setSettings] = useState(null); // record signup_settings
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [form, setForm] = useState({
@@ -144,7 +148,7 @@ export default function SignupPage() {
       {/* Panel kanan - form */}
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
-          <Link to="/login" className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-maroon-600 mb-8 transition-colors">
+          <Link to={tautanMasuk('/login', kembali)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-maroon-600 mb-8 transition-colors">
             <ArrowLeft size={13} />
             {t.backLink}
           </Link>
@@ -174,7 +178,10 @@ export default function SignupPage() {
               <p className="text-sm text-green-900/80 mb-4">
                 Email dikirim ke: <b>{form.email}</b>
               </p>
-              <Link to="/login" className="inline-flex items-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-bold px-5 py-2.5">
+              {/* Titipan alamat diteruskan: pendaftar yang datang dari halaman
+                  lomba kembali ke sana begitu akunnya dibuka admin, bukan ke
+                  beranda (PRD Revisi 2 bagian 2.3). */}
+              <Link to={tautanMasuk('/login', kembali)} className="inline-flex items-center gap-2 rounded-xl bg-maroon-600 text-alba-50 text-sm font-bold px-5 py-2.5">
                 {t.successButton}
               </Link>
             </div>

@@ -130,6 +130,13 @@ export const STATUS_EVENT = {
   ARCHIVED: { teks: 'Arsip', cls: 'bg-stone-100 text-stone-500 border-stone-200' },
 };
 
+// Tipe event (PRD Revisi 2 bagian 5). Infrastrukturnya sama persis - yang beda
+// cuma label, supaya peserta tahu ini lomba biasa atau olimpiade.
+export const TIPE_EVENT = {
+  LOMBA: { teks: 'Lomba', cls: 'border-maroon-200 bg-maroon-50 text-maroon-600' },
+  OLIMPIADE: { teks: 'Olimpiade', cls: 'border-gold-200 bg-gold-100 text-gold-600' },
+};
+
 export const STATUS_BAYAR = {
   PENDING_PAYMENT: { teks: 'Belum bayar', cls: 'bg-gold-100 text-gold-600 border-gold-200' },
   PAID_PENDING_APPROVAL: { teks: 'Sudah bayar, menunggu ACC', cls: 'bg-sky-50 text-sky-700 border-sky-200' },

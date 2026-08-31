@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays, Trophy, Users } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
-import { panggilEvent, rupiah, sisaWaktuKalimat, tanggalPendek } from '@/lib/eventLomba';
+import { TIPE_EVENT, panggilEvent, rupiah, sisaWaktuKalimat, tanggalPendek } from '@/lib/eventLomba';
 
 // DAFTAR LOMBA (halaman publik, /event)
 //
@@ -43,8 +43,11 @@ const KELOMPOK = [
 ];
 
 function KartuEvent({ ev }) {
-  const penuh = ev.kuota > 0 && ev.terdaftar >= ev.kuota;
+  // "Kuota penuh" tetap dihitung server dan tetap ditampilkan walau angkanya
+  // disembunyikan - calon peserta perlu tahu pendaftarannya sudah tidak bisa.
+  const penuh = !!ev.kuotaPenuh;
   const sisa = ev.fasePendaftaran === 'BELUM_BUKA' ? sisaWaktuKalimat(ev.bukaPendaftaran) : '';
+  const tipe = TIPE_EVENT[ev.tipe] || TIPE_EVENT.LOMBA;
 
   return (
     <Link
@@ -65,27 +68,36 @@ function KartuEvent({ ev }) {
       )}
 
       <div className="flex flex-1 flex-col p-5">
-        {ev.subjek && (
-          <span className="self-start rounded-full border border-gold-200 bg-gold-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gold-600">
-            {ev.subjek}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${tipe.cls}`}>
+            {tipe.teks}
           </span>
-        )}
+          {ev.subjek && (
+            <span className="rounded-full border border-alba-300 bg-alba-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-600">
+              {ev.subjek}
+            </span>
+          )}
+        </div>
         <h3 className="mt-2 font-display text-lg font-semibold leading-snug text-stone-800">
           {ev.nama}
         </h3>
 
+        {/* Jumlah pendaftar & kuota sengaja TIDAK ditampilkan ke umum
+            (PRD Revisi 2 bagian 3.1) - server pun tidak mengirimkannya. */}
         <dl className="mt-3 space-y-1.5 text-[13px] text-stone-600">
           <div className="flex items-center gap-2">
             <CalendarDays size={14} className="shrink-0 text-maroon-500" />
             <span>{tanggalPendek(ev.mulaiUjian)}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Users size={14} className="shrink-0 text-maroon-500" />
-            <span>
-              {ev.terdaftar} pendaftar
-              {ev.kuota > 0 && ` · kuota ${ev.kuota}`}
-            </span>
-          </div>
+          {ev.tampilkan?.jumlahPeserta && (
+            <div className="flex items-center gap-2">
+              <Users size={14} className="shrink-0 text-maroon-500" />
+              <span>
+                {ev.terdaftar} pendaftar
+                {ev.kuota > 0 && ` · kuota ${ev.kuota}`}
+              </span>
+            </div>
+          )}
         </dl>
 
         <div className="mt-4 flex items-center justify-between border-t border-alba-200 pt-3">

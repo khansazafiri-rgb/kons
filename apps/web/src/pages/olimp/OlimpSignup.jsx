@@ -116,6 +116,15 @@ export default function OlimpSignup() {
       await pbo.collection('olimp_users').create({
         name: form.name.trim(),
         email: form.email.trim(),
+        // TANPA BARIS INI, EMAILNYA TIDAK TERLIHAT ADMIN.
+        //
+        // PocketBase menyembunyikan field `email` sebuah akun dari semua
+        // pembaca kecuali pemiliknya sendiri dan superuser, kecuali kalau
+        // emailVisibility dinyalakan. Admin Dashboard Olimp masuk sebagai
+        // akun `users` biasa - bukan superuser - jadi tanpa ini kolom email di
+        // daftar peserta terisi kosong, dan admin tidak punya cara menghubungi
+        // orang yang pendaftarannya sedang ia periksa (PRD Revisi 2 bagian 7).
+        emailVisibility: true,
         password: form.password,
         passwordConfirm: form.passwordConfirm,
         whatsapp: form.whatsapp.trim(),
