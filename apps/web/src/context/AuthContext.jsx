@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import pb from '@/lib/pocketbaseClient';
-import { getDeviceId } from '@/lib/deviceId';
+import { siapkanDeviceId } from '@/lib/deviceId';
 import { studentTypeDevices } from '@/lib/studentType';
 
 const AuthContext = createContext(null);
@@ -24,6 +24,43 @@ export function deviceLimitFor(record) {
   return 1;
 }
 
+// KUNCI DEVICE YANG KEDALUWARSA SENDIRI
+//
+// Berapa lama akun boleh menganggur sebelum slot device-nya bisa diambil alih
+// perangkat lain. Angkanya 7 hari, dan itu bukan angka karangan: Safari di
+// iPhone menghapus penyimpanan situs yang tidak dibuka selama 7 HARI, termasuk
+// penanda perangkat kita. Jadi siswa yang libur seminggu lalu membuka web lagi
+// dari HP yang SAMA akan datang tanpa penanda - dan dulu langsung ditolak
+// "sudah terkunci ke device lain", tanpa jalan keluar selain minta admin.
+//
+// Kuki dari server (lib/deviceId) mencegah itu terjadi lagi ke depan, tapi ia
+// tidak bisa memulihkan siswa yang penandanya sudah telanjur hilang - termasuk
+// semua yang ikut hilang waktu web pindah domain. Aturan ini pintu keluarnya.
+//
+// Apa yang HILANG dengan aturan ini, supaya jujur: akun yang tidak dipakai
+// seminggu bisa dipindahkan ke perangkat lain tanpa izin admin. Yang TETAP
+// terjaga adalah maksud aslinya - satu akun tidak bisa dipakai BERSAMAAN di dua
+// HP. Slotnya berpindah, bukan bertambah: begitu teman memakainya, pemilik
+// aslinya yang balik ditolak. Berbagi akun tetap tidak jalan, sementara siswa
+// jujur yang HP-nya itu-itu saja tidak lagi terkunci di luar.
+const HARI_KUNCI_KEDALUWARSA = 7;
+
+// Sudah berapa lama akun ini tidak dipakai?
+//
+// Yang dibaca `lastActivityAt` - jejak "masih membuka web" yang ditulis Header
+// paling sering tiap 10 menit. Kalau field-nya belum pernah terisi (akun lama,
+// atau belum pernah login sejak fitur itu ada), dipakai `updated`/`created`
+// sekadar supaya ada patokan. Urutannya sengaja tidak diambil yang terbaru:
+// `updated` ikut berubah saat ADMIN menyunting akun itu, dan kalau itu ikut
+// dihitung sebagai "aktif", akun yang sudah berbulan-bulan menganggur akan
+// terlihat segar hanya karena datanya baru saja dirapikan admin.
+function menganggurTerlaluLama(record) {
+  const jejak = record?.lastActivityAt || record?.updated || record?.created;
+  const waktu = Date.parse(jejak);
+  if (!Number.isFinite(waktu)) return false;
+  return Date.now() - waktu > HARI_KUNCI_KEDALUWARSA * 86400000;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(pb.authStore.record);
 
@@ -31,6 +68,13 @@ export function AuthProvider({ children }) {
     const unsub = pb.authStore.onChange((_t, record) => setUser(record));
     return unsub;
   }, []);
+
+  // Pasang/perpanjang kuki penanda perangkat tiap kali web dibuka, tanpa
+  // menunggu siswa login. Dua gunanya: umur kukinya ikut diperpanjang selama
+  // web masih dipakai, dan penanda yang hilang dari localStorage dipulihkan
+  // lebih awal - jadi saat halaman lain memanggil getDeviceId() secara
+  // langsung, nilainya sudah yang benar.
+  useEffect(() => { siapkanDeviceId(); }, []);
 
   useEffect(() => {
     // Validate the persisted session on load: if the token is stale or the
@@ -65,10 +109,19 @@ export function AuthProvider({ children }) {
     }
     const limit = deviceLimitFor(record);
     if (limit !== Infinity) {
-      const deviceId = getDeviceId();
+      // Ditunggu, bukan dipanggil sambil lalu: kalau penyimpanan peramban baru
+      // saja terhapus (Safari 7 hari, pindah domain, bersihkan data situs),
+      // penanda yang BENAR ada di kuki server dan baru sampai setelah ini.
+      // Memeriksa kunci sebelum itu selesai = menolak HP yang sebenarnya sah.
+      const deviceId = await siapkanDeviceId();
       const devices = Array.isArray(record.deviceIds) ? record.deviceIds : [];
       if (!devices.includes(deviceId)) {
-        if (devices.length >= limit) {
+        // Slot penuh, tapi akunnya sendiri sudah lama tidak dipakai - berarti
+        // ini hampir pasti orang yang sama dengan penanda yang keburu terhapus,
+        // bukan akun yang sedang dipakai berdua. Slot paling lama dilepas,
+        // perangkat ini menggantikannya.
+        const bolehGantiSlot = devices.length >= limit && menganggurTerlaluLama(record);
+        if (devices.length >= limit && !bolehGantiSlot) {
           pb.authStore.clear();
           // Sengaja TIDAK menyarankan "logout dulu dari device sana": logout
           // tidak lagi melepas slot (lihat catatan di fungsi logout), jadi
@@ -79,8 +132,10 @@ export function AuthProvider({ children }) {
               : 'Akun ini sudah terkunci ke device lain. Satu akun hanya bisa dipakai di satu device (boleh berapa pun tab di dalamnya). Kalau kamu ganti HP/laptop, minta admin melakukan Reset Device.',
           );
         }
-        const updated = [...devices, deviceId];
-        await pb.collection('users').update(record.id, { deviceIds: updated });
+        // Yang dibuang dari depan: daftar ini selalu ditambah dari belakang,
+        // jadi isi paling awal adalah slot yang paling lama terpasang.
+        const disimpan = bolehGantiSlot ? devices.slice(devices.length - limit + 1) : devices;
+        await pb.collection('users').update(record.id, { deviceIds: [...disimpan, deviceId] });
       }
     }
     return record;

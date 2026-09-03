@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Flame, LogOut, Medal, Moon, Sun, UserRound } from 'lucide-react';
 import { useAuth, isAdminRole } from '@/context/AuthContext';
@@ -145,6 +145,26 @@ export default function Header() {
  // Header ada di semua halaman web siswa, jadi ini sekaligus penanda "online".
  useEffect(() => { heartbeat(pb, user); }, [user]);
 
+ // Apakah menunya sedang menyembunyikan sesuatu di sebelah kanan? Dipakai untuk
+ // memudarkan tepinya (lihat .tepi-memudar). Diperiksa ulang saat jendela
+ // diubah ukurannya dan saat menunya digeser - bukan sekali di awal, sebab
+ // jawabannya berubah persis pada dua kejadian itu.
+ const navRef = useRef(null);
+ const [adaLanjutan, setAdaLanjutan] = useState(false);
+ const periksaLanjutan = useCallback(() => {
+   const n = navRef.current;
+   if (!n) return;
+   setAdaLanjutan(n.scrollLeft + n.clientWidth < n.scrollWidth - 1);
+ }, []);
+ useEffect(() => {
+   const n = navRef.current;
+   if (!n || typeof ResizeObserver === 'undefined') return undefined;
+   periksaLanjutan();
+   const pengamat = new ResizeObserver(periksaLanjutan);
+   pengamat.observe(n);
+   return () => pengamat.disconnect();
+ }, [periksaLanjutan, role]);
+
  const doLogout = async () => {
    // Logout cuma membersihkan sesi di device ini; kunci device-nya tetap
    // dipegang akun (lihat catatan di AuthContext.logout), jadi setelah ini
@@ -153,21 +173,50 @@ export default function Header() {
    navigate('/login');
  };
 
+ // `shrink-0` supaya pil menu tidak ikut dikempiskan waktu menunya kepenuhan -
+ // yang mengempis akan jadi kotak sempit dengan teks terpotong. Kalau tempatnya
+ // habis, yang terjadi menu digeser (lihat catatan di bawah), bukan diciutkan.
  const linkCls = ({ isActive }) =>
-   `relative px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
+   `relative shrink-0 px-2.5 xl:px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
      isActive
        ? 'bg-maroon-600 text-alba-50 shadow-sm'
        : 'text-stone-600 hover:text-maroon-600 hover:bg-maroon-50'
    }`;
 
+ // KENAPA BARIS ATAS HEADER DITATA SEPERTI DI BAWAH INI
+ //
+ // Dulu barisnya cuma `justify-between` dengan dua kelompok yang dua-duanya
+ // tidak boleh menyusut. Menunya memakai `whitespace-nowrap`, jadi lebar
+ // minimum kelompok kiri = lebar seluruh pil menu dijejer. Begitu jumlahnya
+ // lewat dari muatan layar - dan itu paling cepat terjadi pada ADMIN, yang
+ // dapat dua pil tambahan ("Web Olimp" + "Admin Panel") - kelompok kanan
+ // terdorong keluar batas dan tombol "Keluar" berakhir di luar layar, tidak
+ // bisa diklik sama sekali. Di layar MacBook 13" (1280px) ini pasti terjadi:
+ // menu admin butuh ~1230px, sedangkan ruang yang ada cuma ~1100px.
+ //
+ // Tiga hal yang membuatnya tidak bisa terulang:
+ //   1. kelompok kanan `shrink-0` + `ml-auto` - isinya (tema, profil, Keluar)
+ //      selalu dapat lebar penuhnya lebih dulu dan tidak pernah terdorong;
+ //   2. kelompok kiri `min-w-0` - tanpa ini flexbox menolak menyusutkan
+ //      kelompok yang isinya nowrap, dan dorongannya kembali lagi;
+ //   3. menunya sendiri `overflow-x-auto` - kalau memang tidak muat, menu yang
+ //      digeser ke samping (masih bisa dijangkau), bukan tombol yang hilang.
+ //
+ // Ambang menu sebaris juga dinaikkan dari `md` (768px) ke `lg` (1024px):
+ // di 768-1023px menu itu tidak pernah benar-benar muat, jadi lebih baik
+ // memakai baris menu khusus di bawah yang memang sudah bisa digeser.
  return (
    <header className="sticky top-0 z-20 bg-alba-50/90 backdrop-blur border-b border-alba-200">
-     <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-3">
-       <div className="flex items-center gap-8">
-         <Link to="/beranda" aria-label="Beranda PCV Classroom">
+     <div className="max-w-6xl mx-auto flex items-center gap-3 px-4 sm:px-6 py-3">
+       <div className="flex min-w-0 items-center gap-4 xl:gap-8">
+         <Link to="/beranda" aria-label="Beranda PCV Classroom" className="shrink-0">
            <Logo />
          </Link>
-         <nav className="hidden md:flex items-center gap-1 text-sm font-semibold">
+         <nav
+           ref={navRef}
+           onScroll={periksaLanjutan}
+           className={`hidden lg:flex min-w-0 items-center gap-1 overflow-x-auto scrollbar-thin text-sm font-semibold ${adaLanjutan ? 'tepi-memudar' : ''}`}
+         >
            {navItems.map((item) => (
              <NavLink key={item.to} to={item.to} className={linkCls}>
                {item.label}
@@ -182,11 +231,11 @@ export default function Header() {
            {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher Panel</NavLink>}
          </nav>
        </div>
-       <div className="flex items-center gap-2">
+       <div className="ml-auto flex shrink-0 items-center gap-2">
          {(user?.streak || 0) > 0 && (
            <span
              title={`Streak belajar ${user.streak} hari berturut-turut`}
-             className="hidden sm:inline-flex items-center gap-1 rounded-full bg-gold-100 border border-gold-200 text-gold-600 text-xs font-bold px-3 py-1.5"
+             className="hidden xl:inline-flex items-center gap-1 rounded-full bg-gold-100 border border-gold-200 text-gold-600 text-xs font-bold px-3 py-1.5"
            >
              <Flame size={13} />
              {user.streak}
@@ -206,8 +255,11 @@ export default function Header() {
            <span className="w-7 h-7 rounded-full bg-maroon-600 text-alba-50 flex items-center justify-center">
              <UserRound size={15} />
            </span>
-           <span className="text-left hidden sm:block">
-             <span className="block text-xs font-bold leading-tight text-stone-800">
+           {/* Lebarnya dibatasi: kalau siswa belum mengisi nama, yang tampil
+               emailnya, dan email panjang bisa memakan 250px sendirian - ruang
+               itu diambil dari menu di sebelah kiri. */}
+           <span className="text-left hidden sm:block max-w-[8.5rem] xl:max-w-[11rem]">
+             <span className="block truncate text-xs font-bold leading-tight text-stone-800">
                {user?.name || user?.email}
              </span>
              <span className="block text-[10px] uppercase tracking-widest text-maroon-500 font-semibold leading-tight">
@@ -225,8 +277,9 @@ export default function Header() {
          </button>
        </div>
      </div>
-     {/* Navigasi mobile */}
-     <nav className="md:hidden flex items-center gap-1 overflow-x-auto px-4 pb-2.5 text-xs font-semibold">
+     {/* Navigasi layar sempit - sampai 1023px, karena di bawah itu menu sebaris
+         di atas tidak pernah muat. Barisnya memang digeser ke samping. */}
+     <nav className="lg:hidden flex items-center gap-1 overflow-x-auto scrollbar-thin px-4 pb-2.5 text-xs font-semibold">
        {navItems.map((item) => (
          <NavLink key={item.to} to={item.to} className={linkCls}>
            {item.label}

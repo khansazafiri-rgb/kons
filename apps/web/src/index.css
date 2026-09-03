@@ -238,4 +238,14 @@ body {
  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
    background: #CBB999;
  }
+ /* Untuk deretan yang isinya tidak muat dan digeser ke samping (menu header).
+    Tanpa ini, isi yang lewat batas terpotong pas di tengah huruf dan terbaca
+    seperti tampilan rusak. Dengan tepi yang memudar, potongannya terbaca
+    sebagai "masih ada lanjutannya di sebelah sana". Kelasnya dipasang hanya
+    saat memang ada yang tersembunyi, jadi ujung menu tidak ikut pudar waktu
+    sudah digeser mentok. */
+ .tepi-memudar {
+   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
+   mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
+ }
 }
