@@ -322,6 +322,16 @@ Semuanya sudah punya tempat di kode dan database, jadi tidak perlu bongkar ulang
   (`olimpFingerprint()` di `lib/olimp.js`), yang ikut berubah kalau peserta
   ganti browser atau membersihkan data situs. Batasannya ditulis apa adanya di
   layar admin, dan jalan keluarnya tombol Reset Device.
+
+  Satu penyebab yang dulu paling sering bikin peserta terkunci padahal HP-nya
+  tidak diganti sudah ditutup: bahan utama sidik jari itu, `pcv_device_id`,
+  dulu cuma tersimpan di localStorage — dan Safari iPhone menghapus
+  localStorage sebuah situs setelah **7 hari tidak dibuka**. Peserta yang libur
+  seminggu datang lagi sebagai "perangkat baru". Sekarang penanda itu ikut
+  dititipkan sebagai kuki yang dipasang server
+  (`pb_hooks/device-id.pb.js` + `lib/deviceId.js`), yang tidak kena aturan
+  7 hari tersebut. Yang masih berubah kalau ganti peramban: sisa bahan sidik
+  jarinya (platform, ukuran layar, zona waktu).
 - **Pembayaran otomatis.** Belum ada payment gateway yang ditentukan.
 - **Email pengingat jadwal.** Penandanya sudah tersimpan per agenda,
   pengirimannya menyusul.
