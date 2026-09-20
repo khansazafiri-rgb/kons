@@ -23,8 +23,9 @@ import DashboardActivity from '@/pages/admin/DashboardActivity';
 import PetaKonten from '@/pages/admin/PetaKonten';
 import WebOlimpHub from '@/pages/admin/WebOlimpHub';
 import EventManager from '@/pages/admin/event/EventManager';
+import RentalManager from '@/pages/admin/rental/RentalManager';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'Event/Lomba'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'Event/Lomba', 'Peminjaman'];
 export default function AdminPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
   const [tab, setTab] = useUrlState('tab', 'Pengajar');
@@ -90,6 +91,11 @@ export default function AdminPanel() {
               keduanya, sekaligus menjawab PRD bagian 9.1 yang memang meminta
               menu ini terpisah dari bank soal Web Olimp. */}
           {tab === 'Event/Lomba' && <EventManager />}
+          {/* Peminjaman ruang & alat. Sama seperti Event/Lomba, menunya di sini
+              dan bukan di Dashboard Olimp: yang mengurus peminjaman adalah admin
+              operasional sehari-hari, sedangkan Dashboard Olimp khusus
+              super_admin. */}
+          {tab === 'Peminjaman' && <RentalManager />}
         </div>
       </div>
     </div>

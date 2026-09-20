@@ -51,6 +51,17 @@ const EventUjian = lazy(() => import('./pages/event/EventUjian'));
 const EventHasil = lazy(() => import('./pages/event/EventHasil'));
 const PusatUjian = lazy(() => import('./pages/event/PusatUjian'));
 
+// Peminjaman Ruang & Alat - "web ketiga" di dalam aplikasi yang sama, sesudah
+// Web Olimp dan Event/Lomba. Ikut dimuat terpisah (lazy) dengan alasan yang
+// persis sama: siswa PCV yang cuma mau mengerjakan latihan tidak perlu ikut
+// mengunduh katalog sewa, pemilih slot 30 menit, dan halaman checkout.
+const RentalHome = lazy(() => import('./pages/rental/RentalHome'));
+const RentalKatalog = lazy(() => import('./pages/rental/RentalKatalog'));
+const RentalDetail = lazy(() => import('./pages/rental/RentalDetail'));
+const RentalKeranjang = lazy(() => import('./pages/rental/RentalKeranjang'));
+const RentalCheckout = lazy(() => import('./pages/rental/RentalCheckout'));
+const RentalPesanan = lazy(() => import('./pages/rental/RentalPesanan'));
+
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
 // mengerjakan soal. Dengan dipisah, berkas itu baru diambil saat halamannya
@@ -223,6 +234,25 @@ function App() {
          <Route path="/event/:slug/daftar" element={<OlimpFallback><EventDaftar /></OlimpFallback>} />
          <Route path="/event/:slug/ujian" element={<OlimpFallback><EventUjian /></OlimpFallback>} />
          <Route path="/event/:slug/hasil" element={<OlimpFallback><EventHasil /></OlimpFallback>} />
+
+         {/* ---- Peminjaman Ruang & Alat ---- */}
+         {/* Seluruhnya terbuka tanpa login: pelanggan memang TIDAK punya akun
+             (PRD bagian 4 - tanpa akun, tanpa OTP). Yang menjaga bukan sesi,
+             melainkan server: katalog dilayani endpoint yang menyalin hanya
+             field aman, dan halaman status pesanan menuntut kode booking plus
+             token acak yang cuma diberikan sekali saat checkout.
+
+             Halaman-halaman ini juga menutup diri sendiri selama saklar
+             rental_settings.enabled masih mati - jadi rutenya boleh terpasang
+             sejak deploy pertama tanpa menampilkan apa pun ke pengunjung. */}
+         <Route path="/peminjaman" element={<OlimpFallback><RentalHome /></OlimpFallback>} />
+         <Route path="/peminjaman/ruang" element={<OlimpFallback><RentalKatalog tipe="RUANG" /></OlimpFallback>} />
+         <Route path="/peminjaman/ruang/:slug" element={<OlimpFallback><RentalDetail tipe="RUANG" /></OlimpFallback>} />
+         <Route path="/peminjaman/alat" element={<OlimpFallback><RentalKatalog tipe="ALAT" /></OlimpFallback>} />
+         <Route path="/peminjaman/alat/:slug" element={<OlimpFallback><RentalDetail tipe="ALAT" /></OlimpFallback>} />
+         <Route path="/peminjaman/keranjang" element={<OlimpFallback><RentalKeranjang /></OlimpFallback>} />
+         <Route path="/peminjaman/checkout" element={<OlimpFallback><RentalCheckout /></OlimpFallback>} />
+         <Route path="/peminjaman/pesanan/:kode" element={<OlimpFallback><RentalPesanan /></OlimpFallback>} />
        </Routes>
        </OlimpAuthProvider>
      </AuthProvider>

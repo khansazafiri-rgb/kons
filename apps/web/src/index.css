@@ -249,3 +249,18 @@ body {
    mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
  }
 }
+
+/* ISI HTML MODUL PEMINJAMAN
+   Deskripsi ruang/alat dan instruksi pembayaran datang sebagai HTML dari
+   dashboard admin (field `editor` PocketBase). Tanpa aturan di bawah, tag
+   <p>, <ul>, dan <b> di dalamnya kehilangan jarak antar-baris karena Tailwind
+   preflight menormalkan semuanya ke margin 0 - hasilnya satu blok teks rapat
+   yang tidak terbaca. Sengaja dijaga sempit: cuma tag yang memang dipakai
+   admin, bukan reset tipografi menyeluruh. */
+.prose-rental > * + * { margin-top: 0.75rem; }
+.prose-rental p { line-height: 1.7; }
+.prose-rental b, .prose-rental strong { font-weight: 600; }
+.prose-rental ul { list-style: disc; padding-left: 1.25rem; }
+.prose-rental ol { list-style: decimal; padding-left: 1.25rem; }
+.prose-rental li + li { margin-top: 0.25rem; }
+.prose-rental a { color: theme('colors.maroon.600'); text-decoration: underline; }
