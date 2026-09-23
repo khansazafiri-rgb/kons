@@ -906,7 +906,7 @@ function QuestionForm({ form, setForm }) {
                 <div className="flex-1 min-w-0 space-y-2">
                   <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
                   <label className="flex items-center gap-2 text-xs text-stone-600">
-                    Jumlah jawaban yang diminta
+                    Jumlah kotak jawaban
                     <input
                       type="number"
                       min={1}
@@ -915,17 +915,20 @@ function QuestionForm({ form, setForm }) {
                       onChange={(e) => updateSub(i, 'answerCount', e.target.value)}
                       className="w-16 rounded-md border border-alba-300 px-2 py-1 text-sm bg-alba-50"
                     />
-                    <span className="text-stone-400">{n > 1 ? `siswa mengisi ${n} kotak` : '1 kotak'}</span>
+                    <span className="text-stone-400">
+                      {n > 1 ? `siswa WAJIB menyebut ${n} jawaban berbeda` : 'biarkan 1: siswa cukup menjawab salah satu kunci'}
+                    </span>
                   </label>
                   <textarea
                     value={sq.validAnswers}
                     onChange={(e) => updateSub(i, 'validAnswers', e.target.value)}
-                    rows={n > 1 ? Math.min(8, Math.max(3, barisJawaban + 1)) : 1}
-                    placeholder={n > 1
-                      ? 'Satu jawaban benar per baris. Ejaan lain dari jawaban yang sama pisahkan dengan "/".\nMis.:\nAlas kaki / sepatu\nCuci tangan\nHindari tanah berpasir'
-                      : 'Jawaban benar - pisahkan alternatif dengan "/" (mis. Striated duct / Duktus striata)'}
+                    rows={Math.min(8, Math.max(2, barisJawaban + 1))}
+                    placeholder={'Satu jawaban benar per baris. Bentuk lain dari jawaban yang sama pisahkan dengan "/".\nMis.:\nMemakai alas kaki / sepatu / sandal\nCuci tangan'}
                     className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
                   />
+                  <p className="text-[11px] text-stone-400">
+                    Salah ketik kecil, imbuhan, dan urutan kata sudah ditoleransi otomatis. Sinonim tetap perlu ditulis.
+                  </p>
                   {n > 1 && barisJawaban < n && (
                     <p className="text-[11px] font-semibold text-maroon-600">
                       Baru {barisJawaban} jawaban benar, padahal siswa diminta {n}. Tambah jawabannya atau kurangi jumlahnya.
@@ -994,17 +997,19 @@ const PEMBAHASAN_TUNGGAL_RULE = `PEMBAHASAN SATU UNTUK SELURUH SOAL (opsional):
 - Kalau soal tidak punya pembahasan menyeluruh seperti itu, JANGAN tulis field "explanation" tingkat soal sama sekali.
 - Hati-hati bedakan: "imageUrl" = gambar SOAL (dilihat sebelum menjawab), gambar di "explanation" = gambar PEMBAHASAN (muncul setelah jawaban dibuka).`;
 
-// Khusus isian: bagian yang meminta beberapa jawaban ("sebutkan 4 ...") dan
-// pembahasan/gambar per bagian. Lihat lib/isian untuk cara penilaiannya.
-const ISIAN_LANJUTAN_RULE = `ISIAN DENGAN BANYAK JAWABAN & PEMBAHASAN PER BAGIAN (opsional):
-- Kalau satu bagian meminta BEBERAPA jawaban berbeda (mis. "Sebutkan 4 pencegahan", "Karakteristik (2)"), tambahkan "answerCount": N pada sub-pertanyaan itu, lalu tulis TIAP jawaban berbeda sebagai string TERPISAH di "validAnswers". Ejaan/istilah lain dari jawaban yang SAMA tetap digabung dalam satu string, dipisah " / ".
-- Kalau kuncinya memuat lebih banyak jawaban dari yang diminta, tulis semuanya. Siswa cukup menyebut N di antaranya, urutan bebas.
-- Bagian yang meminta satu jawaban saja: JANGAN tulis "answerCount", dan "validAnswers" tetap berisi SATU string.
-- Tanda "/" di dalam jawaban selalu dibaca sebagai pemisah ejaan. Jangan memakainya untuk hal lain (tulis "anjing atau kucing", bukan "anjing/kucing").
-- Kunci berupa kalimat panjang sulit dicocokkan persis. Ringkas jadi kata kunci, lalu tambahkan bentuk lain yang wajar dengan " / ".
+// Khusus isian: kunci berisi banyak jawaban yang diterima, dan pembahasan/
+// gambar per bagian. Lihat lib/isian untuk cara penilaiannya.
+const ISIAN_LANJUTAN_RULE = `ISIAN DENGAN BANYAK KUNCI & PEMBAHASAN PER BAGIAN:
+- Satu pertanyaan yang menanyakan dua hal (mis. "Nama penyakit dan spesies penyebab") dipecah jadi dua sub-pertanyaan, supaya siswa tidak dinilai benar hanya karena menjawab salah satunya.
+- Kalau kunci sebuah bagian memuat beberapa jawaban (mis. "Sebutkan pencegahan" dengan 4-6 butir di kunci), tulis TIAP butir sebagai string TERPISAH di "validAnswers". Siswa mendapat SATU kotak isian dan jawabannya BENAR kalau cocok dengan SALAH SATU butir.
+- Bentuk lain dari butir yang SAMA (sinonim, singkatan, istilah Indonesia/Inggris) digabung dalam string butir itu, dipisah " / ".
+- Sistem sudah menoleransi salah ketik kecil, imbuhan (menggunakan/gunakan), urutan kata, dan kata tambahan. Tapi sinonim TIDAK ditebak, jadi tulis sendiri bentuk lain yang wajar dipakai siswa.
+- Kalau butir kunci berupa kalimat panjang, tulis kalimat aslinya DAN versi kata kuncinya dalam string yang sama. Contoh: "Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal".
+- Tanda "/" di dalam jawaban selalu dibaca sebagai pemisah. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing".
+- JANGAN tulis "answerCount", kecuali saya minta secara tegas bahwa siswa WAJIB menyebut sejumlah jawaban berbeda.
 - Kalau sebuah bagian punya pembahasan atau gambar penjelasannya sendiri, taruh di "explanation" MILIK sub-pertanyaan itu: teks, link gambar https://lh3.googleusercontent.com/d/FILE_ID, atau keduanya (pindah baris pakai <br>). Pembahasan untuk seluruh soal tetap di "explanation" tingkat soal.
-Contoh sub-pertanyaan banyak jawaban:
-{ "label": "B", "question": "Sebutkan 4 pencegahan", "answerCount": 4, "validAnswers": ["Memakai alas kaki / sepatu / sandal", "Cuci tangan dan kaki", "Hindari tanah berpasir yang tercemar feses hewan", "Kendalikan anjing dan kucing liar"], "explanation": "Larva menembus kulit yang kontak langsung dengan tanah.<br>https://lh3.googleusercontent.com/d/FILE_ID" }`;
+Contoh sub-pertanyaan:
+{ "label": "B", "question": "Sebutkan pencegahan", "validAnswers": ["Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal", "Cuci tangan dan kaki setelah kontak dengan tanah / cuci tangan", "Hindari bermain di tanah yang terdapat banyak hewan"], "explanation": "Larva menembus kulit yang kontak langsung dengan tanah.<br>https://lh3.googleusercontent.com/d/FILE_ID" }`;
 
 const GEMINI_PROMPTS = {
   'MCQ Biasa': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda berikut menjadi SATU array JavaScript.
@@ -1064,7 +1069,7 @@ FORMAT TIAP SOAL:
     { "label": "B", "question": "Pertanyaan B", "validAnswers": ["jawaban"] }
   ]
 }
-ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string (kecuali bagian dengan "answerCount"); jika ada beberapa jawaban benar (sinonim/istilah ID-EN), gabungkan pisah " / "; penilaian tidak peka huruf besar/kecil & spasi.
+ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array; tiap string = satu jawaban yang diterima (cukup salah satu yang cocok), bentuk lain dari jawaban yang sama (sinonim/istilah ID-EN) dipisah " / " di dalam string itu.
 
 ${ISIAN_LANJUTAN_RULE}
 
@@ -1088,7 +1093,7 @@ FORMAT TIAP SOAL:
     { "label": "B", "question": "Bentukan yang ditunjuk nomor 2 adalah", "validAnswers": ["Intercalated duct"] }
   ]
 }
-ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string (kecuali bagian dengan "answerCount"), alternatif dipisah " / "; pasangkan tiap soal dengan link gambarnya.
+ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array; tiap string = satu jawaban yang diterima, bentuk lainnya dipisah " / "; pasangkan tiap soal dengan link gambarnya.
 
 ${ISIAN_LANJUTAN_RULE}
 
@@ -1146,7 +1151,7 @@ TIPE 4 - ISIAN BERGAMBAR (isian singkat + gambar): sama seperti TIPE 3, TAPI tam
 
 ATURAN ISI (penting, karena tipe tiap soal ditebak dari bentuk datanya):
 - Soal pilihan ganda WAJIB pakai "options" (min 2, TEPAT SATU "correct": true, SETIAP opsi wajib "explanation") dan DILARANG punya "subQuestions".
-- Soal isian WAJIB pakai "subQuestions" (min 1, "validAnswers" = array berisi SATU string kecuali bagian dengan "answerCount", alternatif dipisah " / ") dan DILARANG punya "options".
+- Soal isian WAJIB pakai "subQuestions" (min 1, "validAnswers" = array; tiap string = satu jawaban yang diterima, bentuk lainnya dipisah " / ") dan DILARANG punya "options".
 - JANGAN pernah menulis "options" dan "subQuestions" pada soal yang sama.
 - "imageUrl" HANYA ditulis pada soal yang memang punya gambar, dan pakai link gambar milik soal itu sendiri. Soal tanpa gambar: hilangkan "imageUrl" sepenuhnya (jangan ditulis "").
 
