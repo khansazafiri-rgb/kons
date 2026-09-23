@@ -1,32 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowRight, Building2, Loader2, Stethoscope, Trash2 } from 'lucide-react';
-import RentalLayout, { RentalMati, RentalMemuat, useKonfigurasiRental } from '@/components/rental/RentalLayout';
+import { AlertCircle, ArrowRight, CalendarDays, Loader2, ShieldCheck, ShoppingBag, Trash2 } from 'lucide-react';
+import RentalLayout, { BarBawah, RentalMati, RentalMemuat, useKonfigurasiRental } from '@/components/rental/RentalLayout';
+import FotoItem from '@/components/rental/FotoItem';
+import Langkah from '@/components/rental/Langkah';
 import {
-  bacaKeranjang, hapusDariKeranjang, jadwalKalimat, keranjangUntukServer,
+  bacaKeranjang, durasiKalimat, hapusDariKeranjang, jadwalKalimat, keranjangUntukServer,
   periksaKeranjang, rupiah,
 } from '@/lib/rental';
 
 // KERANJANG (PRD bagian 7.1 poin 5)
 //
-// Yang paling penting di halaman ini bukan daftar itemnya, melainkan
-// PEMERIKSAAN ULANG ke server setiap kali halaman dibuka.
+// Yang terpenting di sini bukan daftarnya, melainkan PEMERIKSAAN ULANG ke
+// server setiap kali halaman dibuka. Keranjang hidup di peramban, jadi isinya
+// bisa basi berjam-jam - slotnya keburu diambil orang, stoknya habis, kelas
+// baru masuk kalender. Pelanggan harus tahu itu SEBELUM mengisi formulir.
 //
-// Keranjang hidup di peramban, jadi isinya bisa sudah basi berjam-jam:
-// jadwalnya keburu diambil orang, stoknya habis, kelas baru masuk ke kalender,
-// atau admin menonaktifkan itemnya. Kalau pemeriksaan itu ditunda sampai
-// tombol checkout ditekan, pelanggan sudah terlanjur mengisi lima kolom
-// formulir sebelum diberi tahu bahwa pesanannya tidak bisa jadi.
-//
-// Harga dan total juga datang dari server, bukan dihitung di sini. Satu
-// salinan aturan harga sudah cukup, dan salinan itu tinggal di rental-aturan.js
-// yang punya test.
-
-function IkonBaris({ tipe }) {
-  return tipe === 'ALAT'
-    ? <Stethoscope size={18} className="text-maroon-500" />
-    : <Building2 size={18} className="text-maroon-500" />;
-}
+// Harga dan total datang dari server, bukan dihitung di sini.
 
 export default function RentalKeranjang() {
   const navigate = useNavigate();
@@ -38,11 +28,7 @@ export default function RentalKeranjang() {
   const [galat, setGalat] = useState('');
 
   const periksa = useCallback(async (daftar) => {
-    if (!daftar.length) {
-      setHasil(null);
-      setMemeriksa(false);
-      return;
-    }
+    if (!daftar.length) { setHasil(null); setMemeriksa(false); return; }
     setMemeriksa(true);
     setGalat('');
     try {
@@ -60,151 +46,150 @@ export default function RentalKeranjang() {
   if (memuatKonfigurasi) return <RentalMemuat />;
   if (!konfigurasi?.aktif) return <RentalMati />;
 
-  // Galat dari server dicocokkan ke baris keranjang lewat `indeks` - urutan
-  // yang dikirim sama persis dengan urutan di sini, jadi baris yang bermasalah
-  // bisa ditandai tepat di tempatnya, bukan sebagai satu pesan di atas daftar.
+  // Galat server dicocokkan ke baris lewat `indeks` - urutan yang dikirim
+  // sama dengan urutan di sini, jadi baris bermasalah ditandai di tempatnya.
   const galatBaris = {};
   (hasil?.galat || []).forEach((g) => { galatBaris[g.indeks] = g; });
-
-  function hapus(i) {
-    const baru = hapusDariKeranjang(i);
-    setIsi([...baru]);
-  }
 
   if (!isi.length) {
     return (
       <RentalLayout konfigurasi={konfigurasi}>
         <div className="mx-auto max-w-md px-6 py-24 text-center">
-          <h1 className="font-display text-2xl font-semibold text-stone-800">Keranjangmu kosong</h1>
-          <p className="mt-3 text-[14px] leading-relaxed text-stone-600">
-            Pilih ruang atau alat yang mau dipinjam, tentukan jadwalnya, lalu kembali ke sini.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link to="/peminjaman/ruang" className="rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700">
-              Lihat ruang
-            </Link>
-            <Link to="/peminjaman/alat" className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-700 hover:border-maroon-300 hover:text-maroon-600">
-              Lihat alat
-            </Link>
+          <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-white text-slate-300 shadow-lembut ring-1 ring-slate-200/70">
+            <ShoppingBag size={34} />
+          </div>
+          <h1 className="mt-6 text-2xl font-extrabold tracking-tight text-slate-900">Keranjangmu masih kosong</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">Pilih ruang atau alat, tentukan jadwalnya, lalu kembali ke sini.</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link to="/peminjaman/ruang" className="rounded-full bg-sewa px-5 py-3 text-sm font-extrabold text-white hover:bg-sewa-tua">Cari ruang</Link>
+            <Link to="/peminjaman/alat" className="rounded-full bg-white px-5 py-3 text-sm font-extrabold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50">Cari alat</Link>
           </div>
         </div>
       </RentalLayout>
     );
   }
 
+  const bisaLanjut = !memeriksa && !!hasil?.bisa;
+  const ringkasan = (
+    <dl className="space-y-2.5 text-[14px]">
+      <div className="flex justify-between text-slate-600"><dt>Subtotal ({isi.length} item)</dt><dd className="font-semibold">{rupiah(hasil?.subtotal || 0)}</dd></div>
+      {(hasil?.biayaTambahan || []).map((b) => (
+        <div key={b.nama} className="flex justify-between text-slate-600">
+          <dt>{b.nama}{b.jenis === 'PERSEN' ? ` (${b.nilai}%)` : ''}</dt><dd className="font-semibold">{rupiah(b.jumlah)}</dd>
+        </div>
+      ))}
+      <div className="flex items-baseline justify-between border-t border-slate-100 pt-3">
+        <dt className="font-bold text-slate-900">Total</dt>
+        <dd className="text-2xl font-extrabold text-slate-900">{rupiah(hasil?.total || 0)}</dd>
+      </div>
+    </dl>
+  );
+
   return (
     <RentalLayout konfigurasi={konfigurasi}>
-      <div className="mx-auto max-w-4xl px-6 py-12">
-        <h1 className="font-display text-2xl font-semibold text-stone-800">Keranjang</h1>
-        <p className="mt-2 text-[14px] text-stone-600">
-          Setiap item punya jadwalnya sendiri. Ketersediaannya diperiksa ulang tiap kali halaman ini dibuka.
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
+        <Langkah aktif={0} />
+        <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-slate-900">Keranjang</h1>
+        <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+          {memeriksa
+            ? <><Loader2 size={14} className="animate-spin" /> Memeriksa ketersediaan terbaru…</>
+            : <><ShieldCheck size={15} className="text-sewa" /> Ketersediaan sudah diperiksa ulang barusan.</>}
         </p>
+        {galat && <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{galat}</p>}
 
-        {memeriksa && (
-          <p className="mt-5 inline-flex items-center gap-2 text-[13px] text-stone-500">
-            <Loader2 size={14} className="animate-spin" /> Memeriksa ketersediaan…
-          </p>
-        )}
-
-        {galat && (
-          <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">{galat}</p>
-        )}
-
-        <ul className="mt-6 space-y-3">
-          {isi.map((b, i) => {
-            const g = galatBaris[i];
-            const dariServer = hasil?.baris?.[i];
-            return (
-              <li
-                key={`${b.tipe}-${b.id}-${b.mulai}-${i}`}
-                className={`rounded-2xl border bg-alba-50 p-4 shadow-card sm:p-5 ${
-                  g ? 'border-red-300' : 'border-alba-200'
-                }`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="flex min-w-0 flex-1 gap-3">
-                    {b.foto
-                      ? <img src={b.foto} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
-                      : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-alba-100"><IkonBaris tipe={b.tipe} /></div>}
-                    <div className="min-w-0">
-                      <p className="font-display text-[15px] font-semibold text-stone-800">{b.nama}</p>
-                      <p className="mt-1 text-[13px] text-stone-600">{jadwalKalimat(b.mulai, b.selesai)}</p>
-                      {b.tipe === 'ALAT' && b.jumlah > 1 && (
-                        <p className="mt-0.5 text-[12px] text-stone-500">{b.jumlah} unit</p>
-                      )}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem] lg:items-start">
+          <ul className="space-y-3">
+            {isi.map((b, i) => {
+              const g = galatBaris[i];
+              const server = hasil?.baris?.[i];
+              return (
+                <li key={`${b.tipe}-${b.id}-${b.mulai}-${i}`} className={`rounded-3xl bg-white p-4 shadow-lembut ring-1 sm:p-5 ${g ? 'ring-rose-300' : 'ring-slate-200/70'}`}>
+                  <div className="flex gap-4">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl sm:h-24 sm:w-24">
+                      <FotoItem src={b.foto} tipe={b.tipe} nama={b.nama} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-extrabold uppercase tracking-wide text-sewa">{b.tipe === 'ALAT' ? 'Alat' : 'Ruang'}</p>
+                          <p className="text-[16px] font-extrabold leading-snug text-slate-900">
+                            {b.nama}{b.tipe === 'ALAT' && b.jumlah > 1 ? <span className="text-slate-500"> ×{b.jumlah}</span> : null}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setIsi([...hapusDariKeranjang(i)])}
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          aria-label={`Hapus ${b.nama}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                      <p className="mt-1.5 flex items-start gap-1.5 text-[13px] text-slate-600">
+                        <CalendarDays size={14} className="mt-0.5 shrink-0 text-slate-400" />
+                        <span>{jadwalKalimat(b.mulai, b.selesai)} <span className="text-slate-400">· {durasiKalimat(b.mulai, b.selesai)}</span></span>
+                      </p>
+                      <p className="mt-2 text-[16px] font-extrabold text-slate-900">
+                        {server ? rupiah(server.total) : g ? <span className="text-slate-300">—</span> : <span className="text-slate-300">…</span>}
+                      </p>
                     </div>
                   </div>
+                  {g && (
+                    <div className="mt-3 flex items-start gap-2 rounded-2xl bg-rose-50 px-3.5 py-3 text-[13px] text-rose-700">
+                      <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                      <span>
+                        <b>{g.pesan}</b>{' '}
+                        <Link to={b.tipe === 'RUANG' ? `/peminjaman/ruang/${b.id}` : `/peminjaman/alat/${b.id}`} className="font-bold underline">
+                          Pilih jadwal lain
+                        </Link>
+                      </span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+            <li>
+              <Link to="/peminjaman/ruang" className="flex items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-slate-300 px-4 py-4 text-sm font-bold text-slate-500 hover:border-sewa hover:text-sewa">
+                + Tambah ruang atau alat lain
+              </Link>
+            </li>
+          </ul>
 
-                  <div className="flex items-center gap-3">
-                    <span className="font-display text-[15px] font-semibold text-stone-800">
-                      {/* Harga dari server kalau ada; kalau barisnya ditolak,
-                          angka yang tersimpan di peramban tidak ditampilkan -
-                          menunjukkan harga untuk sesuatu yang tidak bisa
-                          dipesan cuma membingungkan. */}
-                      {dariServer ? rupiah(dariServer.total) : (g ? '—' : rupiah(0))}
-                    </span>
-                    <button
-                      onClick={() => hapus(i)}
-                      className="grid h-9 w-9 place-items-center rounded-lg border border-alba-300 text-stone-500 transition-colors hover:border-red-300 hover:text-red-600"
-                      aria-label={`Hapus ${b.nama}`}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </div>
-
-                {g && (
-                  <p className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] leading-relaxed text-red-700">
-                    <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                    <span>
-                      {g.pesan}{' '}
-                      {b.tipe === 'RUANG' ? (
-                        <Link to={`/peminjaman/ruang/${b.id}`} className="font-semibold underline">Pilih jadwal lain</Link>
-                      ) : (
-                        <Link to={`/peminjaman/alat/${b.id}`} className="font-semibold underline">Ubah jadwal/jumlah</Link>
-                      )}
-                    </span>
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="mt-6 rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-          <dl className="space-y-2 text-[14px]">
-            <div className="flex justify-between text-stone-600">
-              <dt>Subtotal</dt>
-              <dd>{rupiah(hasil?.subtotal || 0)}</dd>
+          <aside className="hidden lg:sticky lg:top-24 lg:block">
+            <div className="rounded-3xl bg-white p-5 shadow-angkat ring-1 ring-slate-200/70">
+              <h2 className="text-lg font-extrabold text-slate-900">Ringkasan</h2>
+              <div className="mt-4">{ringkasan}</div>
+              <button
+                type="button"
+                disabled={!bisaLanjut}
+                onClick={() => navigate('/peminjaman/checkout')}
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sewa px-5 py-3.5 text-[15px] font-extrabold text-white hover:bg-sewa-tua disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                Lanjut isi data <ArrowRight size={17} />
+              </button>
+              {!memeriksa && !hasil?.bisa && (
+                <p className="mt-3 text-center text-[12px] text-rose-600">Perbaiki dulu item yang ditandai merah.</p>
+              )}
             </div>
-            {(hasil?.biayaTambahan || []).map((b) => (
-              <div key={b.nama} className="flex justify-between text-stone-600">
-                <dt>{b.nama}{b.jenis === 'PERSEN' ? ` (${b.nilai}%)` : ''}</dt>
-                <dd>{rupiah(b.jumlah)}</dd>
-              </div>
-            ))}
-            <div className="flex justify-between border-t border-alba-200 pt-2 font-display text-lg font-semibold text-stone-800">
-              <dt>Total</dt>
-              <dd className="text-maroon-600">{rupiah(hasil?.total || 0)}</dd>
-            </div>
-          </dl>
-
-          <button
-            type="button"
-            disabled={memeriksa || !hasil?.bisa}
-            onClick={() => navigate('/peminjaman/checkout')}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-maroon-600 px-5 py-3 text-[14px] font-bold text-alba-50 transition-colors hover:bg-maroon-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Lanjut ke checkout <ArrowRight size={16} />
-          </button>
-
-          {!memeriksa && !hasil?.bisa && (
-            <p className="mt-3 text-center text-[12px] text-stone-500">
-              Perbaiki dulu item yang ditandai merah di atas.
-            </p>
-          )}
+          </aside>
         </div>
       </div>
+
+      <BarBawah>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] text-slate-500">Total {isi.length} item</p>
+            <p className="text-xl font-extrabold text-slate-900">{rupiah(hasil?.total || 0)}</p>
+          </div>
+          <button
+            type="button"
+            disabled={!bisaLanjut}
+            onClick={() => navigate('/peminjaman/checkout')}
+            className="inline-flex items-center gap-2 rounded-2xl bg-sewa px-5 py-3.5 text-[15px] font-extrabold text-white disabled:bg-slate-200 disabled:text-slate-400"
+          >
+            Lanjut <ArrowRight size={17} />
+          </button>
+        </div>
+      </BarBawah>
     </RentalLayout>
   );
 }

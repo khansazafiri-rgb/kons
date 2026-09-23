@@ -1,38 +1,52 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { ambilSlot, jamWib, tanggalWibHariIni } from '@/lib/rental';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, CalendarDays, ChevronLeft, ChevronRight, Loader2, Moon, Sun, Sunrise, Sunset } from 'lucide-react';
+import { ambilSlot, durasiKalimat, jamWib, pitaTanggal, tanggalWibHariIni } from '@/lib/rental';
 
 // PEMILIH JADWAL RUANG - grid 30 menit (PRD bagian 7.1 poin 3)
 //
-// Dua keputusan yang membentuk seluruh komponen ini:
+// Susunannya meniru aplikasi pemesanan yang sudah akrab (bioskop, Klook,
+// tiket.com): PITA TANGGAL di atas - dua minggu ke depan sebagai chip yang
+// bisa diketuk sekali - lalu JAM sebagai pil yang dikelompokkan Pagi / Siang /
+// Sore / Malam. Kalender bawaan peramban tetap tersedia lewat ikon kalender
+// untuk tanggal yang lebih jauh, tapi bukan jalan utamanya: di HP, kalender
+// bawaan adalah dialog kecil yang menutupi seluruh konteks.
 //
-// 1. SLOT DATANG DARI SERVER, BESERTA ALASANNYA.
-//    Endpoint /api/rental/slot mengembalikan tiap setengah jam lengkap dengan
-//    `kode` dan `alasan` ("Sedang dipakai kelas.", "Tidak ada penjaga yang
-//    bertugas pada jam ini."). Halaman ini tidak menghitung apa pun sendiri -
-//    ia menggambar apa yang diputuskan server.
+// Dua keputusan dari versi pertama tetap dipertahankan karena memang benar:
 //
-//    Kenapa alasannya ikut: "tidak tersedia" tanpa sebab adalah keluhan yang
-//    paling sering mendarat ke admin WhatsApp. Pelanggan yang melihat "sedang
-//    dipakai kelas" langsung mencari jam lain; yang melihat kotak abu-abu
-//    tanpa keterangan akan mengira webnya rusak.
-//
-// 2. PEMILIHAN DUA KETUKAN, BUKAN DUA DROPDOWN.
-//    Ketukan pertama memasang jam mulai, ketukan kedua jam selesai. Dropdown
-//    "jam mulai" dan "jam selesai" terpisah memungkinkan kombinasi yang
-//    melompati slot terkunci - dan itu baru ketahuan setelah tombol ditekan.
-//    Di sini rentang yang melompati slot terkunci tidak bisa dibentuk sama
-//    sekali.
+// 1. SLOT DATANG DARI SERVER BESERTA ALASANNYA ("Sedang dipakai kelas",
+//    "Tidak ada penjaga"). "Tidak tersedia" tanpa sebab adalah keluhan yang
+//    paling sering mendarat ke admin WhatsApp.
+// 2. DUA KETUKAN: jam mulai lalu jam selesai. Rentang yang melompati slot
+//    terkunci tidak bisa terbentuk sama sekali.
 
-export default function PemilihJadwal({ ruangSlug, nilai, onPilih, onBatal }) {
-  const [tanggal, setTanggal] = useState(() => (nilai?.mulai
+const KELOMPOK = [
+  { id: 'pagi', label: 'Pagi', ikon: Sunrise, dari: 0, sampai: 12 * 60 },
+  { id: 'siang', label: 'Siang', ikon: Sun, dari: 12 * 60, sampai: 15 * 60 },
+  { id: 'sore', label: 'Sore', ikon: Sunset, dari: 15 * 60, sampai: 18 * 60 },
+  { id: 'malam', label: 'Malam', ikon: Moon, dari: 18 * 60, sampai: 24 * 60 },
+];
+
+const menitDari = (jam) => {
+  const [h, m] = String(jam).split(':').map(Number);
+  return h * 60 + m;
+};
+
+export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }) {
+  const hariIni = tanggalWibHariIni();
+  // Tanggal dari pencarian di beranda (?tanggal=) dipakai sebagai pembuka,
+  // asal belum lewat - pengunjung yang sudah menyebut tanggalnya tidak perlu
+  // mencarinya lagi di pita.
+  const pembuka = nilai?.mulai
     ? new Date(nilai.mulai).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
-    : tanggalWibHariIni()));
+    : (tanggalAwal && tanggalAwal >= hariIni ? tanggalAwal : hariIni);
+  const [tanggal, setTanggal] = useState(pembuka);
+  const [awalPita, setAwalPita] = useState(pembuka);
   const [data, setData] = useState(null);
   const [memuat, setMemuat] = useState(true);
   const [galat, setGalat] = useState('');
   const [awal, setAwal] = useState(nilai?.mulai || '');
   const [akhir, setAkhir] = useState(nilai?.selesai || '');
+  const pitaRef = useRef(null);
 
   const muat = useCallback(async (tgl) => {
     setMemuat(true);
@@ -49,224 +63,211 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, onBatal }) {
 
   useEffect(() => { muat(tanggal); }, [muat, tanggal]);
 
-  // Dibungkus useMemo supaya rujukan arraynya tidak berganti tiap render -
-  // kalau berganti, dua useMemo di bawah ikut menghitung ulang setiap kali
-  // komponen ini digambar, termasuk saat cuma tanggalnya yang di-hover.
   const slot = useMemo(() => data?.slot || [], [data]);
+  const pita = useMemo(() => pitaTanggal(awalPita, 14), [awalPita]);
 
-  // Slot mana saja yang sedang tercakup pilihan sekarang. Dihitung dari nilai
-  // awal/akhir, bukan disimpan sebagai daftar terpisah, supaya tidak ada dua
-  // sumber kebenaran yang bisa berbeda.
   const terpilih = useMemo(() => {
     if (!awal) return new Set();
-    const batasAkhir = akhir || slot.find((s) => s.mulai === awal)?.selesai;
-    if (!batasAkhir) return new Set([awal]);
+    const batas = akhir || slot.find((s) => s.mulai === awal)?.selesai;
     const set = new Set();
-    slot.forEach((s) => {
-      if (s.mulai >= awal && s.selesai <= batasAkhir) set.add(s.mulai);
-    });
+    slot.forEach((s) => { if (s.mulai >= awal && s.selesai <= batas) set.add(s.mulai); });
     return set;
   }, [awal, akhir, slot]);
 
-  // Rentang hanya sah kalau SEMUA slot di dalamnya bisa dipakai. Inilah yang
-  // mencegah 09:00-12:00 terbentuk padahal 10:00 terkena kelas.
   const rentangSah = useMemo(() => {
     if (!awal || !akhir) return false;
-    const didalam = slot.filter((s) => s.mulai >= awal && s.selesai <= akhir);
-    return didalam.length > 0 && didalam.every((s) => s.bisa);
+    const di = slot.filter((s) => s.mulai >= awal && s.selesai <= akhir);
+    return di.length > 0 && di.every((s) => s.bisa);
   }, [awal, akhir, slot]);
+
+  // Setiap kali rentang yang sah terbentuk, induknya langsung diberi tahu -
+  // tidak perlu tombol "Pakai jadwal ini" terpisah, yang di versi pertama
+  // sering terlewat sehingga tombol Tambah ke Keranjang tetap abu-abu dan
+  // pelanggan mengira webnya macet.
+  useEffect(() => {
+    if (rentangSah) onPilih({ mulai: awal, selesai: akhir });
+    else onPilih(null);
+  }, [rentangSah, awal, akhir, onPilih]);
 
   function ketuk(s) {
     if (!s.bisa) return;
-
-    // Belum ada apa-apa, atau sedang menyusun ulang dari nol.
-    if (!awal || (awal && akhir)) {
+    if (!awal || (awal && akhir) || s.mulai <= awal) {
       setAwal(s.mulai);
       setAkhir('');
       return;
     }
-
-    // Ketukan kedua di atas atau sebelum jam mulai: perlakukan sebagai
-    // "ganti jam mulai". Tanpa ini, salah ketuk berarti harus menekan Reset.
-    if (s.mulai <= awal) {
-      setAwal(s.mulai);
-      setAkhir('');
-      return;
-    }
-
-    // Ketukan kedua sesudahnya: jadikan batas akhir, TAPI hanya kalau seluruh
-    // jalan ke sana bebas. Kalau ada slot terkunci di tengah, pilihannya
-    // dipindah jadi jam mulai yang baru - itu yang paling mungkin dimaksud
-    // pelanggan yang menekan slot di seberang jam kelas.
     const jalan = slot.filter((x) => x.mulai >= awal && x.selesai <= s.selesai);
-    if (jalan.every((x) => x.bisa)) {
-      setAkhir(s.selesai);
-    } else {
-      setAwal(s.mulai);
-      setAkhir('');
-    }
+    if (jalan.every((x) => x.bisa)) setAkhir(s.selesai);
+    else { setAwal(s.mulai); setAkhir(''); }
   }
 
-  function geserHari(delta) {
-    const d = new Date(`${tanggal}T00:00:00`);
-    d.setDate(d.getDate() + delta);
-    const baru = d.toLocaleDateString('en-CA');
-    // Tidak boleh mundur ke belakang hari ini: slot lampau selalu terkunci,
-    // jadi halamannya cuma akan penuh kotak abu-abu.
-    if (baru < tanggalWibHariIni()) return;
-    setTanggal(baru);
+  function pilihTanggal(tgl) {
+    if (tgl < hariIni) return;
+    setTanggal(tgl);
     setAwal('');
     setAkhir('');
   }
 
+  function geserPita(arah) {
+    const [y, m, d] = awalPita.split('-').map(Number);
+    const baru = new Date(Date.UTC(y, m - 1, d + arah * 7)).toISOString().slice(0, 10);
+    setAwalPita(baru < hariIni ? hariIni : baru);
+  }
+
   const kelasSlot = (s) => {
-    if (terpilih.has(s.mulai)) return 'border-maroon-600 bg-maroon-600 text-alba-50';
-    if (!s.bisa) {
-      if (s.kode === 'KELAS') return 'border-sky-200 bg-sky-50 text-sky-700/70 cursor-not-allowed';
-      if (s.kode === 'TERPAKAI') return 'border-red-200 bg-red-50 text-red-700/70 cursor-not-allowed';
-      if (s.kode === 'PENJAGA') return 'border-gold-200 bg-gold-100 text-gold-600/80 cursor-not-allowed';
-      return 'border-alba-200 bg-alba-100 text-stone-400 cursor-not-allowed';
+    if (terpilih.has(s.mulai)) {
+      const ujung = s.mulai === awal || s.selesai === akhir;
+      return ujung
+        ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+        : 'border-slate-900/80 bg-slate-800 text-white';
     }
-    return 'border-alba-300 bg-alba-50 text-stone-700 hover:border-maroon-400 hover:text-maroon-600';
+    if (!s.bisa) {
+      if (s.kode === 'KELAS') return 'cursor-not-allowed border-transparent bg-sky-50 text-sky-400 line-through decoration-sky-300';
+      if (s.kode === 'TERPAKAI') return 'cursor-not-allowed border-transparent bg-rose-50 text-rose-300 line-through decoration-rose-200';
+      if (s.kode === 'PENJAGA') return 'cursor-not-allowed border-transparent bg-amber-50 text-amber-400 line-through decoration-amber-300';
+      return 'cursor-not-allowed border-transparent bg-slate-100 text-slate-300';
+    }
+    return 'border-slate-200 bg-white text-slate-700 hover:border-sewa hover:text-sewa';
   };
 
+  const adaBisa = slot.some((s) => s.bisa);
+
   return (
-    <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-base font-semibold text-stone-800">Pilih jadwal</h3>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => geserHari(-1)}
-            disabled={tanggal <= tanggalWibHariIni()}
-            className="rounded-lg border border-alba-300 p-2 text-stone-600 transition-colors hover:border-maroon-300 hover:text-maroon-600 disabled:opacity-40"
-            aria-label="Hari sebelumnya"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <label className="relative inline-flex items-center">
-            <CalendarDays size={15} className="pointer-events-none absolute left-2.5 text-maroon-500" />
-            <input
-              type="date"
-              value={tanggal}
-              min={tanggalWibHariIni()}
-              onChange={(ev) => { setTanggal(ev.target.value); setAwal(''); setAkhir(''); }}
-              className="rounded-lg border border-alba-300 bg-alba-50 py-2 pl-8 pr-2.5 text-[13px] font-semibold text-stone-700"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => geserHari(1)}
-            className="rounded-lg border border-alba-300 p-2 text-stone-600 transition-colors hover:border-maroon-300 hover:text-maroon-600"
-            aria-label="Hari berikutnya"
-          >
-            <ChevronRight size={16} />
-          </button>
+    <div>
+      {/* Pita tanggal */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => geserPita(-1)}
+          disabled={awalPita <= hariIni}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-400 disabled:opacity-30"
+          aria-label="Minggu sebelumnya"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <div ref={pitaRef} className="-my-1 flex flex-1 gap-2 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {pita.map((t) => {
+            const aktif = t.tanggal === tanggal;
+            return (
+              <button
+                key={t.tanggal}
+                type="button"
+                onClick={() => pilihTanggal(t.tanggal)}
+                className={`flex w-[52px] shrink-0 flex-col items-center rounded-2xl border py-2 transition-colors ${
+                  aktif ? 'border-sewa bg-sewa text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
+                }`}
+              >
+                <span className={`text-[10px] font-bold uppercase ${aktif ? 'text-white/80' : t.akhirPekan ? 'text-rose-500' : 'text-slate-400'}`}>
+                  {t.tanggal === hariIni ? 'Ini' : t.hari}
+                </span>
+                <span className="text-lg font-extrabold leading-tight">{t.tgl}</span>
+                <span className={`text-[10px] font-semibold ${aktif ? 'text-white/80' : 'text-slate-400'}`}>{t.bulan}</span>
+              </button>
+            );
+          })}
         </div>
+        <button
+          type="button"
+          onClick={() => geserPita(1)}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-400"
+          aria-label="Minggu berikutnya"
+        >
+          <ChevronRight size={16} />
+        </button>
+        <label className="relative grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-400" title="Pilih tanggal lain">
+          <CalendarDays size={16} />
+          <input
+            type="date"
+            min={hariIni}
+            value={tanggal}
+            onChange={(ev) => { if (ev.target.value) { pilihTanggal(ev.target.value); setAwalPita(ev.target.value); } }}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            aria-label="Pilih tanggal lain"
+          />
+        </label>
       </div>
 
-      <p className="mt-2 text-[12px] leading-relaxed text-stone-500">
-        Ketuk jam mulai, lalu ketuk jam selesai. Setiap kotak 30 menit.
-        {data?.butuhPenjaga && ' Ruang ini butuh penjaga, jadi jam tanpa petugas tidak bisa dipilih.'}
-      </p>
-
-      {memuat && (
-        <div className="flex items-center gap-2 py-10 text-sm text-stone-400">
-          <Loader2 size={16} className="animate-spin" /> Memuat jadwal…
-        </div>
-      )}
-
-      {!memuat && galat && (
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
-          <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          <span>{galat}</span>
-        </div>
-      )}
-
-      {!memuat && !galat && slot.length === 0 && (
-        <p className="py-10 text-center text-sm text-stone-500">
-          Tidak ada jam operasional untuk tanggal ini.
-        </p>
-      )}
-
-      {!memuat && slot.length > 0 && (
-        <>
-          <div className="mt-4 grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-6">
-            {slot.map((s) => (
-              <button
-                key={s.mulai}
-                type="button"
-                onClick={() => ketuk(s)}
-                disabled={!s.bisa}
-                title={s.alasan || undefined}
-                className={`rounded-lg border px-1 py-2 text-[12px] font-semibold transition-colors ${kelasSlot(s)}`}
-              >
-                {s.jam}
-              </button>
-            ))}
+      {/* Jam */}
+      <div className="mt-5">
+        {memuat && (
+          <div className="flex items-center gap-2 py-10 text-sm text-slate-400">
+            <Loader2 size={16} className="animate-spin" /> Memuat jam yang tersedia…
           </div>
+        )}
 
-          {/* Keterangan warna. Tanpa ini, kotak biru dan kotak merah sama-sama
-              berarti "tidak bisa" di mata pelanggan, dan tidak ada yang tahu
-              mana yang mungkin terbuka lagi besok. */}
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-stone-500">
-            <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2.5 w-2.5 rounded-sm border border-alba-300 bg-alba-50" /> Tersedia
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2.5 w-2.5 rounded-sm border border-sky-200 bg-sky-50" /> Ada kelas
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2.5 w-2.5 rounded-sm border border-red-200 bg-red-50" /> Sudah dipinjam
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2.5 w-2.5 rounded-sm border border-gold-200 bg-gold-100" /> Tanpa penjaga
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2.5 w-2.5 rounded-sm border border-alba-200 bg-alba-100" /> Lewat / tutup
-            </span>
+        {!memuat && galat && (
+          <div className="flex items-start gap-2 rounded-xl bg-rose-50 px-4 py-3 text-[13px] text-rose-700">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" /> {galat}
           </div>
+        )}
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-alba-200 pt-4">
-            <p className="text-[13px] text-stone-600">
-              {!awal && 'Belum ada jam yang dipilih.'}
-              {awal && !akhir && (
-                <>Mulai <b className="text-maroon-600">{jamWib(awal)}</b> — ketuk jam selesainya.</>
-              )}
-              {awal && akhir && (
-                <>Dipilih: <b className="text-maroon-600">{jamWib(awal)}–{jamWib(akhir)} WIB</b></>
-              )}
+        {!memuat && !galat && !adaBisa && (
+          <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center">
+            <p className="text-sm font-bold text-slate-700">Tidak ada jam kosong di tanggal ini</p>
+            <p className="mt-1 text-[13px] text-slate-500">
+              {slot.some((s) => s.kode === 'PENJAGA')
+                ? 'Ruang ini butuh penjaga, dan belum ada petugas terjadwal. Coba tanggal lain.'
+                : 'Coba pilih tanggal lain di pita di atas.'}
             </p>
-            <div className="flex gap-2">
-              {(awal || akhir) && (
-                <button
-                  type="button"
-                  onClick={() => { setAwal(''); setAkhir(''); }}
-                  className="rounded-xl border border-alba-300 px-4 py-2 text-[13px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
-                >
-                  Reset
-                </button>
-              )}
-              {onBatal && (
-                <button
-                  type="button"
-                  onClick={onBatal}
-                  className="rounded-xl border border-alba-300 px-4 py-2 text-[13px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
-                >
-                  Tutup
-                </button>
-              )}
-              <button
-                type="button"
-                disabled={!rentangSah}
-                onClick={() => onPilih({ mulai: awal, selesai: akhir })}
-                className="rounded-xl bg-maroon-600 px-5 py-2 text-[13px] font-bold text-alba-50 transition-colors hover:bg-maroon-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Pakai jadwal ini
-              </button>
+          </div>
+        )}
+
+        {!memuat && !galat && adaBisa && (
+          <div className="space-y-4">
+            {KELOMPOK.map((k) => {
+              const isi = slot.filter((s) => {
+                const m = menitDari(s.jam);
+                return m >= k.dari && m < k.sampai;
+              });
+              if (!isi.length) return null;
+              const Ikon = k.ikon;
+              return (
+                <div key={k.id}>
+                  <p className="mb-2 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+                    <Ikon size={14} /> {k.label}
+                  </p>
+                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
+                    {isi.map((s) => (
+                      <button
+                        key={s.mulai}
+                        type="button"
+                        onClick={() => ketuk(s)}
+                        disabled={!s.bisa}
+                        title={s.alasan || undefined}
+                        className={`rounded-xl border py-2 text-[13px] font-bold tabular-nums transition-colors ${kelasSlot(s)}`}
+                      >
+                        {s.jam}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1 text-[11px] font-medium text-slate-500">
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-sky-200" /> Ada kelas</span>
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-rose-200" /> Sudah dipesan</span>
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-amber-200" /> Tanpa penjaga</span>
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-slate-200" /> Lewat / tutup</span>
             </div>
           </div>
-        </>
+        )}
+      </div>
+
+      {/* Ringkasan pilihan */}
+      {!memuat && adaBisa && (
+        <div className={`mt-5 rounded-2xl px-4 py-3 text-[13px] ${rentangSah ? 'bg-sewa/10 text-slate-800' : 'bg-slate-100 text-slate-500'}`}>
+          {!awal && 'Ketuk jam mulai, lalu ketuk jam selesai.'}
+          {awal && !akhir && <>Mulai <b className="text-slate-900">{jamWib(awal)}</b> — sekarang ketuk jam selesai.</>}
+          {rentangSah && (
+            <span className="flex flex-wrap items-center justify-between gap-2">
+              <span><b className="text-slate-900">{jamWib(awal)}–{jamWib(akhir)} WIB</b> · {durasiKalimat(awal, akhir)}</span>
+              <button type="button" onClick={() => { setAwal(''); setAkhir(''); }} className="text-[12px] font-bold text-sewa hover:underline">
+                Ulangi
+              </button>
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

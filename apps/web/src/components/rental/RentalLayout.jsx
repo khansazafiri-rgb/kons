@@ -1,26 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Menu, ShoppingCart, X } from 'lucide-react';
-import { Logo } from '@/components/Header';
-import { ambilKonfigurasi, jumlahKeranjang } from '@/lib/rental';
+import { Menu, MessageCircle, ShoppingBag, X } from 'lucide-react';
+import { ambilKonfigurasi, jumlahKeranjang, tautanWa, variabelMerek } from '@/lib/rental';
 
-// KERANGKA SEMUA HALAMAN PEMINJAMAN
+// KERANGKA WEB PEMINJAMAN
 //
-// Dipisah dari LandingLayout karena tiga hal yang cuma ada di sini:
+// Web ini sengaja TIDAK memakai kerangka PCV: yang menyewa ruang dan alat
+// bukan siswa PCV, dan mereka tidak perlu tahu (atau peduli) bahwa servernya
+// sama. Logo, nama, dan warna utamanya datang dari rental_settings, jadi
+// perusahaannya bisa tampil dengan identitasnya sendiri.
 //
-//   1. Bar keranjang yang selalu terlihat. Keranjang yang tidak kelihatan
-//      adalah keranjang yang dilupakan - dan karena pelanggan tidak punya
-//      akun, isinya lenyap begitu ia menutup peramban.
-//   2. Nama perusahaan & tagline datang dari rental_settings, bukan dari
-//      konstanta - PRD bagian 21 memang meminta branding bisa diganti admin
-//      tanpa menyentuh kode.
-//   3. Saklar induk: selama rental_settings.enabled mati, seluruh halaman ini
-//      menutup diri sendiri. Pola yang sama dipakai Bank Soal.
+// Pola tata letaknya mengikuti etalase pemesanan yang sudah akrab bagi orang
+// Indonesia (Traveloka, tiket.com, Airbnb): header putih ringkas dengan
+// keranjang yang selalu terlihat, konten di atas latar abu sangat muda supaya
+// kartu putih "terangkat", dan footer gelap berisi kontak.
 
-// Konfigurasi ditarik sekali lalu dibagi ke semua halaman lewat modul ini,
-// bukan lewat context. Isinya jarang berubah dan tidak ada yang mengubahnya
-// dari halaman, jadi satu Promise yang di-cache sudah cukup - context hanya
-// akan menambah satu provider lagi di App.jsx untuk data yang statis.
+// Konfigurasi ditarik sekali lalu dibagi ke semua halaman lewat modul ini.
 let _konfigurasi = null;
 export function muatKonfigurasi(paksa = false) {
   if (!_konfigurasi || paksa) _konfigurasi = ambilKonfigurasi().catch(() => null);
@@ -29,33 +24,61 @@ export function muatKonfigurasi(paksa = false) {
 
 export function useKonfigurasiRental() {
   const [state, setState] = useState({ memuat: true, konfigurasi: null });
-
   useEffect(() => {
     let hidup = true;
-    muatKonfigurasi().then((k) => {
-      if (hidup) setState({ memuat: false, konfigurasi: k });
-    });
+    muatKonfigurasi().then((k) => { if (hidup) setState({ memuat: false, konfigurasi: k }); });
     return () => { hidup = false; };
   }, []);
-
   return state;
 }
 
+// Mode gelap PCV disimpan sebagai kelas `dark` di <html>, dan kelas itu tetap
+// menempel waktu pengunjung pindah dari halaman PCV ke sini. Aturan gelap PCV
+// menulis ulang warna teks stone-* jadi terang - di atas kartu putih web ini,
+// hasilnya teks hampir tak terbaca. Web peminjaman punya satu tema sendiri,
+// jadi kelasnya dilepas selama halaman ini terbuka dan dikembalikan setelahnya.
+export function useTemaSendiri() {
+  useEffect(() => {
+    const html = document.documentElement;
+    const tadinya = html.classList.contains('dark');
+    html.classList.remove('dark');
+    return () => { if (tadinya) html.classList.add('dark'); };
+  }, []);
+}
+
+// Lambang merek: logo kalau admin mengisinya, kalau tidak inisial nama.
+export function LambangMerek({ konfigurasi, ukuran = 'md' }) {
+  const nama = konfigurasi?.namaPerusahaan || 'Rental';
+  const inisial = nama.split(/\s+/).filter(Boolean).slice(0, 2).map((k) => k[0]).join('').toUpperCase();
+  const kotak = ukuran === 'lg' ? 'h-11 w-11 text-base' : 'h-9 w-9 text-[13px]';
+  return (
+    <span className="flex items-center gap-2.5">
+      {konfigurasi?.logoUrl ? (
+        <img src={konfigurasi.logoUrl} alt="" className={`${kotak} rounded-xl object-contain`} />
+      ) : (
+        <span className={`${kotak} grid place-items-center rounded-xl bg-sewa font-sewa font-extrabold tracking-tight text-white`}>
+          {inisial}
+        </span>
+      )}
+      <span className="font-sewa text-[17px] font-extrabold tracking-tight text-slate-900">{nama}</span>
+    </span>
+  );
+}
+
 const NAV = [
-  { to: '/peminjaman', label: 'Beranda', end: true },
   { to: '/peminjaman/ruang', label: 'Sewa Ruang' },
   { to: '/peminjaman/alat', label: 'Sewa Alat' },
-  { to: '/peminjaman/keranjang', label: 'Keranjang' },
+  { to: '/peminjaman#cara-sewa', label: 'Cara Sewa', jangkar: true },
 ];
 
-export default function RentalLayout({ children, konfigurasi }) {
+export default function RentalLayout({ children, konfigurasi, tanpaFooter = false }) {
+  useTemaSendiri();
   const [menu, setMenu] = useState(false);
   const [isiKeranjang, setIsiKeranjang] = useState(0);
 
-  // Jumlah keranjang ikut berubah dari MANA PUN: halaman detail yang menambah
-  // item (event kustom di tab ini), dan tab lain yang mengubahnya (event
-  // `storage` bawaan). Dua-duanya didengarkan karena `storage` sengaja TIDAK
-  // menyala di tab yang melakukan perubahannya sendiri.
+  // Jumlah keranjang ikut berubah dari halaman lain di tab ini (event kustom)
+  // maupun dari tab lain (event `storage`, yang sengaja TIDAK menyala di tab
+  // yang melakukan perubahannya sendiri).
   useEffect(() => {
     const segarkan = () => setIsiKeranjang(jumlahKeranjang());
     segarkan();
@@ -67,112 +90,156 @@ export default function RentalLayout({ children, konfigurasi }) {
     };
   }, []);
 
-  const navCls = ({ isActive }) =>
-    `rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
-      isActive ? 'bg-maroon-600 text-alba-50' : 'text-stone-700 hover:bg-maroon-50 hover:text-maroon-600'
-    }`;
+  const wa = tautanWa(konfigurasi?.waAdmin, `Halo Admin ${konfigurasi?.namaPerusahaan || ''}, saya mau tanya soal sewa ruang/alat.`);
 
   return (
-    <div className="flex min-h-screen flex-col bg-alba-50 text-stone-800">
-      <div className="h-1 bg-maroon-600" />
-
-      <header className="sticky top-0 z-30 border-b border-alba-200 bg-alba-50/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-4">
-          <Link to="/peminjaman" className="flex items-center gap-3" onClick={() => setMenu(false)}>
-            <Logo size="md" />
-            <span className="hidden border-l border-alba-300 pl-3 font-display text-sm font-semibold text-maroon-600 sm:inline">
-              {konfigurasi?.namaPerusahaan || 'Rental'}
-            </span>
+    <div style={variabelMerek(konfigurasi?.brandColor)} className="flex min-h-screen flex-col bg-slate-50 font-sewa text-slate-800 antialiased">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Link to="/peminjaman" onClick={() => setMenu(false)} aria-label="Beranda">
+            <LambangMerek konfigurasi={konfigurasi} />
           </Link>
 
+          <nav className="hidden items-center gap-1 md:flex">
+            {NAV.map((n) => (n.jangkar ? (
+              <a key={n.to} href={n.to} className="rounded-lg px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900">
+                {n.label}
+              </a>
+            ) : (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                className={({ isActive }) => `rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
+                  isActive ? 'bg-sewa/10 text-sewa' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                {n.label}
+              </NavLink>
+            )))}
+          </nav>
+
           <div className="flex items-center gap-2">
+            {wa && (
+              <a
+                href={wa}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:inline-flex"
+              >
+                <MessageCircle size={16} /> Tanya admin
+              </a>
+            )}
             <Link
               to="/peminjaman/keranjang"
-              className="relative inline-flex items-center gap-2 rounded-xl border border-alba-300 px-3.5 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-maroon-300 hover:text-maroon-600"
+              className="relative inline-flex h-10 items-center gap-2 rounded-full bg-slate-900 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-700"
             >
-              <ShoppingCart size={18} />
+              <ShoppingBag size={16} />
               <span className="hidden sm:inline">Keranjang</span>
               {isiKeranjang > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-[20px] place-items-center rounded-full bg-maroon-600 px-1 text-[11px] font-bold text-alba-50">
+                <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-sewa px-1.5 text-[11px] font-extrabold text-white">
                   {isiKeranjang}
                 </span>
               )}
             </Link>
-
             <button
               onClick={() => setMenu((m) => !m)}
               aria-label={menu ? 'Tutup menu' : 'Buka menu'}
               aria-expanded={menu}
-              className="inline-flex items-center gap-2 rounded-xl border border-alba-300 px-3.5 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-maroon-300 hover:text-maroon-600"
+              className="grid h-10 w-10 place-items-center rounded-full text-slate-600 hover:bg-slate-100 md:hidden"
             >
-              {menu ? <X size={18} /> : <Menu size={18} />}
+              {menu ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
 
         {menu && (
-          <div className="border-t border-alba-200 bg-alba-50 shadow-card">
-            <div className="mx-auto grid max-w-6xl gap-1 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4">
-              {NAV.map((n) => (
-                <NavLink key={n.to} to={n.to} end={n.end} onClick={() => setMenu(false)} className={navCls}>
-                  {n.label}
-                </NavLink>
-              ))}
-              <Link to="/" onClick={() => setMenu(false)} className="rounded-xl px-4 py-3 text-sm font-semibold text-stone-500 hover:bg-maroon-50 hover:text-maroon-600">
-                ← Kembali ke PCV Classroom
-              </Link>
-            </div>
+          <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+            {NAV.map((n) => (
+              <a
+                key={n.to}
+                href={n.to}
+                onClick={() => setMenu(false)}
+                className="block rounded-lg px-3 py-3 text-[15px] font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                {n.label}
+              </a>
+            ))}
+            {wa && (
+              <a href={wa} target="_blank" rel="noreferrer" className="block rounded-lg px-3 py-3 text-[15px] font-semibold text-slate-700 hover:bg-slate-100">
+                Tanya admin lewat WhatsApp
+              </a>
+            )}
           </div>
         )}
       </header>
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-alba-200 bg-alba-100">
-        <div className="mx-auto max-w-6xl px-6 py-8 text-sm text-stone-500">
-          <p className="font-display text-base font-semibold text-stone-700">
-            {konfigurasi?.namaPerusahaan || 'Rental'}
-          </p>
-          {konfigurasi?.tagline && <p className="mt-1">{konfigurasi.tagline}</p>}
-          <p className="mt-3 text-[13px] leading-relaxed">
-            Pembayaran diverifikasi manual oleh admin lewat WhatsApp. Web ini tidak menerima
-            pembayaran otomatis dan tidak pernah meminta data kartu atau PIN.
-          </p>
-        </div>
-      </footer>
+      {!tanpaFooter && (
+        <footer className="bg-slate-900 text-slate-400">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+            <div className="lg:col-span-2">
+              <span className="font-sewa text-lg font-extrabold text-white">{konfigurasi?.namaPerusahaan || 'Rental'}</span>
+              {konfigurasi?.tagline && <p className="mt-2 max-w-sm text-sm leading-relaxed">{konfigurasi.tagline}</p>}
+              <p className="mt-4 max-w-sm text-[13px] leading-relaxed text-slate-500">
+                Pembayaran diverifikasi manual oleh admin lewat WhatsApp. Kami tidak pernah meminta
+                nomor kartu, PIN, atau kode OTP.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Sewa</p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li><Link to="/peminjaman/ruang" className="hover:text-white">Ruang</Link></li>
+                <li><Link to="/peminjaman/alat" className="hover:text-white">Alat medis</Link></li>
+                <li><Link to="/peminjaman/keranjang" className="hover:text-white">Keranjang</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Bantuan</p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li><a href="/peminjaman#cara-sewa" className="hover:text-white">Cara sewa</a></li>
+                {wa && <li><a href={wa} target="_blank" rel="noreferrer" className="hover:text-white">Chat admin</a></li>}
+              </ul>
+            </div>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
 
-// Layar "modulnya belum dinyalakan". Dipakai semua halaman peminjaman supaya
-// pengunjung yang menemukan alamatnya lebih dulu tidak melihat halaman kosong.
+// Bar bawah untuk layar HP: harga + tombol utama selalu terjangkau jempol,
+// tidak tertimbun di bawah daftar fasilitas yang panjang (pola Airbnb/
+// Traveloka di aplikasi HP).
+export function BarBawah({ children }) {
+  return (
+    <>
+      <div className="h-24 lg:hidden" aria-hidden="true" />
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        {children}
+      </div>
+    </>
+  );
+}
+
 export function RentalMati() {
   return (
-    <RentalLayout konfigurasi={null}>
+    <RentalLayout konfigurasi={null} tanpaFooter>
       <div className="mx-auto max-w-md px-6 py-24 text-center">
-        <h1 className="font-display text-2xl font-semibold text-stone-800">
-          Peminjaman belum dibuka
-        </h1>
-        <p className="mt-3 text-sm leading-relaxed text-stone-600">
-          Halaman penyewaan ruang dan alat sedang disiapkan. Coba lagi nanti, atau hubungi
-          admin lewat kontak di halaman utama.
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-sewa/10 text-3xl">🛠️</div>
+        <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-slate-900">Penyewaan belum dibuka</h1>
+        <p className="mt-3 text-sm leading-relaxed text-slate-600">
+          Katalog ruang dan alat sedang disiapkan. Coba lagi beberapa saat lagi.
         </p>
-        <Link
-          to="/"
-          className="mt-6 inline-block rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700"
-        >
-          Ke halaman utama
-        </Link>
       </div>
     </RentalLayout>
   );
 }
 
-// Layar tunggu seragam.
 export function RentalMemuat() {
   return (
-    <div className="grid min-h-screen place-items-center bg-alba-50">
-      <p className="animate-pulse text-sm font-semibold text-stone-400">Memuat…</p>
+    <div className="grid min-h-screen place-items-center bg-slate-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-200 border-t-slate-500" />
     </div>
   );
 }

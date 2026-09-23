@@ -1,139 +1,170 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  AlertCircle, ArrowLeft, Building2, CheckCircle2, MapPin, Minus,
-  Package, Plus, ShoppingCart, Stethoscope, Users,
+  AlertCircle, CheckCircle2, ChevronRight, Clock3, Loader2, MapPin, Minus, Package,
+  Plus, ShieldCheck, ShoppingBag, Sparkles, Users,
 } from 'lucide-react';
-import RentalLayout, { RentalMati, RentalMemuat, useKonfigurasiRental } from '@/components/rental/RentalLayout';
+import RentalLayout, { BarBawah, RentalMati, RentalMemuat, useKonfigurasiRental } from '@/components/rental/RentalLayout';
 import PemilihJadwal from '@/components/rental/PemilihJadwal';
+import FotoItem from '@/components/rental/FotoItem';
 import IsiHtml from '@/components/rental/IsiHtml';
 import {
-  SATUAN, ambilDetail, ambilStok, jadwalKalimat, rupiah, tambahKeKeranjang,
+  SATUAN, ambilDetail, ambilStok, durasiKalimat, jadwalKalimat, menitKeJam, periksaKeranjang,
+  pitaTanggal, rupiah, tambahKeKeranjang, tanggalWibHariIni,
 } from '@/lib/rental';
 
 // DETAIL RUANG / ALAT (PRD bagian 7.1 poin 3 & 4)
 //
-// Perbedaan pokok antara keduanya, dan kenapa keduanya tetap satu berkas:
+// Susunannya dari dua sumber yang saling melengkapi:
 //
-//   RUANG - jadwal dipilih lewat grid 30 menit, jumlahnya selalu satu.
-//   ALAT  - jadwal juga lewat grid 30 menit (dipinjam dari ruang mana pun,
-//           lihat catatan di bawah), tapi ada pemilih jumlah, dan sisa stok
-//           baru bisa dihitung SETELAH jadwalnya dipilih.
+//   Airbnb - mosaik foto 1 besar + 4 kecil, dua kolom dengan KARTU PESAN yang
+//            lengket di kanan, dan bar harga di bawah layar HP.
+//   Klook  - pemilihan jadwal di KOLOM UTAMA, bukan dijejalkan ke kartu kecil.
+//            Pita tanggal + pil jam butuh ruang; di kartu samping ia jadi
+//            deretan tombol mungil yang susah diketuk.
 //
-// Sisanya - galeri, deskripsi, kebijakan, rekomendasi terkait, tombol tambah
-// ke keranjang - identik.
+// HARGA DI KARTU DIHITUNG SERVER. Begitu jadwal lengkap, halaman bertanya ke
+// /api/rental/periksa - endpoint yang sama yang dipakai checkout - jadi angka
+// yang dilihat pelanggan di sini persis angka yang nanti ditagihkan admin.
 
-// Grid untuk alat memakai ruang mana pun yang aktif sebagai "penggaris" jam.
-// Alat tidak terikat jam operasional ruang, jadi yang dipakai di sini cuma
-// pemilih tanggal + jam sederhana, bukan grid ketersediaan ruang.
-function PemilihJadwalAlat({ nilai, onUbah }) {
-  const [tanggal, setTanggal] = useState(() => (nilai?.mulai
-    ? new Date(nilai.mulai).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
-    : new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })));
-  const [jamMulai, setJamMulai] = useState('09:00');
-  const [jamSelesai, setJamSelesai] = useState('17:00');
+const JAM_PILIHAN = [];
+for (let m = 0; m < 24 * 60; m += 30) JAM_PILIHAN.push(menitKeJam(m));
+
+// Jadwal alat: tanggal ambil (pita), lama pinjam (chip hari), jam ambil & kembali.
+function PemilihJadwalAlat({ onUbah }) {
+  const hariIni = tanggalWibHariIni();
+  const [tanggal, setTanggal] = useState(hariIni);
   const [hari, setHari] = useState(1);
+  const [jamAmbil, setJamAmbil] = useState('09:00');
+  const [jamKembali, setJamKembali] = useState('17:00');
+  const pita = useMemo(() => pitaTanggal(hariIni, 14), [hariIni]);
 
-  // Semua kelipatan 30 menit dalam sehari. Grid 30 menit berlaku untuk alat
-  // juga (PRD bagian 4), jadi daftar pilihannya memang cuma ini.
-  const JAM = [];
-  for (let m = 0; m < 24 * 60; m += 30) {
-    JAM.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
-  }
-
-  // Dikirim ke induk sebagai ISO UTC. Zona WIB ditulis eksplisit (+07:00)
-  // supaya jamnya tidak bergeser kalau perangkat pelanggan ada di zona lain.
-  const kirim = useCallback((tgl, mulai, selesai, jumlahHari) => {
-    const awal = new Date(`${tgl}T${mulai}:00+07:00`);
-    const akhir = new Date(`${tgl}T${selesai}:00+07:00`);
-    akhir.setDate(akhir.getDate() + Math.max(0, (Number(jumlahHari) || 1) - 1));
-    if (akhir <= awal) return onUbah(null);
-    onUbah({ mulai: awal.toISOString(), selesai: akhir.toISOString() });
-  }, [onUbah]);
-
-  useEffect(() => { kirim(tanggal, jamMulai, jamSelesai, hari); }, [kirim, tanggal, jamMulai, jamSelesai, hari]);
-
-  const hariIni = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+  useEffect(() => {
+    // +07:00 ditulis eksplisit supaya jamnya diartikan WIB, bukan zona waktu
+    // perangkat pelanggan.
+    const awal = new Date(`${tanggal}T${jamAmbil}:00+07:00`);
+    const akhir = new Date(`${tanggal}T${jamKembali}:00+07:00`);
+    akhir.setUTCDate(akhir.getUTCDate() + (hari - 1));
+    onUbah(akhir > awal ? { mulai: awal.toISOString(), selesai: akhir.toISOString() } : null);
+  }, [tanggal, hari, jamAmbil, jamKembali, onUbah]);
 
   return (
-    <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-      <h3 className="font-display text-base font-semibold text-stone-800">Pilih jadwal pinjam</h3>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">Tanggal mulai</span>
-          <input
-            type="date"
-            value={tanggal}
-            min={hariIni}
-            onChange={(ev) => setTanggal(ev.target.value)}
-            className="w-full rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">Lama pinjam (hari)</span>
-          <input
-            type="number"
-            min={1}
-            max={30}
-            value={hari}
-            onChange={(ev) => setHari(Math.max(1, Math.min(30, Number(ev.target.value) || 1)))}
-            className="w-full rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">Jam ambil</span>
-          <select
-            value={jamMulai}
-            onChange={(ev) => setJamMulai(ev.target.value)}
-            className="w-full rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none"
-          >
-            {JAM.map((j) => <option key={j} value={j}>{j}</option>)}
-          </select>
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">Jam kembali</span>
-          <select
-            value={jamSelesai}
-            onChange={(ev) => setJamSelesai(ev.target.value)}
-            className="w-full rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none"
-          >
-            {JAM.map((j) => <option key={j} value={j}>{j}</option>)}
-          </select>
-        </label>
+    <div className="space-y-5">
+      <div>
+        <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-slate-500">Tanggal ambil</p>
+        <div className="-my-1 flex gap-2 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {pita.map((t) => {
+            const aktif = t.tanggal === tanggal;
+            return (
+              <button
+                key={t.tanggal}
+                type="button"
+                onClick={() => setTanggal(t.tanggal)}
+                className={`flex w-[52px] shrink-0 flex-col items-center rounded-2xl border py-2 transition-colors ${
+                  aktif ? 'border-sewa bg-sewa text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
+                }`}
+              >
+                <span className={`text-[10px] font-bold uppercase ${aktif ? 'text-white/80' : 'text-slate-400'}`}>{t.tanggal === hariIni ? 'Ini' : t.hari}</span>
+                <span className="text-lg font-extrabold leading-tight">{t.tgl}</span>
+                <span className={`text-[10px] font-semibold ${aktif ? 'text-white/80' : 'text-slate-400'}`}>{t.bulan}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-slate-500">Lama pinjam</p>
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3, 5, 7].map((h) => (
+            <button
+              key={h}
+              type="button"
+              onClick={() => setHari(h)}
+              className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
+                hari === h ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {h} hari
+            </button>
+          ))}
+          <label className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[13px] font-bold text-slate-600">
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={hari}
+              onChange={(ev) => setHari(Math.max(1, Math.min(30, Number(ev.target.value) || 1)))}
+              className="w-10 bg-transparent text-center focus:outline-none"
+              aria-label="Jumlah hari lain"
+            />
+            hari
+          </label>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { label: 'Jam ambil', nilai: jamAmbil, ubah: setJamAmbil },
+          { label: hari > 1 ? 'Jam kembali (hari terakhir)' : 'Jam kembali', nilai: jamKembali, ubah: setJamKembali },
+        ].map((f) => (
+          <label key={f.label} className="block rounded-2xl bg-slate-100 px-4 py-2.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">{f.label}</span>
+            <select value={f.nilai} onChange={(ev) => f.ubah(ev.target.value)} className="w-full bg-transparent text-[15px] font-bold text-slate-900 focus:outline-none">
+              {JAM_PILIHAN.map((j) => <option key={j} value={j}>{j}</option>)}
+            </select>
+          </label>
+        ))}
       </div>
     </div>
   );
 }
 
-function Rekomendasi({ daftar }) {
+function Mosaik({ foto, tipe, nama }) {
+  if (!foto?.length) {
+    return (
+      <div className="h-56 overflow-hidden rounded-3xl sm:h-72">
+        <FotoItem tipe={tipe} nama={nama} besar />
+      </div>
+    );
+  }
+  if (foto.length === 1) {
+    return <div className="h-64 overflow-hidden rounded-3xl sm:h-[26rem]"><FotoItem src={foto[0]} tipe={tipe} nama={nama} /></div>;
+  }
+  const kecil = foto.slice(1, 5);
+  return (
+    <div className="grid h-64 grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-3xl sm:h-[26rem]">
+      <div className="col-span-4 row-span-2 sm:col-span-2"><FotoItem src={foto[0]} tipe={tipe} nama={nama} /></div>
+      {kecil.map((f, i) => (
+        <div key={f} className={`hidden sm:block ${kecil.length < 3 && i === 0 ? 'col-span-2' : ''} ${kecil.length === 1 ? 'row-span-2' : ''}`}>
+          <FotoItem src={f} tipe={tipe} nama={nama} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Rekomendasi({ daftar, sorot }) {
   if (!daftar?.length) return null;
   return (
-    <section className="mt-10">
-      <h2 className="font-display text-lg font-semibold text-stone-800">Sering dipinjam bersamaan</h2>
-      <p className="mt-1 text-[13px] text-stone-500">
-        Disusun admin. Tidak otomatis masuk keranjang — buka kalau memang perlu.
-      </p>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <section id="rekomendasi" className={`scroll-mt-24 rounded-3xl p-5 transition-colors sm:p-6 ${sorot ? 'bg-sewa/10 ring-2 ring-sewa/30' : 'bg-white ring-1 ring-slate-200/70'}`}>
+      <h2 className="flex items-center gap-2 text-lg font-extrabold text-slate-900">
+        <Sparkles size={18} className="text-sewa" /> Sering disewa bersamaan
+      </h2>
+      <p className="mt-0.5 text-[13px] text-slate-500">Dipilihkan admin. Tidak otomatis masuk keranjang.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {daftar.map((r) => (
           <Link
             key={`${r.tipe}-${r.id}`}
             to={r.tipe === 'ALAT' ? `/peminjaman/alat/${r.slug}` : `/peminjaman/ruang/${r.slug}`}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-alba-200 bg-alba-50 shadow-card transition-colors hover:border-maroon-300"
+            className="group flex items-center gap-3 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 transition-shadow hover:shadow-lembut"
           >
-            {r.foto?.[0] ? (
-              <img src={r.foto[0]} alt="" loading="lazy" className="h-24 w-full object-cover" />
-            ) : (
-              <div className="grid h-24 w-full place-items-center bg-alba-100">
-                {r.tipe === 'ALAT'
-                  ? <Stethoscope size={20} className="text-maroon-400" />
-                  : <Building2 size={20} className="text-maroon-400" />}
-              </div>
-            )}
-            <div className="flex flex-1 flex-col p-4">
-              <h3 className="font-display text-[14px] font-semibold leading-snug text-stone-800">{r.nama}</h3>
-              {r.catatan && <p className="mt-1 text-[11px] text-stone-500">{r.catatan}</p>}
-              <p className="mt-auto pt-2 text-[13px] font-semibold text-maroon-600">{rupiah(r.harga)}</p>
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl"><FotoItem src={r.foto?.[0]} tipe={r.tipe} nama={r.nama} /></div>
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-1 text-[14px] font-bold text-slate-900">{r.nama}</p>
+              <p className="text-[12px] text-slate-500">{r.catatan || (r.tipe === 'ALAT' ? 'Alat' : 'Ruang')} · <b className="text-slate-800">{rupiah(r.harga)}</b></p>
             </div>
+            <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-sewa" />
           </Link>
         ))}
       </div>
@@ -143,6 +174,7 @@ function Rekomendasi({ daftar }) {
 
 export default function RentalDetail({ tipe = 'RUANG' }) {
   const { slug } = useParams();
+  const [sp] = useSearchParams();
   const navigate = useNavigate();
   const { memuat: memuatKonfigurasi, konfigurasi } = useKonfigurasiRental();
 
@@ -152,13 +184,18 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
   const [jadwal, setJadwal] = useState(null);
   const [jumlah, setJumlah] = useState(1);
   const [stok, setStok] = useState(null);
-  const [pesan, setPesan] = useState('');
+  const [harga, setHarga] = useState(null); // { total, pesan } dari server
+  const [menghitung, setMenghitung] = useState(false);
+  const [masuk, setMasuk] = useState(false);
+
+  const isAlat = tipe === 'ALAT';
+  const ubahJadwal = useCallback((j) => { setJadwal(j); setMasuk(false); }, []);
 
   useEffect(() => {
     let hidup = true;
     setMemuat(true);
     setJadwal(null);
-    setStok(null);
+    setMasuk(false);
     ambilDetail(tipe, slug)
       .then((d) => { if (hidup) { setData(d); setGalat(''); } })
       .catch((err) => { if (hidup) setGalat(err.message || 'Gagal memuat data.'); })
@@ -166,20 +203,33 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
     return () => { hidup = false; };
   }, [tipe, slug]);
 
-  // Sisa stok alat baru berarti setelah jadwalnya diketahui (PRD bagian 15) -
-  // angka "6 unit" di katalog adalah yang dimiliki, bukan yang bebas pada jam
-  // itu. Karena itu dihitung ulang tiap kali jadwalnya berubah.
+  // Sisa stok alat baru berarti setelah jadwalnya diketahui (PRD bagian 15).
   useEffect(() => {
-    if (tipe !== 'ALAT' || !jadwal?.mulai || !jadwal?.selesai || !data?.item?.id) {
-      setStok(null);
-      return;
-    }
+    if (!isAlat || !jadwal || !data?.item) { setStok(null); return undefined; }
     let hidup = true;
     ambilStok(data.item.slug, jadwal.mulai, jadwal.selesai)
       .then((s) => { if (hidup) setStok(s); })
       .catch(() => { if (hidup) setStok(null); });
     return () => { hidup = false; };
-  }, [tipe, jadwal, data]);
+  }, [isAlat, jadwal, data]);
+
+  // Harga dari server, untuk jadwal & jumlah yang sedang dipilih.
+  useEffect(() => {
+    if (!jadwal || !data?.item) { setHarga(null); return undefined; }
+    let hidup = true;
+    setMenghitung(true);
+    const t = setTimeout(() => {
+      periksaKeranjang([{ tipe, id: data.item.slug, jumlah: isAlat ? jumlah : 1, mulai: jadwal.mulai, selesai: jadwal.selesai }])
+        .then((h) => {
+          if (!hidup) return;
+          if (h.bisa) setHarga({ total: h.baris?.[0]?.total || 0, pesan: '' });
+          else setHarga({ total: 0, pesan: h.galat?.[0]?.pesan || 'Jadwal ini tidak bisa dipesan.' });
+        })
+        .catch(() => { if (hidup) setHarga(null); })
+        .finally(() => { if (hidup) setMenghitung(false); });
+    }, 250);
+    return () => { hidup = false; clearTimeout(t); };
+  }, [jadwal, jumlah, data, tipe, isAlat]);
 
   if (memuatKonfigurasi) return <RentalMemuat />;
   if (!konfigurasi?.aktif) return <RentalMati />;
@@ -187,7 +237,10 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
   if (memuat) {
     return (
       <RentalLayout konfigurasi={konfigurasi}>
-        <p className="py-24 text-center text-sm text-stone-400">Memuat…</p>
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+          <div className="h-6 w-64 animate-pulse rounded bg-slate-200" />
+          <div className="mt-6 h-72 animate-pulse rounded-3xl bg-slate-200/70" />
+        </div>
       </RentalLayout>
     );
   }
@@ -196,11 +249,8 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
     return (
       <RentalLayout konfigurasi={konfigurasi}>
         <div className="mx-auto max-w-md px-6 py-24 text-center">
-          <h1 className="font-display text-xl font-semibold text-stone-800">{galat || 'Tidak ditemukan.'}</h1>
-          <Link
-            to={tipe === 'ALAT' ? '/peminjaman/alat' : '/peminjaman/ruang'}
-            className="mt-5 inline-block rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700"
-          >
+          <h1 className="text-xl font-extrabold text-slate-900">{galat || 'Tidak ditemukan.'}</h1>
+          <Link to={isAlat ? '/peminjaman/alat' : '/peminjaman/ruang'} className="mt-5 inline-block rounded-full bg-sewa px-5 py-2.5 text-sm font-bold text-white">
             Kembali ke katalog
           </Link>
         </div>
@@ -209,9 +259,8 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
   }
 
   const it = data.item;
-  const isAlat = tipe === 'ALAT';
   const stokKurang = isAlat && stok && stok.sisa < jumlah;
-  const bisaTambah = !!jadwal?.mulai && !!jadwal?.selesai && !stokKurang;
+  const bisaTambah = !!jadwal && !stokKurang && !!harga && !harga.pesan && !menghitung;
 
   function tambah() {
     tambahKeKeranjang({
@@ -225,84 +274,109 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
       mulai: jadwal.mulai,
       selesai: jadwal.selesai,
     });
-    setPesan(`${it.nama} masuk keranjang.`);
-    // Halaman sengaja TIDAK langsung pindah ke keranjang: PRD bagian 8 meminta
-    // rekomendasi terkait ditampilkan setelah item masuk, dan pindah halaman
-    // membuat deretan itu tidak pernah terlihat.
-    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { /* jsdom */ }
+    setMasuk(true);
+    // Tidak langsung pindah ke keranjang: PRD bagian 8 meminta rekomendasi
+    // terkait ditampilkan SETELAH item masuk. Deretannya disorot dan
+    // digulirkan ke layar.
+    if (data.rekomendasi?.length) {
+      setTimeout(() => document.getElementById('rekomendasi')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+    }
   }
+
+  const tombolUtama = masuk ? (
+    <button
+      type="button"
+      onClick={() => navigate('/peminjaman/keranjang')}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3.5 text-[15px] font-extrabold text-white hover:bg-slate-700"
+    >
+      <ShoppingBag size={17} /> <span className="hidden sm:inline">Lihat</span> Keranjang
+    </button>
+  ) : (
+    <button
+      type="button"
+      disabled={!bisaTambah}
+      onClick={tambah}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sewa px-5 py-3.5 text-[15px] font-extrabold text-white transition-colors hover:bg-sewa-tua disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+    >
+      <Plus size={17} /> <span className="sm:hidden lg:inline">Tambah</span><span className="hidden sm:inline lg:hidden">Tambah ke keranjang</span><span className="hidden lg:inline"> ke keranjang</span>
+    </button>
+  );
+
+  const ringkasHarga = (
+    <div>
+      {menghitung && <p className="flex items-center gap-2 text-[13px] text-slate-400"><Loader2 size={14} className="animate-spin" /> Menghitung…</p>}
+      {!menghitung && harga && !harga.pesan && (
+        <p className="text-[13px] text-slate-500">
+          Total <span className="text-xl font-extrabold text-slate-900">{rupiah(harga.total)}</span>
+        </p>
+      )}
+      {!menghitung && !harga && (
+        <p className="text-[13px] text-slate-500">
+          <span className="text-xl font-extrabold text-slate-900">{rupiah(it.harga)}</span> {SATUAN[it.satuan] || ''}
+        </p>
+      )}
+    </div>
+  );
 
   return (
     <RentalLayout konfigurasi={konfigurasi}>
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <Link
-          to={isAlat ? '/peminjaman/alat' : '/peminjaman/ruang'}
-          className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-stone-500 hover:text-maroon-600"
-        >
-          <ArrowLeft size={15} /> {isAlat ? 'Semua alat' : 'Semua ruang'}
-        </Link>
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+        <nav className="flex items-center gap-1 text-[13px] font-semibold text-slate-500">
+          <Link to="/peminjaman" className="hover:text-slate-900">Beranda</Link>
+          <ChevronRight size={14} />
+          <Link to={isAlat ? '/peminjaman/alat' : '/peminjaman/ruang'} className="hover:text-slate-900">{isAlat ? 'Sewa alat' : 'Sewa ruang'}</Link>
+          <ChevronRight size={14} />
+          <span className="line-clamp-1 text-slate-800">{it.nama}</span>
+        </nav>
 
-        {pesan && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-emerald-700">
-              <CheckCircle2 size={16} /> {pesan}
-            </span>
-            <button
-              onClick={() => navigate('/peminjaman/keranjang')}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-[12px] font-bold text-white hover:bg-emerald-700"
-            >
-              <ShoppingCart size={14} /> Lihat keranjang
-            </button>
+        <div className="mt-3">
+          {isAlat && it.kategori && <p className="text-[12px] font-extrabold uppercase tracking-wide text-sewa">{it.kategori}</p>}
+          <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[34px]">{it.nama}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[14px] text-slate-600">
+            {it.alamat && <span className="inline-flex items-center gap-1.5"><MapPin size={15} />{it.alamat}</span>}
+            {it.kapasitas > 0 && <span className="inline-flex items-center gap-1.5"><Users size={15} />Maks. {it.kapasitas} orang</span>}
+            {!isAlat && it.jamBuka !== it.jamTutup && (
+              <span className="inline-flex items-center gap-1.5"><Clock3 size={15} />{menitKeJam(it.jamBuka)}–{menitKeJam(it.jamTutup)} WIB</span>
+            )}
+            {isAlat && <span className="inline-flex items-center gap-1.5"><Package size={15} />{it.stok} unit dimiliki</span>}
+            {it.sku && <span className="text-slate-400">SKU {it.sku}</span>}
           </div>
-        )}
+        </div>
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-start">
-          <div>
-            {it.foto?.length > 0 ? (
-              <div className="grid gap-2">
-                <img src={it.foto[0]} alt={it.nama} className="h-64 w-full rounded-2xl object-cover sm:h-80" />
-                {it.foto.length > 1 && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {it.foto.slice(1, 5).map((f) => (
-                      <img key={f} src={f} alt="" loading="lazy" className="h-20 w-full rounded-xl object-cover" />
-                    ))}
-                  </div>
+        <div className="mt-5"><Mosaik foto={it.foto} tipe={tipe} nama={it.nama} /></div>
+
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem] lg:items-start">
+          {/* KOLOM UTAMA */}
+          <div className="min-w-0 space-y-6">
+            <section className="rounded-3xl bg-white p-5 shadow-lembut ring-1 ring-slate-200/70 sm:p-6">
+              <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-extrabold text-slate-900">{isAlat ? 'Kapan dipinjam?' : 'Pilih tanggal & jam'}</h2>
+                {!isAlat && it.butuhPenjaga && (
+                  <span className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-700">
+                    <ShieldCheck size={14} /> Didampingi penjaga
+                  </span>
                 )}
               </div>
-            ) : (
-              <div className="grid h-64 w-full place-items-center rounded-2xl bg-gradient-to-br from-maroon-600 to-maroon-800 sm:h-80">
-                {isAlat ? <Stethoscope size={40} className="text-gold-200" /> : <Building2 size={40} className="text-gold-200" />}
-              </div>
-            )}
-
-            <h1 className="mt-6 font-display text-2xl font-semibold text-stone-800">{it.nama}</h1>
-
-            <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-stone-600">
-              {it.alamat && (
-                <div className="flex items-center gap-1.5"><MapPin size={14} className="text-maroon-500" />{it.alamat}</div>
-              )}
-              {it.kapasitas > 0 && (
-                <div className="flex items-center gap-1.5"><Users size={14} className="text-maroon-500" />Kapasitas {it.kapasitas}</div>
-              )}
-              {isAlat && (
-                <div className="flex items-center gap-1.5"><Package size={14} className="text-maroon-500" />{it.stok} unit dimiliki</div>
-              )}
-              {it.sku && <div className="text-stone-500">SKU {it.sku}</div>}
-            </dl>
+              {isAlat
+                ? <PemilihJadwalAlat onUbah={ubahJadwal} />
+                : <PemilihJadwal ruangSlug={it.slug} onPilih={ubahJadwal} tanggalAwal={sp.get('tanggal') || ''} />}
+            </section>
 
             {it.deskripsi && (
-              <div className="mt-5 text-[14px] leading-relaxed text-stone-700">
-                <IsiHtml html={it.deskripsi} />
-              </div>
+              <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200/70 sm:p-6">
+                <h2 className="text-lg font-extrabold text-slate-900">Tentang {isAlat ? 'alat' : 'ruang'} ini</h2>
+                <div className="mt-3 text-[15px] leading-relaxed text-slate-600"><IsiHtml html={it.deskripsi} /></div>
+              </section>
             )}
 
             {it.fasilitas?.length > 0 && (
-              <section className="mt-6">
-                <h2 className="font-display text-base font-semibold text-stone-800">Fasilitas</h2>
-                <ul className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
+              <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200/70 sm:p-6">
+                <h2 className="text-lg font-extrabold text-slate-900">Fasilitas</h2>
+                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
                   {it.fasilitas.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-[13px] text-stone-600">
-                      <CheckCircle2 size={14} className="shrink-0 text-emerald-600" /> {f}
+                    <li key={f} className="flex items-center gap-3 text-[14px] text-slate-700">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sewa/10 text-sewa"><CheckCircle2 size={16} /></span>
+                      {f}
                     </li>
                   ))}
                 </ul>
@@ -310,105 +384,94 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
             )}
 
             {(it.kebijakan || it.aturan) && (
-              <section className="mt-6 rounded-2xl border border-alba-200 bg-alba-100 p-5">
-                <h2 className="font-display text-base font-semibold text-stone-800">
-                  {isAlat ? 'Aturan peminjaman' : 'Kebijakan'}
-                </h2>
-                <div className="mt-2 text-[13px] leading-relaxed text-stone-600">
-                  <IsiHtml html={it.kebijakan || it.aturan} />
-                </div>
+              <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200/70 sm:p-6">
+                <h2 className="text-lg font-extrabold text-slate-900">{isAlat ? 'Aturan peminjaman' : 'Kebijakan ruang'}</h2>
+                <div className="mt-3 text-[14px] leading-relaxed text-slate-600"><IsiHtml html={it.kebijakan || it.aturan} /></div>
               </section>
             )}
+
+            <Rekomendasi daftar={data.rekomendasi} sorot={masuk} />
           </div>
 
-          <div className="space-y-5 lg:sticky lg:top-24">
-            <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-              <p className="font-display text-2xl font-semibold text-maroon-600">
-                {rupiah(it.harga)}
-                <span className="ml-1.5 text-[13px] font-normal text-stone-500">{SATUAN[it.satuan] || ''}</span>
+          {/* KARTU PESAN - lengket di layar lebar */}
+          <aside className="hidden lg:sticky lg:top-24 lg:block">
+            <div className="rounded-3xl bg-white p-5 shadow-angkat ring-1 ring-slate-200/70">
+              <p className="text-[13px] text-slate-500">
+                <span className="text-2xl font-extrabold text-slate-900">{rupiah(it.harga)}</span> {SATUAN[it.satuan] || ''}
               </p>
-              {!isAlat && it.butuhPenjaga && (
-                <p className="mt-2 rounded-lg border border-gold-200 bg-gold-100 px-3 py-2 text-[12px] leading-relaxed text-gold-600">
-                  Ruang ini butuh penjaga. Jam tanpa petugas terjadwal tidak bisa dipilih.
-                </p>
-              )}
-            </div>
 
-            {isAlat ? (
-              <>
-                <PemilihJadwalAlat nilai={jadwal} onUbah={setJadwal} />
-                <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-                  <span className="block text-[12px] font-semibold text-stone-600">Jumlah unit</span>
-                  <div className="mt-2 flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setJumlah((n) => Math.max(1, n - 1))}
-                      className="grid h-9 w-9 place-items-center rounded-lg border border-alba-300 text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
-                      aria-label="Kurangi"
-                    >
-                      <Minus size={15} />
-                    </button>
-                    <span className="min-w-[2.5rem] text-center font-display text-lg font-semibold text-stone-800">{jumlah}</span>
-                    <button
-                      type="button"
-                      onClick={() => setJumlah((n) => Math.min(999, n + 1))}
-                      className="grid h-9 w-9 place-items-center rounded-lg border border-alba-300 text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
-                      aria-label="Tambah"
-                    >
-                      <Plus size={15} />
-                    </button>
-                  </div>
-
-                  {stok && (
-                    <p className={`mt-3 text-[13px] ${stok.sisa <= 0 ? 'text-red-700' : 'text-stone-600'}`}>
-                      {stok.sisa <= 0
-                        ? 'Stoknya habis pada jadwal itu. Coba jadwal lain.'
-                        : <>Tersedia <b>{stok.sisa}</b> dari {stok.total} unit pada jadwal itu.</>}
-                    </p>
-                  )}
+              {isAlat && (
+                <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
+                  <span className="text-[13px] font-bold text-slate-600">Jumlah unit</span>
+                  <span className="flex items-center gap-3">
+                    <button type="button" onClick={() => setJumlah((n) => Math.max(1, n - 1))} className="grid h-8 w-8 place-items-center rounded-full bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Kurangi"><Minus size={14} /></button>
+                    <span className="w-6 text-center text-[16px] font-extrabold tabular-nums">{jumlah}</span>
+                    <button type="button" onClick={() => setJumlah((n) => Math.min(999, n + 1))} className="grid h-8 w-8 place-items-center rounded-full bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Tambah"><Plus size={14} /></button>
+                  </span>
                 </div>
-              </>
-            ) : (
-              <PemilihJadwal
-                ruangSlug={it.slug}
-                nilai={jadwal}
-                onPilih={(j) => setJadwal(j)}
-              />
-            )}
-
-            <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-              {jadwal?.mulai && jadwal?.selesai ? (
-                <p className="text-[13px] text-stone-600">
-                  Jadwal dipilih:<br />
-                  <b className="text-stone-800">{jadwalKalimat(jadwal.mulai, jadwal.selesai)}</b>
-                </p>
-              ) : (
-                <p className="flex items-start gap-2 text-[13px] text-stone-500">
-                  <AlertCircle size={15} className="mt-0.5 shrink-0 text-gold-600" />
-                  Pilih jadwalnya dulu untuk bisa menambahkan ke keranjang.
-                </p>
               )}
 
-              {stokKurang && (
-                <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
-                  Jumlah yang diminta melebihi stok yang tersedia pada jadwal itu.
+              <div className="mt-5 space-y-3 border-t border-slate-100 pt-5">
+                {jadwal ? (
+                  <div className="text-[13px]">
+                    <p className="font-bold text-slate-900">{jadwalKalimat(jadwal.mulai, jadwal.selesai)}</p>
+                    <p className="text-slate-500">{durasiKalimat(jadwal.mulai, jadwal.selesai)}{isAlat ? ` · ${jumlah} unit` : ''}</p>
+                  </div>
+                ) : (
+                  <p className="flex items-start gap-2 text-[13px] text-slate-500">
+                    <AlertCircle size={15} className="mt-0.5 shrink-0 text-amber-500" />
+                    {isAlat ? 'Tentukan tanggal & jam pinjamnya dulu.' : 'Ketuk jam mulai lalu jam selesai di sebelah kiri.'}
+                  </p>
+                )}
+
+                {isAlat && stok && (
+                  <p className={`text-[13px] font-semibold ${stok.sisa < jumlah ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    {stok.sisa <= 0 ? 'Stok habis di jadwal ini' : `Tersedia ${stok.sisa} dari ${stok.total} unit`}
+                  </p>
+                )}
+                {harga?.pesan && <p className="rounded-xl bg-rose-50 px-3 py-2 text-[12px] text-rose-700">{harga.pesan}</p>}
+                {ringkasHarga}
+              </div>
+
+              {masuk && (
+                <p className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-[13px] font-bold text-emerald-700">
+                  <CheckCircle2 size={16} /> Masuk keranjang
                 </p>
               )}
-
-              <button
-                type="button"
-                disabled={!bisaTambah}
-                onClick={tambah}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-maroon-600 px-5 py-3 text-[14px] font-bold text-alba-50 transition-colors hover:bg-maroon-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ShoppingCart size={16} /> Tambahkan ke Keranjang
-              </button>
+              <div className="mt-4">{tombolUtama}</div>
+              {masuk && (
+                <button type="button" onClick={() => setMasuk(false)} className="mt-2 w-full text-center text-[13px] font-bold text-sewa hover:underline">
+                  Tambah jadwal lain untuk {isAlat ? 'alat' : 'ruang'} ini
+                </button>
+              )}
+              <p className="mt-4 text-center text-[12px] text-slate-400">Belum ditagih. Pembayaran diatur admin setelah checkout.</p>
             </div>
-          </div>
+          </aside>
         </div>
-
-        <Rekomendasi daftar={data.rekomendasi} />
       </div>
+
+      {/* Bar bawah HP */}
+      <BarBawah>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            {jadwal
+              ? <p className="line-clamp-1 text-[12px] font-semibold text-slate-500">{jadwalKalimat(jadwal.mulai, jadwal.selesai)}</p>
+              : <p className="text-[12px] font-semibold text-slate-400">Belum pilih jadwal</p>}
+            {ringkasHarga}
+          </div>
+          {isAlat && (
+            <span className="flex items-center gap-2">
+              <button type="button" onClick={() => setJumlah((n) => Math.max(1, n - 1))} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100" aria-label="Kurangi"><Minus size={14} /></button>
+              <span className="w-5 text-center font-extrabold tabular-nums">{jumlah}</span>
+              <button type="button" onClick={() => setJumlah((n) => n + 1)} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100" aria-label="Tambah"><Plus size={14} /></button>
+            </span>
+          )}
+          <div className="w-36 shrink-0">{tombolUtama}</div>
+        </div>
+        {(harga?.pesan || stokKurang) && (
+          <p className="mt-2 text-[12px] font-semibold text-rose-600">{harga?.pesan || 'Stok tidak cukup di jadwal ini.'}</p>
+        )}
+      </BarBawah>
     </RentalLayout>
   );
 }

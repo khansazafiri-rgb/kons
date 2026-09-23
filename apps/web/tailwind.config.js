@@ -19,6 +19,10 @@ module.exports = {
      fontFamily: {
        sans: ['"DM Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
        display: ['Fraunces', 'Georgia', 'serif'],
+       /* Web peminjaman punya identitas sendiri, bukan meminjam serif PCV.
+          Plus Jakarta Sans: huruf buatan Indonesia, lugas dan padat - cocok
+          untuk etalase sewa yang harus cepat dipindai. */
+       sewa: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
      },
      colors: {
        /* ===== PCV Brand Palette: Alba (warm ivory) + Maroon #8E0100 ===== */
@@ -46,6 +50,14 @@ module.exports = {
          200: '#EBDCA8',
          400: '#C9A227',
          600: '#9A7B1C',
+       },
+       /* ===== Web peminjaman =====
+          Warnanya dari rental_settings.brandColor, dipasang sebagai variabel
+          CSS oleh RentalLayout. Ditulis sebagai triplet RGB supaya modifier
+          transparansi Tailwind (bg-sewa/10) tetap jalan. Bawaan: teal medis. */
+       sewa: {
+         DEFAULT: 'rgb(var(--sewa-rgb, 15 118 110) / <alpha-value>)',
+         tua: 'rgb(var(--sewa-tua-rgb, 17 94 89) / <alpha-value>)',
        },
        /* ===== shadcn tokens ===== */
        border: 'hsl(var(--border))',
@@ -100,6 +112,13 @@ module.exports = {
      boxShadow: {
        card: '0 1px 2px rgba(66, 32, 6, 0.04), 0 4px 16px rgba(66, 32, 6, 0.06)',
        'card-hover': '0 2px 4px rgba(66, 32, 6, 0.06), 0 12px 32px rgba(66, 32, 6, 0.12)',
+       /* Bayangan netral untuk web peminjaman - bayangan PCV bernada cokelat
+          hangat, yang terlihat kotor di atas latar putih.
+          SENGAJA tidak dinamai `sewa`: `sewa` juga nama warna, dan Tailwind
+          lalu membaca `shadow-sewa` sekaligus sebagai WARNA bayangan - hasilnya
+          pendaran hijau di sekeliling setiap kartu. */
+       lembut: '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06)',
+       angkat: '0 2px 6px rgba(15, 23, 42, 0.06), 0 18px 48px rgba(15, 23, 42, 0.12)',
      },
      keyframes: {
        'accordion-down': {

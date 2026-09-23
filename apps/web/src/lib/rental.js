@@ -14,7 +14,7 @@
 //     bisa basi berjam-jam, dan wajib diperiksa ulang ke server sebelum
 //     checkout - itu yang dilakukan periksaKeranjang().
 
-import pb from '@/lib/pocketbaseClient';
+import pbr from '@/lib/rentalClient';
 
 const KUNCI_KERANJANG = 'pcv.rental.keranjang.v1';
 const KUNCI_BIODATA = 'pcv.rental.biodata.v1';
@@ -23,12 +23,13 @@ const KUNCI_BIODATA = 'pcv.rental.biodata.v1';
 // Pemanggil API
 // ---------------------------------------------------------------------------
 //
-// Memakai pb.send() supaya token admin (kalau yang membuka memang admin PCV)
-// ikut terbawa sendiri - itulah yang membuat admin bisa melihat katalog
-// sebelum modulnya dinyalakan untuk umum.
+// Memakai klien PocketBase KHUSUS peminjaman (rentalClient), bukan klien PCV.
+// Token admin peminjaman ikut terbawa sendiri - itu yang membuat admin bisa
+// melihat katalog sebelum modulnya dinyalakan untuk umum - dan sesi admin PCV
+// yang kebetulan terbuka di peramban yang sama TIDAK ikut terbawa.
 export async function panggil(path, { method = 'GET', body, query } = {}) {
   try {
-    return await pb.send(path, {
+    return await pbr.send(path, {
       method,
       query,
       body,
@@ -81,6 +82,12 @@ export const adminSyncStatus = () => panggil('/api/rental/admin/sync/status');
 export const adminSyncUlang = (body = {}) => panggil('/api/rental/admin/sync/ulang', { method: 'POST', body });
 export const adminTelegramPasang = () => panggil('/api/rental/admin/telegram/pasang', { method: 'POST', body: {} });
 export const adminTelegramUji = () => panggil('/api/rental/admin/telegram/uji');
+export const adminSaya = () => panggil('/api/rental/admin/saya');
+export const adminKalenderTerpadu = (q) => panggil('/api/rental/admin/kalender-terpadu', { query: q });
+export const kalenderKelasSinkron = (id) => panggil('/api/rental/admin/kalender-kelas/sinkron', { method: 'POST', body: { id: id || '' } });
+export const kalenderKelasUji = (url) => panggil('/api/rental/admin/kalender-kelas/uji', { method: 'POST', body: { url } });
+export const kalenderKelasDariPcv = () => panggil('/api/rental/admin/kalender-kelas/dari-pcv');
+export const adminAntreanJalankan = () => panggil('/api/rental/admin/antrean/jalankan', { method: 'POST', body: {} });
 
 // ---------------------------------------------------------------------------
 // Keranjang
@@ -326,3 +333,76 @@ export async function salinTeks(teks) {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Warna merek
+// ---------------------------------------------------------------------------
+//
+// Warna utama web peminjaman diatur admin (rental_settings.brandColor). Tailwind
+// membacanya sebagai triplet RGB di variabel CSS --sewa-rgb, supaya kelas
+// seperti bg-sewa/10 tetap bisa mengatur transparansinya.
+
+export const WARNA_BAWAAN = '#0F766E';
+
+export function hexKeRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// Variabel CSS untuk satu warna merek: warna utama + versi lebih tua untuk
+// keadaan hover/aktif. Warna yang tidak sah jatuh ke bawaan, bukan ke hitam.
+export function variabelMerek(hex) {
+  const rgb = hexKeRgb(hex) || hexKeRgb(WARNA_BAWAAN);
+  const tua = rgb.map((c) => Math.round(c * 0.8));
+  return {
+    '--sewa-rgb': rgb.join(' '),
+    '--sewa-tua-rgb': tua.join(' '),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Pita tanggal
+// ---------------------------------------------------------------------------
+//
+// Pemilih jadwal memakai deretan "chip" tanggal, bukan kalender bawaan
+// peramban: pilihan yang paling sering (hari ini s/d dua minggu ke depan)
+// langsung terlihat dan bisa diketuk sekali, pola yang sama dipakai aplikasi
+// pemesanan tiket & aktivitas.
+const HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+export function pitaTanggal(mulai, jumlah = 14) {
+  const out = [];
+  const [y, m, d] = String(mulai || tanggalWibHariIni()).split('-').map(Number);
+  for (let i = 0; i < jumlah; i++) {
+    // Dihitung di UTC dari tanggal polos, supaya zona waktu perangkat tidak
+    // pernah menggeser harinya.
+    const t = new Date(Date.UTC(y, m - 1, d + i));
+    out.push({
+      tanggal: t.toISOString().slice(0, 10),
+      hari: HARI_PENDEK[t.getUTCDay()],
+      tgl: t.getUTCDate(),
+      bulan: BULAN_PENDEK[t.getUTCMonth()],
+      akhirPekan: t.getUTCDay() === 0 || t.getUTCDay() === 6,
+    });
+  }
+  return out;
+}
+
+// "2 jam 30 menit" dari dua waktu ISO.
+export function durasiKalimat(mulai, selesai) {
+  const menit = Math.round((new Date(selesai) - new Date(mulai)) / 60000);
+  if (!Number.isFinite(menit) || menit <= 0) return '';
+  const j = Math.floor(menit / 60);
+  const m = menit % 60;
+  if (j >= 24 && m === 0 && j % 24 === 0) return `${j / 24} hari`;
+  return [j ? `${j} jam` : '', m ? `${m} menit` : ''].filter(Boolean).join(' ');
+}
+
+export const PERAN_ADMIN = {
+  SUPER_ADMIN: { teks: 'Super Admin', ket: 'Semua menu, termasuk pengaturan & akun admin' },
+  OPERASIONAL: { teks: 'Admin Operasional', ket: 'Pesanan, bukti bayar, pembatalan' },
+  JADWAL: { teks: 'Admin Jadwal', ket: 'Kalender kelas, blok, penjaga, reschedule' },
+};

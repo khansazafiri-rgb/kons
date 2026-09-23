@@ -112,6 +112,8 @@ function setelanPublik(s) {
     namaPerusahaan: s.getString("companyName") || "Rental",
     tagline: s.getString("tagline"),
     logoUrl: s.getString("logoUrl"),
+    brandColor: s.getString("brandColor") || "#0F766E",
+    heroImageUrl: s.getString("heroImageUrl"),
     waAdmin: s.getString("waAdminNumber"),
     instruksiPembayaran: s.getString("paymentInstruction"),
     catatanPrivasi: s.getString("privacyNote"),
@@ -130,14 +132,62 @@ function setelanPublik(s) {
   };
 }
 
-function isAdminPcv(e) {
+// ---------------------------------------------------------------------------
+// Siapa yang sedang membuka - admin peminjaman, bukan admin PCV
+// ---------------------------------------------------------------------------
+//
+// Admin peminjaman punya collection auth sendiri (`rental_admins`) dan tiga
+// peran (PRD bagian 6):
+//
+//   SUPER_ADMIN  semua
+//   OPERASIONAL  pesanan, bukti, verifikasi, pembatalan
+//   JADWAL       blok, penjaga, kalender kelas, reschedule
+//
+// Satu-satunya akun PCV yang ikut diterima adalah `super_admin` - pemilik
+// platform - supaya akun admin peminjaman pertama bisa dibuat dari halaman
+// admin peminjaman itu sendiri. Admin PCV biasa (`role = admin`) TIDAK
+// diterima: yang mengurus peminjaman orangnya lain, dan itu alasan seluruh
+// pemisahan ini dibuat.
+//
+// `active` diperiksa di sini juga, bukan cuma saat login: token PocketBase
+// berumur berhari-hari, dan admin yang sudah dinonaktifkan tidak boleh masih
+// bisa membatalkan pesanan dengan token lamanya.
+const PERAN = ["SUPER_ADMIN", "OPERASIONAL", "JADWAL"];
+
+function adminRental(e) {
   const auth = e && e.auth;
-  if (!auth) return false;
-  try {
-    if (auth.collection().name !== "users") return false;
-  } catch (_) { return false; }
-  const role = auth.getString("role");
-  return role === "admin" || role === "super_admin";
+  if (!auth) return null;
+  let koleksi = "";
+  try { koleksi = auth.collection().name; } catch (_) { return null; }
+
+  if (koleksi === "rental_admins") {
+    if (!auth.getBool("active")) return null;
+    const peran = auth.getString("role");
+    if (PERAN.indexOf(peran) === -1) return null;
+    return { id: auth.id, nama: auth.getString("name") || auth.getString("email"), peran: peran, jenis: "RENTAL" };
+  }
+  if (koleksi === "users" && auth.getString("role") === "super_admin") {
+    return { id: auth.id, nama: auth.getString("name") || auth.getString("email"), peran: "SUPER_ADMIN", jenis: "PEMILIK" };
+  }
+  return null;
+}
+
+// Boleh melakukan tindakan ini? `peran` kosong = semua admin peminjaman.
+// SUPER_ADMIN selalu boleh.
+function bolehRental(e, peran) {
+  const a = adminRental(e);
+  if (!a) return false;
+  if (!peran || !peran.length) return true;
+  return a.peran === "SUPER_ADMIN" || peran.indexOf(a.peran) !== -1;
+}
+
+// Jawaban seragam untuk permintaan yang ditolak. Dibedakan "belum masuk" dan
+// "perannya tidak cukup" - dua masalah yang cara menyelesaikannya berbeda.
+function tolakAkses(e, peran) {
+  if (!adminRental(e)) return e.json(401, { message: "Masuk dulu sebagai admin peminjaman." });
+  const nama = { OPERASIONAL: "admin operasional", JADWAL: "admin jadwal", SUPER_ADMIN: "super admin" };
+  const siapa = (peran || []).map((p) => nama[p] || p).join(" atau ");
+  return e.json(403, { message: "Tindakan ini khusus " + (siapa || "admin") + "." });
 }
 
 function namaAdmin(e) {
@@ -234,6 +284,7 @@ function blokRuang(app, roomId, mulai, selesai) {
     jenis: b.getString("blockType") || "INTERNAL",
     judul: b.getString("title") || b.getString("reason") || "",
     sumber: b.getString("source"),
+    kalender: b.getString("externalCalendarId"),
   }));
 }
 
@@ -881,7 +932,10 @@ module.exports = {
   setelan: setelan,
   modulAktif: modulAktif,
   setelanPublik: setelanPublik,
-  isAdminPcv: isAdminPcv,
+  PERAN: PERAN,
+  adminRental: adminRental,
+  bolehRental: bolehRental,
+  tolakAkses: tolakAkses,
   namaAdmin: namaAdmin,
   ruangPublik: ruangPublik,
   alatPublik: alatPublik,

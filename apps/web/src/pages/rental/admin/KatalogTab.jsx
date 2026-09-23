@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Building2, Link2, Loader2, Pencil, Plus, Stethoscope, Trash2, X } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/rentalClient';
 import { menitKeJam, rupiah } from '@/lib/rental';
 
 // DASHBOARD PEMINJAMAN - TAB KATALOG (PRD bagian 10.3)
@@ -21,7 +21,7 @@ const RUANG_KOSONG = {
   name: '', slug: '', description: '', address: '', capacity: 0,
   photos: [], facilities: [], price: 0, priceUnit: 'JAM',
   openMinute: 480, closeMinute: 1260, needsGuardian: false,
-  classCalendarIds: [], policy: '', active: true, order: 0,
+  policy: '', active: true, order: 0,
 };
 
 const ALAT_KOSONG = {
@@ -45,13 +45,13 @@ const slugify = (teks) => String(teks || '')
 function Kolom({ label, children, lebar }) {
   return (
     <label className={`block ${lebar || ''}`}>
-      <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">{label}</span>
+      <span className="mb-1.5 block text-[12px] font-semibold text-slate-600">{label}</span>
       {children}
     </label>
   );
 }
 
-const inputCls = 'w-full rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none';
+const inputCls = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-sewa focus:outline-none';
 
 function FormRuang({ awal, onSimpan, onBatal, sibuk }) {
   const [f, setF] = useState(() => ({
@@ -59,7 +59,6 @@ function FormRuang({ awal, onSimpan, onBatal, sibuk }) {
     ...awal,
     photos: keTeks(awal?.photos),
     facilities: keTeks(awal?.facilities),
-    classCalendarIds: keTeks(awal?.classCalendarIds),
   }));
   const ubah = (k) => (ev) => {
     const v = ev.target.type === 'checkbox' ? ev.target.checked : ev.target.value;
@@ -80,10 +79,9 @@ function FormRuang({ awal, onSimpan, onBatal, sibuk }) {
           order: Number(f.order) || 0,
           photos: keDaftar(f.photos),
           facilities: keDaftar(f.facilities),
-          classCalendarIds: keDaftar(f.classCalendarIds),
         });
       }}
-      className="space-y-4 rounded-2xl border border-maroon-200 bg-alba-50 p-5 shadow-card"
+      className="space-y-4 rounded-2xl border border-sewa/30 bg-white p-5 shadow-lembut"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Kolom label="Nama ruang *"><input required value={f.name} onChange={ubah('name')} className={inputCls} /></Kolom>
@@ -111,13 +109,10 @@ function FormRuang({ awal, onSimpan, onBatal, sibuk }) {
         <Kolom label="Fasilitas (satu per baris)" lebar="sm:col-span-2">
           <textarea rows={3} value={f.facilities} onChange={ubah('facilities')} className={inputCls} />
         </Kolom>
-        <Kolom label="Google Calendar ID kelas (satu per baris)" lebar="sm:col-span-2">
-          <textarea rows={2} value={f.classCalendarIds} onChange={ubah('classCalendarIds')} placeholder="xxxx@group.calendar.google.com" className={inputCls} />
-          <span className="mt-1 block text-[11px] leading-relaxed text-stone-500">
-            Kalender ini dibaca saja — jadwal kelas di dalamnya otomatis memblok ruang ini.
-            Aplikasi tidak pernah menulis atau menghapus apa pun di kalender kelas.
-          </span>
-        </Kolom>
+        <p className="rounded-xl bg-sky-50 px-3.5 py-2.5 text-[12px] leading-relaxed text-sky-800 sm:col-span-2">
+          Jadwal kelas yang memblok ruang ini diatur di menu <b>Kalender Kelas</b> — satu kalender bisa memblok
+          beberapa ruang sekaligus, jadi tidak perlu diketik ulang di tiap ruang.
+        </p>
         <Kolom label="Deskripsi (boleh HTML)" lebar="sm:col-span-2">
           <textarea rows={3} value={f.description} onChange={ubah('description')} className={inputCls} />
         </Kolom>
@@ -127,21 +122,21 @@ function FormRuang({ awal, onSimpan, onBatal, sibuk }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-stone-700">
-          <input type="checkbox" checked={f.needsGuardian} onChange={ubah('needsGuardian')} className="h-4 w-4 accent-maroon-600" />
+        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-700">
+          <input type="checkbox" checked={f.needsGuardian} onChange={ubah('needsGuardian')} className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
           Wajib ada penjaga
         </label>
-        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-stone-700">
-          <input type="checkbox" checked={f.active} onChange={ubah('active')} className="h-4 w-4 accent-maroon-600" />
+        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-700">
+          <input type="checkbox" checked={f.active} onChange={ubah('active')} className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
           Aktif (tampil di katalog)
         </label>
       </div>
 
-      <div className="flex gap-2 border-t border-alba-200 pt-4">
-        <button type="submit" disabled={sibuk} className="rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-50">
+      <div className="flex gap-2 border-t border-slate-200 pt-4">
+        <button type="submit" disabled={sibuk} className="rounded-xl bg-sewa px-5 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50">
           Simpan ruang
         </button>
-        <button type="button" onClick={onBatal} className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-600 hover:border-maroon-300">
+        <button type="button" onClick={onBatal} className="rounded-xl border border-slate-300 px-5 py-2.5 text-[13px] font-semibold text-slate-600 hover:border-sewa/50">
           Batal
         </button>
       </div>
@@ -169,7 +164,7 @@ function FormAlat({ awal, onSimpan, onBatal, sibuk }) {
           photos: keDaftar(f.photos),
         });
       }}
-      className="space-y-4 rounded-2xl border border-maroon-200 bg-alba-50 p-5 shadow-card"
+      className="space-y-4 rounded-2xl border border-sewa/30 bg-white p-5 shadow-lembut"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Kolom label="Nama alat *"><input required value={f.name} onChange={ubah('name')} className={inputCls} /></Kolom>
@@ -184,7 +179,7 @@ function FormAlat({ awal, onSimpan, onBatal, sibuk }) {
         </Kolom>
         <Kolom label="Jumlah unit dimiliki">
           <input type="number" min={0} value={f.totalQuantity} onChange={ubah('totalQuantity')} className={inputCls} />
-          <span className="mt-1 block text-[11px] text-stone-500">
+          <span className="mt-1 block text-[11px] text-slate-500">
             Yang tersedia pada jam tertentu dihitung sendiri dari peminjaman yang beririsan.
           </span>
         </Kolom>
@@ -200,16 +195,16 @@ function FormAlat({ awal, onSimpan, onBatal, sibuk }) {
         </Kolom>
       </div>
 
-      <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-stone-700">
-        <input type="checkbox" checked={f.active} onChange={ubah('active')} className="h-4 w-4 accent-maroon-600" />
+      <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-700">
+        <input type="checkbox" checked={f.active} onChange={ubah('active')} className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
         Aktif (tampil di katalog)
       </label>
 
-      <div className="flex gap-2 border-t border-alba-200 pt-4">
-        <button type="submit" disabled={sibuk} className="rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-50">
+      <div className="flex gap-2 border-t border-slate-200 pt-4">
+        <button type="submit" disabled={sibuk} className="rounded-xl bg-sewa px-5 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50">
           Simpan alat
         </button>
-        <button type="button" onClick={onBatal} className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-600 hover:border-maroon-300">
+        <button type="button" onClick={onBatal} className="rounded-xl border border-slate-300 px-5 py-2.5 text-[13px] font-semibold text-slate-600 hover:border-sewa/50">
           Batal
         </button>
       </div>
@@ -228,43 +223,43 @@ function PanelRekomendasi({ sumber, ruang, alat, rekomendasi, onUbah, sibuk }) {
   const namaDari = (t, id) => (t === 'ALAT' ? alat : ruang).find((x) => x.id === id)?.name || '(terhapus)';
 
   return (
-    <div className="mt-3 rounded-xl border border-alba-200 bg-alba-100 p-4">
-      <p className="text-[12px] font-bold uppercase tracking-wider text-stone-500">
+    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-[12px] font-bold uppercase tracking-wider text-slate-500">
         Rekomendasi terkait ({milik.length})
       </p>
       {milik.length > 4 && (
-        <p className="mt-1 text-[11px] text-gold-600">
+        <p className="mt-1 text-[11px] text-amber-700">
           Hanya 4 teratas (urutan terkecil) yang ditampilkan ke pelanggan.
         </p>
       )}
 
       <ul className="mt-2 space-y-1.5">
         {milik.map((r) => (
-          <li key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-alba-50 px-3 py-2 text-[13px]">
-            <span className="inline-flex items-center gap-2 text-stone-700">
-              <Link2 size={13} className="text-maroon-500" />
+          <li key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-[13px]">
+            <span className="inline-flex items-center gap-2 text-slate-700">
+              <Link2 size={13} className="text-sewa" />
               {namaDari(r.targetType, r.targetId)}
-              <span className="text-[11px] uppercase text-stone-400">{r.targetType}</span>
+              <span className="text-[11px] uppercase text-slate-400">{r.targetType}</span>
             </span>
             <button
               disabled={sibuk}
               onClick={() => onUbah('hapus', r)}
-              className="text-stone-400 hover:text-red-600 disabled:opacity-50"
+              className="text-slate-400 hover:text-red-600 disabled:opacity-50"
               aria-label="Hapus rekomendasi"
             >
               <X size={14} />
             </button>
           </li>
         ))}
-        {!milik.length && <li className="text-[12px] text-stone-500">Belum ada.</li>}
+        {!milik.length && <li className="text-[12px] text-slate-500">Belum ada.</li>}
       </ul>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <select value={tipe} onChange={(ev) => { setTipe(ev.target.value); setTarget(''); }} className="rounded-lg border border-alba-300 bg-alba-50 px-2.5 py-2 text-[12px] font-semibold">
+        <select value={tipe} onChange={(ev) => { setTipe(ev.target.value); setTarget(''); }} className="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[12px] font-semibold">
           <option value="ALAT">Alat</option>
           <option value="RUANG">Ruang</option>
         </select>
-        <select value={target} onChange={(ev) => setTarget(ev.target.value)} className="min-w-[180px] flex-1 rounded-lg border border-alba-300 bg-alba-50 px-2.5 py-2 text-[12px]">
+        <select value={target} onChange={(ev) => setTarget(ev.target.value)} className="min-w-[180px] flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[12px]">
           <option value="">Pilih yang direkomendasikan…</option>
           {(tipe === 'ALAT' ? alat : ruang)
             .filter((x) => !(x.id === sumber.id && tipe === sumber.tipe))
@@ -273,7 +268,7 @@ function PanelRekomendasi({ sumber, ruang, alat, rekomendasi, onUbah, sibuk }) {
         <button
           disabled={!target || sibuk}
           onClick={() => { onUbah('tambah', { targetType: tipe, targetId: target, order: milik.length + 1 }); setTarget(''); }}
-          className="rounded-lg bg-maroon-600 px-3.5 py-2 text-[12px] font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-40"
+          className="rounded-lg bg-sewa px-3.5 py-2 text-[12px] font-bold text-white hover:bg-sewa-tua disabled:opacity-40"
         >
           Tambah
         </button>
@@ -361,23 +356,23 @@ export default function RentalKatalogTab({ lapor }) {
   }
 
   if (memuat) {
-    return <p className="inline-flex items-center gap-2 text-[13px] text-stone-500"><Loader2 size={14} className="animate-spin" /> Memuat katalog…</p>;
+    return <p className="inline-flex items-center gap-2 text-[13px] text-slate-500"><Loader2 size={14} className="animate-spin" /> Memuat katalog…</p>;
   }
 
   const baris = (jenis, x) => {
     const sumber = { tipe: jenis, id: x.id };
     return (
-      <li key={x.id} className="rounded-2xl border border-alba-200 bg-alba-50 p-4 shadow-card">
+      <li key={x.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lembut">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-display text-[15px] font-semibold text-stone-800">
+            <p className="font-sewa text-[15px] font-semibold text-slate-800">
               {x.name}
-              {!x.active && <span className="ml-2 rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] font-bold uppercase text-stone-500">nonaktif</span>}
+              {!x.active && <span className="ml-2 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">nonaktif</span>}
               {jenis === 'RUANG' && x.needsGuardian && (
-                <span className="ml-2 rounded-full border border-gold-200 bg-gold-100 px-2 py-0.5 text-[10px] font-bold uppercase text-gold-600">perlu penjaga</span>
+                <span className="ml-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">perlu penjaga</span>
               )}
             </p>
-            <p className="mt-0.5 text-[12px] text-stone-500">
+            <p className="mt-0.5 text-[12px] text-slate-500">
               {rupiah(x.price)} / {x.priceUnit}
               {jenis === 'RUANG'
                 ? ` · ${menitKeJam(x.openMinute)}–${menitKeJam(x.closeMinute)} · kapasitas ${x.capacity || '—'}`
@@ -387,20 +382,20 @@ export default function RentalKatalogTab({ lapor }) {
           <div className="flex gap-1.5">
             <button
               onClick={() => setBukaReko(bukaReko === `${jenis}:${x.id}` ? '' : `${jenis}:${x.id}`)}
-              className="rounded-lg border border-alba-300 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
+              className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-sewa/50 hover:text-sewa"
             >
               Rekomendasi
             </button>
             <button
               onClick={() => setEdit({ jenis, data: x })}
-              className="grid h-8 w-8 place-items-center rounded-lg border border-alba-300 text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-300 text-slate-600 hover:border-sewa/50 hover:text-sewa"
               aria-label={`Ubah ${x.name}`}
             >
               <Pencil size={13} />
             </button>
             <button
               onClick={() => hapus(jenis === 'RUANG' ? 'rental_rooms' : 'rental_items', x, x.name)}
-              className="grid h-8 w-8 place-items-center rounded-lg border border-alba-300 text-stone-500 hover:border-red-300 hover:text-red-600"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-slate-300 text-slate-500 hover:border-red-300 hover:text-red-600"
               aria-label={`Hapus ${x.name}`}
             >
               <Trash2 size={13} />
@@ -426,12 +421,12 @@ export default function RentalKatalogTab({ lapor }) {
     <div className="space-y-8">
       <section>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="inline-flex items-center gap-2 font-display text-lg font-semibold text-stone-800">
-            <Building2 size={18} className="text-maroon-600" /> Ruang ({ruang.length})
+          <h3 className="inline-flex items-center gap-2 font-sewa text-lg font-semibold text-slate-800">
+            <Building2 size={18} className="text-sewa" /> Ruang ({ruang.length})
           </h3>
           <button
             onClick={() => setEdit({ jenis: 'RUANG', data: null })}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-maroon-600 px-4 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-sewa px-4 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua"
           >
             <Plus size={15} /> Tambah ruang
           </button>
@@ -449,17 +444,17 @@ export default function RentalKatalogTab({ lapor }) {
         )}
 
         <ul className="mt-4 space-y-3">{ruang.map((x) => baris('RUANG', x))}</ul>
-        {!ruang.length && <p className="mt-3 text-[13px] text-stone-500">Belum ada ruang.</p>}
+        {!ruang.length && <p className="mt-3 text-[13px] text-slate-500">Belum ada ruang.</p>}
       </section>
 
       <section>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="inline-flex items-center gap-2 font-display text-lg font-semibold text-stone-800">
-            <Stethoscope size={18} className="text-maroon-600" /> Alat ({alat.length})
+          <h3 className="inline-flex items-center gap-2 font-sewa text-lg font-semibold text-slate-800">
+            <Stethoscope size={18} className="text-sewa" /> Alat ({alat.length})
           </h3>
           <button
             onClick={() => setEdit({ jenis: 'ALAT', data: null })}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-maroon-600 px-4 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-sewa px-4 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua"
           >
             <Plus size={15} /> Tambah alat
           </button>
@@ -477,7 +472,7 @@ export default function RentalKatalogTab({ lapor }) {
         )}
 
         <ul className="mt-4 space-y-3">{alat.map((x) => baris('ALAT', x))}</ul>
-        {!alat.length && <p className="mt-3 text-[13px] text-stone-500">Belum ada alat.</p>}
+        {!alat.length && <p className="mt-3 text-[13px] text-slate-500">Belum ada alat.</p>}
       </section>
     </div>
   );

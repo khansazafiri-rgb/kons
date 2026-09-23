@@ -330,7 +330,7 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
 routerAdd("POST", "/api/rental/admin/telegram/pasang", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const IN = require(`${__hooks}/rental-integrasi.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, ["SUPER_ADMIN"])) return SH.tolakAkses(e, ["SUPER_ADMIN"]);
 
   const s = SH.setelan(e.app);
   if (!s) return e.json(400, { message: "Konfigurasi peminjaman belum ada." });
@@ -376,7 +376,7 @@ routerAdd("POST", "/api/rental/admin/telegram/pasang", (e) => {
 routerAdd("GET", "/api/rental/admin/telegram/uji", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const IN = require(`${__hooks}/rental-integrasi.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, ["SUPER_ADMIN"])) return SH.tolakAkses(e, ["SUPER_ADMIN"]);
 
   const s = SH.setelan(e.app);
   if (!s || !IN.telegramSiap(s)) return e.json(400, { message: "Telegram belum dinyalakan / token kosong." });

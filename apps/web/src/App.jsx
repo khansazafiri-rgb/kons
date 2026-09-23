@@ -61,6 +61,10 @@ const RentalDetail = lazy(() => import('./pages/rental/RentalDetail'));
 const RentalKeranjang = lazy(() => import('./pages/rental/RentalKeranjang'));
 const RentalCheckout = lazy(() => import('./pages/rental/RentalCheckout'));
 const RentalPesanan = lazy(() => import('./pages/rental/RentalPesanan'));
+// Dashboard admin peminjaman: aplikasi admin sendiri dengan login sendiri,
+// BUKAN tab di Dashboard Admin PCV - yang mengurus peminjaman orangnya lain.
+const RentalAdminMasuk = lazy(() => import('./pages/rental/admin/RentalAdminMasuk'));
+const RentalAdminApp = lazy(() => import('./pages/rental/admin/RentalAdminApp'));
 
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
@@ -253,6 +257,12 @@ function App() {
          <Route path="/peminjaman/keranjang" element={<OlimpFallback><RentalKeranjang /></OlimpFallback>} />
          <Route path="/peminjaman/checkout" element={<OlimpFallback><RentalCheckout /></OlimpFallback>} />
          <Route path="/peminjaman/pesanan/:kode" element={<OlimpFallback><RentalPesanan /></OlimpFallback>} />
+         {/* Admin peminjaman. Tidak memakai ProtectedRoute: itu memeriksa akun
+             PCV, sedangkan admin peminjaman punya collection akun sendiri
+             (rental_admins). Pemeriksaan sesinya ada di dalam RentalAdminApp,
+             dan yang benar-benar menjaga tetap server. */}
+         <Route path="/peminjaman/admin/masuk" element={<OlimpFallback><RentalAdminMasuk /></OlimpFallback>} />
+         <Route path="/peminjaman/admin" element={<OlimpFallback><RentalAdminApp /></OlimpFallback>} />
        </Routes>
        </OlimpAuthProvider>
      </AuthProvider>

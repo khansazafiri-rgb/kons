@@ -28,442 +28,31 @@
 // Menit ganjil (bukan menit 0) supaya tidak berebut dengan cron lain yang
 // sudah ada di repo ini, yang hampir semuanya jatuh di awal jam.
 cronAdd("rentalSyncWorker", "*/2 * * * *", () => {
-  const SH = require(`${__hooks}/rental-shared.js`);
-  const IN = require(`${__hooks}/rental-integrasi.js`);
-
-  const s = SH.setelan($app);
-  if (!s || !s.getBool("enabled")) return;
-
-  let antre = [];
-  try {
-    antre = $app.findRecordsByFilter(
-      "rental_sync_jobs",
-      "status = 'MENUNGGU' && nextRunAt <= {:now}",
-      "nextRunAt",
-      25,
-      0,
-      { now: SH.pbWaktu(Date.now()) },
-    );
-  } catch (_) { return; }
-  if (!antre.length) return;
-
-  const appUrl = String($app.settings().meta.appURL || "").replace(/\/+$/, "");
-
-  antre.forEach((job) => {
-    const jenis = job.getString("kind");
-    const targetId = job.getString("targetId");
-    let hasil = { ok: false, error: "Jenis pekerjaan tidak dikenal." };
-
-    try {
-      if (jenis === "TELEGRAM_NOTIFY") {
-        hasil = kerjaTelegram($app, SH, IN, s, targetId, appUrl);
-      } else if (!IN.googleSiap(s)) {
-        // Google belum dikonfigurasi: pekerjaannya bukan gagal, cuma belum
-        // ada tujuannya. Ditunda jauh supaya antrean tidak berisik setiap dua
-        // menit selama berbulan-bulan sebelum admin menghubungkan Google.
-        job.set("nextRunAt", new Date(Date.now() + 60 * 60 * 1000).toISOString());
-        $app.save(job);
-        return;
-      } else if (jenis === "CALENDAR_UPSERT") {
-        hasil = kerjaCalendarUpsert($app, SH, IN, s, targetId, appUrl);
-      } else if (jenis === "CALENDAR_DELETE") {
-        hasil = kerjaCalendarDelete($app, SH, IN, s, job);
-      } else if (jenis === "SHEET_UPSERT" || jenis === "SHEET_ARSIP") {
-        hasil = kerjaSheet($app, SH, IN, s, targetId, jenis === "SHEET_ARSIP", appUrl);
-      } else if (jenis === "DRIVE_UPLOAD") {
-        hasil = kerjaDrive($app, SH, IN, s, targetId);
-      }
-    } catch (err) {
-      hasil = { ok: false, error: String(err) };
-    }
-
-    const percobaan = (job.getInt("attempts") || 0) + 1;
-    job.set("attempts", percobaan);
-
-    if (hasil.ok) {
-      job.set("status", "SELESAI");
-      job.set("lastError", "");
-      $app.save(job);
-      IN.sheetLog(s, "SERVER", targetId, jenis, "OK", "");
-      return;
-    }
-
-    job.set("lastError", String(hasil.error || "").slice(0, 2000));
-    // Backoff berganda: 2, 4, 8, 16, 32 menit. Setelah 8 kali gagal, berhenti
-    // mencoba dan tandai GAGAL - supaya muncul sebagai konflik di dashboard
-    // dan dilihat manusia, bukan diulang diam-diam selamanya.
-    if (percobaan >= 8) {
-      job.set("status", "GAGAL");
-      IN.sheetLog(s, "SERVER", targetId, jenis, "GAGAL", hasil.error);
-    } else {
-      const tunda = Math.min(32, Math.pow(2, percobaan)) * 60 * 1000;
-      job.set("status", "MENUNGGU");
-      job.set("nextRunAt", new Date(Date.now() + tunda).toISOString());
-    }
-    $app.save(job);
-  });
+  // Seluruh isinya di modul - lihat catatan di kepala rental-kerja.js soal
+  // kenapa fungsi di lingkup berkas ini tidak terbaca dari dalam cron.
+  require(`${__hooks}/rental-kerja.js`).jalankanAntrean($app);
 });
-
-// --- pekerja per jenis -----------------------------------------------------
-//
-// Ditulis sebagai fungsi tingkat berkas dan dipanggil dari dalam handler cron.
-// Berbeda dari routerAdd, isi cronAdd berjalan di runtime yang sama dengan
-// berkasnya, jadi fungsi di sini memang terbaca dari sana.
-
-function kerjaCalendarUpsert(app, SH, IN, s, orderItemId, appUrl) {
-  let oi = null;
-  try { oi = app.findRecordById("rental_order_items", orderItemId); } catch (_) {}
-  if (!oi) return { ok: true }; // barisnya sudah dihapus - tidak ada yang perlu disinkronkan
-  if (oi.getString("resourceType") !== "RUANG") return { ok: true };
-
-  const order = SH.ambilOrder(app, oi.getString("order"));
-  if (!order) return { ok: true };
-
-  // Baris/pesanan yang batal tidak boleh punya event. Kalau job upsert dan job
-  // delete tiba berurutan, yang menang harus keadaan basis data - bukan urutan
-  // antrean.
-  if (oi.getString("status") !== "AKTIF" || order.getString("status") === "DIBATALKAN") {
-    const idLama = oi.getString("calendarEventId");
-    if (!idLama) return { ok: true };
-    const hapus = IN.calendarDelete(s, idLama);
-    if (!hapus.ok) return hapus;
-    oi.set("calendarEventId", "");
-    oi.set("syncStatus", "TERSINKRON");
-    oi.set("lastSyncedAt", new Date().toISOString());
-    app.save(oi);
-    return { ok: true };
-  }
-
-  let room = null;
-  try { room = app.findRecordById("rental_rooms", oi.getString("room")); } catch (_) {}
-
-  const hasil = IN.calendarUpsert(s, {
-    eventId: oi.getString("calendarEventId"),
-    judul: IN.judulEvent(order.getString("status"), oi.getString("resourceName"), order.getString("bookingCode")),
-    deskripsi: IN.deskripsiEvent(appUrl, order, {
-      nama: oi.getString("resourceName"),
-      jumlah: oi.getInt("quantity"),
-    }),
-    lokasi: room ? room.getString("address") : "",
-    mulai: SH.ms(oi, "startAt"),
-    selesai: SH.ms(oi, "endAt"),
-  });
-  if (!hasil.ok) {
-    oi.set("syncStatus", "GAGAL");
-    oi.set("syncMessage", String(hasil.error || "").slice(0, 500));
-    app.save(oi);
-    return hasil;
-  }
-
-  oi.set("calendarEventId", hasil.eventId);
-  oi.set("syncStatus", "TERSINKRON");
-  oi.set("syncMessage", "");
-  oi.set("lastSyncedAt", new Date().toISOString());
-  app.save(oi);
-  return { ok: true };
-}
-
-function kerjaCalendarDelete(app, SH, IN, s, job) {
-  // jsonObjek, bukan job.get(): field JSON datang sebagai byte mentah.
-  const payload = SH.jsonObjek(job, "payload");
-  let eventId = String(payload.eventId || "");
-
-  if (!eventId) {
-    try {
-      const oi = app.findRecordById("rental_order_items", job.getString("targetId"));
-      eventId = oi.getString("calendarEventId");
-    } catch (_) { return { ok: true }; }
-  }
-  if (!eventId) return { ok: true };
-
-  const hasil = IN.calendarDelete(s, eventId);
-  if (!hasil.ok) return hasil;
-
-  try {
-    const oi = app.findRecordById("rental_order_items", job.getString("targetId"));
-    oi.set("calendarEventId", "");
-    oi.set("syncStatus", "TERSINKRON");
-    oi.set("lastSyncedAt", new Date().toISOString());
-    app.save(oi);
-  } catch (_) { /* barisnya sudah tidak ada - event-nya sudah terhapus, cukup */ }
-
-  return { ok: true };
-}
-
-function kerjaSheet(app, SH, IN, s, orderId, arsip, appUrl) {
-  let order = null;
-  try { order = app.findRecordById("rental_orders", orderId); } catch (_) {}
-  if (!order) return { ok: true };
-
-  const baris = SH.barisOrder(app, order.id, { termasukBatal: true });
-  const nilai = IN.barisSheetPesanan(app, order, baris, appUrl);
-  const kode = order.getString("bookingCode");
-
-  if (arsip) {
-    // PRD bagian 13.3: pesanan batal/selesai PINDAH ke arsip - laporan tetap
-    // utuh, tapi tidak lagi muncul di daftar booking aktif.
-    const tulis = IN.sheetPerbarui(s, IN.TAB.arsip, kode, nilai);
-    if (!tulis.ok) return tulis;
-    const buang = IN.sheetHapusBaris(s, IN.TAB.aktif, kode);
-    if (!buang.ok) return buang;
-  } else {
-    const tulis = IN.sheetPerbarui(s, IN.TAB.aktif, kode, nilai);
-    if (!tulis.ok) return tulis;
-  }
-
-  order.set("syncStatus", "TERSINKRON");
-  order.set("syncMessage", "");
-  order.set("lastSyncedAt", new Date().toISOString());
-  app.save(order);
-  return { ok: true };
-}
-
-function kerjaDrive(app, SH, IN, s, proofId) {
-  let proof = null;
-  try { proof = app.findRecordById("rental_proofs", proofId); } catch (_) {}
-  if (!proof) return { ok: true };
-  if (proof.getString("driveFileId")) return { ok: true }; // sudah pernah naik
-
-  const order = SH.ambilOrder(app, proof.getString("order"));
-  if (!order) return { ok: true };
-
-  const namaBerkas = proof.getString("file");
-  if (!namaBerkas) return { ok: false, error: "Berkas buktinya tidak ada." };
-
-  // Dibaca kembali dari penyimpanan PocketBase. Inilah gunanya salinan lokal:
-  // percobaan ulang tidak menuntut apa pun dari Telegram atau dari admin.
-  let isi = null;
-  const fs = app.newFilesystem();
-  try {
-    const kunci = proof.baseFilesPath() + "/" + namaBerkas;
-    const berkas = fs.getReader(kunci);
-    isi = toBytes(berkas);
-  } catch (err) {
-    try { fs.close(); } catch (_) {}
-    return { ok: false, error: "Berkas tidak terbaca: " + err };
-  }
-  try { fs.close(); } catch (_) {}
-
-  const naik = IN.driveUnggah(
-    s,
-    order.getString("bookingCode"),
-    proof.getString("fileName") || namaBerkas,
-    proof.getString("mimeType"),
-    isi,
-  );
-  if (!naik.ok) {
-    proof.set("syncStatus", "GAGAL");
-    proof.set("syncMessage", String(naik.error || "").slice(0, 500));
-    app.save(proof);
-    return naik;
-  }
-
-  proof.set("driveFileId", naik.fileId);
-  proof.set("driveUrl", naik.url);
-  proof.set("syncStatus", "TERSINKRON");
-  proof.set("syncMessage", "");
-  proof.set("lastSyncedAt", new Date().toISOString());
-  app.save(proof);
-
-  // Indeks bukti di Sheet (PRD bagian 13.3, tab "Bukti Pembayaran").
-  IN.sheetPerbarui(s, IN.TAB.bukti, proof.id, [
-    proof.id,
-    order.getString("bookingCode"),
-    naik.url,
-    SH.iso(proof, "uploadedAt") || SH.iso(proof, "created"),
-    proof.getString("source"),
-    proof.getString("verifyStatus"),
-  ]);
-  // Baris pesanan ikut diperbarui supaya kolom "bukti URL"-nya terisi.
-  SH.antrekan(app, "SHEET_UPSERT", "rental_orders", order.id, {});
-  return { ok: true };
-}
-
-function kerjaTelegram(app, SH, IN, s, orderId, appUrl) {
-  if (!IN.telegramSiap(s)) return { ok: false, error: "Telegram belum dikonfigurasi." };
-  let order = null;
-  try { order = app.findRecordById("rental_orders", orderId); } catch (_) {}
-  if (!order) return { ok: true };
-  // Notifikasi checkout untuk pesanan yang sudah keburu dibatalkan cuma bikin
-  // bingung - lewati saja.
-  if (order.getString("status") === "DIBATALKAN") return { ok: true };
-  if (order.getString("telegramMessageId")) return { ok: true }; // sudah terkirim
-
-  const baris = SH.barisOrder(app, order.id);
-  const hasil = IN.kirimPesanan(app, s, order, baris, SH.teksWaAdmin(s, order, baris), appUrl);
-  if (!hasil.ok) return hasil;
-
-  order.set("telegramChatId", hasil.chatId);
-  order.set("telegramMessageId", hasil.messageId);
-  app.save(order);
-  return { ok: true };
-}
-
-// Membaca io.Reader PocketBase jadi byte. Dipisah karena dipakai kerjaDrive dan
-// gampang tertukar dengan toString(), yang akan menafsirkan JPEG sebagai UTF-8.
-function toBytes(reader) {
-  const buf = [];
-  const potong = new Uint8Array(65536);
-  for (;;) {
-    const n = reader.read(potong);
-    if (n === null || n <= 0) break;
-    for (let i = 0; i < n; i++) buf.push(potong[i]);
-  }
-  return buf;
-}
 
 // ===========================================================================
 // 2. Impor kalender kelas (PRD bagian 13.1) - BACA SAJA
 // ===========================================================================
 cronAdd("rentalKelasImport", "23 */2 * * *", () => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  const IN = require(`${__hooks}/rental-integrasi.js`);
-
   const s = SH.setelan($app);
-  if (!s || !s.getBool("enabled") || !IN.googleSiap(s)) return;
-
-  let rooms = [];
-  try { rooms = $app.findRecordsByFilter("rental_rooms", "active = true", "", 200, 0); } catch (_) { return; }
-
-  // Jendela impor: 7 hari ke belakang sampai 120 hari ke depan. Ke belakang
-  // secukupnya supaya kelas yang baru saja dipindahkan ikut terbaca; ke depan
-  // jauh supaya pelanggan yang memesan dua bulan lagi tidak melihat slot yang
-  // sebetulnya sudah ada kelasnya.
-  const sekarang = Date.now();
-  const dari = sekarang - 7 * 24 * 3600 * 1000;
-  const sampai = sekarang + 120 * 24 * 3600 * 1000;
-
-  rooms.forEach((room) => {
-    const kalender = SH.jsonArray(room, "classCalendarIds")
-      .map((c) => String(c || "").trim())
-      .filter((c) => !!c);
-    if (!kalender.length) return;
-
-    // Blok KELAS yang sekarang tercatat untuk ruang ini, dikunci berdasarkan
-    // externalEventId. Yang tidak muncul lagi di Calendar akan dinonaktifkan -
-    // itulah cara penghapusan event kelas ikut terbaca (PRD bagian 13.1).
-    const lama = {};
-    try {
-      $app.findRecordsByFilter(
-        "rental_blocks",
-        "room = {:room} && blockType = 'KELAS' && source = 'CALENDAR' && startAt < {:sampai} && endAt > {:dari}",
-        "",
-        2000,
-        0,
-        { room: room.id, dari: SH.pbWaktu(dari), sampai: SH.pbWaktu(sampai) },
-      ).forEach((b) => { lama[b.getString("externalEventId")] = b; });
-    } catch (_) {}
-
-    const terlihat = {};
-
-    kalender.forEach((calId) => {
-      const res = IN.calendarKelas(s, calId, dari, sampai);
-      if (!res.ok) {
-        console.log("[rental] kalender kelas gagal dibaca (" + calId + "): " + res.error);
-        IN.sheetLog(s, "CALENDAR", calId, "IMPOR_KELAS", "GAGAL", res.error);
-        // Penting: TIDAK menonaktifkan blok apa pun kalau pembacaannya gagal.
-        // Menganggap "tidak terbaca" sebagai "tidak ada kelas" akan membuka
-        // seluruh ruang untuk disewa tepat di jam kuliah.
-        terlihat._gagal = true;
-        return;
-      }
-
-      res.event.forEach((ev) => {
-        const kunci = calId + ":" + ev.id;
-        terlihat[kunci] = true;
-        const ada = lama[kunci];
-
-        if (ada) {
-          const berubah =
-            SH.ms(ada, "startAt") !== ev.mulai ||
-            SH.ms(ada, "endAt") !== ev.selesai ||
-            ada.getString("title") !== ev.judul ||
-            !ada.getBool("active");
-          if (!berubah) return;
-          ada.set("startAt", new Date(ev.mulai).toISOString());
-          ada.set("endAt", new Date(ev.selesai).toISOString());
-          ada.set("title", ev.judul);
-          ada.set("active", true);
-          SH.tandaiBerubah(ada, "CALENDAR", "TERSINKRON", "");
-          ada.set("lastSyncedAt", new Date().toISOString());
-          $app.save(ada);
-          periksaTabrakanKelas($app, SH, IN, s, room, ev);
-          return;
-        }
-
-        try {
-          const rec = new Record($app.findCollectionByNameOrId("rental_blocks"));
-          rec.set("room", room.id);
-          rec.set("startAt", new Date(ev.mulai).toISOString());
-          rec.set("endAt", new Date(ev.selesai).toISOString());
-          rec.set("blockType", "KELAS");
-          rec.set("source", "CALENDAR");
-          rec.set("title", ev.judul);
-          rec.set("externalEventId", kunci);
-          rec.set("externalCalendarId", calId);
-          rec.set("active", true);
-          SH.tandaiBerubah(rec, "CALENDAR", "TERSINKRON", "");
-          rec.set("lastSyncedAt", new Date().toISOString());
-          $app.save(rec);
-          periksaTabrakanKelas($app, SH, IN, s, room, ev);
-        } catch (err) {
-          console.log("[rental] simpan blok kelas gagal:", err);
-        }
-      });
-    });
-
-    if (terlihat._gagal) return; // lihat catatan di atas
-
-    Object.keys(lama).forEach((kunci) => {
-      if (terlihat[kunci]) return;
-      const b = lama[kunci];
-      if (!b.getBool("active")) return;
-      b.set("active", false);
-      SH.tandaiBerubah(b, "CALENDAR", "TERSINKRON", "Event kelasnya dihapus dari Google Calendar.");
-      $app.save(b);
-    });
-  });
+  if (!s || !s.getBool("enabled")) return;
+  // Isinya di rental-kelas.js - lihat catatan di kepala rental-kerja.js soal
+  // kenapa fungsi di lingkup berkas ini tidak terbaca dari dalam cron.
+  require(`${__hooks}/rental-kelas.js`).sinkronSemua($app);
 });
 
-// PRD bagian 19 poin 3: kelas baru yang bertabrakan dengan booking aktif
-// ditandai sebagai konflik prioritas tinggi - dan booking-nya TIDAK dihapus
-// otomatis. Yang memutuskan siapa mengalah tetap manusia.
-function periksaTabrakanKelas(app, SH, IN, s, room, ev) {
-  const tabrakan = SH.peminjamanRuang(app, room.id, ev.mulai, ev.selesai);
-  if (!tabrakan.length) return;
-
-  tabrakan.forEach((p) => {
-    try {
-      const order = app.findRecordById("rental_orders", p.orderId);
-      order.set("syncStatus", "DITOLAK_KONFLIK");
-      order.set(
-        "syncMessage",
-        "Bentrok dengan kelas \"" + ev.judul + "\" (" + SH.A.jadwalKalimat(ev.mulai, ev.selesai) + ") " +
-        "di " + room.getString("name") + ". Booking TIDAK dibatalkan otomatis - putuskan manual.",
-      );
-      app.save(order);
-
-      SH.catat(app, {
-        aksi: "KONFLIK_KELAS",
-        entitas: "rental_orders",
-        entitasId: order.id,
-        kode: order.getString("bookingCode"),
-        pelakuTipe: "CALENDAR",
-        detail: { kelas: ev.judul, ruang: room.getString("name") },
-      });
-
-      if (IN.telegramSiap(s)) {
-        IN.siarkan(s,
-          "🚨 <b>Konflik jadwal</b>\nKelas baru <b>" + IN.esc(ev.judul) + "</b> " +
-          IN.esc(SH.A.jadwalKalimat(ev.mulai, ev.selesai)) + " di " + IN.esc(room.getString("name")) +
-          "\nbentrok dengan booking <code>" + IN.esc(order.getString("bookingCode")) + "</code>." +
-          "\n\nBooking TIDAK dibatalkan otomatis. Hubungi pelanggan atau pindahkan jadwalnya dari dashboard.");
-      }
-    } catch (err) {
-      console.log("[rental] tandai konflik kelas gagal:", err);
-    }
-  });
-}
+// Kalender kelas yang dihapus: bloknya langsung dilepas, tidak menunggu cron
+// dua jam berikutnya - admin yang baru menghapus kalender yang salah berharap
+// ruangnya langsung bisa dipinjam lagi.
+onRecordAfterDeleteSuccess((e) => {
+  e.next();
+  try { require(`${__hooks}/rental-kelas.js`).lepasYatim(e.app); }
+  catch (err) { console.log("[rental] lepas blok kalender terhapus gagal:", err); }
+}, "rental_class_calendars");
 
 // ===========================================================================
 // 3. Google Sheet -> server (PRD bagian 5 poin 3 & 13.3)
@@ -608,7 +197,7 @@ routerAdd("POST", "/api/rental/sheet/perubahan", (e) => {
       detail: { penjaga: nama, sebelumnya: sebelumnya },
     });
 
-    const yatim = bookingTanpaPenjaga(e.app, SH, room, sebelumnya, { mulai: mulai, selesai: selesai });
+    const yatim = require(`${__hooks}/rental-kelas.js`).bookingTanpaPenjaga(e.app, room, sebelumnya, { mulai: mulai, selesai: selesai });
     if (yatim.length) {
       return terima(
         "Jadwal penjaga tersimpan, TAPI booking berikut jadi tanpa penjaga: " + yatim.join(", ") +
@@ -721,33 +310,6 @@ routerAdd("POST", "/api/rental/sheet/perubahan", (e) => {
   return e.json(400, { hasil: "GAGAL", pesan: "Jenis perubahan \"" + jenis + "\" tidak dikenal." });
 });
 
-// Booking yang kehilangan penjaganya setelah sebuah shift diubah.
-function bookingTanpaPenjaga(app, SH, room, sebelum, sesudah) {
-  if (!sebelum) return []; // shift baru tidak pernah menghilangkan apa pun
-
-  const dari = Math.min(sebelum.mulai, sesudah.mulai);
-  const sampai = Math.max(sebelum.selesai, sesudah.selesai);
-
-  let kamar = [];
-  try {
-    kamar = room
-      ? [room]
-      : app.findRecordsByFilter("rental_rooms", "active = true && needsGuardian = true", "", 200, 0);
-  } catch (_) { return []; }
-
-  const kena = [];
-  kamar.forEach((r) => {
-    if (!r.getBool("needsGuardian")) return;
-    SH.peminjamanRuang(app, r.id, dari, sampai).forEach((p) => {
-      const penjaga = SH.penjagaRuang(app, r.id, p.mulai, p.selesai);
-      if (!SH.A.tercakupPenjaga(p.mulai, p.selesai, penjaga)) {
-        if (kena.indexOf(p.kode) === -1) kena.push(p.kode);
-      }
-    });
-  });
-  return kena;
-}
-
 // ===========================================================================
 // 4. Apps Script menarik isi tab (Ruang, Alat, Referensi)
 // ===========================================================================
@@ -811,7 +373,7 @@ routerAdd("GET", "/api/rental/sheet/tarik", (e) => {
 // ===========================================================================
 routerAdd("GET", "/api/rental/admin/sync/status", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, [])) return SH.tolakAkses(e, []);
 
   let job = [];
   try {
@@ -849,7 +411,7 @@ routerAdd("GET", "/api/rental/admin/sync/status", (e) => {
 
 routerAdd("POST", "/api/rental/admin/sync/ulang", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, ["SUPER_ADMIN"])) return SH.tolakAkses(e, ["SUPER_ADMIN"]);
 
   const body = e.requestInfo().body || {};
   let diulang = 0;

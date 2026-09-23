@@ -57,7 +57,7 @@ routerAdd("GET", "/api/rental/konfigurasi", (e) => {
 routerAdd("GET", "/api/rental/katalog", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const s = SH.setelan(e.app);
-  const admin = SH.isAdminPcv(e);
+  const admin = !!SH.adminRental(e);
 
   // Selama saklar induk mati, katalog kosong untuk umum - tapi admin tetap
   // bisa melihatnya, supaya katalog bisa disiapkan sebelum web-nya dibuka.
@@ -116,7 +116,7 @@ routerAdd("GET", "/api/rental/katalog", (e) => {
 routerAdd("GET", "/api/rental/detail", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const s = SH.setelan(e.app);
-  const admin = SH.isAdminPcv(e);
+  const admin = !!SH.adminRental(e);
   if ((!s || !s.getBool("enabled")) && !admin) return e.json(404, { message: "Halaman peminjaman sedang tidak aktif." });
 
   const q = e.request.url.query();
@@ -177,7 +177,7 @@ routerAdd("GET", "/api/rental/slot", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const s = SH.setelan(e.app);
   if (!s || !s.getBool("enabled")) {
-    if (!SH.isAdminPcv(e)) return e.json(404, { message: "Halaman peminjaman sedang tidak aktif." });
+    if (!SH.adminRental(e)) return e.json(404, { message: "Halaman peminjaman sedang tidak aktif." });
   }
 
   const q = e.request.url.query();
@@ -474,7 +474,7 @@ routerAdd("GET", "/api/rental/pesanan", (e) => {
   } catch (_) { order = null; }
   if (!order) return e.json(404, { message: "Pesanan tidak ditemukan." });
 
-  const admin = SH.isAdminPcv(e);
+  const admin = !!SH.adminRental(e);
   if (!admin) {
     const asli = order.getString("publicToken");
     // $security.equal: pembandingan waktu-tetap. Perbandingan `!==` biasa
