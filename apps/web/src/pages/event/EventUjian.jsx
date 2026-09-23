@@ -7,6 +7,7 @@ import { identitasEvent, jamMundur, panggilEvent, tanggalPanjang } from '@/lib/e
 import { olimpDeviceName, olimpFingerprint } from '@/lib/olimp';
 import { isSeb } from '@/lib/seb';
 import TandaAirUjian from '@/components/TandaAirUjian';
+import { teksKeHtml } from '@/lib/teksSoal';
 
 // LAYAR UJIAN LOMBA (/event/:slug/ujian)
 //
@@ -432,7 +433,7 @@ export default function EventUjian() {
               )}
               <div
                 className="text-[15px] leading-relaxed text-stone-800 [&_em]:italic [&_p]:mb-3 [&_strong]:font-semibold"
-                dangerouslySetInnerHTML={{ __html: aktif.teks || '' }}
+                dangerouslySetInnerHTML={{ __html: teksKeHtml(aktif.teks) }}
               />
             </div>
 
@@ -456,7 +457,7 @@ export default function EventUjian() {
                     >
                       {k}
                     </span>
-                    <span className="min-w-0 flex-1 text-sm leading-relaxed text-stone-800">
+                    <span className="min-w-0 flex-1 whitespace-pre-line text-sm leading-relaxed text-stone-800">
                       {aktif.opsi[k]}
                     </span>
                   </button>

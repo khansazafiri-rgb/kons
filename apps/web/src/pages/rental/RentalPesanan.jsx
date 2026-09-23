@@ -1,19 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Copy, MessageCircle, Search } from 'lucide-react';
-import RentalLayout, { RentalMati, RentalMemuat, useKonfigurasiRental } from '@/components/rental/RentalLayout';
+import { CalendarDays, Check, Copy, MessageCircle, Search } from 'lucide-react';
+import RentalLayout, { LambangMerek, RentalMati, RentalMemuat, useKonfigurasiRental } from '@/components/rental/RentalLayout';
 import IsiHtml from '@/components/rental/IsiHtml';
+import Langkah from '@/components/rental/Langkah';
 import { ambilPesanan, jadwalKalimat, rupiah, salinTeks, statusLabel, tautanWa } from '@/lib/rental';
 
-// HALAMAN PESANAN (PRD bagian 7.1 poin 6)
+// HALAMAN PESANAN - layar sukses & status (PRD bagian 7.1 poin 6)
 //
-// Dipakai untuk dua hal sekaligus: layar sukses tepat setelah checkout, dan
-// halaman status yang bisa dibuka lagi kapan saja lewat tautan yang sama.
+// Bentuknya E-TIKET: kepala berisi kode booking besar, garis sobek putus-putus
+// dengan dua takik di tepinya, lalu rincian di bawahnya - pola boarding pass
+// yang dipakai aplikasi tiket. Bentuk ini membuat pelanggan paham tanpa
+// dijelaskan bahwa kode itulah "tiket"-nya, yang harus disimpan dan
+// disebutkan ke admin.
 //
-// Kuncinya token di query string (`?t=`), bukan sesi. Pelanggan tidak punya
-// akun, jadi tidak ada sesi yang bisa dipakai - dan kode booking saja tidak
-// cukup karena PMJ-20260920-0001 sampai -0050 bisa dicoba satu per satu,
-// sedangkan barisnya memuat nomor WhatsApp dan email pelanggan.
+// Dijaga kode booking + token acak di query string (?t=), bukan sesi:
+// pelanggan tidak punya akun, dan kode saja bisa ditebak berurutan.
+
+// Lencana status di atas kepala tiket yang merah: putih semua, dibedakan
+// lewat teksnya - templat web ini merah-putih, tanpa warna lain.
+const WARNA_STATUS = {
+  MENUNGGU_PEMBAYARAN: 'bg-white text-sewa',
+  BUKTI_DIUNGGAH: 'bg-white text-sewa',
+  TERKONFIRMASI: 'bg-white text-sewa ring-2 ring-white/60',
+  SEDANG_DIPINJAM: 'bg-white text-sewa',
+  SELESAI: 'bg-white/80 text-stone-600',
+  DITOLAK: 'bg-white text-sewa-tua',
+  DIBATALKAN: 'bg-white/20 text-white',
+};
 
 export default function RentalPesanan() {
   const { kode } = useParams();
@@ -25,7 +39,7 @@ export default function RentalPesanan() {
   const [data, setData] = useState(null);
   const [memuat, setMemuat] = useState(true);
   const [galat, setGalat] = useState('');
-  const [disalin, setDisalin] = useState(false);
+  const [disalin, setDisalin] = useState('');
 
   useEffect(() => {
     let hidup = true;
@@ -39,28 +53,18 @@ export default function RentalPesanan() {
 
   if (memuatKonfigurasi) return <RentalMemuat />;
   if (!konfigurasi?.aktif) return <RentalMati />;
-
-  if (memuat) {
-    return (
-      <RentalLayout konfigurasi={konfigurasi}>
-        <p className="py-24 text-center text-sm text-stone-400">Memuat pesanan…</p>
-      </RentalLayout>
-    );
-  }
+  if (memuat) return <RentalMemuat />;
 
   if (galat || !data?.pesanan) {
     return (
       <RentalLayout konfigurasi={konfigurasi}>
         <div className="mx-auto max-w-md px-6 py-24 text-center">
-          <Search size={28} className="mx-auto text-stone-300" />
-          <h1 className="mt-4 font-display text-xl font-semibold text-stone-800">{galat || 'Pesanan tidak ditemukan.'}</h1>
-          <p className="mt-3 text-[13px] leading-relaxed text-stone-600">
-            Tautan status pesanan hanya berlaku dengan kode <b>dan</b> token yang diberikan saat checkout.
-            Kalau tautanmu hilang, hubungi admin dengan menyebutkan kode bookingmu.
+          <Search size={30} className="mx-auto text-stone-300" />
+          <h1 className="mt-4 text-xl font-extrabold text-stone-900">{galat || 'Pesanan tidak ditemukan.'}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-stone-500">
+            Tautan status hanya berlaku dengan kode <b>dan</b> token dari halaman sukses checkout.
+            Kalau tautannya hilang, hubungi admin dengan menyebutkan kode booking.
           </p>
-          <Link to="/peminjaman" className="mt-6 inline-block rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700">
-            Ke beranda peminjaman
-          </Link>
         </div>
       </RentalLayout>
     );
@@ -68,124 +72,116 @@ export default function RentalPesanan() {
 
   const p = data.pesanan;
   const st = statusLabel(p.status);
-  const waLink = tautanWa(data.waAdmin, data.waTeks);
+  const wa = tautanWa(data.waAdmin, data.waTeks);
 
-  async function salin() {
-    if (await salinTeks(p.kode)) {
-      setDisalin(true);
-      setTimeout(() => setDisalin(false), 2000);
-    }
+  async function salin(teks, apa) {
+    if (await salinTeks(teks)) { setDisalin(apa); setTimeout(() => setDisalin(''), 2000); }
   }
 
   return (
     <RentalLayout konfigurasi={konfigurasi}>
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <div className="mx-auto max-w-2xl px-4 pb-16 pt-8 sm:px-6">
+        {baruSaja && <div className="mb-6 flex justify-center"><Langkah aktif={2} /></div>}
+
         {baruSaja && (
-          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-            <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-emerald-600" />
-            <div className="text-[13px] leading-relaxed text-emerald-800">
-              <p className="font-display text-base font-semibold text-emerald-700">Peminjamanmu sudah tercatat</p>
-              <p className="mt-1">
-                Jadwal yang kamu pilih sudah diblok dan tidak bisa diambil orang lain.
-                Langkah berikutnya: hubungi admin lewat WhatsApp untuk pembayarannya.
-              </p>
-              <p className="mt-2">
-                <b>Simpan halaman ini.</b> Tautannya satu-satunya cara membuka status pesanan ini lagi.
-              </p>
+          <div className="mb-6 text-center">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-sewa text-white shadow-lg shadow-sewa/30">
+              <Check size={28} strokeWidth={3} />
             </div>
+            <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-stone-900">Jadwalmu sudah terkunci!</h1>
+            <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-stone-500">
+              Tinggal satu langkah: chat admin untuk pembayaran. <b className="text-stone-700">Simpan halaman ini</b> —
+              tautannya satu-satunya cara membuka status pesanan lagi.
+            </p>
           </div>
         )}
 
-        <div className="rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-stone-500">Kode booking</p>
-              <div className="mt-1 flex items-center gap-2">
-                <p className="font-display text-2xl font-semibold text-stone-800">{p.kode}</p>
-                <button
-                  onClick={salin}
-                  className="grid h-8 w-8 place-items-center rounded-lg border border-alba-300 text-stone-500 transition-colors hover:border-maroon-300 hover:text-maroon-600"
-                  aria-label="Salin kode booking"
-                >
-                  <Copy size={14} />
-                </button>
-                {disalin && <span className="text-[12px] font-semibold text-emerald-600">Disalin</span>}
-              </div>
+        {/* E-TIKET */}
+        <article className="overflow-hidden rounded-3xl bg-white shadow-angkat ring-1 ring-alba-200">
+          <div className="bg-sewa px-6 pb-7 pt-5 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <span className="[&_span]:!text-white"><LambangMerek konfigurasi={konfigurasi} /></span>
+              <span className={`rounded-full px-3 py-1 text-[12px] font-extrabold ${WARNA_STATUS[p.status] || 'bg-white text-sewa'}`}>{st.teks}</span>
             </div>
-            <span className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${st.cls}`}>{st.teks}</span>
+            <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.2em] text-white/50">Kode booking</p>
+            <div className="mt-1 flex items-center gap-3">
+              <p className="font-mono text-[26px] font-bold tracking-wider sm:text-[30px]">{p.kode}</p>
+              <button onClick={() => salin(p.kode, 'kode')} className="grid h-9 w-9 place-items-center rounded-full bg-white/10 hover:bg-white/20" aria-label="Salin kode booking">
+                {disalin === 'kode' ? <Check size={16} /> : <Copy size={16} />}
+              </button>
+            </div>
           </div>
 
-          {p.alasanBatal && (
-            <p className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-[13px] text-stone-600">
-              Alasan pembatalan: {p.alasanBatal}
-            </p>
-          )}
+          {/* Garis sobek dengan dua takik */}
+          <div className="relative h-6 bg-white" aria-hidden="true">
+            <span className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-alba-50" />
+            <span className="absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-alba-50" />
+            <span className="absolute inset-x-6 top-1/2 border-t-2 border-dashed border-alba-200" />
+          </div>
 
-          <ul className="mt-6 space-y-3">
-            {p.item.map((b) => (
-              <li
-                key={b.id}
-                className={`rounded-xl border px-4 py-3 ${
-                  b.status === 'DIBATALKAN' ? 'border-alba-200 bg-alba-100 opacity-60' : 'border-alba-200 bg-alba-50'
-                }`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[14px] font-semibold text-stone-800">
+          <div className="px-6 pb-6">
+            <ul className="space-y-3">
+              {p.item.map((b) => (
+                <li key={b.id} className={`flex items-start justify-between gap-3 ${b.status === 'DIBATALKAN' ? 'opacity-50' : ''}`}>
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-extrabold text-stone-900">
                       {b.nama}{b.jumlah > 1 ? ` ×${b.jumlah}` : ''}
-                      {b.status === 'DIBATALKAN' && (
-                        <span className="ml-2 text-[11px] font-bold uppercase text-stone-500">dibatalkan</span>
-                      )}
+                      {b.status === 'DIBATALKAN' && <span className="ml-2 text-[11px] font-bold uppercase text-stone-500">dibatalkan</span>}
                     </p>
-                    <p className="mt-0.5 text-[12px] text-stone-500">{jadwalKalimat(b.mulai, b.selesai)}</p>
+                    <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-stone-500"><CalendarDays size={13} /> {jadwalKalimat(b.mulai, b.selesai)}</p>
                   </div>
-                  <span className="text-[14px] font-semibold text-stone-700">{rupiah(b.total)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <p className="shrink-0 text-[14px] font-bold text-stone-800">{rupiah(b.total)}</p>
+                </li>
+              ))}
+            </ul>
 
-          <dl className="mt-5 space-y-2 border-t border-alba-200 pt-4 text-[13px]">
-            <div className="flex justify-between text-stone-600"><dt>Subtotal</dt><dd>{rupiah(p.subtotal)}</dd></div>
-            {(p.biayaTambahan || []).map((b) => (
-              <div key={b.nama} className="flex justify-between text-stone-600">
-                <dt>{b.nama}</dt><dd>{rupiah(b.jumlah)}</dd>
+            <dl className="mt-5 space-y-1.5 border-t border-dashed border-alba-200 pt-4 text-[13px]">
+              <div className="flex justify-between text-stone-500"><dt>Subtotal</dt><dd>{rupiah(p.subtotal)}</dd></div>
+              {(p.biayaTambahan || []).map((b) => (
+                <div key={b.nama} className="flex justify-between text-stone-500"><dt>{b.nama}</dt><dd>{rupiah(b.jumlah)}</dd></div>
+              ))}
+              <div className="flex items-baseline justify-between pt-2">
+                <dt className="text-[15px] font-bold text-stone-900">Total bayar</dt>
+                <dd className="text-2xl font-extrabold text-stone-900">{rupiah(p.total)}</dd>
               </div>
-            ))}
-            <div className="flex justify-between border-t border-alba-200 pt-2 font-display text-lg font-semibold text-stone-800">
-              <dt>Total</dt><dd className="text-maroon-600">{rupiah(p.total)}</dd>
-            </div>
-          </dl>
-        </div>
+            </dl>
 
-        {waLink && p.status !== 'DIBATALKAN' && (
+            <div className="mt-5 grid gap-2 rounded-2xl bg-alba-50 p-4 text-[13px] text-stone-600 sm:grid-cols-2">
+              <p><span className="block text-[11px] font-bold uppercase tracking-wide text-stone-400">Peminjam</span>{p.nama}</p>
+              <p><span className="block text-[11px] font-bold uppercase tracking-wide text-stone-400">WhatsApp</span>{p.wa}</p>
+              <p className="sm:col-span-2"><span className="block text-[11px] font-bold uppercase tracking-wide text-stone-400">Institusi</span>{p.institusi}</p>
+            </div>
+
+            {p.alasanBatal && <p className="mt-4 rounded-xl bg-alba-100 px-4 py-3 text-[13px] text-stone-600">Alasan pembatalan: {p.alasanBatal}</p>}
+          </div>
+        </article>
+
+        {wa && p.status !== 'DIBATALKAN' && (
           <a
-            href={waLink}
+            href={wa}
             target="_blank"
             rel="noreferrer"
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-[14px] font-bold text-white transition-colors hover:bg-emerald-700"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-sewa px-5 py-4 text-[16px] font-extrabold text-white shadow-lg shadow-sewa/25 transition-colors hover:bg-sewa-tua"
           >
-            <MessageCircle size={17} /> Chat Admin WhatsApp
+            <MessageCircle size={19} /> Chat admin WhatsApp untuk bayar
           </a>
+        )}
+        {wa && p.status !== 'DIBATALKAN' && (
+          <p className="mt-2 text-center text-[12px] text-stone-500">Pesan pembukanya sudah terisi dengan kode booking-mu.</p>
         )}
 
         {data.instruksiPembayaran && (
-          <div className="mt-5 rounded-2xl border border-gold-200 bg-gold-100 p-5 text-[13px] leading-relaxed text-stone-700">
+          <div className="mt-5 rounded-3xl bg-sewa/5 p-5 text-[13px] leading-relaxed text-sewa-tua ring-1 ring-sewa/15">
             <IsiHtml html={data.instruksiPembayaran} />
           </div>
         )}
 
-        <div className="mt-5 rounded-2xl border border-alba-200 bg-alba-100 p-5 text-[13px] leading-relaxed text-stone-600">
-          <p className="font-semibold text-stone-700">Data peminjam</p>
-          <p className="mt-1.5">{p.nama} · {p.wa}</p>
-          <p>{p.email}</p>
-          <p>{p.institusi}</p>
-          {p.keperluan && <p className="mt-1.5 text-stone-500">Keperluan: {p.keperluan}</p>}
+        <div className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] font-bold">
+          <button onClick={() => salin(window.location.href, 'tautan')} className="text-stone-500 hover:text-stone-900">
+            {disalin === 'tautan' ? 'Tautan tersalin ✓' : 'Salin tautan halaman ini'}
+          </button>
+          <Link to="/peminjaman" className="text-sewa hover:underline">Sewa yang lain</Link>
         </div>
-
-        <p className="mt-6 text-center text-[12px] text-stone-500">
-          Mau meminjam lagi? <Link to="/peminjaman" className="font-semibold text-maroon-600 underline">Kembali ke katalog</Link>
-        </p>
       </div>
     </RentalLayout>
   );

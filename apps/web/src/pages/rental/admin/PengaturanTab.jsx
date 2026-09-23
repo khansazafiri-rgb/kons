@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Send, Trash2 } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/rentalClient';
 import { adminSyncStatus, adminSyncUlang, adminTelegramPasang, adminTelegramUji, menitKeJam } from '@/lib/rental';
 
 // DASHBOARD PEMINJAMAN - TAB PENGATURAN & INTEGRASI (PRD bagian 10.3 & 21)
@@ -20,7 +20,7 @@ import { adminSyncStatus, adminSyncUlang, adminTelegramPasang, adminTelegramUji,
 // endpoint publik /api/rental/konfigurasi menyalin field aman satu per satu,
 // dan kolom rahasia di layar ini bertipe password.
 
-const inputCls = 'w-full rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none';
+const inputCls = 'w-full rounded-xl border border-alba-300 bg-white px-3 py-2.5 text-sm text-stone-700 focus:border-sewa focus:outline-none';
 
 function Kolom({ label, bantuan, children, lebar }) {
   return (
@@ -34,8 +34,8 @@ function Kolom({ label, bantuan, children, lebar }) {
 
 function Bagian({ judul, anak, catatan }) {
   return (
-    <section className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-      <h3 className="font-display text-base font-semibold text-stone-800">{judul}</h3>
+    <section className="rounded-2xl border border-alba-200 bg-white p-5 shadow-lembut">
+      <h3 className="font-sewa text-base font-semibold text-stone-800">{judul}</h3>
       {catatan && <p className="mt-1 text-[12px] leading-relaxed text-stone-500">{catatan}</p>}
       <div className="mt-4">{anak}</div>
     </section>
@@ -136,10 +136,10 @@ export default function RentalPengaturanTab({ lapor }) {
   return (
     <div className="space-y-5">
       <div className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-5 ${
-        f.enabled ? 'border-emerald-200 bg-emerald-50' : 'border-gold-200 bg-gold-100'
+        f.enabled ? 'border-sewa/20 bg-sewa/5' : 'border-sewa/20 bg-sewa/5'
       }`}>
         <div>
-          <p className="font-display text-base font-semibold text-stone-800">
+          <p className="font-sewa text-base font-semibold text-stone-800">
             {f.enabled ? 'Web peminjaman AKTIF' : 'Web peminjaman belum dibuka'}
           </p>
           <p className="mt-1 text-[12px] leading-relaxed text-stone-600">
@@ -149,7 +149,7 @@ export default function RentalPengaturanTab({ lapor }) {
           </p>
         </div>
         <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-bold text-stone-700">
-          <input type="checkbox" checked={!!f.enabled} onChange={ubah('enabled')} className="h-5 w-5 accent-maroon-600" />
+          <input type="checkbox" checked={!!f.enabled} onChange={ubah('enabled')} className="h-5 w-5 accent-[rgb(var(--sewa-rgb))]" />
           {f.enabled ? 'Nyala' : 'Mati'}
         </label>
       </div>
@@ -161,6 +161,42 @@ export default function RentalPengaturanTab({ lapor }) {
             <Kolom label="Nama perusahaan"><input value={f.companyName || ''} onChange={ubah('companyName')} className={inputCls} /></Kolom>
             <Kolom label="URL logo"><input value={f.logoUrl || ''} onChange={ubah('logoUrl')} className={inputCls} /></Kolom>
             <Kolom label="Tagline" lebar="sm:col-span-2"><input value={f.tagline || ''} onChange={ubah('tagline')} className={inputCls} /></Kolom>
+            <Kolom label="URL foto hero beranda" bantuan="Kosongkan untuk memakai bidang warna utama. Foto lebar (≥1600 px) paling bagus.">
+              <input value={f.heroImageUrl || ''} onChange={ubah('heroImageUrl')} placeholder="https://lh3.googleusercontent.com/d/FILE_ID" className={inputCls} />
+            </Kolom>
+          </div>
+        }
+      />
+
+      <Bagian
+        judul="Feed Kalender Terpadu (.ics)"
+        catatan="Satu alamat berisi SEMUA jadwal: kelas dari semua kalender kelas, blok internal, dan booking pelanggan (tanpa data pribadi). Di Google Calendar: Setelan → Tambah kalender → Dari URL → tempel alamat ini."
+        anak={
+          <div className="space-y-3">
+            <code className="block break-all rounded-xl bg-alba-100 px-3.5 py-3 text-[12px] text-stone-700">
+              {(typeof window !== 'undefined' ? window.location.origin : '') + '/api/rental/kalender.ics?token=' + (f.icsFeedToken || '…')}
+            </code>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => navigator.clipboard?.writeText(window.location.origin + '/api/rental/kalender.ics?token=' + (f.icsFeedToken || '')).then(() => lapor('Alamat feed tersalin.', 'ok'))}
+                className="rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa"
+              >
+                Salin alamat
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm('Buat alamat baru? Semua kalender yang sudah berlangganan alamat lama akan berhenti diperbarui dan harus ditambahkan ulang.')) return;
+                  const acak = Array.from(crypto.getRandomValues(new Uint8Array(24)), (x) => x.toString(16).padStart(2, '0')).join('');
+                  setF((x) => ({ ...x, icsFeedToken: acak }));
+                  lapor('Alamat baru dibuat — tekan Simpan pengaturan supaya berlaku.', 'ok');
+                }}
+                className="rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-rose-300 hover:text-rose-600"
+              >
+                Ganti alamat (cabut akses lama)
+              </button>
+            </div>
           </div>
         }
       />
@@ -232,7 +268,7 @@ export default function RentalPengaturanTab({ lapor }) {
         anak={
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-stone-700 sm:col-span-2">
-              <input type="checkbox" checked={!!f.telegramEnabled} onChange={ubah('telegramEnabled')} className="h-4 w-4 accent-maroon-600" />
+              <input type="checkbox" checked={!!f.telegramEnabled} onChange={ubah('telegramEnabled')} className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
               Nyalakan notifikasi Telegram
             </label>
             <Kolom label="Token bot" lebar="sm:col-span-2">
@@ -248,14 +284,14 @@ export default function RentalPengaturanTab({ lapor }) {
               <button
                 disabled={sibuk}
                 onClick={() => jalankan(adminTelegramPasang, 'Webhook Telegram terpasang.')}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
               >
                 <RefreshCw size={13} /> Pasang webhook
               </button>
               <button
                 disabled={sibuk}
                 onClick={() => jalankan(adminTelegramUji, 'Pesan uji terkirim.')}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
               >
                 <Send size={13} /> Tes kirim
               </button>
@@ -273,7 +309,7 @@ export default function RentalPengaturanTab({ lapor }) {
         anak={
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-stone-700 sm:col-span-2">
-              <input type="checkbox" checked={!!f.googleEnabled} onChange={ubah('googleEnabled')} className="h-4 w-4 accent-maroon-600" />
+              <input type="checkbox" checked={!!f.googleEnabled} onChange={ubah('googleEnabled')} className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
               Nyalakan sinkronisasi Google
             </label>
             <Kolom label="Client ID"><input value={f.googleClientId || ''} onChange={ubah('googleClientId')} className={inputCls} /></Kolom>
@@ -293,18 +329,18 @@ export default function RentalPengaturanTab({ lapor }) {
         }
       />
 
-      <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-maroon-200 bg-alba-50 p-4 shadow-card">
+      <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-2xl border border-sewa/30 bg-white p-4 shadow-lembut">
         <button
           disabled={sibuk}
           onClick={simpan}
-          className="rounded-xl bg-maroon-600 px-6 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-50"
+          className="rounded-xl bg-sewa px-6 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50"
         >
           {sibuk ? 'Menyimpan…' : 'Simpan pengaturan'}
         </button>
         <button
           disabled={sibuk}
           onClick={muat}
-          className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-600 hover:border-maroon-300"
+          className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-600 hover:border-sewa/50"
         >
           Muat ulang
         </button>
@@ -317,12 +353,12 @@ export default function RentalPengaturanTab({ lapor }) {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-3 text-[12px]">
               <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold ${
-                sync?.googleSiap ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-stone-100 text-stone-600'
+                sync?.googleSiap ? 'border-sewa/20 bg-sewa/5 text-sewa' : 'border-alba-200 bg-alba-100 text-stone-600'
               }`}>
                 {sync?.googleSiap ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />} Google {sync?.googleSiap ? 'terhubung' : 'belum siap'}
               </span>
               <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold ${
-                sync?.telegramSiap ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-stone-100 text-stone-600'
+                sync?.telegramSiap ? 'border-sewa/20 bg-sewa/5 text-sewa' : 'border-alba-200 bg-alba-100 text-stone-600'
               }`}>
                 {sync?.telegramSiap ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />} Telegram {sync?.telegramSiap ? 'terhubung' : 'belum siap'}
               </span>
@@ -345,13 +381,13 @@ export default function RentalPengaturanTab({ lapor }) {
               <>
                 <ul className="space-y-1.5">
                   {sync.pekerjaan.map((j) => (
-                    <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-alba-200 bg-alba-50 px-3 py-2 text-[12px]">
+                    <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-alba-200 bg-white px-3 py-2 text-[12px]">
                       <span className="text-stone-700">
                         <b>{j.jenis}</b> · {j.target} · percobaan {j.percobaan}
                         {j.galat && <span className="block text-[11px] text-red-600">{j.galat}</span>}
                       </span>
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        j.status === 'GAGAL' ? 'border-red-200 bg-red-50 text-red-700' : 'border-gold-200 bg-gold-100 text-gold-600'
+                        j.status === 'GAGAL' ? 'border-red-200 bg-red-50 text-red-700' : 'border-sewa/20 bg-sewa/5 text-sewa-tua'
                       }`}>
                         {j.status}
                       </span>
@@ -361,7 +397,7 @@ export default function RentalPengaturanTab({ lapor }) {
                 <button
                   disabled={sibuk}
                   onClick={() => jalankan(() => adminSyncUlang({}), 'Semua pekerjaan gagal dijadwalkan ulang.')}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
                 >
                   <RefreshCw size={13} /> Coba ulang semua yang gagal
                 </button>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, Loader2, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/rentalClient';
 import { adminKalender, jadwalKalimat, jamWib, tanggalWib, tanggalWibHariIni } from '@/lib/rental';
 
 // DASHBOARD PEMINJAMAN - TAB JADWAL (PRD bagian 10.1 & 10.3)
@@ -17,7 +17,7 @@ import { adminKalender, jadwalKalimat, jamWib, tanggalWib, tanggalWibHariIni } f
 // impor berikutnya memasangnya kembali. Yang perlu diubah adalah event-nya di
 // Calendar.
 
-const inputCls = 'w-full rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none';
+const inputCls = 'w-full rounded-xl border border-alba-300 bg-white px-3 py-2.5 text-sm text-stone-700 focus:border-sewa focus:outline-none';
 
 // datetime-local memberi waktu polos tanpa zona. +07:00 ditulis eksplisit
 // supaya jamnya diartikan WIB, bukan zona waktu laptop adminnya - kalau tidak,
@@ -69,13 +69,13 @@ function Kalender({ ruang, lapor }) {
   });
 
   const warna = {
-    KELAS: 'border-sky-200 bg-sky-50 text-sky-800',
-    BLOK: 'border-stone-300 bg-stone-100 text-stone-700',
-    BOOKING: 'border-maroon-200 bg-maroon-50 text-maroon-700',
+    KELAS: 'border-sewa/20 bg-sewa/5 text-stone-700',
+    BLOK: 'border-alba-300 bg-alba-100 text-stone-700',
+    BOOKING: 'border-sewa/30 bg-sewa/10 text-sewa-tua',
   };
 
   return (
-    <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
+    <div className="rounded-2xl border border-alba-200 bg-white p-5 shadow-lembut">
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-[12px] font-semibold text-stone-600">
           Dari
@@ -93,8 +93,8 @@ function Kalender({ ruang, lapor }) {
       </div>
 
       {(data?.penjaga || []).length > 0 && (
-        <div className="mt-4 rounded-xl border border-gold-200 bg-gold-100 p-3">
-          <p className="text-[12px] font-bold uppercase tracking-wider text-gold-600">Penjaga bertugas</p>
+        <div className="mt-4 rounded-xl border border-sewa/20 bg-sewa/5 p-3">
+          <p className="text-[12px] font-bold uppercase tracking-wider text-sewa-tua">Penjaga bertugas</p>
           <ul className="mt-1.5 space-y-0.5 text-[12px] text-stone-700">
             {data.penjaga.map((g) => (
               <li key={g.id}>{g.nama} — {jadwalKalimat(g.mulai, g.selesai)}</li>
@@ -185,19 +185,19 @@ function DaftarBlok({ ruang, semuaRuang, lapor }) {
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="inline-flex items-center gap-2 font-display text-lg font-semibold text-stone-800">
-          <CalendarDays size={18} className="text-maroon-600" /> Blok internal & maintenance
+        <h3 className="inline-flex items-center gap-2 font-sewa text-lg font-semibold text-stone-800">
+          <CalendarDays size={18} className="text-sewa" /> Blok internal & maintenance
         </h3>
         <button
           onClick={() => setBaru(baru ? null : { room: ruang || semuaRuang[0]?.id || '', blockType: 'INTERNAL', startAt: '', endAt: '', reason: '' })}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-maroon-600 px-4 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-sewa px-4 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua"
         >
           <Plus size={15} /> Blok ruang
         </button>
       </div>
 
       {baru && (
-        <div className="mt-4 grid gap-3 rounded-2xl border border-maroon-200 bg-alba-50 p-5 shadow-card sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 rounded-2xl border border-sewa/30 bg-white p-5 shadow-lembut sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">Ruang</span>
             <select value={baru.room} onChange={(ev) => setBaru({ ...baru, room: ev.target.value })} className={inputCls}>
@@ -224,7 +224,7 @@ function DaftarBlok({ ruang, semuaRuang, lapor }) {
             <input value={baru.reason} onChange={(ev) => setBaru({ ...baru, reason: ev.target.value })} placeholder="Rapat koordinasi divisi" className={inputCls} />
           </label>
           <div className="flex gap-2 sm:col-span-2">
-            <button disabled={sibuk} onClick={simpan} className="rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-50">
+            <button disabled={sibuk} onClick={simpan} className="rounded-xl bg-sewa px-5 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50">
               Simpan blok
             </button>
             <button onClick={() => setBaru(null)} className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-600">
@@ -239,7 +239,7 @@ function DaftarBlok({ ruang, semuaRuang, lapor }) {
         : (
           <ul className="mt-4 space-y-2">
             {daftar.map((b) => (
-              <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-alba-200 bg-alba-50 px-4 py-3">
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-alba-200 bg-white px-4 py-3">
                 <div>
                   <p className="text-[13px] font-semibold text-stone-700">
                     {namaRuang(b.room)} — {b.reason || b.title || b.blockType}
@@ -314,12 +314,12 @@ function DaftarPenjaga({ semuaRuang, lapor }) {
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="inline-flex items-center gap-2 font-display text-lg font-semibold text-stone-800">
-          <ShieldCheck size={18} className="text-maroon-600" /> Jadwal penjaga
+        <h3 className="inline-flex items-center gap-2 font-sewa text-lg font-semibold text-stone-800">
+          <ShieldCheck size={18} className="text-sewa" /> Jadwal penjaga
         </h3>
         <button
           onClick={() => setBaru(baru ? null : { guardianName: '', room: '', startAt: '', endAt: '', note: '' })}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-maroon-600 px-4 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-sewa px-4 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua"
         >
           <Plus size={15} /> Tambah shift
         </button>
@@ -331,7 +331,7 @@ function DaftarPenjaga({ semuaRuang, lapor }) {
       </p>
 
       {baru && (
-        <div className="mt-4 grid gap-3 rounded-2xl border border-maroon-200 bg-alba-50 p-5 shadow-card sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 rounded-2xl border border-sewa/30 bg-white p-5 shadow-lembut sm:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">Nama penjaga</span>
             <input value={baru.guardianName} onChange={(ev) => setBaru({ ...baru, guardianName: ev.target.value })} className={inputCls} />
@@ -352,7 +352,7 @@ function DaftarPenjaga({ semuaRuang, lapor }) {
             <input type="datetime-local" step={1800} value={baru.endAt} onChange={(ev) => setBaru({ ...baru, endAt: ev.target.value })} className={inputCls} />
           </label>
           <div className="flex gap-2 sm:col-span-2">
-            <button disabled={sibuk} onClick={simpan} className="rounded-xl bg-maroon-600 px-5 py-2.5 text-[13px] font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-50">
+            <button disabled={sibuk} onClick={simpan} className="rounded-xl bg-sewa px-5 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50">
               Simpan shift
             </button>
             <button onClick={() => setBaru(null)} className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-600">
@@ -367,7 +367,7 @@ function DaftarPenjaga({ semuaRuang, lapor }) {
         : (
           <ul className="mt-4 space-y-2">
             {daftar.map((g) => (
-              <li key={g.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-alba-200 bg-alba-50 px-4 py-3">
+              <li key={g.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-alba-200 bg-white px-4 py-3">
                 <div>
                   <p className="text-[13px] font-semibold text-stone-700">
                     {g.guardianName}
@@ -413,11 +413,11 @@ export default function RentalJadwalTab({ lapor }) {
     <div className="space-y-8">
       <section>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display text-lg font-semibold text-stone-800">Kalender ketersediaan</h3>
+          <h3 className="font-sewa text-lg font-semibold text-stone-800">Kalender ketersediaan</h3>
           <select
             value={pilih}
             onChange={(ev) => setPilih(ev.target.value)}
-            className="rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm font-semibold text-stone-700"
+            className="rounded-xl border border-alba-300 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700"
           >
             {ruang.map((r) => <option key={r.id} value={r.slug}>{r.name}</option>)}
           </select>

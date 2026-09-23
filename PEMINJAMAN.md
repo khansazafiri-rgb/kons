@@ -4,20 +4,24 @@ Implementasi PRD **"Sistem Peminjaman Ruang dan Alat Medis" v1.0** di dalam web
 PCV Classroom — web ketiga di aplikasi yang sama, sesudah Web Olimp dan
 Event/Lomba.
 
-Etalase publik di `/peminjaman`, dashboard operasional di
-`/admin?tab=Peminjaman`.
+Etalase publik di `/peminjaman`, dashboard admin di **`/peminjaman/admin`**
+dengan halaman masuk sendiri di **`/peminjaman/admin/masuk`** — terpisah dari
+Dashboard Admin PCV.
 
 ---
 
 ## Daftar isi
 
 - [Ringkasan](#ringkasan)
+- [Admin terpisah & peran](#admin-terpisah--peran)
+- [Tampilan](#tampilan)
 - [Penyimpangan dari PRD](#penyimpangan-dari-prd)
 - [Peta berkas](#peta-berkas)
 - [Alur pelanggan](#alur-pelanggan)
 - [Aturan ketersediaan](#aturan-ketersediaan)
 - [Status booking](#status-booking)
 - [Endpoint](#endpoint)
+- [Kalender kelas & Kalender Terpadu](#kalender-kelas--kalender-terpadu)
 - [Setup Google Workspace](#setup-google-workspace)
 - [Setup Telegram](#setup-telegram)
 - [Setup Google Sheet operasional](#setup-google-sheet-operasional)
@@ -50,6 +54,66 @@ Integrasi:
 
 Basis data PocketBase adalah **satu-satunya source of truth**. Sheet dan
 Calendar adalah cermin, bukan sumber yang boleh menimpa data tanpa validasi.
+
+---
+
+## Admin terpisah & peran
+
+Dashboard peminjaman adalah aplikasi admin **sendiri**, bukan tab di Dashboard
+Admin PCV — yang mengurus peminjaman orangnya lain. Akunnya tinggal di
+collection auth `rental_admins`, sesi login-nya disimpan terpisah di peramban
+(`rentalClient`, kunci `rental_admin_auth`), jadi admin bisa membuka PCV dan
+dashboard peminjaman berdampingan tanpa saling menendang keluar.
+
+| Peran | Menu | Bisa |
+|---|---|---|
+| **Super Admin** | semua | + katalog, akun admin, pengaturan, Telegram, Google |
+| **Admin Operasional** | Pesanan, Kalender Terpadu | verifikasi & tolak bukti, ubah status, batalkan, reschedule |
+| **Admin Jadwal** | + Kalender Kelas, Blok & Penjaga | kalender kelas, blok internal, jadwal penjaga, reschedule |
+
+Menu yang disembunyikan cuma kenyamanan. Yang menjaga adalah **server**: aturan
+API tiap collection dan setiap endpoint memeriksa peran sendiri, termasuk
+`active = true` — admin yang dinonaktifkan langsung kehilangan akses, bahkan
+dengan token lama yang masih ia pegang.
+
+Admin PCV biasa (`role = admin`) **tidak** punya akses sama sekali. Satu-satunya
+akun PCV yang diterima adalah **`super_admin`** (pemilik platform), lewat tautan
+kecil "Pemilik platform? Masuk dengan akun PCV" di halaman masuk.
+
+### Membuat akun admin pertama
+
+1. Buka `/peminjaman/admin/masuk` → **Pemilik platform? Masuk dengan akun PCV**.
+2. Masuk dengan akun `super_admin` PCV.
+3. Menu **Akun Admin** → **Tambah admin** → pilih peran. Kata sandi awal dibuat
+   acak; info masuknya langsung tersalin untuk dikirim lewat chat pribadi.
+
+Lebih baik **menonaktifkan** daripada menghapus akun: nama admin tetap tercatat
+di riwayat tindakan (audit log), tapi ia tidak bisa masuk lagi.
+
+---
+
+## Tampilan
+
+Versi pertama memakai kerangka PCV (krem, serif, kartu gradien polos) dan
+terasa seperti templat. Web peminjaman sekarang punya tata letak sendiri,
+tetapi **warnanya tetap templat FK/PCV: merah marun `#8E0100` dan putih** —
+tidak ada warna lain dan warnanya tidak bisa diganti dari dashboard. Logo dan
+nama diatur dari Pengaturan, huruf *Plus Jakarta Sans*, dan mode gelap PCV
+tidak ikut terbawa (halaman peminjaman selalu terang).
+
+Pola-polanya diambil dari aplikasi pemesanan yang sudah akrab bagi pengunjung:
+
+| Pola | Dari | Di mana |
+|---|---|---|
+| Kartu pencarian yang menumpang di tepi hero (jenis, tanggal, jumlah peserta) | Traveloka, tiket.com | Beranda |
+| Pita tanggal yang bisa diketuk + jam sebagai pil, dikelompokkan Pagi/Siang/Sore/Malam — bukan kalender bawaan peramban | Klook, aplikasi tiket bioskop | Detail ruang |
+| Mosaik foto 1 besar + 4 kecil, kartu pesan lengket di kanan, bar harga di bawah layar HP | Airbnb | Detail |
+| Penunjuk langkah Keranjang → Data diri → Selesai | alur checkout tiket.com/Traveloka | Keranjang, checkout |
+| Halaman sukses berbentuk e-tiket dengan garis sobek | boarding pass | Status pesanan |
+
+Harga di kartu pesan dihitung **server** lewat endpoint yang sama dengan
+checkout, jadi angka yang dilihat pelanggan sebelum menambah ke keranjang persis
+angka yang nanti ditagihkan.
 
 ---
 
@@ -116,6 +180,14 @@ mati, dan thumbnail di dashboard tetap tampil.
 
 Supaya tidak bertabrakan dengan `events`, `olimp_*`, dan `chapters`.
 
+### 7. Kalender kelas lewat link iCal, bukan hanya Calendar ID
+
+PRD bagian 13.1 membayangkan Calendar ID + Google API. Di sini sumber yang
+**disarankan** adalah *alamat rahasia format iCal* tiap kalender kelas — tidak
+butuh OAuth sama sekali, dan pembacanya (termasuk jadwal berulang & tanggal
+pengecualian) dipakai ulang dari fitur "Kelas & Reminder" PCV. Calendar ID +
+OAuth tetap didukung sebagai pilihan kedua.
+
 ---
 
 ## Peta berkas
@@ -132,7 +204,11 @@ Supaya tidak bertabrakan dengan `events`, `olimp_*`, dan `chapters`.
 | `pb_hooks/rental.pb.js` | Endpoint publik (katalog, slot, checkout) |
 | `pb_hooks/rental-admin.pb.js` | Endpoint dashboard |
 | `pb_hooks/rental-telegram.pb.js` | Webhook bot |
-| `pb_hooks/rental-sync.pb.js` | Cron worker + endpoint Apps Script |
+| `pb_hooks/rental-kerja.js` | Pekerja antrean sinkronisasi (Calendar, Sheet, Drive, Telegram) |
+| `pb_hooks/rental-kelas.js` | Impor kalender kelas, pemetaan ke ruang, deteksi tabrakan |
+| `pb_hooks/rental-sync.pb.js` | Cron + endpoint Apps Script (isinya memanggil dua modul di atas) |
+| `pb_hooks/rental-kalender.pb.js` | Kalender Terpadu, feed `.ics`, kalender kelas, `/admin/saya` |
+| `pb_migrations/1787300000_peminjaman_admin_terpisah.js` | `rental_admins`, `rental_class_calendars`, aturan per peran |
 | `test/konflik-jadwal.test.mjs` | 43 kasus uji aturan konflik |
 
 ### Frontend (`apps/web`)
@@ -144,7 +220,12 @@ Supaya tidak bertabrakan dengan `events`, `olimp_*`, dan `chapters`.
 | `src/components/rental/PemilihJadwal.jsx` | Grid slot 30 menit |
 | `src/components/rental/IsiHtml.jsx` | Render field HTML dari dashboard |
 | `src/pages/rental/*.jsx` | Beranda, katalog, detail, keranjang, checkout, status pesanan |
-| `src/pages/admin/rental/*.jsx` | Dashboard: Pesanan, Katalog, Jadwal & Penjaga, Pengaturan |
+| `src/lib/rentalClient.js` | Klien PocketBase khusus peminjaman (sesi login terpisah dari PCV) |
+| `src/components/rental/FotoItem.jsx` | Foto dengan cadangan yang rapi kalau belum ada / rusak |
+| `src/components/rental/Langkah.jsx` | Penunjuk langkah checkout |
+| `src/pages/rental/admin/RentalAdminMasuk.jsx` | Halaman masuk admin peminjaman |
+| `src/pages/rental/admin/RentalAdminApp.jsx` | Kerangka dashboard + menu per peran |
+| `src/pages/rental/admin/*Tab.jsx` | Pesanan, Kalender Terpadu, Kalender Kelas, Blok & Penjaga, Katalog, Akun Admin, Pengaturan |
 
 ### Lain-lain
 
@@ -234,7 +315,7 @@ POST /api/rental/checkout        membuat pesanan + memblok jadwal/stok
 GET  /api/rental/pesanan         status pesanan (kode + token)
 ```
 
-### Dashboard (wajib admin/super_admin akun `users`)
+### Dashboard (akun `rental_admins`, atau `super_admin` PCV)
 
 ```
 GET  /api/rental/admin/ringkasan     KPI
@@ -249,6 +330,12 @@ GET  /api/rental/admin/sync/status   antrean & konflik
 POST /api/rental/admin/sync/ulang    coba ulang pekerjaan gagal
 POST /api/rental/admin/telegram/pasang
 GET  /api/rental/admin/telegram/uji
+GET  /api/rental/admin/saya                      siapa yang login + perannya
+GET  /api/rental/admin/kalender-terpadu          semua ruang x semua jadwal
+POST /api/rental/admin/kalender-kelas/sinkron    tarik ulang satu / semua kalender kelas
+POST /api/rental/admin/kalender-kelas/uji        uji link iCal sebelum disimpan
+GET  /api/rental/admin/kalender-kelas/dari-pcv   kelas PCV yang sudah punya link iCal
+POST /api/rental/admin/antrean/jalankan          jalankan antrean sinkronisasi sekarang
 ```
 
 ### Mesin ke mesin
@@ -256,6 +343,7 @@ GET  /api/rental/admin/telegram/uji
 ```
 POST /api/rental/telegram/webhook    dijaga X-Telegram-Bot-Api-Secret-Token
 POST /api/rental/sheet/perubahan     dijaga sheetSyncToken
+GET  /api/rental/kalender.ics        dijaga icsFeedToken (dilanggan Google Calendar)
 GET  /api/rental/sheet/tarik         dijaga sheetSyncToken
 ```
 
@@ -265,9 +353,67 @@ PocketBase biasa.
 
 ---
 
+## Kalender kelas & Kalender Terpadu
+
+### Mendaftarkan kalender kelas
+
+Menu **Kalender Kelas** (Super Admin & Admin Jadwal). Tiap kelas = satu baris,
+dengan nama, warna, dan daftar ruang yang diblok jadwalnya. Satu kalender boleh
+memblok beberapa ruang sekaligus.
+
+**Cara tercepat — impor dari Kelas PCV.** Kelas di menu "Kelas & Reminder" PCV
+yang sudah punya link iCal muncul di tombol **Impor dari Kelas PCV**: centang,
+pilih ruangnya, impor. Tujuh-delapan kalender selesai dalam satu layar.
+
+**Menambah manual:**
+
+1. Google Calendar (komputer) → arahkan ke nama kalender kelas → titik tiga →
+   **Setelan dan berbagi** → bagian **Integrasikan kalender**.
+2. Salin **Alamat rahasia dalam format iCal** (berakhiran `basic.ics`). Bukan
+   alamat publik — kalendernya tidak perlu dibuat publik.
+3. **Tambah kalender** → tempel → **Uji link**. Jadwal yang terbaca langsung
+   ditampilkan, sebelum apa pun disimpan.
+4. Pilih ruang, lalu **Simpan & sinkron sekarang**.
+
+**Pemetaan lewat lokasi.** Untuk kelas yang pindah-pindah ruang, nyalakan
+*Petakan lewat kolom lokasi event*: jadwal yang lokasinya menyebut nama ruang
+(mis. "Gedung A – Ruang Skill Lab") memblok ruang itu. Jadwal yang tidak cocok ke
+ruang mana pun dilaporkan sebagai **perlu pemetaan** — tidak pernah diam-diam
+dianggap tidak memblok.
+
+Sinkron otomatis tiap 2 jam (jendela 30 hari ke belakang s/d 180 hari ke
+depan). Kalau sebuah kalender **gagal dibaca**, blok lamanya **dibiarkan** —
+menganggap "tidak terbaca" sebagai "tidak ada kelas" akan membuka ruang tepat di
+jam kuliah. Kalender yang **dihapus atau dimatikan** melepas bloknya seketika.
+
+Kelas baru yang bertabrakan dengan booking aktif **tidak** membatalkan booking:
+pesanannya ditandai konflik di dashboard dan diumumkan ke grup Telegram.
+
+### Kalender Terpadu
+
+Menu **Kalender Terpadu** menyatukan semuanya dalam tampilan minggu per ruang,
+mirip Google Calendar: tiap kelas dengan warnanya sendiri (gradasi merah dan
+abu-abu hangat, tetap dalam templat merah-putih), blok internal
+bergaris, booking lunas/belum lunas, garis tipis abu-abu untuk jam penjaga, dan
+garis merah "sekarang".
+
+### Satu Google Calendar berisi semuanya (feed `.ics`)
+
+Di bawah Kalender Terpadu (dan di Pengaturan) ada alamat feed. Di Google
+Calendar: **Setelan → Tambah kalender → Dari URL** → tempel. Hasilnya satu
+kalender berisi semua ruang, semua kelas dari semua kalender kelas, blok
+internal, dan booking — di aplikasi Google Calendar HP juga.
+
+- Booking tampil sebagai kode + status saja, **tanpa** nama/WhatsApp/email.
+- Google menyegarkan kalender langganan menurut jadwalnya sendiri (biasanya
+  beberapa jam sekali). Untuk kondisi detik ini, pakai Kalender Terpadu.
+- Alamatnya bisa diganti (mencabut akses lama) di Pengaturan.
+
+---
+
 ## Setup Google Workspace
 
-Semua diisi di **Dashboard Admin → Peminjaman → Pengaturan → Google Workspace**.
+Semua diisi di **Dashboard admin peminjaman (`/peminjaman/admin`) → Pengaturan → Google Workspace**.
 
 ### 1. Buat OAuth client
 
@@ -307,23 +453,12 @@ Semua diisi di **Dashboard Admin → Peminjaman → Pengaturan → Google Worksp
 
 Ketiganya harus bisa diakses akun yang dipakai di langkah 2.
 
-### 4. Kalender kelas (baca-saja)
+### 4. Kalender kelas
 
-Di **Peminjaman → Katalog → ubah ruang → Google Calendar ID kelas**, isi satu
-Calendar ID per baris. Kalender-kalender itu harus dibagikan (minimal
-*See all event details*) ke akun Google di langkah 2.
-
-Cron `rentalKelasImport` berjalan tiap 2 jam dan menarik jendela **7 hari ke
-belakang sampai 120 hari ke depan**. Event kelas yang dihapus dari Calendar
-ikut menonaktifkan bloknya.
-
-Kalau pembacaan satu kalender **gagal**, tidak ada blok yang dinonaktifkan —
-menganggap "tidak terbaca" sebagai "tidak ada kelas" akan membuka seluruh ruang
-tepat di jam kuliah.
-
-Kelas baru yang bertabrakan dengan booking aktif **tidak membatalkan booking
-otomatis**: pesanannya ditandai `DITOLAK_KONFLIK` di dashboard dan diumumkan ke
-grup Telegram.
+Tidak perlu apa pun di sini kalau kalender kelas memakai **link iCal** — lihat
+[Kalender kelas & Kalender Terpadu](#kalender-kelas--kalender-terpadu). OAuth
+di atas hanya dibutuhkan untuk kalender kelas bersumber *Calendar ID*, dan untuk
+Calendar Peminjaman, Sheet, serta Drive.
 
 ### 5. Nyalakan
 
@@ -335,7 +470,7 @@ Centang **Nyalakan sinkronisasi Google** → Simpan. Periksa
 ## Setup Telegram
 
 1. Chat [@BotFather](https://t.me/BotFather) → `/newbot` → catat tokennya.
-2. Dashboard → Peminjaman → Pengaturan → Telegram → tempel token, centang
+2. Dashboard admin peminjaman → Pengaturan → Telegram → tempel token, centang
    **Nyalakan notifikasi Telegram** → **Simpan**.
 3. Tambahkan bot ke grup admin. Kirim `/id` di grup itu — bot membalas Chat ID
    dan User ID.
@@ -373,7 +508,7 @@ yang benar — tidak ditebak-tebak milik pesanan siapa.
 4. Ganti `APP_URL` di baris paling atas dengan domain aplikasi.
 5. Simpan → jalankan `pasangSemua()` → izinkan akses saat diminta.
 6. Muat ulang spreadsheet → menu **Peminjaman** muncul →
-   **Isi token sinkronisasi** → tempel token dari Dashboard Admin → Peminjaman
+   **Isi token sinkronisasi** → tempel token dari Dashboard admin peminjaman
    → Pengaturan → *Token sinkronisasi Sheet*.
 7. Menu **Peminjaman → Tarik daftar Ruang & Alat**.
 
@@ -409,14 +544,18 @@ ditempati orang tidak boleh diberikan dua kali.
 ## Checklist go-live
 
 - [ ] Jalankan migrasi: `npm run migrations:up --prefix apps/pocketbase`
-- [ ] Hapus katalog contoh (2 ruang + 4 alat) dari Dashboard → Peminjaman → Katalog
+- [ ] Masuk `/peminjaman/admin/masuk` sebagai pemilik platform → buat akun Super Admin, Admin Operasional, Admin Jadwal
+- [ ] Atur logo, nama, dan (opsional) foto hero
+- [ ] Hapus katalog contoh (2 ruang + 4 alat) dari Dashboard admin peminjaman → Katalog
 - [ ] Isi nama perusahaan, tagline, logo
 - [ ] Isi **nomor WhatsApp admin** dan **detail rekening/QRIS** ⚠️ kosong secara sengaja di seed
 - [ ] Periksa dua template pesan WhatsApp
 - [ ] Isi katalog ruang: foto, alamat, kapasitas, fasilitas, harga, jam operasional, butuh penjaga
 - [ ] Isi katalog alat: foto, SKU, stok, harga, satuan, aturan
 - [ ] Susun rekomendasi terkait (maksimal 4 yang tampil per item)
-- [ ] Isi Google Calendar ID kelas per ruang
+- [ ] Daftarkan kalender kelas (Impor dari Kelas PCV, atau tempel link iCal) dan pilih ruangnya
+- [ ] Cek Kalender Terpadu: jadwal kelas sudah memblok ruang yang benar
+- [ ] (Opsional) Langgan feed `.ics` di Google Calendar admin
 - [ ] Sambungkan Google (Calendar Peminjaman, Sheet, folder Drive)
 - [ ] Sambungkan Telegram + pasang webhook + tes kirim
 - [ ] Pasang Apps Script di spreadsheet
@@ -430,7 +569,8 @@ ditempati orang tidak boleh diberikan dua kali.
 ## Test
 
 ```bash
-npm test --prefix apps/pocketbase
+npm test --prefix apps/pocketbase          # aturan konflik jadwal
+npm run check:soal --prefix apps/web       # Enter di teks soal lomba
 ```
 
 43 kasus, menguji `pb_hooks/rental-aturan.js` tanpa server dan tanpa database:
@@ -473,3 +613,16 @@ File → Settings → Time zone spreadsheet belum diset ke Jakarta.
 **Checkout dijawab "Ketersediaan berubah sejak kamu memilih jadwalnya"**
 Bekerja sebagaimana mestinya: ada yang lebih dulu mengambil slot/unit itu di
 antara saat keranjang diperiksa dan saat checkout ditekan.
+
+**Admin tidak bisa masuk: "Akun ini tidak punya akses ke dashboard peminjaman"**
+Akun PCV biasa (bukan `super_admin`) memang tidak diterima. Buatkan akun admin
+peminjaman di menu Akun Admin.
+
+**Kalender kelas berstatus GAGAL "HTTP 404"**
+Link iCal-nya salah, atau sudah di-*setel ulang* di Google Calendar. Ambil alamat
+rahasia yang baru dan perbarui.
+
+**Ada "N jadwal perlu pemetaan ruang"**
+Kalender itu tidak punya ruang bawaan dan lokasi jadwalnya tidak menyebut nama
+ruang mana pun. Pilih ruangnya di kalender tersebut, atau samakan penulisan
+lokasi di Google Calendar dengan nama ruang.

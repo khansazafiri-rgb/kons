@@ -17,7 +17,7 @@
 // ===========================================================================
 routerAdd("GET", "/api/rental/admin/ringkasan", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, [])) return SH.tolakAkses(e, []);
 
   const A = SH.A;
   const sekarang = Date.now();
@@ -71,7 +71,7 @@ routerAdd("GET", "/api/rental/admin/ringkasan", (e) => {
 // ===========================================================================
 routerAdd("GET", "/api/rental/admin/pesanan", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, [])) return SH.tolakAkses(e, []);
 
   const q = e.request.url.query();
   const status = String(q.get("status") || "").trim();
@@ -115,7 +115,7 @@ routerAdd("GET", "/api/rental/admin/pesanan", (e) => {
 // ===========================================================================
 routerAdd("GET", "/api/rental/admin/teks-wa", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, [])) return SH.tolakAkses(e, []);
 
   const kode = String(e.request.url.query().get("kode") || "");
   let order = null;
@@ -138,7 +138,7 @@ routerAdd("GET", "/api/rental/admin/teks-wa", (e) => {
 // membebaskan slot, menghapus event Calendar, dan meminta alasan.
 routerAdd("POST", "/api/rental/admin/status", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, ["OPERASIONAL"])) return SH.tolakAkses(e, ["OPERASIONAL"]);
 
   const body = e.requestInfo().body || {};
   const status = String(body.status || "").toUpperCase();
@@ -204,7 +204,7 @@ routerAdd("POST", "/api/rental/admin/status", (e) => {
 // Telegram (yang memanggil fungsi yang sama lewat rental-telegram.pb.js).
 routerAdd("POST", "/api/rental/admin/batal", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, ["OPERASIONAL"])) return SH.tolakAkses(e, ["OPERASIONAL"]);
 
   const body = e.requestInfo().body || {};
   const alasan = String(body.alasan || "").trim();
@@ -335,7 +335,7 @@ routerAdd("POST", "/api/rental/admin/batal", (e) => {
 routerAdd("POST", "/api/rental/admin/reschedule", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const A = SH.A;
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, ["OPERASIONAL", "JADWAL"])) return SH.tolakAkses(e, ["OPERASIONAL", "JADWAL"]);
 
   const body = e.requestInfo().body || {};
   let oi = null;
@@ -426,7 +426,7 @@ routerAdd("POST", "/api/rental/admin/reschedule", (e) => {
 // yang login.
 routerAdd("POST", "/api/rental/admin/verifikasi", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, ["OPERASIONAL"])) return SH.tolakAkses(e, ["OPERASIONAL"]);
 
   const body = e.requestInfo().body || {};
   const terima = !!body.terima;
@@ -489,7 +489,7 @@ routerAdd("POST", "/api/rental/admin/verifikasi", (e) => {
 routerAdd("GET", "/api/rental/admin/kalender", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const A = SH.A;
-  if (!SH.isAdminPcv(e)) return e.json(403, { message: "Khusus admin." });
+  if (!SH.bolehRental(e, [])) return SH.tolakAkses(e, []);
 
   const q = e.request.url.query();
   const room = SH.cariRuang(e.app, String(q.get("ruang") || ""));

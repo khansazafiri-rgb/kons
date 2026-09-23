@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Award, CheckCircle2, Clock, Trophy, XCircle } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import { identitasEvent, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
+import { teksKeHtml } from '@/lib/teksSoal';
 
 // HASIL LOMBA (/event/:slug/hasil)
 //
@@ -172,7 +173,7 @@ export default function EventHasil() {
                     )}
                     <div
                       className="mt-3 text-[15px] leading-relaxed text-stone-800 [&_em]:italic [&_p]:mb-2"
-                      dangerouslySetInnerHTML={{ __html: s.teks || '' }}
+                      dangerouslySetInnerHTML={{ __html: teksKeHtml(s.teks) }}
                     />
 
                     <ul className="mt-3 space-y-1.5">
@@ -193,7 +194,7 @@ export default function EventHasil() {
                               }`}
                             >
                               <span className="mt-0.5 font-bold text-stone-600">{k}.</span>
-                              <span className="min-w-0 flex-1 text-stone-800">{s.opsi[k]}</span>
+                              <span className="min-w-0 flex-1 whitespace-pre-line text-stone-800">{s.opsi[k]}</span>
                               {kunci && <span className="shrink-0 text-[11px] font-semibold text-emerald-700">kunci</span>}
                               {punyaku && !kunci && <span className="shrink-0 text-[11px] font-semibold text-red-700">jawabanmu</span>}
                             </li>
@@ -208,7 +209,7 @@ export default function EventHasil() {
                         </p>
                         <div
                           className="mt-1.5 text-[13px] leading-relaxed text-stone-700 [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-2"
-                          dangerouslySetInnerHTML={{ __html: s.pembahasan }}
+                          dangerouslySetInnerHTML={{ __html: teksKeHtml(s.pembahasan) }}
                         />
                       </div>
                     )}

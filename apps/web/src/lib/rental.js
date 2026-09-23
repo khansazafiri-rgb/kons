@@ -14,7 +14,7 @@
 //     bisa basi berjam-jam, dan wajib diperiksa ulang ke server sebelum
 //     checkout - itu yang dilakukan periksaKeranjang().
 
-import pb from '@/lib/pocketbaseClient';
+import pbr from '@/lib/rentalClient';
 
 const KUNCI_KERANJANG = 'pcv.rental.keranjang.v1';
 const KUNCI_BIODATA = 'pcv.rental.biodata.v1';
@@ -23,12 +23,13 @@ const KUNCI_BIODATA = 'pcv.rental.biodata.v1';
 // Pemanggil API
 // ---------------------------------------------------------------------------
 //
-// Memakai pb.send() supaya token admin (kalau yang membuka memang admin PCV)
-// ikut terbawa sendiri - itulah yang membuat admin bisa melihat katalog
-// sebelum modulnya dinyalakan untuk umum.
+// Memakai klien PocketBase KHUSUS peminjaman (rentalClient), bukan klien PCV.
+// Token admin peminjaman ikut terbawa sendiri - itu yang membuat admin bisa
+// melihat katalog sebelum modulnya dinyalakan untuk umum - dan sesi admin PCV
+// yang kebetulan terbuka di peramban yang sama TIDAK ikut terbawa.
 export async function panggil(path, { method = 'GET', body, query } = {}) {
   try {
-    return await pb.send(path, {
+    return await pbr.send(path, {
       method,
       query,
       body,
@@ -81,6 +82,12 @@ export const adminSyncStatus = () => panggil('/api/rental/admin/sync/status');
 export const adminSyncUlang = (body = {}) => panggil('/api/rental/admin/sync/ulang', { method: 'POST', body });
 export const adminTelegramPasang = () => panggil('/api/rental/admin/telegram/pasang', { method: 'POST', body: {} });
 export const adminTelegramUji = () => panggil('/api/rental/admin/telegram/uji');
+export const adminSaya = () => panggil('/api/rental/admin/saya');
+export const adminKalenderTerpadu = (q) => panggil('/api/rental/admin/kalender-terpadu', { query: q });
+export const kalenderKelasSinkron = (id) => panggil('/api/rental/admin/kalender-kelas/sinkron', { method: 'POST', body: { id: id || '' } });
+export const kalenderKelasUji = (url) => panggil('/api/rental/admin/kalender-kelas/uji', { method: 'POST', body: { url } });
+export const kalenderKelasDariPcv = () => panggil('/api/rental/admin/kalender-kelas/dari-pcv');
+export const adminAntreanJalankan = () => panggil('/api/rental/admin/antrean/jalankan', { method: 'POST', body: {} });
 
 // ---------------------------------------------------------------------------
 // Keranjang
@@ -233,14 +240,16 @@ export const rupiah = (n) => {
 
 export const SATUAN = { JAM: 'per jam', HARI: 'per hari', SESI: 'per sesi' };
 
+// Dibedakan lewat tingkat merah (muda -> penuh -> tua), putih, dan abu hangat:
+// templat web peminjaman merah-putih seperti web PCV, tanpa hijau/biru/kuning.
 export const STATUS_PESANAN = {
-  MENUNGGU_PEMBAYARAN: { teks: 'Menunggu pembayaran', cls: 'bg-gold-100 text-gold-600 border-gold-200' },
-  BUKTI_DIUNGGAH: { teks: 'Bukti diunggah', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
-  TERKONFIRMASI: { teks: 'Terkonfirmasi', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  SEDANG_DIPINJAM: { teks: 'Sedang dipinjam', cls: 'bg-maroon-50 text-maroon-600 border-maroon-200' },
+  MENUNGGU_PEMBAYARAN: { teks: 'Menunggu pembayaran', cls: 'bg-sewa/10 text-sewa border-sewa/20' },
+  BUKTI_DIUNGGAH: { teks: 'Bukti diunggah', cls: 'bg-white text-sewa border-sewa/50' },
+  TERKONFIRMASI: { teks: 'Terkonfirmasi', cls: 'bg-sewa text-white border-sewa' },
+  SEDANG_DIPINJAM: { teks: 'Sedang dipinjam', cls: 'bg-sewa-tua text-white border-sewa-tua' },
   SELESAI: { teks: 'Selesai', cls: 'bg-stone-100 text-stone-600 border-stone-200' },
-  DITOLAK: { teks: 'Bukti ditolak', cls: 'bg-red-50 text-red-700 border-red-200' },
-  DIBATALKAN: { teks: 'Dibatalkan', cls: 'bg-stone-100 text-stone-500 border-stone-200' },
+  DITOLAK: { teks: 'Bukti ditolak', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+  DIBATALKAN: { teks: 'Dibatalkan', cls: 'bg-stone-100 text-stone-400 border-stone-200' },
 };
 
 export const statusLabel = (kode) =>
@@ -326,3 +335,69 @@ export async function salinTeks(teks) {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Warna merek
+// ---------------------------------------------------------------------------
+//
+// Web peminjaman memakai templat MERAH-PUTIH PCV, sama persis dengan web FK:
+// maroon-600 (#8E0100) untuk warna utama dan maroon-700 (#740100) untuk
+// hover/aktif. Sengaja TIDAK bisa diatur dari dashboard - warnanya harus sama
+// dengan PCV, bukan pilihan tiap admin.
+//
+// Ditulis sebagai triplet RGB di variabel CSS (--sewa-rgb) karena Tailwind
+// membutuhkannya untuk modifier transparansi seperti bg-sewa/10.
+
+export const WARNA_MEREK = '#8E0100';
+
+export function variabelMerek() {
+  return {
+    '--sewa-rgb': '142 1 0',
+    '--sewa-tua-rgb': '116 1 0',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Pita tanggal
+// ---------------------------------------------------------------------------
+//
+// Pemilih jadwal memakai deretan "chip" tanggal, bukan kalender bawaan
+// peramban: pilihan yang paling sering (hari ini s/d dua minggu ke depan)
+// langsung terlihat dan bisa diketuk sekali, pola yang sama dipakai aplikasi
+// pemesanan tiket & aktivitas.
+const HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+export function pitaTanggal(mulai, jumlah = 14) {
+  const out = [];
+  const [y, m, d] = String(mulai || tanggalWibHariIni()).split('-').map(Number);
+  for (let i = 0; i < jumlah; i++) {
+    // Dihitung di UTC dari tanggal polos, supaya zona waktu perangkat tidak
+    // pernah menggeser harinya.
+    const t = new Date(Date.UTC(y, m - 1, d + i));
+    out.push({
+      tanggal: t.toISOString().slice(0, 10),
+      hari: HARI_PENDEK[t.getUTCDay()],
+      tgl: t.getUTCDate(),
+      bulan: BULAN_PENDEK[t.getUTCMonth()],
+      akhirPekan: t.getUTCDay() === 0 || t.getUTCDay() === 6,
+    });
+  }
+  return out;
+}
+
+// "2 jam 30 menit" dari dua waktu ISO.
+export function durasiKalimat(mulai, selesai) {
+  const menit = Math.round((new Date(selesai) - new Date(mulai)) / 60000);
+  if (!Number.isFinite(menit) || menit <= 0) return '';
+  const j = Math.floor(menit / 60);
+  const m = menit % 60;
+  if (j >= 24 && m === 0 && j % 24 === 0) return `${j / 24} hari`;
+  return [j ? `${j} jam` : '', m ? `${m} menit` : ''].filter(Boolean).join(' ');
+}
+
+export const PERAN_ADMIN = {
+  SUPER_ADMIN: { teks: 'Super Admin', ket: 'Semua menu, termasuk pengaturan & akun admin' },
+  OPERASIONAL: { teks: 'Admin Operasional', ket: 'Pesanan, bukti bayar, pembatalan' },
+  JADWAL: { teks: 'Admin Jadwal', ket: 'Kalender kelas, blok, penjaga, reschedule' },
+};

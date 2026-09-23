@@ -3,7 +3,7 @@ import {
   AlertCircle, CalendarClock, Check, Copy, ExternalLink, Loader2,
   MessageCircle, Search, Upload, X,
 } from 'lucide-react';
-import pb from '@/lib/pocketbaseClient';
+import pb from '@/lib/rentalClient';
 import {
   adminBatal, adminPesanan, adminReschedule, adminRingkasan, adminTeksWa,
   adminUbahStatus, adminVerifikasi, jadwalKalimat, rupiah, salinTeks, statusLabel,
@@ -33,19 +33,28 @@ const STATUS_UBAH = ['MENUNGGU_PEMBAYARAN', 'BUKTI_DIUNGGAH', 'TERKONFIRMASI', '
 
 function Kpi({ label, nilai, nada }) {
   const warna = nada === 'urgen'
-    ? 'border-gold-200 bg-gold-100 text-gold-600'
+    ? 'border-sewa/20 bg-sewa/5 text-sewa-tua'
     : nada === 'bahaya'
       ? 'border-red-200 bg-red-50 text-red-700'
-      : 'border-alba-200 bg-alba-50 text-maroon-600';
+      : 'border-alba-200 bg-white text-sewa';
   return (
-    <div className={`rounded-2xl border p-4 shadow-card ${warna}`}>
-      <p className="font-display text-2xl font-semibold">{nilai}</p>
+    <div className={`rounded-2xl border p-4 shadow-lembut ${warna}`}>
+      <p className="font-sewa text-2xl font-semibold">{nilai}</p>
       <p className="mt-0.5 text-[12px] font-semibold leading-snug text-stone-600">{label}</p>
     </div>
   );
 }
 
 function Bukti({ bukti, onVerifikasi, sibuk }) {
+  // Berkas bukti bayar DILINDUNGI (memuat nomor rekening & nama pengirim):
+  // alamatnya saja tidak cukup untuk membukanya, harus disertai token berkas
+  // berumur pendek yang cuma bisa diminta admin yang sedang login.
+  const [tokenBerkas, setTokenBerkas] = useState('');
+  useEffect(() => {
+    if (!bukti?.some((b) => b.berkas)) return;
+    pb.files.getToken().then(setTokenBerkas).catch(() => setTokenBerkas(''));
+  }, [bukti]);
+
   if (!bukti?.length) {
     return <p className="text-[13px] text-stone-500">Belum ada bukti pembayaran.</p>;
   }
@@ -55,14 +64,18 @@ function Bukti({ bukti, onVerifikasi, sibuk }) {
         // Thumbnail diambil dari penyimpanan PocketBase, bukan dari Drive:
         // tautan Drive menuntut izin Google dan tidak akan tampil sebagai
         // gambar di dashboard. Tautan Drive-nya tetap disediakan di sebelahnya.
-        const src = b.berkas
-          ? pb.files.getURL({ id: b.id, collectionId: 'rental_proofs', collectionName: 'rental_proofs' }, b.berkas, { thumb: '100x100' })
-          : '';
+        const rec = { id: b.id, collectionId: 'rental_proofs', collectionName: 'rental_proofs' };
+        const src = b.berkas && tokenBerkas ? pb.files.getURL(rec, b.berkas, { thumb: '100x100', token: tokenBerkas }) : '';
+        const penuh = b.berkas && tokenBerkas ? pb.files.getURL(rec, b.berkas, { token: tokenBerkas }) : '';
         return (
-          <li key={b.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-alba-200 bg-alba-50 p-3">
-            {src
-              ? <img src={src} alt="Bukti" className="h-14 w-14 rounded-lg object-cover" />
-              : <div className="grid h-14 w-14 place-items-center rounded-lg bg-alba-100 text-[10px] text-stone-400">PDF</div>}
+          <li key={b.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-alba-200 bg-white p-3">
+            {penuh ? (
+              <a href={penuh} target="_blank" rel="noreferrer" title="Buka ukuran penuh">
+                {/image\//.test(b.mime || '') || !b.mime
+                  ? <img src={src} alt="Bukti" className="h-14 w-14 rounded-lg object-cover ring-1 ring-alba-200" />
+                  : <span className="grid h-14 w-14 place-items-center rounded-lg bg-alba-100 text-[10px] font-bold text-stone-500">PDF</span>}
+              </a>
+            ) : <div className="grid h-14 w-14 place-items-center rounded-lg bg-alba-50 text-[10px] text-stone-400">…</div>}
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-stone-700">{b.namaBerkas || 'bukti'}</p>
@@ -72,14 +85,14 @@ function Bukti({ bukti, onVerifikasi, sibuk }) {
               </p>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
-                  b.verifikasi === 'DITERIMA' ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  b.verifikasi === 'DITERIMA' ? 'border-sewa/20 bg-sewa/5 text-sewa'
                     : b.verifikasi === 'DITOLAK' ? 'border-red-200 bg-red-50 text-red-700'
-                      : 'border-gold-200 bg-gold-100 text-gold-600'
+                      : 'border-sewa/20 bg-sewa/5 text-sewa-tua'
                 }`}>
                   {b.verifikasi}
                 </span>
                 {b.driveUrl && (
-                  <a href={b.driveUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-maroon-600 underline">
+                  <a href={b.driveUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-sewa underline">
                     Drive <ExternalLink size={11} />
                   </a>
                 )}
@@ -94,7 +107,7 @@ function Bukti({ bukti, onVerifikasi, sibuk }) {
                 <button
                   disabled={sibuk}
                   onClick={() => onVerifikasi(b.id, true)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-[12px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg bg-sewa px-3 py-2 text-[12px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50"
                 >
                   <Check size={13} /> Terima
                 </button>
@@ -177,13 +190,13 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
   }
 
   return (
-    <li className="rounded-2xl border border-alba-200 bg-alba-50 shadow-card">
+    <li className="rounded-2xl border border-alba-200 bg-white shadow-lembut">
       <button
         onClick={() => setBuka((b) => !b)}
         className="flex w-full flex-wrap items-center justify-between gap-3 p-4 text-left"
       >
         <div className="min-w-0">
-          <p className="font-display text-[15px] font-semibold text-stone-800">
+          <p className="font-sewa text-[15px] font-semibold text-stone-800">
             {p.kode}
             <span className="ml-2 text-[13px] font-normal text-stone-600">{p.nama}</span>
           </p>
@@ -192,7 +205,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="font-display text-[15px] font-semibold text-stone-800">{rupiah(p.total)}</span>
+          <span className="font-sewa text-[15px] font-semibold text-stone-800">{rupiah(p.total)}</span>
           <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${st.cls}`}>{st.teks}</span>
         </div>
       </button>
@@ -225,7 +238,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
                         <>
                           <button
                             onClick={() => setReschedule(reschedule?.id === b.id ? null : { id: b.id, mulai: b.mulai.slice(0, 16), selesai: b.selesai.slice(0, 16) })}
-                            className="inline-flex items-center gap-1 rounded-lg border border-alba-300 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
+                            className="inline-flex items-center gap-1 rounded-lg border border-alba-300 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa"
                           >
                             <CalendarClock size={12} /> Pindah
                           </button>
@@ -280,7 +293,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
                           });
                           setReschedule(null);
                         }, 'Jadwal dipindah.')}
-                        className="rounded-lg bg-maroon-600 px-3.5 py-2 text-[12px] font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-50"
+                        className="rounded-lg bg-sewa px-3.5 py-2 text-[12px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50"
                       >
                         Simpan jadwal
                       </button>
@@ -306,7 +319,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
                 }}
               />
             </div>
-            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-alba-300 px-3.5 py-2 text-[12px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600">
+            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-alba-300 px-3.5 py-2 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa">
               <Upload size={13} /> Unggah bukti dari dashboard
               <input
                 type="file"
@@ -321,7 +334,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
             <button
               disabled={sibuk}
               onClick={salinWa}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-sewa px-4 py-2.5 text-[12px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50"
             >
               <Copy size={13} /> {disalin ? 'Teks tersalin!' : 'Salin teks WhatsApp'}
             </button>
@@ -330,7 +343,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
               href={`https://wa.me/${String(p.wa).replace(/\D/g, '')}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa"
             >
               <MessageCircle size={13} /> Buka chat pelanggan
             </a>
@@ -342,7 +355,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
                 () => adminUbahStatus({ orderId: p.id, status: ev.target.value }),
                 'Status diperbarui.',
               )}
-              className="rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-[12px] font-semibold text-stone-700 disabled:opacity-50"
+              className="rounded-xl border border-alba-300 bg-white px-3 py-2.5 text-[12px] font-semibold text-stone-700 disabled:opacity-50"
             >
               {STATUS_UBAH.map((s) => <option key={s} value={s}>{statusLabel(s).teks}</option>)}
               {p.status === 'DIBATALKAN' && <option value="DIBATALKAN">Dibatalkan</option>}
@@ -366,7 +379,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
           </div>
 
           {teksWa && (
-            <pre className="whitespace-pre-wrap rounded-xl border border-alba-200 bg-alba-100 p-4 text-[12px] leading-relaxed text-stone-700">
+            <pre className="whitespace-pre-wrap rounded-xl border border-alba-200 bg-alba-50 p-4 text-[12px] leading-relaxed text-stone-700">
               {teksWa}
             </pre>
           )}
@@ -380,7 +393,9 @@ export default function RentalPesananTab({ lapor }) {
   const [kpi, setKpi] = useState(null);
   const [daftar, setDaftar] = useState([]);
   const [status, setStatus] = useState('SEMUA');
-  const [cari, setCari] = useState('');
+  // Tautan "Buka Pesanan" dari Telegram, Calendar, dan Sheet membawa ?kode=
+  // - pesanannya langsung tersaring, tidak perlu dicari lagi.
+  const [cari, setCari] = useState(() => new URLSearchParams(window.location.search).get('kode') || '');
   const [memuat, setMemuat] = useState(true);
 
   const segarkan = useCallback(async () => {
@@ -425,13 +440,13 @@ export default function RentalPesananTab({ lapor }) {
             value={cari}
             onChange={(ev) => setCari(ev.target.value)}
             placeholder="Cari kode booking, nama, atau nomor WhatsApp…"
-            className="w-full rounded-xl border border-alba-300 bg-alba-50 py-2.5 pl-9 pr-3 text-sm text-stone-700 focus:border-maroon-400 focus:outline-none"
+            className="w-full rounded-xl border border-alba-300 bg-white py-2.5 pl-9 pr-3 text-sm text-stone-700 focus:border-sewa focus:outline-none"
           />
         </label>
         <select
           value={status}
           onChange={(ev) => setStatus(ev.target.value)}
-          className="rounded-xl border border-alba-300 bg-alba-50 px-3 py-2.5 text-sm font-semibold text-stone-700"
+          className="rounded-xl border border-alba-300 bg-white px-3 py-2.5 text-sm font-semibold text-stone-700"
         >
           {STATUS_FILTER.map((s) => (
             <option key={s} value={s}>{s === 'SEMUA' ? 'Semua status' : statusLabel(s).teks}</option>
@@ -439,7 +454,7 @@ export default function RentalPesananTab({ lapor }) {
         </select>
         <button
           onClick={segarkan}
-          className="rounded-xl border border-alba-300 px-4 py-2.5 text-sm font-semibold text-stone-600 hover:border-maroon-300 hover:text-maroon-600"
+          className="rounded-xl border border-alba-300 px-4 py-2.5 text-sm font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa"
         >
           Segarkan
         </button>

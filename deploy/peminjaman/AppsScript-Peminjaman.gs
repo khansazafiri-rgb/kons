@@ -35,7 +35,7 @@
 var APP_URL = 'https://GANTI-DENGAN-DOMAIN-ANDA';
 
 /**
- * Token sinkronisasi dari Dashboard Admin → Peminjaman → Pengaturan →
+ * Token sinkronisasi dari dashboard admin peminjaman (/peminjaman/admin) → Pengaturan →
  * "Token sinkronisasi Sheet".
  *
  * Disimpan di Script Properties, BUKAN di dalam berkas ini: siapa pun yang

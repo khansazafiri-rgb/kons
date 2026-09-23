@@ -133,7 +133,7 @@ function deskripsiEvent(appUrl, order, baris) {
   garis.push("Keperluan: " + (order.getString("purpose") || "-"));
   garis.push("Status: " + order.getString("status"));
   if (baris) garis.push("Item: " + baris.nama + (baris.jumlah > 1 ? " (" + baris.jumlah + "x)" : ""));
-  if (appUrl) garis.push("Dashboard: " + appUrl + "/admin?tab=Peminjaman&kode=" + order.getString("bookingCode"));
+  if (appUrl) garis.push("Dashboard: " + appUrl + "/peminjaman/admin?menu=pesanan&kode=" + order.getString("bookingCode"));
   // PRD bagian 13.2 melarang menaruh bukti transfer atau data sensitif di
   // Calendar. Nomor WhatsApp dan email pelanggan karena itu TIDAK ikut - event
   // kalender sering dibagikan lebih luas daripada dashboard.
@@ -211,6 +211,7 @@ function calendarKelas(s, calendarId, mulai, selesai) {
     daftar.push({
       id: String(ev.id || ""),
       judul: String(ev.summary || "Kelas"),
+      lokasi: String(ev.location || ""),
       mulai: a,
       selesai: b,
     });
@@ -350,7 +351,7 @@ function barisSheetPesanan(app, order, baris, appUrl) {
     order.getString("cancelReason") || "",
     order.getInt("syncVersion"),
     new Date().toISOString(),
-    appUrl ? appUrl + "/admin?tab=Peminjaman&kode=" + order.getString("bookingCode") : "",
+    appUrl ? appUrl + "/peminjaman/admin?menu=pesanan&kode=" + order.getString("bookingCode") : "",
   ];
 }
 
@@ -568,7 +569,7 @@ function pesanPesananBaru(s, order, baris, teksWa, appUrl) {
   garis.push("Balas pesan ini dengan FOTO bukti transfer untuk menautkannya ke pesanan ini.");
 
   const tombol = [[
-    { text: "Buka Pesanan", url: (appUrl || "") + "/admin?tab=Peminjaman&kode=" + order.getString("bookingCode") },
+    { text: "Buka Pesanan", url: (appUrl || "") + "/peminjaman/admin?menu=pesanan&kode=" + order.getString("bookingCode") },
   ], [
     { text: "Batalkan", callback_data: "batal:" + order.id },
     { text: "Tandai Terverifikasi", callback_data: "verif:" + order.id },

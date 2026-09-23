@@ -9,6 +9,7 @@
    "start": "vite preview --host :: --port 3000",
    "lint": "eslint . --quiet",
    "check:teks": "node scripts/check-text-repair.mjs",
+   "check:soal": "node scripts/check-teks-soal.mjs",
    "lint:warn": "eslint ."
  },
  "dependencies": {

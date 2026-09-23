@@ -5,6 +5,7 @@ import {
 import pb from '@/lib/pocketbaseClient';
 import { jamMundur, rupiah, tanggalPanjang } from '@/lib/eventLomba';
 import TandaAirUjian from '@/components/TandaAirUjian';
+import { teksKeHtml } from '@/lib/teksSoal';
 
 // PREVIEW MODE (PRD Revisi 2 bagian 4)
 //
@@ -189,7 +190,7 @@ function PreviewUjian({ ev, soal }) {
           )}
           <div
             className="text-[15px] leading-relaxed text-stone-800 [&_p]:mb-2"
-            dangerouslySetInnerHTML={{ __html: aktif.questionText || '' }}
+            dangerouslySetInnerHTML={{ __html: teksKeHtml(aktif.questionText) }}
           />
         </div>
 
@@ -210,7 +211,7 @@ function PreviewUjian({ ev, soal }) {
                 }`}>
                   {k}
                 </span>
-                <span className="min-w-0 flex-1 text-sm text-stone-800">{aktif[`option${k}`]}</span>
+                <span className="min-w-0 flex-1 whitespace-pre-line text-sm text-stone-800">{aktif[`option${k}`]}</span>
               </button>
             );
           })}
