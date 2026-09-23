@@ -64,10 +64,10 @@ export default function RentalAdminMasuk() {
   }
 
   return (
-    <div style={variabelMerek(konfigurasi?.brandColor)} className="grid min-h-screen bg-slate-50 font-sewa text-slate-800 antialiased lg:grid-cols-2">
+    <div style={variabelMerek()} className="grid min-h-screen bg-alba-50 font-sewa text-stone-800 antialiased lg:grid-cols-2">
       {/* Panel merek */}
-      <div className="relative hidden overflow-hidden bg-slate-900 lg:block">
-        <div className="absolute inset-0 bg-gradient-to-br from-sewa-tua via-sewa/80 to-slate-900" aria-hidden="true" />
+      <div className="relative hidden overflow-hidden bg-sewa lg:block">
+        <div className="absolute inset-0 bg-gradient-to-br from-sewa-tua via-sewa/80 to-maroon-900" aria-hidden="true" />
         <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-white/10" aria-hidden="true" />
         <div className="absolute -bottom-32 left-10 h-80 w-80 rounded-full bg-white/5" aria-hidden="true" />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
@@ -89,10 +89,10 @@ export default function RentalAdminMasuk() {
       <div className="flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-sm">
           <div className="lg:hidden"><LambangMerek konfigurasi={konfigurasi} ukuran="lg" /></div>
-          <h2 className="mt-8 text-3xl font-extrabold tracking-tight text-slate-900 lg:mt-0">
+          <h2 className="mt-8 text-3xl font-extrabold tracking-tight text-stone-900 lg:mt-0">
             {mode === 'pemilik' ? 'Masuk sebagai pemilik' : 'Masuk admin'}
           </h2>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-stone-500">
             {mode === 'pemilik'
               ? 'Pakai akun super admin PCV Classroom. Khusus pemilik platform.'
               : 'Pakai akun admin peminjaman yang dibuatkan super admin.'}
@@ -100,18 +100,18 @@ export default function RentalAdminMasuk() {
 
           <form onSubmit={masuk} className="mt-8 space-y-4">
             <label className="block">
-              <span className="mb-1.5 block text-[13px] font-bold text-slate-700">Email</span>
-              <span className="flex items-center gap-3 rounded-2xl border border-slate-300 bg-white px-4 py-3 focus-within:border-sewa focus-within:ring-2 focus-within:ring-sewa/20">
-                <Mail size={18} className="text-slate-400" />
+              <span className="mb-1.5 block text-[13px] font-bold text-stone-700">Email</span>
+              <span className="flex items-center gap-3 rounded-2xl border border-alba-300 bg-white px-4 py-3 focus-within:border-sewa focus-within:ring-2 focus-within:ring-sewa/20">
+                <Mail size={18} className="text-stone-400" />
                 <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-transparent text-[15px] font-semibold focus:outline-none" />
               </span>
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-[13px] font-bold text-slate-700">Kata sandi</span>
-              <span className="flex items-center gap-3 rounded-2xl border border-slate-300 bg-white px-4 py-3 focus-within:border-sewa focus-within:ring-2 focus-within:ring-sewa/20">
-                <Lock size={18} className="text-slate-400" />
+              <span className="mb-1.5 block text-[13px] font-bold text-stone-700">Kata sandi</span>
+              <span className="flex items-center gap-3 rounded-2xl border border-alba-300 bg-white px-4 py-3 focus-within:border-sewa focus-within:ring-2 focus-within:ring-sewa/20">
+                <Lock size={18} className="text-stone-400" />
                 <input type={lihat ? 'text' : 'password'} required autoComplete="current-password" value={sandi} onChange={(e) => setSandi(e.target.value)} className="w-full bg-transparent text-[15px] font-semibold focus:outline-none" />
-                <button type="button" onClick={() => setLihat((l) => !l)} className="text-slate-400 hover:text-slate-700" aria-label={lihat ? 'Sembunyikan sandi' : 'Lihat sandi'}>
+                <button type="button" onClick={() => setLihat((l) => !l)} className="text-stone-400 hover:text-stone-700" aria-label={lihat ? 'Sembunyikan sandi' : 'Lihat sandi'}>
                   {lihat ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </span>
@@ -124,11 +124,11 @@ export default function RentalAdminMasuk() {
             </button>
           </form>
 
-          <div className="mt-8 space-y-3 border-t border-slate-200 pt-6 text-center text-[13px]">
+          <div className="mt-8 space-y-3 border-t border-alba-200 pt-6 text-center text-[13px]">
             <button
               type="button"
               onClick={() => { setMode((m) => (m === 'admin' ? 'pemilik' : 'admin')); setGalat(''); }}
-              className="font-bold text-slate-500 hover:text-slate-900"
+              className="font-bold text-stone-500 hover:text-stone-900"
             >
               {mode === 'admin' ? 'Pemilik platform? Masuk dengan akun PCV' : '← Kembali ke masuk admin peminjaman'}
             </button>

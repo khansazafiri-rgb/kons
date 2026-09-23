@@ -22,14 +22,16 @@ import { kalenderKelasDariPcv, kalenderKelasSinkron, kalenderKelasUji } from '@/
 //   3. IMPOR DARI KELAS PCV. Kelas-kelas di menu "Kelas & Reminder" PCV sudah
 //      punya link iCal-nya; cukup dicentang, tidak perlu disalin satu-satu.
 
-const WARNA = ['#0EA5E9', '#8B5CF6', '#F59E0B', '#10B981', '#EF4444', '#EC4899', '#14B8A6', '#6366F1', '#84CC16', '#F97316'];
+// Gradasi merah PCV + abu hangat. Kelas tetap bisa dibedakan satu sama lain,
+// tapi warnanya tidak keluar dari templat merah-putih web ini.
+const WARNA = ['#8E0100', '#D28A84', '#5A0100', '#B54038', '#78716C', '#E6B8B4', '#A11C13', '#A8A29E', '#420000', '#44403C'];
 
 const KOSONG = {
   name: '', source: 'ICAL', icalUrl: '', googleCalendarId: '', color: WARNA[0],
   rooms: [], mapByLocation: false, active: true,
 };
 
-const inputCls = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-sewa focus:outline-none';
+const inputCls = 'w-full rounded-xl border border-alba-300 bg-white px-3 py-2.5 text-sm text-stone-800 focus:border-sewa focus:outline-none';
 
 function waktuRelatif(iso) {
   if (!iso) return 'belum pernah';
@@ -57,14 +59,14 @@ function PilihRuang({ ruang, nilai, onUbah }) {
               onUbah([...baru]);
             }}
             className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition-colors ${
-              aktif ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              aktif ? 'bg-sewa text-white' : 'bg-alba-100 text-stone-600 hover:bg-alba-200'
             }`}
           >
             {aktif ? '✓ ' : ''}{r.name}
           </button>
         );
       })}
-      {!ruang.length && <span className="text-[12px] text-slate-500">Belum ada ruang di katalog.</span>}
+      {!ruang.length && <span className="text-[12px] text-stone-500">Belum ada ruang di katalog.</span>}
     </div>
   );
 }
@@ -89,11 +91,11 @@ function Formulir({ awal, ruang, onSimpan, onBatal, sibuk }) {
     <div className="space-y-5 rounded-2xl border border-sewa/30 bg-white p-5 shadow-lembut">
       <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
         <label className="block">
-          <span className="mb-1.5 block text-[12px] font-bold text-slate-600">Nama kelas</span>
+          <span className="mb-1.5 block text-[12px] font-bold text-stone-600">Nama kelas</span>
           <input value={f.name} onChange={ubah('name')} placeholder="Mis. Kelas Anatomi Angkatan 2025" className={inputCls} />
         </label>
         <div>
-          <span className="mb-1.5 block text-[12px] font-bold text-slate-600">Warna</span>
+          <span className="mb-1.5 block text-[12px] font-bold text-stone-600">Warna</span>
           <div className="flex flex-wrap gap-1.5">
             {WARNA.map((w) => (
               <button
@@ -101,7 +103,7 @@ function Formulir({ awal, ruang, onSimpan, onBatal, sibuk }) {
                 type="button"
                 onClick={() => setF((x) => ({ ...x, color: w }))}
                 style={{ backgroundColor: w }}
-                className={`h-8 w-8 rounded-full ring-offset-2 ${f.color === w ? 'ring-2 ring-slate-900' : ''}`}
+                className={`h-8 w-8 rounded-full ring-offset-2 ${f.color === w ? 'ring-2 ring-stone-900' : ''}`}
                 aria-label={`Warna ${w}`}
               />
             ))}
@@ -110,14 +112,14 @@ function Formulir({ awal, ruang, onSimpan, onBatal, sibuk }) {
       </div>
 
       <div>
-        <span className="mb-1.5 block text-[12px] font-bold text-slate-600">Sumber jadwal</span>
-        <div className="inline-flex rounded-xl bg-slate-100 p-1">
+        <span className="mb-1.5 block text-[12px] font-bold text-stone-600">Sumber jadwal</span>
+        <div className="inline-flex rounded-xl bg-alba-100 p-1">
           {[['ICAL', 'Link iCal rahasia (disarankan)'], ['GOOGLE', 'Calendar ID + OAuth']].map(([v, l]) => (
             <button
               key={v}
               type="button"
               onClick={() => setF((x) => ({ ...x, source: v }))}
-              className={`rounded-lg px-3.5 py-2 text-[12px] font-bold ${f.source === v ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              className={`rounded-lg px-3.5 py-2 text-[12px] font-bold ${f.source === v ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}
             >
               {l}
             </button>
@@ -132,20 +134,20 @@ function Formulir({ awal, ruang, onSimpan, onBatal, sibuk }) {
                 type="button"
                 disabled={!f.icalUrl.trim() || menguji}
                 onClick={jalankanUji}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-[12px] font-bold text-slate-700 hover:border-sewa hover:text-sewa disabled:opacity-40"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-alba-300 px-4 text-[12px] font-bold text-stone-700 hover:border-sewa hover:text-sewa disabled:opacity-40"
               >
                 {menguji ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />} Uji link
               </button>
             </div>
             {uji && (
-              <div className={`mt-3 rounded-xl px-4 py-3 text-[13px] ${uji.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-rose-50 text-rose-800'}`}>
+              <div className={`mt-3 rounded-xl px-4 py-3 text-[13px] ${uji.ok ? 'bg-sewa/5 text-sewa' : 'bg-rose-50 text-rose-800'}`}>
                 <p className="flex items-center gap-2 font-bold">
                   {uji.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />} {uji.pesan}
                 </p>
                 {uji.contoh?.length > 0 && (
                   <ul className="mt-2 space-y-1 text-[12px]">
                     {uji.contoh.map((c, i) => (
-                      <li key={i}>• <b>{c.judul}</b> — {c.jadwal}{c.lokasi ? <span className="text-emerald-700"> · {c.lokasi}</span> : null}</li>
+                      <li key={i}>• <b>{c.judul}</b> — {c.jadwal}{c.lokasi ? <span className="text-sewa"> · {c.lokasi}</span> : null}</li>
                     ))}
                   </ul>
                 )}
@@ -155,29 +157,29 @@ function Formulir({ awal, ruang, onSimpan, onBatal, sibuk }) {
         ) : (
           <div className="mt-3">
             <input value={f.googleCalendarId} onChange={ubah('googleCalendarId')} placeholder="xxxx@group.calendar.google.com" className={`${inputCls} font-mono text-[12px]`} />
-            <p className="mt-1.5 text-[11px] text-slate-500">Butuh sambungan Google di Pengaturan, dan akun Google itu harus bisa melihat kalender ini.</p>
+            <p className="mt-1.5 text-[11px] text-stone-500">Butuh sambungan Google di Pengaturan, dan akun Google itu harus bisa melihat kalender ini.</p>
           </div>
         )}
       </div>
 
       <div>
-        <span className="mb-1.5 block text-[12px] font-bold text-slate-600">Ruang yang diblok jadwal kelas ini</span>
+        <span className="mb-1.5 block text-[12px] font-bold text-stone-600">Ruang yang diblok jadwal kelas ini</span>
         <PilihRuang ruang={ruang} nilai={f.rooms} onUbah={(rooms) => setF((x) => ({ ...x, rooms }))} />
-        <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl bg-slate-50 px-3.5 py-3">
+        <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl bg-alba-50 px-3.5 py-3">
           <input type="checkbox" checked={!!f.mapByLocation} onChange={ubah('mapByLocation')} className="mt-0.5 h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
-          <span className="text-[12px] leading-relaxed text-slate-600">
-            <b className="text-slate-800">Petakan lewat kolom lokasi event.</b> Kalau lokasi sebuah jadwal menyebut nama ruang
+          <span className="text-[12px] leading-relaxed text-stone-600">
+            <b className="text-stone-800">Petakan lewat kolom lokasi event.</b> Kalau lokasi sebuah jadwal menyebut nama ruang
             (mis. “Gedung A – Ruang Skill Lab”), jadwal itu memblok ruang tersebut. Cocok untuk kelas yang pindah-pindah ruang.
           </span>
         </label>
         {!f.rooms.length && !f.mapByLocation && (
-          <p className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-amber-700">
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-sewa-tua">
             <AlertTriangle size={14} /> Tanpa ruang dan tanpa pemetaan lokasi, kalender ini tidak memblok apa pun.
           </p>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+      <div className="flex flex-wrap items-center gap-2 border-t border-alba-200 pt-4">
         <button
           type="button"
           disabled={!sah || sibuk}
@@ -186,7 +188,7 @@ function Formulir({ awal, ruang, onSimpan, onBatal, sibuk }) {
         >
           {sibuk ? 'Menyimpan…' : 'Simpan & sinkron sekarang'}
         </button>
-        <button type="button" onClick={onBatal} className="rounded-xl px-4 py-2.5 text-[13px] font-semibold text-slate-500 hover:bg-slate-100">Batal</button>
+        <button type="button" onClick={onBatal} className="rounded-xl px-4 py-2.5 text-[13px] font-semibold text-stone-500 hover:bg-alba-100">Batal</button>
       </div>
     </div>
   );
@@ -207,19 +209,19 @@ function ImporPcv({ ruang, sudah, onImpor, onTutup }) {
 
   return (
     <div className="rounded-2xl border border-sewa/30 bg-white p-5 shadow-lembut">
-      <h4 className="text-base font-extrabold text-slate-900">Impor dari Kelas PCV</h4>
-      <p className="mt-1 text-[13px] text-slate-500">
+      <h4 className="text-base font-extrabold text-stone-900">Impor dari Kelas PCV</h4>
+      <p className="mt-1 text-[13px] text-stone-500">
         Kelas yang sudah punya link iCal di menu “Kelas &amp; Reminder” PCV. Centang, pilih ruangnya, lalu impor.
       </p>
-      {galat && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-800">{galat}</p>}
-      {!daftar && !galat && <p className="mt-4 flex items-center gap-2 text-[13px] text-slate-400"><Loader2 size={14} className="animate-spin" /> Memuat…</p>}
-      {daftar && !daftar.length && <p className="mt-4 text-[13px] text-slate-500">Belum ada kelas PCV yang punya link iCal.</p>}
+      {galat && <p className="mt-3 rounded-xl bg-sewa/5 px-3 py-2 text-[12px] text-sewa-tua">{galat}</p>}
+      {!daftar && !galat && <p className="mt-4 flex items-center gap-2 text-[13px] text-stone-400"><Loader2 size={14} className="animate-spin" /> Memuat…</p>}
+      {daftar && !daftar.length && <p className="mt-4 text-[13px] text-stone-500">Belum ada kelas PCV yang punya link iCal.</p>}
       <ul className="mt-4 space-y-2">
         {(daftar || []).map((k) => {
           const diimpor = k.sudahDiimpor || sudah.has(k.icalUrl.trim());
           const p = pilih[k.icalUrl] || { ya: false, rooms: [] };
           return (
-            <li key={k.icalUrl} className={`rounded-xl border px-3.5 py-3 ${p.ya ? 'border-sewa/40 bg-sewa/5' : 'border-slate-200'}`}>
+            <li key={k.icalUrl} className={`rounded-xl border px-3.5 py-3 ${p.ya ? 'border-sewa/40 bg-sewa/5' : 'border-alba-200'}`}>
               <label className="flex cursor-pointer items-center gap-3">
                 <input
                   type="checkbox"
@@ -228,8 +230,8 @@ function ImporPcv({ ruang, sudah, onImpor, onTutup }) {
                   onChange={(ev) => setPilih((x) => ({ ...x, [k.icalUrl]: { ...p, ya: ev.target.checked } }))}
                   className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]"
                 />
-                <span className="flex-1 text-[14px] font-bold text-slate-800">{k.nama}</span>
-                {diimpor && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">sudah terdaftar</span>}
+                <span className="flex-1 text-[14px] font-bold text-stone-800">{k.nama}</span>
+                {diimpor && <span className="rounded-full bg-sewa/5 px-2 py-0.5 text-[11px] font-bold text-sewa">sudah terdaftar</span>}
               </label>
               {p.ya && (
                 <div className="mt-2.5 pl-7">
@@ -249,7 +251,7 @@ function ImporPcv({ ruang, sudah, onImpor, onTutup }) {
         >
           Impor {dipilih.length || ''} kalender
         </button>
-        <button type="button" onClick={onTutup} className="rounded-xl px-4 py-2.5 text-[13px] font-semibold text-slate-500 hover:bg-slate-100">Tutup</button>
+        <button type="button" onClick={onTutup} className="rounded-xl px-4 py-2.5 text-[13px] font-semibold text-stone-500 hover:bg-alba-100">Tutup</button>
       </div>
     </div>
   );
@@ -344,30 +346,30 @@ export default function KalenderKelasTab({ lapor }) {
 
   const namaRuang = (id) => ruang.find((r) => r.id === id)?.name || '(ruang nonaktif)';
 
-  if (memuat) return <p className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={15} className="animate-spin" /> Memuat…</p>;
+  if (memuat) return <p className="flex items-center gap-2 text-sm text-stone-500"><Loader2 size={15} className="animate-spin" /> Memuat…</p>;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-xl font-extrabold text-slate-900">Kalender kelas</h3>
-          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-slate-500">
+          <h3 className="text-xl font-extrabold text-stone-900">Kalender kelas</h3>
+          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-stone-500">
             Jadwal di kalender-kalender ini otomatis memblok ruangnya, disinkron tiap 2 jam. Hanya dibaca — aplikasi tidak pernah
             mengubah kalender kelas.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setBantuan((b) => !b)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-500 hover:bg-slate-100">
+          <button onClick={() => setBantuan((b) => !b)} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-stone-500 hover:bg-alba-100">
             <HelpCircle size={15} /> Cara ambil link
           </button>
           <button
             onClick={() => sinkron('')}
             disabled={!!sibuk || !kalender.length}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 hover:border-sewa hover:text-sewa disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 bg-white px-4 py-2.5 text-[13px] font-bold text-stone-700 hover:border-sewa hover:text-sewa disabled:opacity-40"
           >
             <RefreshCw size={14} className={sibuk === 'semua' ? 'animate-spin' : ''} /> Sinkron semua
           </button>
-          <button onClick={() => setMode('impor')} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-bold text-slate-700 hover:border-sewa hover:text-sewa">
+          <button onClick={() => setMode('impor')} className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 bg-white px-4 py-2.5 text-[13px] font-bold text-stone-700 hover:border-sewa hover:text-sewa">
             <Download size={14} /> Impor dari Kelas PCV
           </button>
           <button onClick={() => setMode({ edit: null })} className="inline-flex items-center gap-1.5 rounded-xl bg-sewa px-4 py-2.5 text-[13px] font-bold text-white hover:bg-sewa-tua">
@@ -377,7 +379,7 @@ export default function KalenderKelasTab({ lapor }) {
       </div>
 
       {bantuan && (
-        <ol className="list-decimal space-y-1.5 rounded-2xl bg-sky-50 py-4 pl-9 pr-5 text-[13px] leading-relaxed text-sky-900">
+        <ol className="list-decimal space-y-1.5 rounded-2xl bg-sewa/5 py-4 pl-9 pr-5 text-[13px] leading-relaxed text-stone-700">
           <li>Buka <b>Google Calendar</b> di komputer, arahkan ke nama kalender kelas di kolom kiri → titik tiga → <b>Setelan dan berbagi</b>.</li>
           <li>Gulir ke bagian <b>Integrasikan kalender</b>.</li>
           <li>Salin <b>Alamat rahasia dalam format iCal</b> (berakhiran <code>basic.ics</code>) — bukan “alamat publik”, supaya kalendernya tidak perlu dibuat publik.</li>
@@ -389,9 +391,9 @@ export default function KalenderKelasTab({ lapor }) {
       {mode && mode !== 'impor' && !mode.edit && <Formulir ruang={ruang} sibuk={sibuk === 'simpan'} onSimpan={(f) => simpan(f)} onBatal={() => setMode(null)} />}
 
       {!kalender.length && !mode && (
-        <div className="rounded-2xl border-2 border-dashed border-slate-300 px-6 py-12 text-center">
-          <p className="text-base font-extrabold text-slate-800">Belum ada kalender kelas</p>
-          <p className="mt-1 text-[13px] text-slate-500">Tambahkan satu per satu, atau impor sekaligus dari Kelas PCV.</p>
+        <div className="rounded-2xl border-2 border-dashed border-alba-300 px-6 py-12 text-center">
+          <p className="text-base font-extrabold text-stone-800">Belum ada kalender kelas</p>
+          <p className="mt-1 text-[13px] text-stone-500">Tambahkan satu per satu, atau impor sekaligus dari Kelas PCV.</p>
         </div>
       )}
 
@@ -400,43 +402,43 @@ export default function KalenderKelasTab({ lapor }) {
           mode?.edit?.id === k.id ? (
             <li key={k.id}><Formulir awal={k} ruang={ruang} sibuk={sibuk === 'simpan'} onSimpan={(f) => simpan(f, k.id)} onBatal={() => setMode(null)} /></li>
           ) : (
-            <li key={k.id} className={`rounded-2xl border bg-white p-4 shadow-lembut ${k.active ? 'border-slate-200' : 'border-slate-200 opacity-60'}`}>
+            <li key={k.id} className={`rounded-2xl border bg-white p-4 shadow-lembut ${k.active ? 'border-alba-200' : 'border-alba-200 opacity-60'}`}>
               <div className="flex flex-wrap items-start gap-3">
-                <span className="mt-1 h-10 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: k.color || '#0EA5E9' }} />
+                <span className="mt-1 h-10 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: k.color || '#8E0100' }} />
                 <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-slate-900">
+                  <p className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-stone-900">
                     {k.name}
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">{k.source === 'GOOGLE' ? 'Google API' : 'iCal'}</span>
-                    {!k.active && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">nonaktif</span>}
+                    <span className="rounded-full bg-alba-100 px-2 py-0.5 text-[10px] font-bold uppercase text-stone-500">{k.source === 'GOOGLE' ? 'Google API' : 'iCal'}</span>
+                    {!k.active && <span className="rounded-full bg-alba-100 px-2 py-0.5 text-[10px] font-bold uppercase text-stone-500">nonaktif</span>}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {(k.rooms || []).map((id) => (
-                      <span key={id} className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{namaRuang(id)}</span>
+                      <span key={id} className="rounded-lg bg-alba-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600">{namaRuang(id)}</span>
                     ))}
                     {k.mapByLocation && (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700"><MapPin size={11} /> lewat lokasi</span>
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-sewa/5 px-2 py-0.5 text-[11px] font-semibold text-stone-700"><MapPin size={11} /> lewat lokasi</span>
                     )}
                   </div>
-                  <p className={`mt-2 flex items-start gap-1.5 text-[12px] ${k.lastSyncStatus === 'GAGAL' ? 'text-rose-700' : 'text-slate-500'}`}>
-                    {k.lastSyncStatus === 'OK' && <CheckCircle2 size={13} className="mt-0.5 shrink-0 text-emerald-600" />}
+                  <p className={`mt-2 flex items-start gap-1.5 text-[12px] ${k.lastSyncStatus === 'GAGAL' ? 'text-rose-700' : 'text-stone-500'}`}>
+                    {k.lastSyncStatus === 'OK' && <CheckCircle2 size={13} className="mt-0.5 shrink-0 text-sewa" />}
                     {k.lastSyncStatus === 'GAGAL' && <XCircle size={13} className="mt-0.5 shrink-0" />}
                     <span>Sinkron {waktuRelatif(k.lastSyncAt)}{k.lastSyncMessage ? ` · ${k.lastSyncMessage}` : ''}</span>
                   </p>
                   {k.unmappedCount > 0 && (
-                    <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-amber-700">
+                    <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-sewa-tua">
                       <AlertTriangle size={13} /> {k.unmappedCount} jadwal perlu pemetaan ruang
                     </p>
                   )}
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <button onClick={() => sinkron(k.id)} disabled={!!sibuk} title="Sinkron sekarang" className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-sewa disabled:opacity-40">
+                  <button onClick={() => sinkron(k.id)} disabled={!!sibuk} title="Sinkron sekarang" className="grid h-9 w-9 place-items-center rounded-lg text-stone-500 hover:bg-alba-100 hover:text-sewa disabled:opacity-40">
                     <RefreshCw size={15} className={sibuk === k.id ? 'animate-spin' : ''} />
                   </button>
-                  <button onClick={() => setMode({ edit: k })} title="Ubah" className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-sewa"><Pencil size={15} /></button>
+                  <button onClick={() => setMode({ edit: k })} title="Ubah" className="grid h-9 w-9 place-items-center rounded-lg text-stone-500 hover:bg-alba-100 hover:text-sewa"><Pencil size={15} /></button>
                   <button
                     onClick={async () => { await pb.collection('rental_class_calendars').update(k.id, { active: !k.active }); await sinkron(''); }}
                     title={k.active ? 'Nonaktifkan' : 'Aktifkan'}
-                    className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-amber-600"
+                    className="grid h-9 w-9 place-items-center rounded-lg text-stone-500 hover:bg-alba-100 hover:text-sewa"
                   >
                     <Power size={15} />
                   </button>
@@ -448,7 +450,7 @@ export default function KalenderKelasTab({ lapor }) {
                       await muat();
                     }}
                     title="Hapus"
-                    className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+                    className="grid h-9 w-9 place-items-center rounded-lg text-stone-500 hover:bg-rose-50 hover:text-rose-600"
                   >
                     <Trash2 size={15} />
                   </button>

@@ -52,12 +52,14 @@ module.exports = {
          600: '#9A7B1C',
        },
        /* ===== Web peminjaman =====
-          Warnanya dari rental_settings.brandColor, dipasang sebagai variabel
-          CSS oleh RentalLayout. Ditulis sebagai triplet RGB supaya modifier
-          transparansi Tailwind (bg-sewa/10) tetap jalan. Bawaan: teal medis. */
+          SAMA PERSIS dengan merah PCV (maroon-600 / maroon-700) - web
+          peminjaman memakai templat merah-putih PCV, tidak boleh warna lain.
+          Ditulis sebagai triplet RGB di variabel CSS supaya gaya inline
+          (rgb(var(--sewa-rgb))) dan modifier transparansi (bg-sewa/10) sama-sama
+          jalan. Nilainya dipasang tetap oleh RentalLayout, bukan dari pengaturan. */
        sewa: {
-         DEFAULT: 'rgb(var(--sewa-rgb, 15 118 110) / <alpha-value>)',
-         tua: 'rgb(var(--sewa-tua-rgb, 17 94 89) / <alpha-value>)',
+         DEFAULT: 'rgb(var(--sewa-rgb, 142 1 0) / <alpha-value>)',
+         tua: 'rgb(var(--sewa-tua-rgb, 116 1 0) / <alpha-value>)',
        },
        /* ===== shadcn tokens ===== */
        border: 'hsl(var(--border))',

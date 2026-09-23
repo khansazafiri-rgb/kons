@@ -51,7 +51,7 @@ function PemilihJadwalAlat({ onUbah }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-slate-500">Tanggal ambil</p>
+        <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-stone-500">Tanggal ambil</p>
         <div className="-my-1 flex gap-2 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {pita.map((t) => {
             const aktif = t.tanggal === tanggal;
@@ -61,12 +61,12 @@ function PemilihJadwalAlat({ onUbah }) {
                 type="button"
                 onClick={() => setTanggal(t.tanggal)}
                 className={`flex w-[52px] shrink-0 flex-col items-center rounded-2xl border py-2 transition-colors ${
-                  aktif ? 'border-sewa bg-sewa text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
+                  aktif ? 'border-sewa bg-sewa text-white' : 'border-alba-200 bg-white text-stone-700 hover:border-alba-400'
                 }`}
               >
-                <span className={`text-[10px] font-bold uppercase ${aktif ? 'text-white/80' : 'text-slate-400'}`}>{t.tanggal === hariIni ? 'Ini' : t.hari}</span>
+                <span className={`text-[10px] font-bold uppercase ${aktif ? 'text-white/80' : 'text-stone-400'}`}>{t.tanggal === hariIni ? 'Ini' : t.hari}</span>
                 <span className="text-lg font-extrabold leading-tight">{t.tgl}</span>
-                <span className={`text-[10px] font-semibold ${aktif ? 'text-white/80' : 'text-slate-400'}`}>{t.bulan}</span>
+                <span className={`text-[10px] font-semibold ${aktif ? 'text-white/80' : 'text-stone-400'}`}>{t.bulan}</span>
               </button>
             );
           })}
@@ -74,7 +74,7 @@ function PemilihJadwalAlat({ onUbah }) {
       </div>
 
       <div>
-        <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-slate-500">Lama pinjam</p>
+        <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-stone-500">Lama pinjam</p>
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3, 5, 7].map((h) => (
             <button
@@ -82,13 +82,13 @@ function PemilihJadwalAlat({ onUbah }) {
               type="button"
               onClick={() => setHari(h)}
               className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
-                hari === h ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                hari === h ? 'bg-sewa text-white' : 'bg-alba-100 text-stone-600 hover:bg-alba-200'
               }`}
             >
               {h} hari
             </button>
           ))}
-          <label className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[13px] font-bold text-slate-600">
+          <label className="flex items-center gap-1.5 rounded-full bg-alba-100 px-3 py-1 text-[13px] font-bold text-stone-600">
             <input
               type="number"
               min={1}
@@ -108,9 +108,9 @@ function PemilihJadwalAlat({ onUbah }) {
           { label: 'Jam ambil', nilai: jamAmbil, ubah: setJamAmbil },
           { label: hari > 1 ? 'Jam kembali (hari terakhir)' : 'Jam kembali', nilai: jamKembali, ubah: setJamKembali },
         ].map((f) => (
-          <label key={f.label} className="block rounded-2xl bg-slate-100 px-4 py-2.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
-            <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">{f.label}</span>
-            <select value={f.nilai} onChange={(ev) => f.ubah(ev.target.value)} className="w-full bg-transparent text-[15px] font-bold text-slate-900 focus:outline-none">
+          <label key={f.label} className="block rounded-2xl bg-alba-100 px-4 py-2.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-stone-500">{f.label}</span>
+            <select value={f.nilai} onChange={(ev) => f.ubah(ev.target.value)} className="w-full bg-transparent text-[15px] font-bold text-stone-900 focus:outline-none">
               {JAM_PILIHAN.map((j) => <option key={j} value={j}>{j}</option>)}
             </select>
           </label>
@@ -147,24 +147,24 @@ function Mosaik({ foto, tipe, nama }) {
 function Rekomendasi({ daftar, sorot }) {
   if (!daftar?.length) return null;
   return (
-    <section id="rekomendasi" className={`scroll-mt-24 rounded-3xl p-5 transition-colors sm:p-6 ${sorot ? 'bg-sewa/10 ring-2 ring-sewa/30' : 'bg-white ring-1 ring-slate-200/70'}`}>
-      <h2 className="flex items-center gap-2 text-lg font-extrabold text-slate-900">
+    <section id="rekomendasi" className={`scroll-mt-24 rounded-3xl p-5 transition-colors sm:p-6 ${sorot ? 'bg-sewa/10 ring-2 ring-sewa/30' : 'bg-white ring-1 ring-alba-200'}`}>
+      <h2 className="flex items-center gap-2 text-lg font-extrabold text-stone-900">
         <Sparkles size={18} className="text-sewa" /> Sering disewa bersamaan
       </h2>
-      <p className="mt-0.5 text-[13px] text-slate-500">Dipilihkan admin. Tidak otomatis masuk keranjang.</p>
+      <p className="mt-0.5 text-[13px] text-stone-500">Dipilihkan admin. Tidak otomatis masuk keranjang.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {daftar.map((r) => (
           <Link
             key={`${r.tipe}-${r.id}`}
             to={r.tipe === 'ALAT' ? `/peminjaman/alat/${r.slug}` : `/peminjaman/ruang/${r.slug}`}
-            className="group flex items-center gap-3 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 transition-shadow hover:shadow-lembut"
+            className="group flex items-center gap-3 rounded-2xl bg-white p-2.5 ring-1 ring-alba-200 transition-shadow hover:shadow-lembut"
           >
             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl"><FotoItem src={r.foto?.[0]} tipe={r.tipe} nama={r.nama} /></div>
             <div className="min-w-0 flex-1">
-              <p className="line-clamp-1 text-[14px] font-bold text-slate-900">{r.nama}</p>
-              <p className="text-[12px] text-slate-500">{r.catatan || (r.tipe === 'ALAT' ? 'Alat' : 'Ruang')} · <b className="text-slate-800">{rupiah(r.harga)}</b></p>
+              <p className="line-clamp-1 text-[14px] font-bold text-stone-900">{r.nama}</p>
+              <p className="text-[12px] text-stone-500">{r.catatan || (r.tipe === 'ALAT' ? 'Alat' : 'Ruang')} · <b className="text-stone-800">{rupiah(r.harga)}</b></p>
             </div>
-            <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-sewa" />
+            <ChevronRight size={16} className="shrink-0 text-stone-300 group-hover:text-sewa" />
           </Link>
         ))}
       </div>
@@ -238,8 +238,8 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
     return (
       <RentalLayout konfigurasi={konfigurasi}>
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-          <div className="h-6 w-64 animate-pulse rounded bg-slate-200" />
-          <div className="mt-6 h-72 animate-pulse rounded-3xl bg-slate-200/70" />
+          <div className="h-6 w-64 animate-pulse rounded bg-alba-200" />
+          <div className="mt-6 h-72 animate-pulse rounded-3xl bg-alba-200" />
         </div>
       </RentalLayout>
     );
@@ -249,7 +249,7 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
     return (
       <RentalLayout konfigurasi={konfigurasi}>
         <div className="mx-auto max-w-md px-6 py-24 text-center">
-          <h1 className="text-xl font-extrabold text-slate-900">{galat || 'Tidak ditemukan.'}</h1>
+          <h1 className="text-xl font-extrabold text-stone-900">{galat || 'Tidak ditemukan.'}</h1>
           <Link to={isAlat ? '/peminjaman/alat' : '/peminjaman/ruang'} className="mt-5 inline-block rounded-full bg-sewa px-5 py-2.5 text-sm font-bold text-white">
             Kembali ke katalog
           </Link>
@@ -287,7 +287,7 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
     <button
       type="button"
       onClick={() => navigate('/peminjaman/keranjang')}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3.5 text-[15px] font-extrabold text-white hover:bg-slate-700"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sewa px-5 py-3.5 text-[15px] font-extrabold text-white hover:bg-sewa-tua"
     >
       <ShoppingBag size={17} /> <span className="hidden sm:inline">Lihat</span> Keranjang
     </button>
@@ -296,7 +296,7 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
       type="button"
       disabled={!bisaTambah}
       onClick={tambah}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sewa px-5 py-3.5 text-[15px] font-extrabold text-white transition-colors hover:bg-sewa-tua disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sewa px-5 py-3.5 text-[15px] font-extrabold text-white transition-colors hover:bg-sewa-tua disabled:cursor-not-allowed disabled:bg-alba-200 disabled:text-stone-400"
     >
       <Plus size={17} /> <span className="sm:hidden lg:inline">Tambah</span><span className="hidden sm:inline lg:hidden">Tambah ke keranjang</span><span className="hidden lg:inline"> ke keranjang</span>
     </button>
@@ -304,15 +304,15 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
 
   const ringkasHarga = (
     <div>
-      {menghitung && <p className="flex items-center gap-2 text-[13px] text-slate-400"><Loader2 size={14} className="animate-spin" /> Menghitung…</p>}
+      {menghitung && <p className="flex items-center gap-2 text-[13px] text-stone-400"><Loader2 size={14} className="animate-spin" /> Menghitung…</p>}
       {!menghitung && harga && !harga.pesan && (
-        <p className="text-[13px] text-slate-500">
-          Total <span className="text-xl font-extrabold text-slate-900">{rupiah(harga.total)}</span>
+        <p className="text-[13px] text-stone-500">
+          Total <span className="text-xl font-extrabold text-stone-900">{rupiah(harga.total)}</span>
         </p>
       )}
       {!menghitung && !harga && (
-        <p className="text-[13px] text-slate-500">
-          <span className="text-xl font-extrabold text-slate-900">{rupiah(it.harga)}</span> {SATUAN[it.satuan] || ''}
+        <p className="text-[13px] text-stone-500">
+          <span className="text-xl font-extrabold text-stone-900">{rupiah(it.harga)}</span> {SATUAN[it.satuan] || ''}
         </p>
       )}
     </div>
@@ -321,25 +321,25 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
   return (
     <RentalLayout konfigurasi={konfigurasi}>
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
-        <nav className="flex items-center gap-1 text-[13px] font-semibold text-slate-500">
-          <Link to="/peminjaman" className="hover:text-slate-900">Beranda</Link>
+        <nav className="flex items-center gap-1 text-[13px] font-semibold text-stone-500">
+          <Link to="/peminjaman" className="hover:text-stone-900">Beranda</Link>
           <ChevronRight size={14} />
-          <Link to={isAlat ? '/peminjaman/alat' : '/peminjaman/ruang'} className="hover:text-slate-900">{isAlat ? 'Sewa alat' : 'Sewa ruang'}</Link>
+          <Link to={isAlat ? '/peminjaman/alat' : '/peminjaman/ruang'} className="hover:text-stone-900">{isAlat ? 'Sewa alat' : 'Sewa ruang'}</Link>
           <ChevronRight size={14} />
-          <span className="line-clamp-1 text-slate-800">{it.nama}</span>
+          <span className="line-clamp-1 text-stone-800">{it.nama}</span>
         </nav>
 
         <div className="mt-3">
           {isAlat && it.kategori && <p className="text-[12px] font-extrabold uppercase tracking-wide text-sewa">{it.kategori}</p>}
-          <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-slate-900 sm:text-[34px]">{it.nama}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[14px] text-slate-600">
+          <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-stone-900 sm:text-[34px]">{it.nama}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[14px] text-stone-600">
             {it.alamat && <span className="inline-flex items-center gap-1.5"><MapPin size={15} />{it.alamat}</span>}
             {it.kapasitas > 0 && <span className="inline-flex items-center gap-1.5"><Users size={15} />Maks. {it.kapasitas} orang</span>}
             {!isAlat && it.jamBuka !== it.jamTutup && (
               <span className="inline-flex items-center gap-1.5"><Clock3 size={15} />{menitKeJam(it.jamBuka)}–{menitKeJam(it.jamTutup)} WIB</span>
             )}
             {isAlat && <span className="inline-flex items-center gap-1.5"><Package size={15} />{it.stok} unit dimiliki</span>}
-            {it.sku && <span className="text-slate-400">SKU {it.sku}</span>}
+            {it.sku && <span className="text-stone-400">SKU {it.sku}</span>}
           </div>
         </div>
 
@@ -348,11 +348,11 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem] lg:items-start">
           {/* KOLOM UTAMA */}
           <div className="min-w-0 space-y-6">
-            <section className="rounded-3xl bg-white p-5 shadow-lembut ring-1 ring-slate-200/70 sm:p-6">
+            <section className="rounded-3xl bg-white p-5 shadow-lembut ring-1 ring-alba-200 sm:p-6">
               <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-lg font-extrabold text-slate-900">{isAlat ? 'Kapan dipinjam?' : 'Pilih tanggal & jam'}</h2>
+                <h2 className="text-lg font-extrabold text-stone-900">{isAlat ? 'Kapan dipinjam?' : 'Pilih tanggal & jam'}</h2>
                 {!isAlat && it.butuhPenjaga && (
-                  <span className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-700">
+                  <span className="inline-flex items-center gap-1 text-[12px] font-bold text-sewa-tua">
                     <ShieldCheck size={14} /> Didampingi penjaga
                   </span>
                 )}
@@ -363,18 +363,18 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
             </section>
 
             {it.deskripsi && (
-              <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200/70 sm:p-6">
-                <h2 className="text-lg font-extrabold text-slate-900">Tentang {isAlat ? 'alat' : 'ruang'} ini</h2>
-                <div className="mt-3 text-[15px] leading-relaxed text-slate-600"><IsiHtml html={it.deskripsi} /></div>
+              <section className="rounded-3xl bg-white p-5 ring-1 ring-alba-200 sm:p-6">
+                <h2 className="text-lg font-extrabold text-stone-900">Tentang {isAlat ? 'alat' : 'ruang'} ini</h2>
+                <div className="mt-3 text-[15px] leading-relaxed text-stone-600"><IsiHtml html={it.deskripsi} /></div>
               </section>
             )}
 
             {it.fasilitas?.length > 0 && (
-              <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200/70 sm:p-6">
-                <h2 className="text-lg font-extrabold text-slate-900">Fasilitas</h2>
+              <section className="rounded-3xl bg-white p-5 ring-1 ring-alba-200 sm:p-6">
+                <h2 className="text-lg font-extrabold text-stone-900">Fasilitas</h2>
                 <ul className="mt-4 grid gap-3 sm:grid-cols-2">
                   {it.fasilitas.map((f) => (
-                    <li key={f} className="flex items-center gap-3 text-[14px] text-slate-700">
+                    <li key={f} className="flex items-center gap-3 text-[14px] text-stone-700">
                       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-sewa/10 text-sewa"><CheckCircle2 size={16} /></span>
                       {f}
                     </li>
@@ -384,9 +384,9 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
             )}
 
             {(it.kebijakan || it.aturan) && (
-              <section className="rounded-3xl bg-white p-5 ring-1 ring-slate-200/70 sm:p-6">
-                <h2 className="text-lg font-extrabold text-slate-900">{isAlat ? 'Aturan peminjaman' : 'Kebijakan ruang'}</h2>
-                <div className="mt-3 text-[14px] leading-relaxed text-slate-600"><IsiHtml html={it.kebijakan || it.aturan} /></div>
+              <section className="rounded-3xl bg-white p-5 ring-1 ring-alba-200 sm:p-6">
+                <h2 className="text-lg font-extrabold text-stone-900">{isAlat ? 'Aturan peminjaman' : 'Kebijakan ruang'}</h2>
+                <div className="mt-3 text-[14px] leading-relaxed text-stone-600"><IsiHtml html={it.kebijakan || it.aturan} /></div>
               </section>
             )}
 
@@ -395,37 +395,37 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
 
           {/* KARTU PESAN - lengket di layar lebar */}
           <aside className="hidden lg:sticky lg:top-24 lg:block">
-            <div className="rounded-3xl bg-white p-5 shadow-angkat ring-1 ring-slate-200/70">
-              <p className="text-[13px] text-slate-500">
-                <span className="text-2xl font-extrabold text-slate-900">{rupiah(it.harga)}</span> {SATUAN[it.satuan] || ''}
+            <div className="rounded-3xl bg-white p-5 shadow-angkat ring-1 ring-alba-200">
+              <p className="text-[13px] text-stone-500">
+                <span className="text-2xl font-extrabold text-stone-900">{rupiah(it.harga)}</span> {SATUAN[it.satuan] || ''}
               </p>
 
               {isAlat && (
-                <div className="mt-5 flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3">
-                  <span className="text-[13px] font-bold text-slate-600">Jumlah unit</span>
+                <div className="mt-5 flex items-center justify-between rounded-2xl bg-alba-100 px-4 py-3">
+                  <span className="text-[13px] font-bold text-stone-600">Jumlah unit</span>
                   <span className="flex items-center gap-3">
-                    <button type="button" onClick={() => setJumlah((n) => Math.max(1, n - 1))} className="grid h-8 w-8 place-items-center rounded-full bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Kurangi"><Minus size={14} /></button>
+                    <button type="button" onClick={() => setJumlah((n) => Math.max(1, n - 1))} className="grid h-8 w-8 place-items-center rounded-full bg-white text-stone-700 shadow-sm hover:bg-alba-50" aria-label="Kurangi"><Minus size={14} /></button>
                     <span className="w-6 text-center text-[16px] font-extrabold tabular-nums">{jumlah}</span>
-                    <button type="button" onClick={() => setJumlah((n) => Math.min(999, n + 1))} className="grid h-8 w-8 place-items-center rounded-full bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Tambah"><Plus size={14} /></button>
+                    <button type="button" onClick={() => setJumlah((n) => Math.min(999, n + 1))} className="grid h-8 w-8 place-items-center rounded-full bg-white text-stone-700 shadow-sm hover:bg-alba-50" aria-label="Tambah"><Plus size={14} /></button>
                   </span>
                 </div>
               )}
 
-              <div className="mt-5 space-y-3 border-t border-slate-100 pt-5">
+              <div className="mt-5 space-y-3 border-t border-alba-200 pt-5">
                 {jadwal ? (
                   <div className="text-[13px]">
-                    <p className="font-bold text-slate-900">{jadwalKalimat(jadwal.mulai, jadwal.selesai)}</p>
-                    <p className="text-slate-500">{durasiKalimat(jadwal.mulai, jadwal.selesai)}{isAlat ? ` · ${jumlah} unit` : ''}</p>
+                    <p className="font-bold text-stone-900">{jadwalKalimat(jadwal.mulai, jadwal.selesai)}</p>
+                    <p className="text-stone-500">{durasiKalimat(jadwal.mulai, jadwal.selesai)}{isAlat ? ` · ${jumlah} unit` : ''}</p>
                   </div>
                 ) : (
-                  <p className="flex items-start gap-2 text-[13px] text-slate-500">
-                    <AlertCircle size={15} className="mt-0.5 shrink-0 text-amber-500" />
+                  <p className="flex items-start gap-2 text-[13px] text-stone-500">
+                    <AlertCircle size={15} className="mt-0.5 shrink-0 text-sewa-tua" />
                     {isAlat ? 'Tentukan tanggal & jam pinjamnya dulu.' : 'Ketuk jam mulai lalu jam selesai di sebelah kiri.'}
                   </p>
                 )}
 
                 {isAlat && stok && (
-                  <p className={`text-[13px] font-semibold ${stok.sisa < jumlah ? 'text-rose-600' : 'text-emerald-700'}`}>
+                  <p className={`text-[13px] font-semibold ${stok.sisa < jumlah ? 'text-rose-600' : 'text-sewa'}`}>
                     {stok.sisa <= 0 ? 'Stok habis di jadwal ini' : `Tersedia ${stok.sisa} dari ${stok.total} unit`}
                   </p>
                 )}
@@ -434,7 +434,7 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
               </div>
 
               {masuk && (
-                <p className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-[13px] font-bold text-emerald-700">
+                <p className="mt-4 flex items-center gap-2 rounded-xl bg-sewa/5 px-3 py-2.5 text-[13px] font-bold text-sewa">
                   <CheckCircle2 size={16} /> Masuk keranjang
                 </p>
               )}
@@ -444,7 +444,7 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
                   Tambah jadwal lain untuk {isAlat ? 'alat' : 'ruang'} ini
                 </button>
               )}
-              <p className="mt-4 text-center text-[12px] text-slate-400">Belum ditagih. Pembayaran diatur admin setelah checkout.</p>
+              <p className="mt-4 text-center text-[12px] text-stone-400">Belum ditagih. Pembayaran diatur admin setelah checkout.</p>
             </div>
           </aside>
         </div>
@@ -455,15 +455,15 @@ export default function RentalDetail({ tipe = 'RUANG' }) {
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             {jadwal
-              ? <p className="line-clamp-1 text-[12px] font-semibold text-slate-500">{jadwalKalimat(jadwal.mulai, jadwal.selesai)}</p>
-              : <p className="text-[12px] font-semibold text-slate-400">Belum pilih jadwal</p>}
+              ? <p className="line-clamp-1 text-[12px] font-semibold text-stone-500">{jadwalKalimat(jadwal.mulai, jadwal.selesai)}</p>
+              : <p className="text-[12px] font-semibold text-stone-400">Belum pilih jadwal</p>}
             {ringkasHarga}
           </div>
           {isAlat && (
             <span className="flex items-center gap-2">
-              <button type="button" onClick={() => setJumlah((n) => Math.max(1, n - 1))} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100" aria-label="Kurangi"><Minus size={14} /></button>
+              <button type="button" onClick={() => setJumlah((n) => Math.max(1, n - 1))} className="grid h-8 w-8 place-items-center rounded-full bg-alba-100" aria-label="Kurangi"><Minus size={14} /></button>
               <span className="w-5 text-center font-extrabold tabular-nums">{jumlah}</span>
-              <button type="button" onClick={() => setJumlah((n) => n + 1)} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100" aria-label="Tambah"><Plus size={14} /></button>
+              <button type="button" onClick={() => setJumlah((n) => n + 1)} className="grid h-8 w-8 place-items-center rounded-full bg-alba-100" aria-label="Tambah"><Plus size={14} /></button>
             </span>
           )}
           <div className="w-36 shrink-0">{tombolUtama}</div>

@@ -28,7 +28,7 @@ export default function FotoItem({ src, tipe = 'RUANG', nama = '', className = '
 
   const Ikon = tipe === 'ALAT' ? Stethoscope : Building2;
   return (
-    <div className={`relative h-full w-full overflow-hidden bg-gradient-to-br from-sewa/15 via-sewa/5 to-slate-100 ${className}`}>
+    <div className={`relative h-full w-full overflow-hidden bg-gradient-to-br from-sewa/15 via-sewa/5 to-alba-100 ${className}`}>
       <svg className="absolute inset-0 h-full w-full text-sewa/20" aria-hidden="true">
         <defs>
           <pattern id={`titik-${tipe}`} width="14" height="14" patternUnits="userSpaceOnUse">
@@ -41,7 +41,7 @@ export default function FotoItem({ src, tipe = 'RUANG', nama = '', className = '
         <span className={`grid place-items-center rounded-2xl bg-white text-sewa shadow-lembut ${besar ? 'h-16 w-16' : 'h-12 w-12'}`}>
           <Ikon size={besar ? 28 : 22} strokeWidth={1.8} />
         </span>
-        {besar && nama && <span className="max-w-[80%] text-sm font-bold text-slate-600">{nama}</span>}
+        {besar && nama && <span className="max-w-[80%] text-sm font-bold text-stone-600">{nama}</span>}
       </div>
     </div>
   );

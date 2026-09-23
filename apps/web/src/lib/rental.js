@@ -240,14 +240,16 @@ export const rupiah = (n) => {
 
 export const SATUAN = { JAM: 'per jam', HARI: 'per hari', SESI: 'per sesi' };
 
+// Dibedakan lewat tingkat merah (muda -> penuh -> tua), putih, dan abu hangat:
+// templat web peminjaman merah-putih seperti web PCV, tanpa hijau/biru/kuning.
 export const STATUS_PESANAN = {
-  MENUNGGU_PEMBAYARAN: { teks: 'Menunggu pembayaran', cls: 'bg-gold-100 text-gold-600 border-gold-200' },
-  BUKTI_DIUNGGAH: { teks: 'Bukti diunggah', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
-  TERKONFIRMASI: { teks: 'Terkonfirmasi', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  SEDANG_DIPINJAM: { teks: 'Sedang dipinjam', cls: 'bg-maroon-50 text-maroon-600 border-maroon-200' },
+  MENUNGGU_PEMBAYARAN: { teks: 'Menunggu pembayaran', cls: 'bg-sewa/10 text-sewa border-sewa/20' },
+  BUKTI_DIUNGGAH: { teks: 'Bukti diunggah', cls: 'bg-white text-sewa border-sewa/50' },
+  TERKONFIRMASI: { teks: 'Terkonfirmasi', cls: 'bg-sewa text-white border-sewa' },
+  SEDANG_DIPINJAM: { teks: 'Sedang dipinjam', cls: 'bg-sewa-tua text-white border-sewa-tua' },
   SELESAI: { teks: 'Selesai', cls: 'bg-stone-100 text-stone-600 border-stone-200' },
-  DITOLAK: { teks: 'Bukti ditolak', cls: 'bg-red-50 text-red-700 border-red-200' },
-  DIBATALKAN: { teks: 'Dibatalkan', cls: 'bg-stone-100 text-stone-500 border-stone-200' },
+  DITOLAK: { teks: 'Bukti ditolak', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+  DIBATALKAN: { teks: 'Dibatalkan', cls: 'bg-stone-100 text-stone-400 border-stone-200' },
 };
 
 export const statusLabel = (kode) =>
@@ -338,27 +340,20 @@ export async function salinTeks(teks) {
 // Warna merek
 // ---------------------------------------------------------------------------
 //
-// Warna utama web peminjaman diatur admin (rental_settings.brandColor). Tailwind
-// membacanya sebagai triplet RGB di variabel CSS --sewa-rgb, supaya kelas
-// seperti bg-sewa/10 tetap bisa mengatur transparansinya.
+// Web peminjaman memakai templat MERAH-PUTIH PCV, sama persis dengan web FK:
+// maroon-600 (#8E0100) untuk warna utama dan maroon-700 (#740100) untuk
+// hover/aktif. Sengaja TIDAK bisa diatur dari dashboard - warnanya harus sama
+// dengan PCV, bukan pilihan tiap admin.
+//
+// Ditulis sebagai triplet RGB di variabel CSS (--sewa-rgb) karena Tailwind
+// membutuhkannya untuk modifier transparansi seperti bg-sewa/10.
 
-export const WARNA_BAWAAN = '#0F766E';
+export const WARNA_MEREK = '#8E0100';
 
-export function hexKeRgb(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-// Variabel CSS untuk satu warna merek: warna utama + versi lebih tua untuk
-// keadaan hover/aktif. Warna yang tidak sah jatuh ke bawaan, bukan ke hitam.
-export function variabelMerek(hex) {
-  const rgb = hexKeRgb(hex) || hexKeRgb(WARNA_BAWAAN);
-  const tua = rgb.map((c) => Math.round(c * 0.8));
+export function variabelMerek() {
   return {
-    '--sewa-rgb': rgb.join(' '),
-    '--sewa-tua-rgb': tua.join(' '),
+    '--sewa-rgb': '142 1 0',
+    '--sewa-tua-rgb': '116 1 0',
   };
 }
 

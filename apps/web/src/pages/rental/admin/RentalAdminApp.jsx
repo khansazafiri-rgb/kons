@@ -71,8 +71,8 @@ export default function RentalAdminApp() {
 
   if (!saya) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-200 border-t-slate-500" />
+      <div className="grid min-h-screen place-items-center bg-alba-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-alba-200 border-t-stone-500" />
       </div>
     );
   }
@@ -96,7 +96,7 @@ export default function RentalAdminApp() {
           key={m.id}
           onClick={() => pilih(m.id)}
           className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[14px] font-bold transition-colors ${
-            aktif.id === m.id ? 'bg-sewa/10 text-sewa' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            aktif.id === m.id ? 'bg-sewa/10 text-sewa' : 'text-stone-600 hover:bg-alba-100 hover:text-stone-900'
           }`}
         >
           <m.ikon size={18} strokeWidth={aktif.id === m.id ? 2.4 : 2} /> {m.label}
@@ -106,16 +106,16 @@ export default function RentalAdminApp() {
   );
 
   const kartuSaya = (
-    <div className="rounded-2xl bg-slate-50 p-3">
-      <p className="truncate text-[14px] font-extrabold text-slate-900">{saya.nama}</p>
-      <p className="text-[12px] font-semibold text-slate-500">
+    <div className="rounded-2xl bg-alba-50 p-3">
+      <p className="truncate text-[14px] font-extrabold text-stone-900">{saya.nama}</p>
+      <p className="text-[12px] font-semibold text-stone-500">
         {saya.jenis === 'PEMILIK' ? 'Pemilik platform' : PERAN_ADMIN[saya.peran]?.teks}
       </p>
       <div className="mt-3 flex gap-1.5">
-        <Link to="/peminjaman" target="_blank" className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-2 py-2 text-[12px] font-bold text-slate-600 ring-1 ring-slate-200 hover:text-sewa">
+        <Link to="/peminjaman" target="_blank" className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-2 py-2 text-[12px] font-bold text-stone-600 ring-1 ring-alba-200 hover:text-sewa">
           <ExternalLink size={13} /> Web
         </Link>
-        <button onClick={keMasuk} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-2 py-2 text-[12px] font-bold text-slate-600 ring-1 ring-slate-200 hover:text-rose-600">
+        <button onClick={keMasuk} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-2 py-2 text-[12px] font-bold text-stone-600 ring-1 ring-alba-200 hover:text-rose-600">
           <LogOut size={13} /> Keluar
         </button>
       </div>
@@ -123,20 +123,20 @@ export default function RentalAdminApp() {
   );
 
   return (
-    <div style={variabelMerek(konfigurasi?.brandColor)} className="min-h-screen bg-slate-100/70 font-sewa text-slate-800 antialiased">
+    <div style={variabelMerek()} className="min-h-screen bg-alba-100 font-sewa text-stone-800 antialiased">
       {/* Bilah atas HP */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-alba-200 bg-white px-4 lg:hidden">
         <LambangMerek konfigurasi={konfigurasi} />
-        <button onClick={() => setLaci(true)} className="grid h-10 w-10 place-items-center rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Buka menu"><Menu size={20} /></button>
+        <button onClick={() => setLaci(true)} className="grid h-10 w-10 place-items-center rounded-lg text-stone-600 hover:bg-alba-100" aria-label="Buka menu"><Menu size={20} /></button>
       </header>
 
       {laci && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button className="absolute inset-0 bg-slate-900/40" onClick={() => setLaci(false)} aria-label="Tutup menu" />
+          <button className="absolute inset-0 bg-sewa/40" onClick={() => setLaci(false)} aria-label="Tutup menu" />
           <div className="absolute inset-y-0 left-0 flex w-72 flex-col gap-6 bg-white p-4 shadow-xl">
             <div className="flex items-center justify-between">
               <LambangMerek konfigurasi={konfigurasi} />
-              <button onClick={() => setLaci(false)} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-slate-100" aria-label="Tutup"><X size={18} /></button>
+              <button onClick={() => setLaci(false)} className="grid h-9 w-9 place-items-center rounded-lg hover:bg-alba-100" aria-label="Tutup"><X size={18} /></button>
             </div>
             <div className="flex-1">{navigasi}</div>
             {kartuSaya}
@@ -146,10 +146,10 @@ export default function RentalAdminApp() {
 
       <div className="mx-auto flex max-w-[1400px]">
         {/* Bilah samping */}
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-r border-slate-200 bg-white p-4 lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col gap-6 border-r border-alba-200 bg-white p-4 lg:flex">
           <div className="px-1 pt-1">
             <LambangMerek konfigurasi={konfigurasi} />
-            <p className="mt-2 pl-[46px] text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Admin</p>
+            <p className="mt-2 pl-[46px] text-[11px] font-bold uppercase tracking-[0.18em] text-stone-400">Admin</p>
           </div>
           <div className="flex-1 overflow-y-auto">{navigasi}</div>
           {kartuSaya}
@@ -158,7 +158,7 @@ export default function RentalAdminApp() {
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">
           {kabar && (
             <div className={`mb-5 flex items-start justify-between gap-3 rounded-2xl px-4 py-3 text-[13px] font-semibold ${
-              kabar.jenis === 'ok' ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200' : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
+              kabar.jenis === 'ok' ? 'bg-sewa/5 text-sewa ring-1 ring-sewa/20' : 'bg-rose-50 text-rose-700 ring-1 ring-rose-200'
             }`}
             >
               <span className="flex items-start gap-2">

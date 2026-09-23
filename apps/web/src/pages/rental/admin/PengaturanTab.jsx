@@ -20,23 +20,23 @@ import { adminSyncStatus, adminSyncUlang, adminTelegramPasang, adminTelegramUji,
 // endpoint publik /api/rental/konfigurasi menyalin field aman satu per satu,
 // dan kolom rahasia di layar ini bertipe password.
 
-const inputCls = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-sewa focus:outline-none';
+const inputCls = 'w-full rounded-xl border border-alba-300 bg-white px-3 py-2.5 text-sm text-stone-700 focus:border-sewa focus:outline-none';
 
 function Kolom({ label, bantuan, children, lebar }) {
   return (
     <label className={`block ${lebar || ''}`}>
-      <span className="mb-1.5 block text-[12px] font-semibold text-slate-600">{label}</span>
+      <span className="mb-1.5 block text-[12px] font-semibold text-stone-600">{label}</span>
       {children}
-      {bantuan && <span className="mt-1 block text-[11px] leading-relaxed text-slate-500">{bantuan}</span>}
+      {bantuan && <span className="mt-1 block text-[11px] leading-relaxed text-stone-500">{bantuan}</span>}
     </label>
   );
 }
 
 function Bagian({ judul, anak, catatan }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lembut">
-      <h3 className="font-sewa text-base font-semibold text-slate-800">{judul}</h3>
-      {catatan && <p className="mt-1 text-[12px] leading-relaxed text-slate-500">{catatan}</p>}
+    <section className="rounded-2xl border border-alba-200 bg-white p-5 shadow-lembut">
+      <h3 className="font-sewa text-base font-semibold text-stone-800">{judul}</h3>
+      {catatan && <p className="mt-1 text-[12px] leading-relaxed text-stone-500">{catatan}</p>}
       <div className="mt-4">{anak}</div>
     </section>
   );
@@ -67,7 +67,7 @@ export default function RentalPengaturanTab({ lapor }) {
   useEffect(() => { muat(); }, [muat]);
 
   if (memuat) {
-    return <p className="inline-flex items-center gap-2 text-[13px] text-slate-500"><Loader2 size={14} className="animate-spin" /> Memuat…</p>;
+    return <p className="inline-flex items-center gap-2 text-[13px] text-stone-500"><Loader2 size={14} className="animate-spin" /> Memuat…</p>;
   }
 
   if (!f) {
@@ -136,19 +136,19 @@ export default function RentalPengaturanTab({ lapor }) {
   return (
     <div className="space-y-5">
       <div className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-5 ${
-        f.enabled ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
+        f.enabled ? 'border-sewa/20 bg-sewa/5' : 'border-sewa/20 bg-sewa/5'
       }`}>
         <div>
-          <p className="font-sewa text-base font-semibold text-slate-800">
+          <p className="font-sewa text-base font-semibold text-stone-800">
             {f.enabled ? 'Web peminjaman AKTIF' : 'Web peminjaman belum dibuka'}
           </p>
-          <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+          <p className="mt-1 text-[12px] leading-relaxed text-stone-600">
             {f.enabled
               ? 'Halaman /peminjaman bisa dibuka siapa saja dan checkout berjalan.'
               : 'Pengunjung yang membuka /peminjaman melihat layar "belum dibuka". Admin tetap bisa menyiapkan katalog.'}
           </p>
         </div>
-        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-bold text-slate-700">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-bold text-stone-700">
           <input type="checkbox" checked={!!f.enabled} onChange={ubah('enabled')} className="h-5 w-5 accent-[rgb(var(--sewa-rgb))]" />
           {f.enabled ? 'Nyala' : 'Mati'}
         </label>
@@ -161,17 +161,6 @@ export default function RentalPengaturanTab({ lapor }) {
             <Kolom label="Nama perusahaan"><input value={f.companyName || ''} onChange={ubah('companyName')} className={inputCls} /></Kolom>
             <Kolom label="URL logo"><input value={f.logoUrl || ''} onChange={ubah('logoUrl')} className={inputCls} /></Kolom>
             <Kolom label="Tagline" lebar="sm:col-span-2"><input value={f.tagline || ''} onChange={ubah('tagline')} className={inputCls} /></Kolom>
-            <Kolom label="Warna utama web" bantuan="Dipakai tombol, penanda, dan hero di seluruh web peminjaman.">
-              <span className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={/^#[0-9a-f]{6}$/i.test(f.brandColor || '') ? f.brandColor : '#0F766E'}
-                  onChange={ubah('brandColor')}
-                  className="h-11 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
-                />
-                <input value={f.brandColor || ''} onChange={ubah('brandColor')} placeholder="#0F766E" className={`${inputCls} font-mono`} />
-              </span>
-            </Kolom>
             <Kolom label="URL foto hero beranda" bantuan="Kosongkan untuk memakai bidang warna utama. Foto lebar (≥1600 px) paling bagus.">
               <input value={f.heroImageUrl || ''} onChange={ubah('heroImageUrl')} placeholder="https://lh3.googleusercontent.com/d/FILE_ID" className={inputCls} />
             </Kolom>
@@ -184,14 +173,14 @@ export default function RentalPengaturanTab({ lapor }) {
         catatan="Satu alamat berisi SEMUA jadwal: kelas dari semua kalender kelas, blok internal, dan booking pelanggan (tanpa data pribadi). Di Google Calendar: Setelan → Tambah kalender → Dari URL → tempel alamat ini."
         anak={
           <div className="space-y-3">
-            <code className="block break-all rounded-xl bg-slate-100 px-3.5 py-3 text-[12px] text-slate-700">
+            <code className="block break-all rounded-xl bg-alba-100 px-3.5 py-3 text-[12px] text-stone-700">
               {(typeof window !== 'undefined' ? window.location.origin : '') + '/api/rental/kalender.ics?token=' + (f.icsFeedToken || '…')}
             </code>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => navigator.clipboard?.writeText(window.location.origin + '/api/rental/kalender.ics?token=' + (f.icsFeedToken || '')).then(() => lapor('Alamat feed tersalin.', 'ok'))}
-                className="rounded-xl border border-slate-300 px-4 py-2.5 text-[12px] font-semibold text-slate-600 hover:border-sewa/50 hover:text-sewa"
+                className="rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa"
               >
                 Salin alamat
               </button>
@@ -203,7 +192,7 @@ export default function RentalPengaturanTab({ lapor }) {
                   setF((x) => ({ ...x, icsFeedToken: acak }));
                   lapor('Alamat baru dibuat — tekan Simpan pengaturan supaya berlaku.', 'ok');
                 }}
-                className="rounded-xl border border-slate-300 px-4 py-2.5 text-[12px] font-semibold text-slate-600 hover:border-rose-300 hover:text-rose-600"
+                className="rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-rose-300 hover:text-rose-600"
               >
                 Ganti alamat (cabut akses lama)
               </button>
@@ -278,7 +267,7 @@ export default function RentalPengaturanTab({ lapor }) {
         catatan="Bot mengirim notifikasi checkout dan menerima bukti transfer lewat balasan foto. Foto TIDAK pernah otomatis melunaskan pesanan."
         anak={
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-700 sm:col-span-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-stone-700 sm:col-span-2">
               <input type="checkbox" checked={!!f.telegramEnabled} onChange={ubah('telegramEnabled')} className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
               Nyalakan notifikasi Telegram
             </label>
@@ -295,18 +284,18 @@ export default function RentalPengaturanTab({ lapor }) {
               <button
                 disabled={sibuk}
                 onClick={() => jalankan(adminTelegramPasang, 'Webhook Telegram terpasang.')}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2.5 text-[12px] font-semibold text-slate-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
               >
                 <RefreshCw size={13} /> Pasang webhook
               </button>
               <button
                 disabled={sibuk}
                 onClick={() => jalankan(adminTelegramUji, 'Pesan uji terkirim.')}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2.5 text-[12px] font-semibold text-slate-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
               >
                 <Send size={13} /> Tes kirim
               </button>
-              <span className="self-center text-[11px] text-slate-500">
+              <span className="self-center text-[11px] text-stone-500">
                 Simpan dulu perubahannya sebelum memasang webhook.
               </span>
             </div>
@@ -319,7 +308,7 @@ export default function RentalPengaturanTab({ lapor }) {
         catatan="Memakai OAuth refresh token (client ID + secret + refresh token), bukan service account: runtime hook PocketBase tidak bisa menandatangani JWT RS256 yang dituntut service account."
         anak={
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-slate-700 sm:col-span-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-stone-700 sm:col-span-2">
               <input type="checkbox" checked={!!f.googleEnabled} onChange={ubah('googleEnabled')} className="h-4 w-4 accent-[rgb(var(--sewa-rgb))]" />
               Nyalakan sinkronisasi Google
             </label>
@@ -351,7 +340,7 @@ export default function RentalPengaturanTab({ lapor }) {
         <button
           disabled={sibuk}
           onClick={muat}
-          className="rounded-xl border border-slate-300 px-5 py-2.5 text-[13px] font-semibold text-slate-600 hover:border-sewa/50"
+          className="rounded-xl border border-alba-300 px-5 py-2.5 text-[13px] font-semibold text-stone-600 hover:border-sewa/50"
         >
           Muat ulang
         </button>
@@ -364,12 +353,12 @@ export default function RentalPengaturanTab({ lapor }) {
           <div className="space-y-4">
             <div className="flex flex-wrap gap-3 text-[12px]">
               <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold ${
-                sync?.googleSiap ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'
+                sync?.googleSiap ? 'border-sewa/20 bg-sewa/5 text-sewa' : 'border-alba-200 bg-alba-100 text-stone-600'
               }`}>
                 {sync?.googleSiap ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />} Google {sync?.googleSiap ? 'terhubung' : 'belum siap'}
               </span>
               <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-semibold ${
-                sync?.telegramSiap ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'
+                sync?.telegramSiap ? 'border-sewa/20 bg-sewa/5 text-sewa' : 'border-alba-200 bg-alba-100 text-stone-600'
               }`}>
                 {sync?.telegramSiap ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />} Telegram {sync?.telegramSiap ? 'terhubung' : 'belum siap'}
               </span>
@@ -392,13 +381,13 @@ export default function RentalPengaturanTab({ lapor }) {
               <>
                 <ul className="space-y-1.5">
                   {sync.pekerjaan.map((j) => (
-                    <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px]">
-                      <span className="text-slate-700">
+                    <li key={j.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-alba-200 bg-white px-3 py-2 text-[12px]">
+                      <span className="text-stone-700">
                         <b>{j.jenis}</b> · {j.target} · percobaan {j.percobaan}
                         {j.galat && <span className="block text-[11px] text-red-600">{j.galat}</span>}
                       </span>
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        j.status === 'GAGAL' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'
+                        j.status === 'GAGAL' ? 'border-red-200 bg-red-50 text-red-700' : 'border-sewa/20 bg-sewa/5 text-sewa-tua'
                       }`}>
                         {j.status}
                       </span>
@@ -408,13 +397,13 @@ export default function RentalPengaturanTab({ lapor }) {
                 <button
                   disabled={sibuk}
                   onClick={() => jalankan(() => adminSyncUlang({}), 'Semua pekerjaan gagal dijadwalkan ulang.')}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2.5 text-[12px] font-semibold text-slate-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa disabled:opacity-50"
                 >
                   <RefreshCw size={13} /> Coba ulang semua yang gagal
                 </button>
               </>
             ) : (
-              <p className="text-[13px] text-slate-500">Tidak ada pekerjaan sinkronisasi yang tertunda.</p>
+              <p className="text-[13px] text-stone-500">Tidak ada pekerjaan sinkronisasi yang tertunda.</p>
             )}
           </div>
         }

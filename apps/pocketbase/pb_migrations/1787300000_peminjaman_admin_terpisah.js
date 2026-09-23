@@ -164,7 +164,7 @@ migrate(
     const kalender = app.findCollectionByNameOrId("rental_class_calendars");
 
     // Pindahkan Calendar ID lama yang masih tersimpan di tiap ruang.
-    const WARNA = ["#0EA5E9", "#8B5CF6", "#F59E0B", "#10B981", "#EF4444", "#EC4899", "#14B8A6", "#6366F1"];
+    const WARNA = ["#8E0100", "#D28A84", "#5A0100", "#B54038", "#78716C", "#E6B8B4", "#A11C13", "#A8A29E", "#420000", "#44403C"];
     const sudahAda = {};
     let urut = 0;
     try {
@@ -278,12 +278,8 @@ migrate(
       settings.fields.add(new TextField({ name: "icsFeedToken", max: 200 }));
       berubah = true;
     }
-    // Warna utama etalase publik. Web peminjaman kini punya identitas sendiri,
-    // bukan meminjam maroon PCV.
-    if (!settings.fields.getByName("brandColor")) {
-      settings.fields.add(new TextField({ name: "brandColor", max: 20 }));
-      berubah = true;
-    }
+    // Tidak ada kolom warna: web peminjaman memakai merah-putih PCV yang sama
+    // persis, dan itu sengaja tidak bisa diganti dari dashboard.
     if (!settings.fields.getByName("heroImageUrl")) {
       settings.fields.add(new TextField({ name: "heroImageUrl", max: 600 }));
       berubah = true;
@@ -294,7 +290,6 @@ migrate(
       const s = app.findRecordsByFilter("rental_settings", "id != ''", "", 1, 0)[0];
       if (s) {
         if (!s.getString("icsFeedToken")) s.set("icsFeedToken", $security.randomString(40));
-        if (!s.getString("brandColor")) s.set("brandColor", "#0F766E");
         app.save(s);
       }
     } catch (_) {}

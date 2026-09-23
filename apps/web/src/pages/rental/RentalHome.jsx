@@ -43,7 +43,7 @@ function KotakCari({ onCari }) {
   };
 
   return (
-    <form onSubmit={kirim} className="rounded-3xl bg-white p-3 shadow-angkat ring-1 ring-slate-200/70 sm:p-4">
+    <form onSubmit={kirim} className="rounded-3xl bg-white p-3 shadow-angkat ring-1 ring-alba-200 sm:p-4">
       <div className="flex gap-1 px-1 pb-3">
         {[
           { id: 'RUANG', label: 'Ruang', ikon: Building2 },
@@ -54,7 +54,7 @@ function KotakCari({ onCari }) {
             type="button"
             onClick={() => setTipe(t.id)}
             className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
-              tipe === t.id ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+              tipe === t.id ? 'bg-sewa text-white' : 'text-stone-500 hover:bg-alba-100 hover:text-stone-900'
             }`}
           >
             <t.ikon size={15} /> {t.label}
@@ -63,38 +63,38 @@ function KotakCari({ onCari }) {
       </div>
 
       <div className="grid gap-2 md:grid-cols-[1.6fr_1fr_1fr_auto]">
-        <label className="flex items-center gap-3 rounded-2xl bg-slate-100 px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
-          <Search size={18} className="shrink-0 text-slate-400" />
+        <label className="flex items-center gap-3 rounded-2xl bg-alba-100 px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
+          <Search size={18} className="shrink-0 text-stone-400" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">{tipe === 'ALAT' ? 'Cari alat' : 'Cari ruang'}</span>
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-stone-500">{tipe === 'ALAT' ? 'Cari alat' : 'Cari ruang'}</span>
             <input
               value={q}
               onChange={(ev) => setQ(ev.target.value)}
               placeholder={tipe === 'ALAT' ? 'Mis. manekin, set instrumen…' : 'Mis. ruang tindakan, skill lab…'}
-              className="w-full bg-transparent text-[15px] font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none"
+              className="w-full bg-transparent text-[15px] font-semibold text-stone-900 placeholder:font-normal placeholder:text-stone-400 focus:outline-none"
             />
           </span>
         </label>
 
-        <label className="flex items-center gap-3 rounded-2xl bg-slate-100 px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
-          <CalendarDays size={18} className="shrink-0 text-slate-400" />
+        <label className="flex items-center gap-3 rounded-2xl bg-alba-100 px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
+          <CalendarDays size={18} className="shrink-0 text-stone-400" />
           <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">Tanggal</span>
+            <span className="block text-[11px] font-bold uppercase tracking-wide text-stone-500">Tanggal</span>
             <input
               type="date"
               min={tanggalWibHariIni()}
               value={tanggal}
               onChange={(ev) => setTanggal(ev.target.value)}
-              className="w-full bg-transparent text-[15px] font-semibold text-slate-900 focus:outline-none"
+              className="w-full bg-transparent text-[15px] font-semibold text-stone-900 focus:outline-none"
             />
           </span>
         </label>
 
         {tipe === 'RUANG' ? (
-          <label className="flex items-center gap-3 rounded-2xl bg-slate-100 px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
-            <Users size={18} className="shrink-0 text-slate-400" />
+          <label className="flex items-center gap-3 rounded-2xl bg-alba-100 px-4 py-3 focus-within:bg-white focus-within:ring-2 focus-within:ring-sewa">
+            <Users size={18} className="shrink-0 text-stone-400" />
             <span className="min-w-0 flex-1">
-              <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">Peserta</span>
+              <span className="block text-[11px] font-bold uppercase tracking-wide text-stone-500">Peserta</span>
               <input
                 type="number"
                 min={1}
@@ -102,7 +102,7 @@ function KotakCari({ onCari }) {
                 value={kapasitas}
                 onChange={(ev) => setKapasitas(ev.target.value)}
                 placeholder="Berapa orang?"
-                className="w-full bg-transparent text-[15px] font-semibold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none"
+                className="w-full bg-transparent text-[15px] font-semibold text-stone-900 placeholder:font-normal placeholder:text-stone-400 focus:outline-none"
               />
             </span>
           </label>
@@ -123,27 +123,27 @@ function KartuRuang({ r, tanggal }) {
   return (
     <Link
       to={`/peminjaman/ruang/${r.slug}${tanggal ? `?tanggal=${tanggal}` : ''}`}
-      className="group block overflow-hidden rounded-3xl bg-white shadow-lembut ring-1 ring-slate-200/70 transition-shadow hover:shadow-angkat"
+      className="group block overflow-hidden rounded-3xl bg-white shadow-lembut ring-1 ring-alba-200 transition-shadow hover:shadow-angkat"
     >
       <div className="relative aspect-[4/3] overflow-hidden">
         <div className="h-full w-full transition-transform duration-500 group-hover:scale-105">
           <FotoItem src={r.foto?.[0]} tipe="RUANG" nama={r.nama} besar />
         </div>
         {r.kapasitas > 0 && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[12px] font-bold text-slate-700 shadow-sm">
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[12px] font-bold text-stone-700 shadow-sm">
             <Users size={13} /> {r.kapasitas} orang
           </span>
         )}
       </div>
       <div className="p-4">
-        <h3 className="text-[16px] font-extrabold leading-snug text-slate-900">{r.nama}</h3>
+        <h3 className="text-[16px] font-extrabold leading-snug text-stone-900">{r.nama}</h3>
         {r.alamat && (
-          <p className="mt-1 flex items-start gap-1 text-[13px] text-slate-500">
+          <p className="mt-1 flex items-start gap-1 text-[13px] text-stone-500">
             <MapPin size={13} className="mt-0.5 shrink-0" /> <span className="line-clamp-1">{r.alamat}</span>
           </p>
         )}
-        <p className="mt-3 text-[13px] text-slate-500">
-          Mulai <span className="text-[16px] font-extrabold text-slate-900">{rupiah(r.harga)}</span> {SATUAN[r.satuan] || ''}
+        <p className="mt-3 text-[13px] text-stone-500">
+          Mulai <span className="text-[16px] font-extrabold text-stone-900">{rupiah(r.harga)}</span> {SATUAN[r.satuan] || ''}
         </p>
       </div>
     </Link>
@@ -154,19 +154,19 @@ function KartuAlat({ a }) {
   return (
     <Link
       to={`/peminjaman/alat/${a.slug}`}
-      className="group flex items-center gap-3 rounded-2xl bg-white p-3 shadow-lembut ring-1 ring-slate-200/70 transition-shadow hover:shadow-angkat"
+      className="group flex items-center gap-3 rounded-2xl bg-white p-3 shadow-lembut ring-1 ring-alba-200 transition-shadow hover:shadow-angkat"
     >
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl">
         <FotoItem src={a.foto?.[0]} tipe="ALAT" nama={a.nama} />
       </div>
       <div className="min-w-0 flex-1">
         {a.kategori && <p className="text-[11px] font-bold uppercase tracking-wide text-sewa">{a.kategori}</p>}
-        <h3 className="line-clamp-1 text-[14px] font-bold text-slate-900">{a.nama}</h3>
-        <p className="text-[13px] text-slate-500">
-          <span className="font-extrabold text-slate-900">{rupiah(a.harga)}</span> {SATUAN[a.satuan] || ''}
+        <h3 className="line-clamp-1 text-[14px] font-bold text-stone-900">{a.nama}</h3>
+        <p className="text-[13px] text-stone-500">
+          <span className="font-extrabold text-stone-900">{rupiah(a.harga)}</span> {SATUAN[a.satuan] || ''}
         </p>
       </div>
-      <ArrowRight size={16} className="shrink-0 text-slate-300 transition-colors group-hover:text-sewa" />
+      <ArrowRight size={16} className="shrink-0 text-stone-300 transition-colors group-hover:text-sewa" />
     </Link>
   );
 }
@@ -199,14 +199,14 @@ export default function RentalHome() {
   return (
     <RentalLayout konfigurasi={konfigurasi}>
       {/* HERO */}
-      <section className="relative overflow-hidden bg-slate-900">
+      <section className="relative overflow-hidden bg-sewa">
         {konfigurasi.heroImageUrl ? (
           <img src={konfigurasi.heroImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
         ) : (
           // Tanpa foto hero: bidang warna merek dengan lengkung besar, bukan
           // gradien datar - cukup berkarakter tanpa pura-pura punya foto.
           <div className="absolute inset-0" aria-hidden="true">
-            <div className="absolute inset-0 bg-gradient-to-br from-sewa-tua via-sewa to-slate-900" />
+            <div className="absolute inset-0 bg-gradient-to-br from-sewa-tua via-sewa to-maroon-900" />
             <div className="absolute -right-32 -top-40 h-[28rem] w-[28rem] rounded-full bg-white/10" />
             <div className="absolute -bottom-48 right-40 h-[22rem] w-[22rem] rounded-full bg-white/5" />
             <svg className="absolute inset-0 h-full w-full text-white/[0.07]">
@@ -219,7 +219,7 @@ export default function RentalHome() {
             </svg>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" aria-hidden="true" />
+        <div className="absolute inset-0 bg-gradient-to-t from-maroon-900/60 to-transparent" aria-hidden="true" />
 
         <div className="relative mx-auto max-w-6xl px-4 pb-32 pt-14 sm:px-6 sm:pb-36 sm:pt-20">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-bold text-white backdrop-blur">
@@ -237,7 +237,7 @@ export default function RentalHome() {
       {/* KARTU PENCARIAN, menumpang di tepi hero */}
       <div className="relative z-10 mx-auto -mt-24 max-w-6xl px-4 sm:px-6">
         <KotakCari onCari={cari} />
-        <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px] font-semibold text-slate-500">
+        <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px] font-semibold text-stone-500">
           <span className="inline-flex items-center gap-1.5"><Clock3 size={15} className="text-sewa" /> Slot per 30 menit</span>
           <span className="inline-flex items-center gap-1.5"><ShieldCheck size={15} className="text-sewa" /> Jadwal terkunci saat checkout</span>
           <span className="inline-flex items-center gap-1.5"><MessageCircle size={15} className="text-sewa" /> Dibantu admin lewat WhatsApp</span>
@@ -249,8 +249,8 @@ export default function RentalHome() {
         <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Ruang yang bisa disewa</h2>
-              <p className="mt-1 text-sm text-slate-500">Lihat jam kosongnya langsung di halaman tiap ruang.</p>
+              <h2 className="text-2xl font-extrabold tracking-tight text-stone-900">Ruang yang bisa disewa</h2>
+              <p className="mt-1 text-sm text-stone-500">Lihat jam kosongnya langsung di halaman tiap ruang.</p>
             </div>
             <Link to="/peminjaman/ruang" className="hidden shrink-0 items-center gap-1 text-sm font-bold text-sewa hover:underline sm:inline-flex">
               Semua ruang <ArrowRight size={15} />
@@ -267,8 +267,8 @@ export default function RentalHome() {
         <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Alat medis</h2>
-              <p className="mt-1 text-sm text-slate-500">Boleh disewa bersama ruang, dengan jadwal yang berbeda.</p>
+              <h2 className="text-2xl font-extrabold tracking-tight text-stone-900">Alat medis</h2>
+              <p className="mt-1 text-sm text-stone-500">Boleh disewa bersama ruang, dengan jadwal yang berbeda.</p>
             </div>
             <Link to="/peminjaman/alat" className="hidden shrink-0 items-center gap-1 text-sm font-bold text-sewa hover:underline sm:inline-flex">
               Semua alat <ArrowRight size={15} />
@@ -282,33 +282,33 @@ export default function RentalHome() {
 
       {/* CARA SEWA */}
       <section id="cara-sewa" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6">
-        <div className="rounded-[2rem] bg-white p-6 shadow-lembut ring-1 ring-slate-200/70 sm:p-10">
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Cara sewa</h2>
-          <p className="mt-1 text-sm text-slate-500">Empat langkah, dan jadwalmu sudah aman sejak langkah kedua.</p>
+        <div className="rounded-[2rem] bg-white p-6 shadow-lembut ring-1 ring-alba-200 sm:p-10">
+          <h2 className="text-2xl font-extrabold tracking-tight text-stone-900">Cara sewa</h2>
+          <p className="mt-1 text-sm text-stone-500">Empat langkah, dan jadwalmu sudah aman sejak langkah kedua.</p>
           <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {LANGKAH.map((l, i) => (
               <li key={l.judul} className="relative">
                 <span className="grid h-12 w-12 place-items-center rounded-2xl bg-sewa/10 text-sewa">
                   <l.ikon size={22} />
                 </span>
-                <p className="mt-4 text-[12px] font-extrabold uppercase tracking-wider text-slate-400">Langkah {i + 1}</p>
-                <h3 className="mt-1 text-[16px] font-extrabold text-slate-900">{l.judul}</h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">{l.isi}</p>
+                <p className="mt-4 text-[12px] font-extrabold uppercase tracking-wider text-stone-400">Langkah {i + 1}</p>
+                <h3 className="mt-1 text-[16px] font-extrabold text-stone-900">{l.judul}</h3>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-stone-600">{l.isi}</p>
               </li>
             ))}
           </ol>
 
-          <div className="mt-10 flex flex-col items-start justify-between gap-4 rounded-2xl bg-slate-900 p-6 text-white sm:flex-row sm:items-center">
+          <div className="mt-10 flex flex-col items-start justify-between gap-4 rounded-2xl bg-sewa p-6 text-white sm:flex-row sm:items-center">
             <div>
               <p className="text-[16px] font-extrabold">Masih ragu ruang mana yang cocok?</p>
               <p className="mt-1 text-[13px] text-white/70">Ceritakan kebutuhanmu ke admin — biasanya dibalas di jam kerja.</p>
             </div>
             {wa ? (
-              <a href={wa} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-slate-900 hover:bg-slate-100">
+              <a href={wa} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-stone-900 hover:bg-alba-100">
                 <MessageCircle size={16} /> Chat admin
               </a>
             ) : (
-              <Link to="/peminjaman/ruang" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-slate-900 hover:bg-slate-100">
+              <Link to="/peminjaman/ruang" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-stone-900 hover:bg-alba-100">
                 Lihat ruang <ArrowRight size={16} />
               </Link>
             )}

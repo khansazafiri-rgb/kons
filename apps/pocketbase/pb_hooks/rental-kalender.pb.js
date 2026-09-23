@@ -75,7 +75,7 @@ routerAdd("GET", "/api/rental/admin/kalender-terpadu", (e) => {
   const kalender = {};
   try {
     e.app.findRecordsByFilter("rental_class_calendars", "id != ''", "name", 200, 0).forEach((c) => {
-      kalender[c.id] = { id: c.id, nama: c.getString("name"), warna: c.getString("color") || "#0EA5E9", aktif: c.getBool("active") };
+      kalender[c.id] = { id: c.id, nama: c.getString("name"), warna: c.getString("color") || "#8E0100", aktif: c.getBool("active") };
     });
   } catch (_) {}
 

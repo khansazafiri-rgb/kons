@@ -112,7 +112,6 @@ function setelanPublik(s) {
     namaPerusahaan: s.getString("companyName") || "Rental",
     tagline: s.getString("tagline"),
     logoUrl: s.getString("logoUrl"),
-    brandColor: s.getString("brandColor") || "#0F766E",
     heroImageUrl: s.getString("heroImageUrl"),
     waAdmin: s.getString("waAdminNumber"),
     instruksiPembayaran: s.getString("paymentInstruction"),

@@ -95,9 +95,11 @@ di riwayat tindakan (audit log), tapi ia tidak bisa masuk lagi.
 ## Tampilan
 
 Versi pertama memakai kerangka PCV (krem, serif, kartu gradien polos) dan
-terasa seperti templat. Web peminjaman sekarang punya **identitas sendiri**:
-logo, nama, dan **warna utama** diatur dari Pengaturan (bawaan teal medis),
-huruf *Plus Jakarta Sans*, dan mode gelap PCV tidak ikut terbawa.
+terasa seperti templat. Web peminjaman sekarang punya tata letak sendiri,
+tetapi **warnanya tetap templat FK/PCV: merah marun `#8E0100` dan putih** —
+tidak ada warna lain dan warnanya tidak bisa diganti dari dashboard. Logo dan
+nama diatur dari Pengaturan, huruf *Plus Jakarta Sans*, dan mode gelap PCV
+tidak ikut terbawa (halaman peminjaman selalu terang).
 
 Pola-polanya diambil dari aplikasi pemesanan yang sudah akrab bagi pengunjung:
 
@@ -390,8 +392,9 @@ pesanannya ditandai konflik di dashboard dan diumumkan ke grup Telegram.
 ### Kalender Terpadu
 
 Menu **Kalender Terpadu** menyatukan semuanya dalam tampilan minggu per ruang,
-mirip Google Calendar: tiap kelas dengan warnanya sendiri, blok internal
-bergaris, booking lunas/belum lunas, garis tipis kuning untuk jam penjaga, dan
+mirip Google Calendar: tiap kelas dengan warnanya sendiri (gradasi merah dan
+abu-abu hangat, tetap dalam templat merah-putih), blok internal
+bergaris, booking lunas/belum lunas, garis tipis abu-abu untuk jam penjaga, dan
 garis merah "sekarang".
 
 ### Satu Google Calendar berisi semuanya (feed `.ics`)
@@ -542,7 +545,7 @@ ditempati orang tidak boleh diberikan dua kali.
 
 - [ ] Jalankan migrasi: `npm run migrations:up --prefix apps/pocketbase`
 - [ ] Masuk `/peminjaman/admin/masuk` sebagai pemilik platform → buat akun Super Admin, Admin Operasional, Admin Jadwal
-- [ ] Atur warna utama, logo, dan (opsional) foto hero
+- [ ] Atur logo, nama, dan (opsional) foto hero
 - [ ] Hapus katalog contoh (2 ruang + 4 alat) dari Dashboard admin peminjaman → Katalog
 - [ ] Isi nama perusahaan, tagline, logo
 - [ ] Isi **nomor WhatsApp admin** dan **detail rekening/QRIS** ⚠️ kosong secara sengaja di seed

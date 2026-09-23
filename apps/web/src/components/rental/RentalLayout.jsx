@@ -60,7 +60,7 @@ export function LambangMerek({ konfigurasi, ukuran = 'md' }) {
           {inisial}
         </span>
       )}
-      <span className="font-sewa text-[17px] font-extrabold tracking-tight text-slate-900">{nama}</span>
+      <span className="font-sewa text-[17px] font-extrabold tracking-tight text-stone-900">{nama}</span>
     </span>
   );
 }
@@ -93,8 +93,8 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
   const wa = tautanWa(konfigurasi?.waAdmin, `Halo Admin ${konfigurasi?.namaPerusahaan || ''}, saya mau tanya soal sewa ruang/alat.`);
 
   return (
-    <div style={variabelMerek(konfigurasi?.brandColor)} className="flex min-h-screen flex-col bg-slate-50 font-sewa text-slate-800 antialiased">
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
+    <div style={variabelMerek()} className="flex min-h-screen flex-col bg-alba-50 font-sewa text-stone-800 antialiased">
+      <header className="sticky top-0 z-40 border-b border-alba-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link to="/peminjaman" onClick={() => setMenu(false)} aria-label="Beranda">
             <LambangMerek konfigurasi={konfigurasi} />
@@ -102,7 +102,7 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
 
           <nav className="hidden items-center gap-1 md:flex">
             {NAV.map((n) => (n.jangkar ? (
-              <a key={n.to} href={n.to} className="rounded-lg px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900">
+              <a key={n.to} href={n.to} className="rounded-lg px-3.5 py-2 text-sm font-semibold text-stone-600 transition-colors hover:bg-alba-100 hover:text-stone-900">
                 {n.label}
               </a>
             ) : (
@@ -110,7 +110,7 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
                 key={n.to}
                 to={n.to}
                 className={({ isActive }) => `rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
-                  isActive ? 'bg-sewa/10 text-sewa' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  isActive ? 'bg-sewa/10 text-sewa' : 'text-stone-600 hover:bg-alba-100 hover:text-stone-900'
                 }`}
               >
                 {n.label}
@@ -124,14 +124,14 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
                 href={wa}
                 target="_blank"
                 rel="noreferrer"
-                className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 lg:inline-flex"
+                className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-alba-100 hover:text-stone-900 lg:inline-flex"
               >
                 <MessageCircle size={16} /> Tanya admin
               </a>
             )}
             <Link
               to="/peminjaman/keranjang"
-              className="relative inline-flex h-10 items-center gap-2 rounded-full bg-slate-900 px-4 text-sm font-bold text-white transition-colors hover:bg-slate-700"
+              className="relative inline-flex h-10 items-center gap-2 rounded-full bg-sewa px-4 text-sm font-bold text-white transition-colors hover:bg-sewa-tua"
             >
               <ShoppingBag size={16} />
               <span className="hidden sm:inline">Keranjang</span>
@@ -145,7 +145,7 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
               onClick={() => setMenu((m) => !m)}
               aria-label={menu ? 'Tutup menu' : 'Buka menu'}
               aria-expanded={menu}
-              className="grid h-10 w-10 place-items-center rounded-full text-slate-600 hover:bg-slate-100 md:hidden"
+              className="grid h-10 w-10 place-items-center rounded-full text-stone-600 hover:bg-alba-100 md:hidden"
             >
               {menu ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -153,19 +153,19 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
         </div>
 
         {menu && (
-          <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+          <div className="border-t border-alba-200 bg-white px-4 py-3 md:hidden">
             {NAV.map((n) => (
               <a
                 key={n.to}
                 href={n.to}
                 onClick={() => setMenu(false)}
-                className="block rounded-lg px-3 py-3 text-[15px] font-semibold text-slate-700 hover:bg-slate-100"
+                className="block rounded-lg px-3 py-3 text-[15px] font-semibold text-stone-700 hover:bg-alba-100"
               >
                 {n.label}
               </a>
             ))}
             {wa && (
-              <a href={wa} target="_blank" rel="noreferrer" className="block rounded-lg px-3 py-3 text-[15px] font-semibold text-slate-700 hover:bg-slate-100">
+              <a href={wa} target="_blank" rel="noreferrer" className="block rounded-lg px-3 py-3 text-[15px] font-semibold text-stone-700 hover:bg-alba-100">
                 Tanya admin lewat WhatsApp
               </a>
             )}
@@ -176,18 +176,18 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
       <main className="flex-1">{children}</main>
 
       {!tanpaFooter && (
-        <footer className="bg-slate-900 text-slate-400">
+        <footer className="bg-sewa text-stone-400">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
             <div className="lg:col-span-2">
               <span className="font-sewa text-lg font-extrabold text-white">{konfigurasi?.namaPerusahaan || 'Rental'}</span>
               {konfigurasi?.tagline && <p className="mt-2 max-w-sm text-sm leading-relaxed">{konfigurasi.tagline}</p>}
-              <p className="mt-4 max-w-sm text-[13px] leading-relaxed text-slate-500">
+              <p className="mt-4 max-w-sm text-[13px] leading-relaxed text-stone-500">
                 Pembayaran diverifikasi manual oleh admin lewat WhatsApp. Kami tidak pernah meminta
                 nomor kartu, PIN, atau kode OTP.
               </p>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Sewa</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-300">Sewa</p>
               <ul className="mt-3 space-y-2 text-sm">
                 <li><Link to="/peminjaman/ruang" className="hover:text-white">Ruang</Link></li>
                 <li><Link to="/peminjaman/alat" className="hover:text-white">Alat medis</Link></li>
@@ -195,7 +195,7 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
               </ul>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Bantuan</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-300">Bantuan</p>
               <ul className="mt-3 space-y-2 text-sm">
                 <li><a href="/peminjaman#cara-sewa" className="hover:text-white">Cara sewa</a></li>
                 {wa && <li><a href={wa} target="_blank" rel="noreferrer" className="hover:text-white">Chat admin</a></li>}
@@ -215,7 +215,7 @@ export function BarBawah({ children }) {
   return (
     <>
       <div className="h-24 lg:hidden" aria-hidden="true" />
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-alba-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         {children}
       </div>
     </>
@@ -227,8 +227,8 @@ export function RentalMati() {
     <RentalLayout konfigurasi={null} tanpaFooter>
       <div className="mx-auto max-w-md px-6 py-24 text-center">
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-sewa/10 text-3xl">🛠️</div>
-        <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-slate-900">Penyewaan belum dibuka</h1>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">
+        <h1 className="mt-5 text-2xl font-extrabold tracking-tight text-stone-900">Penyewaan belum dibuka</h1>
+        <p className="mt-3 text-sm leading-relaxed text-stone-600">
           Katalog ruang dan alat sedang disiapkan. Coba lagi beberapa saat lagi.
         </p>
       </div>
@@ -238,8 +238,8 @@ export function RentalMati() {
 
 export function RentalMemuat() {
   return (
-    <div className="grid min-h-screen place-items-center bg-slate-50">
-      <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-slate-200 border-t-slate-500" />
+    <div className="grid min-h-screen place-items-center bg-alba-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-alba-200 border-t-stone-500" />
     </div>
   );
 }

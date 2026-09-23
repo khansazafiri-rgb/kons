@@ -19,7 +19,7 @@ const PX_PER_JAM = 52;
 
 function hexKeRgba(hex, a) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-  if (!m) return `rgba(14,165,233,${a})`;
+  if (!m) return `rgba(142,1,0,${a})`;
   const n = parseInt(m[1], 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
@@ -117,16 +117,16 @@ export default function KalenderTerpaduTab({ lapor }) {
 
   const gaya = (ev) => {
     if (ev.jenis === 'KELAS') {
-      const w = kalender[ev.kalender]?.warna || '#0EA5E9';
-      return { backgroundColor: hexKeRgba(w, 0.16), borderLeft: `3px solid ${w}`, color: '#0f172a' };
+      const w = kalender[ev.kalender]?.warna || '#8E0100';
+      return { backgroundColor: hexKeRgba(w, 0.16), borderLeft: `3px solid ${w}`, color: '#1c1917' };
     }
     if (ev.jenis === 'BLOK') {
-      return { backgroundImage: 'repeating-linear-gradient(135deg,#e2e8f0 0 6px,#f1f5f9 6px 12px)', borderLeft: '3px solid #64748b', color: '#334155' };
+      return { backgroundImage: 'repeating-linear-gradient(135deg,#efe7d9 0 6px,#f8f4ec 6px 12px)', borderLeft: '3px solid #78716c', color: '#44403c' };
     }
     const lunas = ev.status === 'TERKONFIRMASI' || ev.status === 'SEDANG_DIPINJAM';
     return lunas
       ? { backgroundColor: 'rgb(var(--sewa-rgb))', color: '#fff' }
-      : { backgroundColor: 'rgb(var(--sewa-rgb) / 0.18)', border: '1.5px dashed rgb(var(--sewa-rgb))', color: '#0f172a' };
+      : { backgroundColor: 'rgb(var(--sewa-rgb) / 0.18)', border: '1.5px dashed rgb(var(--sewa-rgb))', color: '#1c1917' };
   };
 
   const hariIni = tanggalWibHariIni();
@@ -136,15 +136,15 @@ export default function KalenderTerpaduTab({ lapor }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h3 className="text-xl font-extrabold text-slate-900">Kalender terpadu</h3>
-          <p className="mt-1 text-[13px] text-slate-500">Semua kelas, blok, booking, dan penjaga — satu minggu, satu ruang.</p>
+          <h3 className="text-xl font-extrabold text-stone-900">Kalender terpadu</h3>
+          <p className="mt-1 text-[13px] text-stone-500">Semua kelas, blok, booking, dan penjaga — satu minggu, satu ruang.</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={() => geser(-7)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-300 bg-white hover:border-slate-400" aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></button>
-          <button onClick={() => setDari(tanggalWibHariIni())} className="h-9 rounded-lg border border-slate-300 bg-white px-3.5 text-[13px] font-bold text-slate-700 hover:border-slate-400">Hari ini</button>
-          <button onClick={() => geser(7)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-300 bg-white hover:border-slate-400" aria-label="Minggu berikutnya"><ChevronRight size={16} /></button>
-          <span className="ml-2 text-[13px] font-bold text-slate-700">{hari[0].tgl} {hari[0].bulan} – {hari[6].tgl} {hari[6].bulan}</span>
-          {memuat && <Loader2 size={15} className="ml-1 animate-spin text-slate-400" />}
+          <button onClick={() => geser(-7)} className="grid h-9 w-9 place-items-center rounded-lg border border-alba-300 bg-white hover:border-alba-400" aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></button>
+          <button onClick={() => setDari(tanggalWibHariIni())} className="h-9 rounded-lg border border-alba-300 bg-white px-3.5 text-[13px] font-bold text-stone-700 hover:border-alba-400">Hari ini</button>
+          <button onClick={() => geser(7)} className="grid h-9 w-9 place-items-center rounded-lg border border-alba-300 bg-white hover:border-alba-400" aria-label="Minggu berikutnya"><ChevronRight size={16} /></button>
+          <span className="ml-2 text-[13px] font-bold text-stone-700">{hari[0].tgl} {hari[0].bulan} – {hari[6].tgl} {hari[6].bulan}</span>
+          {memuat && <Loader2 size={15} className="ml-1 animate-spin text-stone-400" />}
         </div>
       </div>
 
@@ -155,7 +155,7 @@ export default function KalenderTerpaduTab({ lapor }) {
             key={r.id}
             onClick={() => setRuangAktif(r.id)}
             className={`shrink-0 rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
-              ruangAktif === r.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+              ruangAktif === r.id ? 'bg-sewa text-white' : 'bg-white text-stone-600 ring-1 ring-alba-200 hover:bg-alba-50'
             }`}
           >
             {r.nama}
@@ -164,26 +164,26 @@ export default function KalenderTerpaduTab({ lapor }) {
       </div>
 
       {/* Keterangan */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2 text-[12px] font-semibold text-slate-600">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-[12px] font-semibold text-stone-600">
         {(data?.kalender || []).filter((k) => k.aktif).map((k) => (
           <span key={k.id} className="inline-flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded" style={{ backgroundColor: k.warna }} /> {k.nama}</span>
         ))}
         <span className="inline-flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded bg-sewa" /> Booking lunas</span>
         <span className="inline-flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded border border-dashed border-sewa bg-sewa/20" /> Booking belum lunas</span>
-        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded" style={{ backgroundImage: 'repeating-linear-gradient(135deg,#cbd5e1 0 3px,#f1f5f9 3px 6px)' }} /> Blok internal</span>
-        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-3 w-1 rounded bg-amber-400" /> Penjaga bertugas</span>
+        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded" style={{ backgroundImage: 'repeating-linear-gradient(135deg,#e2d6c2 0 3px,#f8f4ec 3px 6px)' }} /> Blok internal</span>
+        <span className="inline-flex items-center gap-1.5"><i className="inline-block h-3 w-1 rounded bg-stone-400" /> Penjaga bertugas</span>
       </div>
 
       {/* Grid minggu */}
       {ruang && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-lembut">
+        <div className="overflow-x-auto rounded-2xl border border-alba-200 bg-white shadow-lembut">
           <div className="min-w-[760px]">
-            <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-slate-200">
+            <div className="grid grid-cols-[52px_repeat(7,1fr)] border-b border-alba-200">
               <div />
               {hari.map((h) => (
-                <div key={h.tanggal} className={`border-l border-slate-100 px-2 py-2.5 text-center ${h.tanggal === hariIni ? 'bg-sewa/5' : ''}`}>
-                  <p className={`text-[11px] font-bold uppercase ${h.akhirPekan ? 'text-rose-500' : 'text-slate-400'}`}>{h.hari}</p>
-                  <p className={`mx-auto mt-0.5 grid h-8 w-8 place-items-center rounded-full text-[15px] font-extrabold ${h.tanggal === hariIni ? 'bg-sewa text-white' : 'text-slate-800'}`}>{h.tgl}</p>
+                <div key={h.tanggal} className={`border-l border-alba-200 px-2 py-2.5 text-center ${h.tanggal === hariIni ? 'bg-sewa/5' : ''}`}>
+                  <p className={`text-[11px] font-bold uppercase ${h.akhirPekan ? 'text-rose-500' : 'text-stone-400'}`}>{h.hari}</p>
+                  <p className={`mx-auto mt-0.5 grid h-8 w-8 place-items-center rounded-full text-[15px] font-extrabold ${h.tanggal === hariIni ? 'bg-sewa text-white' : 'text-stone-800'}`}>{h.tgl}</p>
                 </div>
               ))}
             </div>
@@ -191,7 +191,7 @@ export default function KalenderTerpaduTab({ lapor }) {
             <div className="grid grid-cols-[52px_repeat(7,1fr)]">
               <div className="relative" style={{ height: tinggi }}>
                 {Array.from({ length: jamAkhir - jamAwal }, (_, i) => (
-                  <span key={i} className="absolute right-2 -translate-y-1/2 text-[10px] font-semibold text-slate-400" style={{ top: i * PX_PER_JAM }}>
+                  <span key={i} className="absolute right-2 -translate-y-1/2 text-[10px] font-semibold text-stone-400" style={{ top: i * PX_PER_JAM }}>
                     {i === 0 ? '' : `${String(jamAwal + i).padStart(2, '0')}:00`}
                   </span>
                 ))}
@@ -205,14 +205,14 @@ export default function KalenderTerpaduTab({ lapor }) {
                   return { top, height: Math.max(0, bawah - top) };
                 };
                 return (
-                  <div key={h.tanggal} className={`relative border-l border-slate-100 ${h.tanggal === hariIni ? 'bg-sewa/[0.03]' : ''}`} style={{ height: tinggi }}>
+                  <div key={h.tanggal} className={`relative border-l border-alba-200 ${h.tanggal === hariIni ? 'bg-sewa/[0.03]' : ''}`} style={{ height: tinggi }}>
                     {Array.from({ length: jamAkhir - jamAwal }, (_, i) => (
-                      <div key={i} className="absolute inset-x-0 border-t border-slate-100" style={{ top: i * PX_PER_JAM }} />
+                      <div key={i} className="absolute inset-x-0 border-t border-alba-200" style={{ top: i * PX_PER_JAM }} />
                     ))}
 
                     {isi.penjaga.map((g) => {
                       const p = posisi(g.m0, g.m1);
-                      return p.height > 0 ? <div key={g.id} title={`Penjaga: ${g.judul} (${jamWib(g.mulai)}–${jamWib(g.selesai)})`} className="absolute left-0 w-1 rounded-r bg-amber-400/80" style={p} /> : null;
+                      return p.height > 0 ? <div key={g.id} title={`Penjaga: ${g.judul} (${jamWib(g.mulai)}–${jamWib(g.selesai)})`} className="absolute left-0 w-1 rounded-r bg-stone-400/70" style={p} /> : null;
                     })}
 
                     {isi.jadwal.map((ev) => {
@@ -246,10 +246,10 @@ export default function KalenderTerpaduTab({ lapor }) {
         </div>
       )}
 
-      {!memuat && !data?.ruang?.length && <p className="text-sm text-slate-500">Belum ada ruang aktif.</p>}
+      {!memuat && !data?.ruang?.length && <p className="text-sm text-stone-500">Belum ada ruang aktif.</p>}
 
       {data?.feedIcs && (
-        <div className="flex flex-col gap-4 rounded-2xl bg-slate-900 p-5 text-white sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 rounded-2xl bg-sewa p-5 text-white sm:flex-row sm:items-center">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10"><CalendarRange size={22} /></span>
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-extrabold">Lihat semua ini di Google Calendar</p>
@@ -260,7 +260,7 @@ export default function KalenderTerpaduTab({ lapor }) {
           </div>
           <button
             onClick={async () => { if (await salinTeks(data.feedIcs)) lapor('Alamat kalender tersalin. Tempel di Google Calendar → Dari URL.', 'ok'); }}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[13px] font-extrabold text-slate-900 hover:bg-slate-100"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[13px] font-extrabold text-stone-900 hover:bg-alba-100"
           >
             <Copy size={14} /> Salin alamat
           </button>

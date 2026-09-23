@@ -16,15 +16,15 @@ export default function Langkah({ aktif = 0 }) {
         const kini = i === aktif;
         return (
           <li key={l} className="flex items-center gap-2 sm:gap-3">
-            <span className={`flex items-center gap-2 ${kini ? 'text-slate-900' : lewat ? 'text-sewa' : 'text-slate-400'}`}>
+            <span className={`flex items-center gap-2 ${kini ? 'text-stone-900' : lewat ? 'text-sewa' : 'text-stone-400'}`}>
               <span className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-extrabold ${
-                kini ? 'bg-slate-900 text-white' : lewat ? 'bg-sewa text-white' : 'bg-slate-200 text-slate-500'
+                kini ? 'bg-sewa text-white' : lewat ? 'bg-sewa text-white' : 'bg-alba-200 text-stone-500'
               }`}>
                 {lewat ? <Check size={13} strokeWidth={3} /> : i + 1}
               </span>
               <span className={kini ? '' : 'hidden sm:inline'}>{l}</span>
             </span>
-            {i < LANGKAH.length - 1 && <span className={`h-px w-6 sm:w-10 ${lewat ? 'bg-sewa' : 'bg-slate-300'}`} />}
+            {i < LANGKAH.length - 1 && <span className={`h-px w-6 sm:w-10 ${lewat ? 'bg-sewa' : 'bg-stone-300'}`} />}
           </li>
         );
       })}

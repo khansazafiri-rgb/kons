@@ -118,16 +118,16 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
     if (terpilih.has(s.mulai)) {
       const ujung = s.mulai === awal || s.selesai === akhir;
       return ujung
-        ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-        : 'border-slate-900/80 bg-slate-800 text-white';
+        ? 'border-sewa bg-sewa text-white shadow-sm'
+        : 'border-sewa-tua bg-sewa-tua text-white';
     }
     if (!s.bisa) {
-      if (s.kode === 'KELAS') return 'cursor-not-allowed border-transparent bg-sky-50 text-sky-400 line-through decoration-sky-300';
-      if (s.kode === 'TERPAKAI') return 'cursor-not-allowed border-transparent bg-rose-50 text-rose-300 line-through decoration-rose-200';
-      if (s.kode === 'PENJAGA') return 'cursor-not-allowed border-transparent bg-amber-50 text-amber-400 line-through decoration-amber-300';
-      return 'cursor-not-allowed border-transparent bg-slate-100 text-slate-300';
+      if (s.kode === 'KELAS') return 'cursor-not-allowed border-transparent bg-alba-200 text-stone-400 line-through decoration-stone-400';
+      if (s.kode === 'TERPAKAI') return 'cursor-not-allowed border-transparent bg-sewa/10 text-sewa/40 line-through decoration-sewa/40';
+      if (s.kode === 'PENJAGA') return 'cursor-not-allowed border-dashed border-alba-300 bg-white text-stone-300 line-through decoration-stone-300';
+      return 'cursor-not-allowed border-transparent bg-alba-100 text-stone-300';
     }
-    return 'border-slate-200 bg-white text-slate-700 hover:border-sewa hover:text-sewa';
+    return 'border-alba-200 bg-white text-stone-700 hover:border-sewa hover:text-sewa';
   };
 
   const adaBisa = slot.some((s) => s.bisa);
@@ -140,7 +140,7 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
           type="button"
           onClick={() => geserPita(-1)}
           disabled={awalPita <= hariIni}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-400 disabled:opacity-30"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-alba-200 text-stone-500 hover:border-alba-400 disabled:opacity-30"
           aria-label="Minggu sebelumnya"
         >
           <ChevronLeft size={16} />
@@ -154,14 +154,14 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
                 type="button"
                 onClick={() => pilihTanggal(t.tanggal)}
                 className={`flex w-[52px] shrink-0 flex-col items-center rounded-2xl border py-2 transition-colors ${
-                  aktif ? 'border-sewa bg-sewa text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
+                  aktif ? 'border-sewa bg-sewa text-white shadow-sm' : 'border-alba-200 bg-white text-stone-700 hover:border-alba-400'
                 }`}
               >
-                <span className={`text-[10px] font-bold uppercase ${aktif ? 'text-white/80' : t.akhirPekan ? 'text-rose-500' : 'text-slate-400'}`}>
+                <span className={`text-[10px] font-bold uppercase ${aktif ? 'text-white/80' : t.akhirPekan ? 'text-rose-500' : 'text-stone-400'}`}>
                   {t.tanggal === hariIni ? 'Ini' : t.hari}
                 </span>
                 <span className="text-lg font-extrabold leading-tight">{t.tgl}</span>
-                <span className={`text-[10px] font-semibold ${aktif ? 'text-white/80' : 'text-slate-400'}`}>{t.bulan}</span>
+                <span className={`text-[10px] font-semibold ${aktif ? 'text-white/80' : 'text-stone-400'}`}>{t.bulan}</span>
               </button>
             );
           })}
@@ -169,12 +169,12 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
         <button
           type="button"
           onClick={() => geserPita(1)}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-400"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-alba-200 text-stone-500 hover:border-alba-400"
           aria-label="Minggu berikutnya"
         >
           <ChevronRight size={16} />
         </button>
-        <label className="relative grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-400" title="Pilih tanggal lain">
+        <label className="relative grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-alba-200 text-stone-500 hover:border-alba-400" title="Pilih tanggal lain">
           <CalendarDays size={16} />
           <input
             type="date"
@@ -190,7 +190,7 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
       {/* Jam */}
       <div className="mt-5">
         {memuat && (
-          <div className="flex items-center gap-2 py-10 text-sm text-slate-400">
+          <div className="flex items-center gap-2 py-10 text-sm text-stone-400">
             <Loader2 size={16} className="animate-spin" /> Memuat jam yang tersedia…
           </div>
         )}
@@ -202,9 +202,9 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
         )}
 
         {!memuat && !galat && !adaBisa && (
-          <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-center">
-            <p className="text-sm font-bold text-slate-700">Tidak ada jam kosong di tanggal ini</p>
-            <p className="mt-1 text-[13px] text-slate-500">
+          <div className="rounded-2xl border border-dashed border-alba-300 px-4 py-8 text-center">
+            <p className="text-sm font-bold text-stone-700">Tidak ada jam kosong di tanggal ini</p>
+            <p className="mt-1 text-[13px] text-stone-500">
               {slot.some((s) => s.kode === 'PENJAGA')
                 ? 'Ruang ini butuh penjaga, dan belum ada petugas terjadwal. Coba tanggal lain.'
                 : 'Coba pilih tanggal lain di pita di atas.'}
@@ -223,7 +223,7 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
               const Ikon = k.ikon;
               return (
                 <div key={k.id}>
-                  <p className="mb-2 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-slate-500">
+                  <p className="mb-2 flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wide text-stone-500">
                     <Ikon size={14} /> {k.label}
                   </p>
                   <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
@@ -244,11 +244,11 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
               );
             })}
 
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1 text-[11px] font-medium text-slate-500">
-              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-sky-200" /> Ada kelas</span>
-              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-rose-200" /> Sudah dipesan</span>
-              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-amber-200" /> Tanpa penjaga</span>
-              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-slate-200" /> Lewat / tutup</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1 text-[11px] font-medium text-stone-500">
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-alba-300" /> Ada kelas</span>
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-sewa/30" /> Sudah dipesan</span>
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full border border-dashed border-stone-400 bg-white" /> Tanpa penjaga</span>
+              <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2.5 w-2.5 rounded-full bg-alba-200" /> Lewat / tutup</span>
             </div>
           </div>
         )}
@@ -256,12 +256,12 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
 
       {/* Ringkasan pilihan */}
       {!memuat && adaBisa && (
-        <div className={`mt-5 rounded-2xl px-4 py-3 text-[13px] ${rentangSah ? 'bg-sewa/10 text-slate-800' : 'bg-slate-100 text-slate-500'}`}>
+        <div className={`mt-5 rounded-2xl px-4 py-3 text-[13px] ${rentangSah ? 'bg-sewa/10 text-stone-800' : 'bg-alba-100 text-stone-500'}`}>
           {!awal && 'Ketuk jam mulai, lalu ketuk jam selesai.'}
-          {awal && !akhir && <>Mulai <b className="text-slate-900">{jamWib(awal)}</b> — sekarang ketuk jam selesai.</>}
+          {awal && !akhir && <>Mulai <b className="text-stone-900">{jamWib(awal)}</b> — sekarang ketuk jam selesai.</>}
           {rentangSah && (
             <span className="flex flex-wrap items-center justify-between gap-2">
-              <span><b className="text-slate-900">{jamWib(awal)}–{jamWib(akhir)} WIB</b> · {durasiKalimat(awal, akhir)}</span>
+              <span><b className="text-stone-900">{jamWib(awal)}–{jamWib(akhir)} WIB</b> · {durasiKalimat(awal, akhir)}</span>
               <button type="button" onClick={() => { setAwal(''); setAkhir(''); }} className="text-[12px] font-bold text-sewa hover:underline">
                 Ulangi
               </button>
