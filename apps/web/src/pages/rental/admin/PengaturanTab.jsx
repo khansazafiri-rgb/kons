@@ -159,9 +159,11 @@ export default function RentalPengaturanTab({ lapor }) {
         anak={
           <div className="grid gap-4 sm:grid-cols-2">
             <Kolom label="Nama perusahaan"><input value={f.companyName || ''} onChange={ubah('companyName')} className={inputCls} /></Kolom>
-            <Kolom label="URL logo"><input value={f.logoUrl || ''} onChange={ubah('logoUrl')} className={inputCls} /></Kolom>
+            <Kolom label="URL logo" bantuan="Kosongkan untuk memakai logo PCV.">
+              <input value={f.logoUrl || ''} onChange={ubah('logoUrl')} className={inputCls} />
+            </Kolom>
             <Kolom label="Tagline" lebar="sm:col-span-2"><input value={f.tagline || ''} onChange={ubah('tagline')} className={inputCls} /></Kolom>
-            <Kolom label="URL foto hero beranda" bantuan="Kosongkan untuk memakai bidang warna utama. Foto lebar (≥1600 px) paling bagus.">
+            <Kolom label="URL foto hero beranda" bantuan="Kosongkan untuk memakai bidang merah PCV. Foto lebar (≥1600 px) paling bagus.">
               <input value={f.heroImageUrl || ''} onChange={ubah('heroImageUrl')} placeholder="https://lh3.googleusercontent.com/d/FILE_ID" className={inputCls} />
             </Kolom>
           </div>
