@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, Code2, Eye, Plus, Save, Trash2, X } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { bacaArraySoal, gabungPembahasan, normalisasiMcq } from '@/lib/soalBentuk';
+import { teksKeHtml } from '@/lib/teksSoal';
 
 // TAB 2 - SOAL (PRD bagian 10)
 //
@@ -332,7 +333,7 @@ export default function EventSoalTab({ ev }) {
                   <div className="min-w-0 flex-1">
                     <div
                       className="line-clamp-2 text-sm leading-relaxed text-stone-800 [&_p]:inline"
-                      dangerouslySetInnerHTML={{ __html: s.questionText || '' }}
+                      dangerouslySetInnerHTML={{ __html: teksKeHtml(s.questionText) }}
                     />
                     <p className="mt-1 text-[11px] text-stone-500">
                       Kunci <span className="font-semibold text-emerald-700">{s.correctAnswer}</span>
@@ -364,12 +365,12 @@ export default function EventSoalTab({ ev }) {
               <button onClick={() => setPratinjau(null)} className="text-stone-400 hover:text-stone-600" aria-label="Tutup"><X size={18} /></button>
             </div>
             {pratinjau.imageUrl && <img src={pratinjau.imageUrl} alt="" className="mt-4 max-h-64 w-full rounded-xl object-contain" />}
-            <div className="mt-4 text-[15px] leading-relaxed text-stone-800 [&_p]:mb-3" dangerouslySetInnerHTML={{ __html: pratinjau.questionText || '' }} />
+            <div className="mt-4 text-[15px] leading-relaxed text-stone-800 [&_p]:mb-3" dangerouslySetInnerHTML={{ __html: teksKeHtml(pratinjau.questionText) }} />
             <div className="mt-3 space-y-2">
               {OPSI.filter((k) => (pratinjau[`option${k}`] || '').trim()).map((k) => (
                 <div key={k} className="flex items-start gap-3 rounded-xl border border-alba-200 px-4 py-3">
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-alba-200 text-[12px] font-bold text-stone-600">{k}</span>
-                  <span className="min-w-0 flex-1 text-sm text-stone-800">{pratinjau[`option${k}`]}</span>
+                  <span className="min-w-0 flex-1 whitespace-pre-line text-sm text-stone-800">{pratinjau[`option${k}`]}</span>
                 </div>
               ))}
             </div>
