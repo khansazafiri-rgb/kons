@@ -506,6 +506,7 @@ export default function QuestionRunner({
                            ? `❌ Baru ${hasil.perKotak.filter(Boolean).length} dari ${isian.length} yang tepat.`
                            : '❌ Kurang tepat.'}
                      </p>
+                     <CatatanMirip hasil={hasil} isian={isian} />
                      <JawabanDiterima sub={sub} />
                    </div>
                  )}
@@ -917,11 +918,21 @@ function JawabanDiterima({ sub, judul = 'Jawaban yang diterima' }) {
  const daftar = jawabanDiterima(sub);
  const n = jumlahKotak(sub);
  if (!daftar.length) return null;
- if (n === 1) {
+ if (n === 1 && daftar.length === 1) {
    return (
      <p className="text-stone-600">
-       {judul}: <span className="font-semibold">{daftar.join(' | ')}</span>
+       {judul}: <span className="font-semibold">{daftar[0]}</span>
      </p>
+   );
+ }
+ if (n === 1) {
+   return (
+     <div className="text-stone-600">
+       <p>{judul} (cukup salah satu):</p>
+       <ul className="mt-0.5 list-disc pl-5 font-semibold">
+         {daftar.map((d, i) => <li key={i}>{d}</li>)}
+       </ul>
+     </div>
    );
  }
  return (
@@ -933,6 +944,25 @@ function JawabanDiterima({ sub, judul = 'Jawaban yang diterima' }) {
      <ul className="mt-0.5 list-disc pl-5 font-semibold">
        {daftar.map((d, i) => <li key={i}>{d}</li>)}
      </ul>
+   </div>
+ );
+}
+
+// Jawaban yang diterima karena mirip (salah ketik, imbuhan, urutan kata),
+// bukan persis. Ditampilkan supaya siswa tahu ejaan yang benar, dan pengajar
+// bisa melihat alasan jawaban itu dinilai benar.
+function CatatanMirip({ hasil, isian }) {
+ const mirip = (hasil.cocok || [])
+   .map((c, k) => (c && c.cara === 'mirip' ? { teks: isian[k], kunci: c.kunci } : null))
+   .filter(Boolean);
+ if (!mirip.length) return null;
+ return (
+   <div className="mt-0.5 text-stone-500">
+     {mirip.map((m, i) => (
+       <p key={i}>
+         &ldquo;{m.teks}&rdquo; dianggap benar, mirip dengan <span className="font-semibold text-stone-700">{m.kunci}</span>.
+       </p>
+     ))}
    </div>
  );
 }
@@ -1019,6 +1049,7 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
                    </p>
                  )
                )}
+               {!pembahasanOnly && <div className="text-xs"><CatatanMirip hasil={hasil} isian={isian} /></div>}
                {(pembahasanOnly || !hasil.benar) && <div className="mt-1 text-xs"><JawabanDiterima sub={sub} judul="Jawaban benar" /></div>}
                <PembahasanSub sub={sub} kecil />
              </div>

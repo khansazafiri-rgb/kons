@@ -217,20 +217,31 @@ Keempat bentuk di bawah ditulis tanpa pembahasan tunggal (kasus paling umum). Ka
 (Tidak ada field `"imageUrl"` sama sekali di kategori ini.)
 
 **Aturan isi tambahan:**
-- `subQuestions`: minimal 1 per soal isian. `validAnswers` = array berisi SATU string (kecuali bagian yang memakai `answerCount`, lihat di bawah); kalau ada beberapa bentuk jawaban yang sama-sama benar (sinonim, Indonesia/Inggris, singkatan), gabung dalam satu string dipisah `" / "`. Penilaian sistem tidak peka huruf besar/kecil & spasi berlebih.
+- `subQuestions`: minimal 1 per soal isian. `validAnswers` = array; tiap string = satu jawaban yang diterima, dan siswa cukup cocok dengan SALAH SATU-nya. Bentuk lain dari jawaban yang sama (sinonim, Indonesia/Inggris, singkatan) digabung dalam string itu, dipisah `" / "`. Sistem sudah menoleransi huruf besar/kecil, tanda baca, salah ketik kecil, imbuhan, dan urutan kata (lihat bagian di bawah).
 - `options`: tepat SATU `correct: true` per soal MCQ (kecuali soal memang eksplisit multi-jawaban-benar, ikuti instruksi soal).
 - Soal isian JANGAN pakai `options`. Soal MCQ JANGAN pakai `subQuestions`.
 
-### Isian: satu bagian meminta beberapa jawaban, dan pembahasan per bagian
+### Isian: kunci berisi banyak jawaban, dan pembahasan per bagian
 
-Soal esai sering berbentuk satu kasus/gambar dengan beberapa bagian, dan tiap bagian bisa meminta lebih dari satu jawaban ("Sebutkan 4 pencegahan", "Karakteristik (2)", "Spesies dan stadium"). Tulis tiap bagian sebagai satu sub-pertanyaan (A, B, C, ...), lalu:
+Soal esai sering berbentuk satu kasus/gambar dengan beberapa bagian, dan kunci tiap bagian bisa memuat banyak butir ("Sebutkan pencegahan" dengan 4-6 butir, "Karakteristik", "Komplikasi"). Butir-butir itu adalah **jawaban yang sama-sama diterima**: siswa mengisi SATU kotak, dan jawabannya benar kalau cocok dengan salah satu butir. Tulis tiap bagian sebagai satu sub-pertanyaan (A, B, C, ...), lalu:
 
-- **Bagian yang meminta N jawaban berbeda** → tambahkan `"answerCount": N` pada sub-pertanyaan itu, dan tulis TIAP jawaban berbeda sebagai string TERPISAH di `validAnswers`. Ejaan/istilah lain dari jawaban yang SAMA tetap digabung dalam satu string dengan `" / "`. Siswa akan mendapat N kotak isian, urutan bebas, dan jawaban yang sama tidak dihitung dua kali.
-- **Kunci lebih banyak dari yang diminta** (kunci menulis 6 pencegahan, soal minta 4) → tulis semuanya. Siswa cukup menyebut N di antaranya.
-- **Bagian yang meminta satu jawaban saja** → jangan tulis `answerCount`, dan `validAnswers` tetap berisi SATU string (seperti biasa).
-- **Jumlah yang diminta tidak disebut** di soal → pakai jumlah butir di kunci jawaban sebagai N, lalu sebutkan asumsi itu di baris klarifikasi setelah array.
-- Tanda `/` di dalam jawaban SELALU dibaca sebagai pemisah ejaan. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing".
-- Sistem mencocokkan jawaban siswa persis (setelah huruf kecil & spasi dirapikan), jadi kunci berupa kalimat panjang hampir tidak mungkin cocok. Ringkas jadi kata kunci inti, lalu tambahkan bentuk lain yang wajar dengan `" / "`. Contoh: "Menggunakan alas kaki ketika kontak dengan tanah" → `"Memakai alas kaki / alas kaki / sepatu / sandal"`.
+- **Satu pertanyaan di soal yang menanyakan dua hal** (mis. "Nama penyakit dan spesies penyebab") → pecah jadi dua sub-pertanyaan, supaya siswa tidak dinilai benar hanya karena menjawab salah satunya.
+- **Tiap butir kunci** → satu string TERPISAH di `validAnswers`.
+- **Bentuk lain dari butir yang sama** (sinonim, singkatan, istilah Indonesia/Inggris, nama genus disingkat) → digabung di string butir itu dengan `" / "`. Contoh: `"Ancylostoma braziliense / A. braziliense"`.
+- **Apa yang sudah ditoleransi sistem** (jadi TIDAK perlu ditulis sebagai bentuk lain):
+  - huruf besar/kecil, tanda baca, strip
+  - salah ketik kecil: 1 huruf untuk kata 5–13 huruf, 2 huruf untuk kata yang lebih panjang
+  - imbuhan (menggunakan / gunakan / penggunaan)
+  - kata sambung (yang, dengan, ketika, …), urutan kata, dan kata tambahan di jawaban siswa
+  - kunci 3 kata atau lebih cukup ditemukan dua pertiganya
+- **Yang TIDAK ditoleransi** (jadi harus ditulis sendiri kalau mau diterima):
+  - sinonim ("sandal" untuk "alas kaki")
+  - angka yang berbeda
+  - kata ≤ 4 huruf yang salah ketik
+  - salah ketik di huruf pertama
+- **Butir berupa kalimat panjang** → tulis kalimat aslinya DAN versi kata kuncinya dalam string yang sama. Contoh: `"Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal"`. Kalimat panjang saja tetap bisa cocok lewat dua pertiga kata kuncinya, tapi siswa yang menjawab singkat ("pakai sepatu") baru diterima kalau bentuk singkatnya ada.
+- Tanda `/` di dalam jawaban SELALU dibaca sebagai pemisah. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing".
+- **JANGAN tulis `answerCount`** kecuali user secara tegas meminta siswa WAJIB menyebut sejumlah jawaban berbeda. `answerCount: N` membuat N kotak yang semuanya wajib benar.
 - **Pembahasan atau gambar penjelasan milik satu bagian** (misalnya gambar tabel dosis obat di bawah jawaban bagian "Pengobatan") → taruh di `"explanation"` MILIK sub-pertanyaan itu: teks, link gambar lh3, atau keduanya, pindah baris pakai `<br>`. Siswa melihatnya tepat di bawah bagian itu setelah jawaban dicek. Pembahasan yang berlaku untuk seluruh soal tetap di `"explanation"` tingkat soal.
 - Kalau sebuah bagian tidak punya pembahasan, jangan tulis `"explanation"` di sub-pertanyaan itu.
 
@@ -242,9 +253,9 @@ Soal esai sering berbentuk satu kasus/gambar dengan beberapa bagian, dan tiap ba
   "hint": "",
   "subQuestions": [
     { "label": "A", "question": "Nama penyakit", "validAnswers": ["Cutaneous larva migrans / CLM / creeping eruption"] },
-    { "label": "B", "question": "Spesies penyebab (sebutkan 3)", "answerCount": 3, "validAnswers": ["Ancylostoma braziliense / A. braziliense", "Ancylostoma caninum / A. caninum", "Uncinaria stenocephala / U. stenocephala"] },
-    { "label": "C", "question": "Sebutkan 4 pencegahan", "answerCount": 4, "validAnswers": ["Memakai alas kaki / alas kaki / sepatu / sandal", "Cuci tangan dan kaki / cuci tangan", "Hindari tanah yang banyak hewan", "Kendalikan anjing dan kucing liar"] },
-    { "label": "D", "question": "Sebutkan 1 pengobatan", "validAnswers": ["Ivermectin / Ivermectin 12 mg"], "explanation": "Ivermectin 12 mg dosis tunggal.<br>https://lh3.googleusercontent.com/d/FILE_ID_TABEL_DOSIS" }
+    { "label": "B", "question": "Spesies penyebab penyakit", "validAnswers": ["Ancylostoma braziliense / A. braziliense", "Ancylostoma caninum / A. caninum", "Uncinaria stenocephala / U. stenocephala"] },
+    { "label": "C", "question": "Sebutkan pencegahan", "validAnswers": ["Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal", "Cuci tangan dan kaki setelah keluar atau kontak dengan tanah / cuci tangan", "Hindari bermain di tanah yang terdapat banyak hewan", "Jangan biarkan anjing atau kucing liar berkeliaran di area publik"] },
+    { "label": "D", "question": "Sebutkan 1 pengobatan", "validAnswers": ["Ivermectin 12 mg single dose / Ivermectin"], "explanation": "https://lh3.googleusercontent.com/d/FILE_ID_TABEL_PENGOBATAN" }
   ]
 }
 ```
