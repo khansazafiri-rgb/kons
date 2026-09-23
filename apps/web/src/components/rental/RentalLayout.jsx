@@ -5,10 +5,9 @@ import { ambilKonfigurasi, jumlahKeranjang, tautanWa, variabelMerek } from '@/li
 
 // KERANGKA WEB PEMINJAMAN
 //
-// Web ini sengaja TIDAK memakai kerangka PCV: yang menyewa ruang dan alat
-// bukan siswa PCV, dan mereka tidak perlu tahu (atau peduli) bahwa servernya
-// sama. Logo, nama, dan warna utamanya datang dari rental_settings, jadi
-// perusahaannya bisa tampil dengan identitasnya sendiri.
+// Web ini punya tata letak sendiri, tetapi identitasnya tetap PCV: warnanya
+// dikunci ke merah-putih templat FK/PCV, dan lambangnya logo PCV kecuali
+// Pengaturan mengisi URL logo lain. Namanya datang dari rental_settings.
 //
 // Pola tata letaknya mengikuti etalase pemesanan yang sudah akrab bagi orang
 // Indonesia (Traveloka, tiket.com, Airbnb): header putih ringkas dengan
@@ -47,19 +46,23 @@ export function useTemaSendiri() {
 }
 
 // Lambang merek: logo kalau admin mengisinya, kalau tidak inisial nama.
+// Logo PCV yang sama dengan header web utama (public/logo-pcv.png). Kalau
+// URL logo dari Pengaturan gagal dimuat, jatuh ke logo PCV, bukan gambar pecah.
+const LOGO_PCV = '/logo-pcv.png';
+
 export function LambangMerek({ konfigurasi, ukuran = 'md' }) {
-  const nama = konfigurasi?.namaPerusahaan || 'Rental';
-  const inisial = nama.split(/\s+/).filter(Boolean).slice(0, 2).map((k) => k[0]).join('').toUpperCase();
-  const kotak = ukuran === 'lg' ? 'h-11 w-11 text-base' : 'h-9 w-9 text-[13px]';
+  const nama = konfigurasi?.namaPerusahaan || 'PCV Rental';
+  const [gagal, setGagal] = useState(false);
+  const src = konfigurasi?.logoUrl && !gagal ? konfigurasi.logoUrl : LOGO_PCV;
+  const kotak = ukuran === 'lg' ? 'h-11 w-11' : 'h-9 w-9';
   return (
     <span className="flex items-center gap-2.5">
-      {konfigurasi?.logoUrl ? (
-        <img src={konfigurasi.logoUrl} alt="" className={`${kotak} rounded-xl object-contain`} />
-      ) : (
-        <span className={`${kotak} grid place-items-center rounded-xl bg-sewa font-sewa font-extrabold tracking-tight text-white`}>
-          {inisial}
-        </span>
-      )}
+      <img
+        src={src}
+        alt=""
+        onError={() => setGagal(true)}
+        className={`${kotak} shrink-0 rounded-xl object-contain ring-1 ring-white/25`}
+      />
       <span className="font-sewa text-[17px] font-extrabold tracking-tight text-stone-900">{nama}</span>
     </span>
   );
