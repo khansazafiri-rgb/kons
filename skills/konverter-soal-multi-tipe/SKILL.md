@@ -217,9 +217,37 @@ Keempat bentuk di bawah ditulis tanpa pembahasan tunggal (kasus paling umum). Ka
 (Tidak ada field `"imageUrl"` sama sekali di kategori ini.)
 
 **Aturan isi tambahan:**
-- `subQuestions`: minimal 1 per soal isian. `validAnswers` = array berisi SATU string; kalau ada beberapa bentuk jawaban yang sama-sama benar (sinonim, Indonesia/Inggris, singkatan), gabung dalam satu string dipisah `" / "`. Penilaian sistem tidak peka huruf besar/kecil & spasi berlebih.
+- `subQuestions`: minimal 1 per soal isian. `validAnswers` = array berisi SATU string (kecuali bagian yang memakai `answerCount`, lihat di bawah); kalau ada beberapa bentuk jawaban yang sama-sama benar (sinonim, Indonesia/Inggris, singkatan), gabung dalam satu string dipisah `" / "`. Penilaian sistem tidak peka huruf besar/kecil & spasi berlebih.
 - `options`: tepat SATU `correct: true` per soal MCQ (kecuali soal memang eksplisit multi-jawaban-benar, ikuti instruksi soal).
 - Soal isian JANGAN pakai `options`. Soal MCQ JANGAN pakai `subQuestions`.
+
+### Isian: satu bagian meminta beberapa jawaban, dan pembahasan per bagian
+
+Soal esai sering berbentuk satu kasus/gambar dengan beberapa bagian, dan tiap bagian bisa meminta lebih dari satu jawaban ("Sebutkan 4 pencegahan", "Karakteristik (2)", "Spesies dan stadium"). Tulis tiap bagian sebagai satu sub-pertanyaan (A, B, C, ...), lalu:
+
+- **Bagian yang meminta N jawaban berbeda** → tambahkan `"answerCount": N` pada sub-pertanyaan itu, dan tulis TIAP jawaban berbeda sebagai string TERPISAH di `validAnswers`. Ejaan/istilah lain dari jawaban yang SAMA tetap digabung dalam satu string dengan `" / "`. Siswa akan mendapat N kotak isian, urutan bebas, dan jawaban yang sama tidak dihitung dua kali.
+- **Kunci lebih banyak dari yang diminta** (kunci menulis 6 pencegahan, soal minta 4) → tulis semuanya. Siswa cukup menyebut N di antaranya.
+- **Bagian yang meminta satu jawaban saja** → jangan tulis `answerCount`, dan `validAnswers` tetap berisi SATU string (seperti biasa).
+- **Jumlah yang diminta tidak disebut** di soal → pakai jumlah butir di kunci jawaban sebagai N, lalu sebutkan asumsi itu di baris klarifikasi setelah array.
+- Tanda `/` di dalam jawaban SELALU dibaca sebagai pemisah ejaan. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing".
+- Sistem mencocokkan jawaban siswa persis (setelah huruf kecil & spasi dirapikan), jadi kunci berupa kalimat panjang hampir tidak mungkin cocok. Ringkas jadi kata kunci inti, lalu tambahkan bentuk lain yang wajar dengan `" / "`. Contoh: "Menggunakan alas kaki ketika kontak dengan tanah" → `"Memakai alas kaki / alas kaki / sepatu / sandal"`.
+- **Pembahasan atau gambar penjelasan milik satu bagian** (misalnya gambar tabel dosis obat di bawah jawaban bagian "Pengobatan") → taruh di `"explanation"` MILIK sub-pertanyaan itu: teks, link gambar lh3, atau keduanya, pindah baris pakai `<br>`. Siswa melihatnya tepat di bawah bagian itu setelah jawaban dicek. Pembahasan yang berlaku untuk seluruh soal tetap di `"explanation"` tingkat soal.
+- Kalau sebuah bagian tidak punya pembahasan, jangan tulis `"explanation"` di sub-pertanyaan itu.
+
+**Contoh — soal esai bergambar dengan beberapa bagian:**
+```
+{
+  "text": "Perhatikan gambar berikut.",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID_SOAL",
+  "hint": "",
+  "subQuestions": [
+    { "label": "A", "question": "Nama penyakit", "validAnswers": ["Cutaneous larva migrans / CLM / creeping eruption"] },
+    { "label": "B", "question": "Spesies penyebab (sebutkan 3)", "answerCount": 3, "validAnswers": ["Ancylostoma braziliense / A. braziliense", "Ancylostoma caninum / A. caninum", "Uncinaria stenocephala / U. stenocephala"] },
+    { "label": "C", "question": "Sebutkan 4 pencegahan", "answerCount": 4, "validAnswers": ["Memakai alas kaki / alas kaki / sepatu / sandal", "Cuci tangan dan kaki / cuci tangan", "Hindari tanah yang banyak hewan", "Kendalikan anjing dan kucing liar"] },
+    { "label": "D", "question": "Sebutkan 1 pengobatan", "validAnswers": ["Ivermectin / Ivermectin 12 mg"], "explanation": "Ivermectin 12 mg dosis tunggal.<br>https://lh3.googleusercontent.com/d/FILE_ID_TABEL_DOSIS" }
+  ]
+}
+```
 
 **Catatan gaya penulisan:** keempat bentuk di sini konsisten pakai gaya JSON (key berkutip ganda). Ini sedikit beda dari skill lama `kode-untuk-ngubah-soal-jadi-kode` yang pakai gaya objek JS polos (`text:` tanpa kutip) khusus MCQ non-gambar. Kalau kode PCV Classroom kamu butuh gaya lama itu persis, kasih tahu di percakapan supaya disesuaikan.
 

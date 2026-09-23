@@ -4,6 +4,7 @@ import pb from '@/lib/pocketbaseClient';
 import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } from '@/lib/weaknessAnalyzer';
 import RichText from '@/lib/richText';
 import { fixText, fixDeep } from '@/lib/textRepair';
+import { isianSiswa, jawabanDiterima, jumlahKotak, nilaiSub, subSudahDiisi } from '@/lib/isian';
 
 /*
  QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
@@ -51,12 +52,9 @@ export function normalizeQuestion(q) {
 
 const isIsian = (q) => String(q?.qtype || '').startsWith('isian') || (!(q?.options || []).length && (q?.subQuestions || []).length > 0);
 
-const normalize = (t) => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
-
-// benar jika jawaban user cocok dengan salah satu varian (dipisah "/")
-export function isSubAnswerCorrect(sub, userText) {
- const variants = (sub.validAnswers || []).flatMap((v) => String(v).split('/')).map(normalize).filter(Boolean);
- return variants.includes(normalize(userText));
+// Aturan penilaiannya (satu kotak vs banyak kotak) ada di lib/isian.
+export function isSubAnswerCorrect(sub, userValue) {
+ return nilaiSub(sub, userValue).benar;
 }
 
 function isQuestionCorrect(q, ans) {
@@ -71,7 +69,7 @@ function isQuestionCorrect(q, ans) {
 function isQuestionAnswered(q, ans) {
  if (isIsian(q)) {
    const subs = q.subQuestions || [];
-   return subs.length > 0 && subs.every((sub) => normalize((ans || {})[sub.label]) !== '');
+   return subs.length > 0 && subs.every((sub) => subSudahDiisi(sub, (ans || {})[sub.label]));
  }
  return ans !== undefined;
 }
@@ -186,12 +184,19 @@ export default function QuestionRunner({
    });
  }, [submitted, mode, checked, q, onAnswerChange, retryRound]);
 
- const typeIsian = (label, value) => {
+ // Sub-pertanyaan satu kotak disimpan sebagai string (seperti sebelumnya),
+ // yang banyak kotak sebagai array string sepanjang jumlah kotaknya.
+ const typeIsian = (sub, value, kotak = 0) => {
    if (submitted || !q) return;
    if (mode === 'learning' && checked.has(q.id)) return;
    setAnswers((a) => {
      const cur = typeof a[q.id] === 'object' && a[q.id] !== null ? a[q.id] : {};
-     const newAnswers = { ...a, [q.id]: { ...cur, [label]: value } };
+     let isi = value;
+     if (jumlahKotak(sub) > 1) {
+       isi = isianSiswa(sub, cur[sub.label]);
+       isi[kotak] = value;
+     }
+     const newAnswers = { ...a, [q.id]: { ...cur, [sub.label]: isi } };
      if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
      return newAnswers;
    });
@@ -458,35 +463,53 @@ export default function QuestionRunner({
        {qIsIsian ? (
          <div className="space-y-4 mb-6">
            {(q.subQuestions || []).map((sub) => {
-             const userText = (typeof selected === 'object' && selected !== null ? selected : {})[sub.label] || '';
-             const correctNow = isSubAnswerCorrect(sub, userText);
+             const nilai = (typeof selected === 'object' && selected !== null ? selected : {})[sub.label];
+             const isian = isianSiswa(sub, nilai);
+             const hasil = nilaiSub(sub, nilai);
+             const banyak = isian.length > 1;
+             const terkunci = submitted || (mode === 'learning' && checked.has(q.id));
              return (
                <div key={sub.label} className="rounded-xl border border-alba-200 p-4 bg-alba-100/60">
                  <p className="text-sm font-bold text-stone-700 mb-2">
                    <span className="inline-flex w-6 h-6 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sub.label}</span>
                    {sub.question}
+                   {banyak && <span className="ml-2 text-[11px] font-semibold text-stone-400">({isian.length} jawaban)</span>}
                  </p>
-                 <input
-                   value={userText}
-                   onChange={(e) => typeIsian(sub.label, e.target.value)}
-                   disabled={submitted || (mode === 'learning' && checked.has(q.id))}
-                   placeholder="Ketik jawabanmu di sini..."
-                   className={`w-full rounded-xl border px-4 py-2.5 text-sm bg-alba-50 focus:outline-none focus:ring-4 focus:ring-maroon-600/10 transition ${
-                     showResult
-                       ? correctNow
-                         ? 'border-green-600 bg-green-50'
-                         : 'border-maroon-500 bg-red-50'
-                       : 'border-alba-300 focus:border-maroon-400'
-                   }`}
-                 />
+                 <div className={banyak ? 'grid gap-2 sm:grid-cols-2' : ''}>
+                   {isian.map((teks, k) => (
+                     <div key={k} className="relative">
+                       {banyak && (
+                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-stone-400">{k + 1}.</span>
+                       )}
+                       <input
+                         value={teks}
+                         onChange={(e) => typeIsian(sub, e.target.value, k)}
+                         disabled={terkunci}
+                         placeholder={banyak ? `Jawaban ${k + 1}` : 'Ketik jawabanmu di sini...'}
+                         className={`w-full rounded-xl border py-2.5 pr-4 text-sm bg-alba-50 focus:outline-none focus:ring-4 focus:ring-maroon-600/10 transition ${banyak ? 'pl-8' : 'pl-4'} ${
+                           showResult
+                             ? hasil.perKotak[k]
+                               ? 'border-green-600 bg-green-50'
+                               : 'border-maroon-500 bg-red-50'
+                             : 'border-alba-300 focus:border-maroon-400'
+                         }`}
+                       />
+                     </div>
+                   ))}
+                 </div>
                  {showResult && (
-                   <p className={`mt-2 text-xs font-semibold ${correctNow ? 'text-green-800' : 'text-red-600'}`}>
-                     {correctNow ? '✅ Benar!' : '❌ Kurang tepat.'}{' '}
-                     <span className="font-normal text-stone-600">
-                       Jawaban yang diterima: <span className="font-semibold">{(sub.validAnswers || []).join(' | ')}</span>
-                     </span>
-                   </p>
+                   <div className="mt-2 text-xs">
+                     <p className={`font-semibold ${hasil.benar ? 'text-green-800' : 'text-red-600'}`}>
+                       {hasil.benar
+                         ? '✅ Benar!'
+                         : banyak
+                           ? `❌ Baru ${hasil.perKotak.filter(Boolean).length} dari ${isian.length} yang tepat.`
+                           : '❌ Kurang tepat.'}
+                     </p>
+                     <JawabanDiterima sub={sub} />
+                   </div>
                  )}
+                 {showResult && <PembahasanSub sub={sub} />}
                </div>
              );
            })}
@@ -887,6 +910,47 @@ function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
  );
 }
 
+// Daftar jawaban yang diterima untuk satu sub-pertanyaan. Satu kotak: ejaan-
+// ejaannya dalam satu baris. Banyak kotak: satu baris per jawaban berbeda,
+// plus keterangan "sebutkan N dari M" kalau daftarnya lebih panjang.
+function JawabanDiterima({ sub, judul = 'Jawaban yang diterima' }) {
+ const daftar = jawabanDiterima(sub);
+ const n = jumlahKotak(sub);
+ if (!daftar.length) return null;
+ if (n === 1) {
+   return (
+     <p className="text-stone-600">
+       {judul}: <span className="font-semibold">{daftar.join(' | ')}</span>
+     </p>
+   );
+ }
+ return (
+   <div className="text-stone-600">
+     <p>
+       {judul}
+       {daftar.length > n ? ` (cukup ${n} dari ${daftar.length})` : ''}:
+     </p>
+     <ul className="mt-0.5 list-disc pl-5 font-semibold">
+       {daftar.map((d, i) => <li key={i}>{d}</li>)}
+     </ul>
+   </div>
+ );
+}
+
+// Pembahasan khusus satu sub-pertanyaan. Link gambar lh3/Drive di dalamnya
+// otomatis tampil sebagai gambar (lib/richText).
+function PembahasanSub({ sub, kecil = false }) {
+ if (!String(sub?.explanation || '').trim()) return null;
+ return (
+   <div className={`mt-2 rounded-lg border border-maroon-100 bg-maroon-50/60 px-3 py-2 animate-fade-in ${kecil ? 'text-xs' : 'text-sm'}`}>
+     <p className="flex items-center gap-1.5 font-bold text-maroon-700 mb-1">
+       <Lightbulb size={kecil ? 12 : 14} /> Pembahasan {sub.label}
+     </p>
+     <div className="leading-relaxed text-stone-700"><RichText text={sub.explanation} /></div>
+   </div>
+ );
+}
+
 // Satu kartu soal versi baca-saja untuk halaman review.
 function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
  const qq = normalizeQuestion(q);
@@ -928,8 +992,9 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
      {isian ? (
        <div className="space-y-3">
          {(qq.subQuestions || []).map((sub) => {
-           const userText = (typeof ans === 'object' && ans !== null ? ans : {})[sub.label] || '';
-           const ok = isSubAnswerCorrect(sub, userText);
+           const nilai = (typeof ans === 'object' && ans !== null ? ans : {})[sub.label];
+           const isian = isianSiswa(sub, nilai);
+           const hasil = nilaiSub(sub, nilai);
            return (
              <div key={sub.label} className="rounded-xl border border-alba-200 p-3 bg-alba-100/60">
                <p className="text-sm font-bold text-stone-700 mb-1.5">
@@ -937,15 +1002,25 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
                  {sub.question}
                </p>
                {!pembahasanOnly && (
-                 <p className={`text-sm ${ok ? 'text-green-800' : 'text-maroon-700'}`}>
-                   Jawabanmu: <span className="font-semibold">{userText || '-'}</span> {ok ? '✅' : '❌'}
-                 </p>
+                 isian.length > 1 ? (
+                   <div className="text-sm">
+                     <p className="text-stone-600">Jawabanmu:</p>
+                     <ol className="mt-0.5 space-y-0.5">
+                       {isian.map((t, k) => (
+                         <li key={k} className={hasil.perKotak[k] ? 'text-green-800' : 'text-maroon-700'}>
+                           {k + 1}. <span className="font-semibold">{t || '-'}</span> {hasil.perKotak[k] ? '✅' : '❌'}
+                         </li>
+                       ))}
+                     </ol>
+                   </div>
+                 ) : (
+                   <p className={`text-sm ${hasil.benar ? 'text-green-800' : 'text-maroon-700'}`}>
+                     Jawabanmu: <span className="font-semibold">{isian[0] || '-'}</span> {hasil.benar ? '✅' : '❌'}
+                   </p>
+                 )
                )}
-               {(pembahasanOnly || !ok) && (
-                 <p className="text-xs text-stone-600 mt-1">
-                   Jawaban benar: <span className="font-semibold">{(sub.validAnswers || []).join(' | ')}</span>
-                 </p>
-               )}
+               {(pembahasanOnly || !hasil.benar) && <div className="mt-1 text-xs"><JawabanDiterima sub={sub} judul="Jawaban benar" /></div>}
+               <PembahasanSub sub={sub} kecil />
              </div>
            );
          })}
