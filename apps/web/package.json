@@ -10,6 +10,7 @@
    "lint": "eslint . --quiet",
    "check:teks": "node scripts/check-text-repair.mjs",
    "check:soal": "node scripts/check-teks-soal.mjs",
+   "check:isian": "node scripts/check-isian.mjs",
    "lint:warn": "eslint ."
  },
  "dependencies": {

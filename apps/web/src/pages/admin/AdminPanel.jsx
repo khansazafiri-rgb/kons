@@ -16,6 +16,7 @@ import { hapusLunak, konfirmasiHapus, saringAktif } from '@/lib/akun';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
 import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
+import { jumlahKotak } from '@/lib/isian';
 import { KIND_CBT, filterLatihan } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 import PilihFakultas from '@/components/PilihFakultas';
@@ -715,7 +716,7 @@ const EMPTY_FORM = {
   explanation: '',
   imageUrl: '',
   options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }],
-  subQuestions: [{ label: 'A', question: '', validAnswers: '' }],
+  subQuestions: [{ label: 'A', question: '', validAnswers: '', answerCount: 1, explanation: '' }],
 };
 
 const isIsianType = (t) => String(t || '').startsWith('isian');
@@ -781,7 +782,15 @@ function formFromQuestion(raw) {
     imageUrl: q.imageUrl || '',
     options: (q.options && q.options.length) ? q.options : EMPTY_FORM.options,
     subQuestions: (q.subQuestions && q.subQuestions.length)
-      ? q.subQuestions.map((sq) => ({ label: sq.label || 'A', question: sq.question || '', validAnswers: (sq.validAnswers || []).join(' / ') }))
+      // Di form, satu baris = satu jawaban berbeda (untuk sub-pertanyaan
+      // banyak kotak); ejaan lain dari jawaban yang sama tetap dipisah "/".
+      ? q.subQuestions.map((sq) => ({
+          label: sq.label || 'A',
+          question: sq.question || '',
+          validAnswers: (sq.validAnswers || []).join('\n'),
+          answerCount: jumlahKotak(sq),
+          explanation: sq.explanation || '',
+        }))
       : EMPTY_FORM.subQuestions,
   };
 }
@@ -801,10 +810,26 @@ function payloadFromForm(form) {
       subQuestions: isian
         ? form.subQuestions
             .filter((sq) => sq.question.trim())
-            .map((sq) => ({ label: sq.label, question: sq.question, validAnswers: [sq.validAnswers] }))
+            .map((sq) => bersihkanSub(sq))
         : [],
     }),
   };
+}
+
+// Satu sub-pertanyaan isian dari form -> bentuk yang disimpan. Kotak jawaban
+// "validAnswers" di form berisi satu jawaban per baris; answerCount dan
+// explanation hanya ditulis kalau dipakai, supaya soal lama tetap berbentuk
+// sama persis seperti sebelumnya.
+function bersihkanSub(sq) {
+  const out = {
+    label: sq.label,
+    question: sq.question,
+    validAnswers: String(sq.validAnswers || '').split('\n').map((v) => v.trim()).filter(Boolean),
+  };
+  const n = jumlahKotak(sq);
+  if (n > 1) out.answerCount = n;
+  if (String(sq.explanation || '').trim()) out.explanation = sq.explanation.trim();
+  return out;
 }
 
 // Form soal bersama (dipakai EditSoal & EditSimulasi) - mendukung 4 tipe:
@@ -872,20 +897,59 @@ function QuestionForm({ form, setForm }) {
 
       {isian ? (
         <>
-          {form.subQuestions.map((sq, i) => (
-            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
-              <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
-              <div className="flex-1 min-w-0 space-y-2">
-                <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
-                <input value={sq.validAnswers} onChange={(e) => updateSub(i, 'validAnswers', e.target.value)} placeholder='Jawaban benar - pisahkan alternatif dengan "/" (mis. Striated duct / Duktus striata)' className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50" />
+          {form.subQuestions.map((sq, i) => {
+            const n = jumlahKotak(sq);
+            const barisJawaban = String(sq.validAnswers || '').split('\n').filter((v) => v.trim()).length;
+            return (
+              <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
+                <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                  <label className="flex items-center gap-2 text-xs text-stone-600">
+                    Jumlah jawaban yang diminta
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={sq.answerCount ?? 1}
+                      onChange={(e) => updateSub(i, 'answerCount', e.target.value)}
+                      className="w-16 rounded-md border border-alba-300 px-2 py-1 text-sm bg-alba-50"
+                    />
+                    <span className="text-stone-400">{n > 1 ? `siswa mengisi ${n} kotak` : '1 kotak'}</span>
+                  </label>
+                  <textarea
+                    value={sq.validAnswers}
+                    onChange={(e) => updateSub(i, 'validAnswers', e.target.value)}
+                    rows={n > 1 ? Math.min(8, Math.max(3, barisJawaban + 1)) : 1}
+                    placeholder={n > 1
+                      ? 'Satu jawaban benar per baris. Ejaan lain dari jawaban yang sama pisahkan dengan "/".\nMis.:\nAlas kaki / sepatu\nCuci tangan\nHindari tanah berpasir'
+                      : 'Jawaban benar - pisahkan alternatif dengan "/" (mis. Striated duct / Duktus striata)'}
+                    className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
+                  />
+                  {n > 1 && barisJawaban < n && (
+                    <p className="text-[11px] font-semibold text-maroon-600">
+                      Baru {barisJawaban} jawaban benar, padahal siswa diminta {n}. Tambah jawabannya atau kurangi jumlahnya.
+                    </p>
+                  )}
+                  <textarea
+                    value={sq.explanation || ''}
+                    onChange={(e) => updateSub(i, 'explanation', e.target.value)}
+                    rows={2}
+                    placeholder={`Pembahasan ${sq.label} (opsional) - teks, link gambar lh3/Drive, atau keduanya. Muncul setelah jawaban dicek.`}
+                    className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
+                  />
+                  {hasImageLink(sq.explanation) && (
+                    <div className="rounded-md border border-alba-200 bg-alba-50 px-3 py-2 text-xs text-stone-700"><RichText text={sq.explanation} /></div>
+                  )}
+                </div>
+                {form.subQuestions.length > 1 && (
+                  <button onClick={() => setForm((f) => ({ ...f, subQuestions: f.subQuestions.filter((_, idx) => idx !== i) }))} className="text-red-600 text-xs font-bold px-1 mt-2">✕</button>
+                )}
               </div>
-              {form.subQuestions.length > 1 && (
-                <button onClick={() => setForm((f) => ({ ...f, subQuestions: f.subQuestions.filter((_, idx) => idx !== i) }))} className="text-red-600 text-xs font-bold px-1 mt-2">✕</button>
-              )}
-            </div>
-          ))}
+            );
+          })}
           <button
-            onClick={() => setForm((f) => ({ ...f, subQuestions: [...f.subQuestions, { label: String.fromCharCode(65 + f.subQuestions.length), question: '', validAnswers: '' }] }))}
+            onClick={() => setForm((f) => ({ ...f, subQuestions: [...f.subQuestions, { label: String.fromCharCode(65 + f.subQuestions.length), question: '', validAnswers: '', answerCount: 1, explanation: '' }] }))}
             className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100"
           >
             + Tambah Sub-Pertanyaan
@@ -929,6 +993,18 @@ const PEMBAHASAN_TUNGGAL_RULE = `PEMBAHASAN SATU UNTUK SELURUH SOAL (opsional):
 - Untuk pindah baris di dalam "explanation" pakai <br>, jangan Enter beneran.
 - Kalau soal tidak punya pembahasan menyeluruh seperti itu, JANGAN tulis field "explanation" tingkat soal sama sekali.
 - Hati-hati bedakan: "imageUrl" = gambar SOAL (dilihat sebelum menjawab), gambar di "explanation" = gambar PEMBAHASAN (muncul setelah jawaban dibuka).`;
+
+// Khusus isian: bagian yang meminta beberapa jawaban ("sebutkan 4 ...") dan
+// pembahasan/gambar per bagian. Lihat lib/isian untuk cara penilaiannya.
+const ISIAN_LANJUTAN_RULE = `ISIAN DENGAN BANYAK JAWABAN & PEMBAHASAN PER BAGIAN (opsional):
+- Kalau satu bagian meminta BEBERAPA jawaban berbeda (mis. "Sebutkan 4 pencegahan", "Karakteristik (2)"), tambahkan "answerCount": N pada sub-pertanyaan itu, lalu tulis TIAP jawaban berbeda sebagai string TERPISAH di "validAnswers". Ejaan/istilah lain dari jawaban yang SAMA tetap digabung dalam satu string, dipisah " / ".
+- Kalau kuncinya memuat lebih banyak jawaban dari yang diminta, tulis semuanya. Siswa cukup menyebut N di antaranya, urutan bebas.
+- Bagian yang meminta satu jawaban saja: JANGAN tulis "answerCount", dan "validAnswers" tetap berisi SATU string.
+- Tanda "/" di dalam jawaban selalu dibaca sebagai pemisah ejaan. Jangan memakainya untuk hal lain (tulis "anjing atau kucing", bukan "anjing/kucing").
+- Kunci berupa kalimat panjang sulit dicocokkan persis. Ringkas jadi kata kunci, lalu tambahkan bentuk lain yang wajar dengan " / ".
+- Kalau sebuah bagian punya pembahasan atau gambar penjelasannya sendiri, taruh di "explanation" MILIK sub-pertanyaan itu: teks, link gambar https://lh3.googleusercontent.com/d/FILE_ID, atau keduanya (pindah baris pakai <br>). Pembahasan untuk seluruh soal tetap di "explanation" tingkat soal.
+Contoh sub-pertanyaan banyak jawaban:
+{ "label": "B", "question": "Sebutkan 4 pencegahan", "answerCount": 4, "validAnswers": ["Memakai alas kaki / sepatu / sandal", "Cuci tangan dan kaki", "Hindari tanah berpasir yang tercemar feses hewan", "Kendalikan anjing dan kucing liar"], "explanation": "Larva menembus kulit yang kontak langsung dengan tanah.<br>https://lh3.googleusercontent.com/d/FILE_ID" }`;
 
 const GEMINI_PROMPTS = {
   'MCQ Biasa': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda berikut menjadi SATU array JavaScript.
@@ -988,7 +1064,9 @@ FORMAT TIAP SOAL:
     { "label": "B", "question": "Pertanyaan B", "validAnswers": ["jawaban"] }
   ]
 }
-ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string; jika ada beberapa jawaban benar (sinonim/istilah ID-EN), gabungkan pisah " / "; penilaian tidak peka huruf besar/kecil & spasi.
+ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string (kecuali bagian dengan "answerCount"); jika ada beberapa jawaban benar (sinonim/istilah ID-EN), gabungkan pisah " / "; penilaian tidak peka huruf besar/kecil & spasi.
+
+${ISIAN_LANJUTAN_RULE}
 
 Konversi soal-soal isian berikut (sertakan semua jawaban yang diterima):
 <<< TEMPEL SOAL DI SINI >>>`,
@@ -1010,7 +1088,9 @@ FORMAT TIAP SOAL:
     { "label": "B", "question": "Bentukan yang ditunjuk nomor 2 adalah", "validAnswers": ["Intercalated duct"] }
   ]
 }
-ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string, alternatif dipisah " / "; pasangkan tiap soal dengan link gambarnya.
+ATURAN ISI: setiap soal wajib "subQuestions" (min 1); JANGAN pakai "options"; "validAnswers" = array berisi SATU string (kecuali bagian dengan "answerCount"), alternatif dipisah " / "; pasangkan tiap soal dengan link gambarnya.
+
+${ISIAN_LANJUTAN_RULE}
 
 Konversi soal-soal isian bergambar berikut (sertakan link gambar + semua jawaban yang diterima):
 <<< TEMPEL SOAL + LINK GAMBAR DI SINI >>>`,
@@ -1066,9 +1146,11 @@ TIPE 4 - ISIAN BERGAMBAR (isian singkat + gambar): sama seperti TIPE 3, TAPI tam
 
 ATURAN ISI (penting, karena tipe tiap soal ditebak dari bentuk datanya):
 - Soal pilihan ganda WAJIB pakai "options" (min 2, TEPAT SATU "correct": true, SETIAP opsi wajib "explanation") dan DILARANG punya "subQuestions".
-- Soal isian WAJIB pakai "subQuestions" (min 1, "validAnswers" = array berisi SATU string, alternatif dipisah " / ") dan DILARANG punya "options".
+- Soal isian WAJIB pakai "subQuestions" (min 1, "validAnswers" = array berisi SATU string kecuali bagian dengan "answerCount", alternatif dipisah " / ") dan DILARANG punya "options".
 - JANGAN pernah menulis "options" dan "subQuestions" pada soal yang sama.
 - "imageUrl" HANYA ditulis pada soal yang memang punya gambar, dan pakai link gambar milik soal itu sendiri. Soal tanpa gambar: hilangkan "imageUrl" sepenuhnya (jangan ditulis "").
+
+${ISIAN_LANJUTAN_RULE}
 
 Konversi soal-soal campuran berikut (sertakan link gambar untuk soal yang bergambar, kunci jawaban & pembahasan untuk MCQ, semua jawaban yang diterima untuk isian):
 <<< TEMPEL SOAL DI SINI >>>`,
@@ -1223,11 +1305,23 @@ function parseBulkItems(bulkText, qtype) {
       imageUrl: item.imageUrl || '',
       options: isian ? [] : fixDeep(item.options),
       subQuestions: isian
-        ? item.subQuestions.map((sq) => ({
-            label: sq.label || 'A',
-            question: fixText(sq.question || ''),
-            validAnswers: (Array.isArray(sq.validAnswers) ? sq.validAnswers : [String(sq.validAnswers || '')]).map(fixText),
-          }))
+        ? item.subQuestions.map((sq) => {
+            const out = {
+              label: sq.label || 'A',
+              question: fixText(sq.question || ''),
+              validAnswers: (Array.isArray(sq.validAnswers) ? sq.validAnswers : [String(sq.validAnswers || '')]).map(fixText),
+            };
+            const n = jumlahKotak(sq);
+            if (n > 1) {
+              const ada = out.validAnswers.filter((v) => String(v).trim()).length;
+              if (ada < n) {
+                throw new Error(`Soal #${no} bagian ${out.label}: "answerCount" ${n}, tapi "validAnswers" cuma berisi ${ada} jawaban. Untuk soal banyak jawaban, tiap jawaban berbeda ditulis sebagai string terpisah di dalam array.`);
+              }
+              out.answerCount = n;
+            }
+            if (String(sq.explanation || '').trim()) out.explanation = fixText(sq.explanation);
+            return out;
+          })
         : [],
     };
   });
@@ -1972,7 +2066,15 @@ function PreviewModal({ previewData, onClose }) {
                     <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sq.label}</span>
                     {sq.question}
                   </p>
-                  <p className="text-xs text-stone-500">Jawaban diterima: <span className="font-semibold text-green-800">{(sq.validAnswers || []).join(' | ')}</span></p>
+                  <p className="text-xs text-stone-500">
+                    {jumlahKotak(sq) > 1 ? `Siswa mengisi ${jumlahKotak(sq)} jawaban dari: ` : 'Jawaban diterima: '}
+                    <span className="font-semibold text-green-800">{(sq.validAnswers || []).join(' | ')}</span>
+                  </p>
+                  {sq.explanation && (
+                    <div className="mt-2 text-xs text-stone-700 rounded-lg border border-maroon-100 bg-maroon-50/60 px-3 py-2">
+                      <span className="font-bold text-maroon-700">Pembahasan {sq.label}: </span><RichText text={sq.explanation} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
