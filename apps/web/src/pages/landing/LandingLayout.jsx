@@ -15,6 +15,9 @@ export const NAV_ITEMS = [
   // sengaja disembunyikan: lomba justru perlu ditemukan calon peserta, karena
   // pendaftarannya memang dibuka untuk umum.
   { to: '/event', label: 'Event & Lomba' },
+  // Web peminjaman ruang & alat medis. Langsung ke etalasenya; kalau saklar
+  // peminjaman sedang mati, /peminjaman sendiri yang menampilkan pesan tutup.
+  { to: '/peminjaman', label: 'Peminjaman' },
   { to: '/tim', label: 'Tim Kami' },
   { to: '/student-web', label: 'Student Web' },
 ];
