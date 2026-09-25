@@ -24,6 +24,7 @@ import DashboardActivity from '@/pages/admin/DashboardActivity';
 import PetaKonten from '@/pages/admin/PetaKonten';
 import WebOlimpHub from '@/pages/admin/WebOlimpHub';
 import EventManager from '@/pages/admin/event/EventManager';
+import KabarSiswa from '@/pages/admin/KabarSiswa';
 
 const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'Event/Lomba'];
 export default function AdminPanel() {
@@ -1593,6 +1594,8 @@ export function EditSoal({ allowedSubjectIds = null }) {
         )}
       </div>
 
+      <KabarSiswa subjectId={subjectId} area="latihan" refreshSignal={soalRefresh} />
+
       {chapterId && (
         <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
           <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Terpilih' : 'Tambah Soal Baru'}</h3>
@@ -2312,6 +2315,8 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
           </div>
         )}
       </div>
+
+      <KabarSiswa subjectId={subjectId} area="cbt" refreshSignal={soalRefresh} />
 
       {chapterId && (
         <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
