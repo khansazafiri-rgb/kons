@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Mail, RefreshCw, Send } from 'lucide-react';
+import { FlaskConical, Mail, RefreshCw, Send } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { labelUniversitas } from '@/lib/chapterScope';
 
@@ -65,6 +65,8 @@ export default function KabarSiswa({ subjectId, area, refreshSignal = 0 }) {
   const [memuat, setMemuat] = useState(false);
   const [mengirim, setMengirim] = useState(false);
   const [pesan, setPesan] = useState('');
+  const [tes, setTes] = useState(null);         // { ok, message, smtp } hasil "Kirim tes"
+  const [mengetes, setMengetes] = useState(false);
 
   const satuan = SATUAN[area] || 'paket';
 
@@ -112,6 +114,33 @@ export default function KabarSiswa({ subjectId, area, refreshSignal = 0 }) {
     const t = setInterval(muatRiwayat, 5000);
     return () => clearInterval(t);
   }, [buka, adaYangJalan, muatRiwayat]);
+
+  // Kirim satu contoh ke email akun sendiri, saat itu juga, lewat jalur kirim
+  // yang sama dengan antrean - error SMTP langsung terlihat di sini.
+  const kirimTes = async () => {
+    setMengetes(true);
+    setTes(null);
+    try {
+      const body = { subjectId, area, emailSubject: subjek, opening: pembuka };
+      if (since) body.since = new Date(`${since}T00:00:00`).toISOString();
+      setTes(await pb.send('/api/pcv/kabar/tes', { method: 'POST', body }));
+    } catch (e) {
+      setTes({ ok: false, message: e?.response?.message || e?.message || 'Gagal mengirim email tes.', smtp: e?.response?.smtp || null });
+    } finally {
+      setMengetes(false);
+    }
+  };
+
+  const lanjutkan = async (id) => {
+    setPesan('');
+    try {
+      const r = await pb.send('/api/pcv/kabar/lanjutkan', { method: 'POST', body: { id } });
+      setPesan(`✅ ${r.message}`);
+      muatRiwayat();
+    } catch (e) {
+      setPesan(`❌ ${e?.response?.message || e?.message || 'Gagal melanjutkan.'}`);
+    }
+  };
 
   const kirim = async () => {
     if (!data) return;
@@ -254,6 +283,13 @@ export default function KabarSiswa({ subjectId, area, refreshSignal = 0 }) {
               >
                 <Send size={15} /> {mengirim ? 'Memasukkan ke antrean…' : `Kirim ke ${data.penerima.akanDikirim} siswa`}
               </button>
+              <button
+                onClick={kirimTes}
+                disabled={mengetes}
+                className="ml-2 inline-flex items-center gap-2 rounded-lg border border-alba-300 hover:border-maroon-300 hover:text-maroon-700 disabled:opacity-50 text-stone-600 text-sm font-semibold px-4 py-2.5"
+              >
+                <FlaskConical size={15} /> {mengetes ? 'Mengirim tes…' : 'Kirim tes ke email saya'}
+              </button>
               {(data.sedangJalan || adaYangJalan) && (
                 <p className="text-xs text-gold-600">Kabar sebelumnya masih dikirim. Tombol aktif lagi setelah selesai.</p>
               )}
@@ -262,18 +298,53 @@ export default function KabarSiswa({ subjectId, area, refreshSignal = 0 }) {
 
           {pesan && <p className="text-sm font-medium text-stone-700 whitespace-pre-wrap">{pesan}</p>}
 
+          {tes && (
+            <div className={`rounded-xl border px-4 py-3 text-sm ${tes.ok ? 'border-green-200 bg-green-50 text-green-900' : 'border-maroon-200 bg-maroon-50 text-maroon-800'}`}>
+              <p className="font-semibold break-words">{tes.ok ? '✅ ' : '❌ '}{tes.message}</p>
+              {tes.smtp && (
+                <div className="mt-2 text-xs text-stone-600">
+                  <p className="font-bold">Pengaturan SMTP yang sedang dipakai server:</p>
+                  <p className="font-mono break-all">
+                    {tes.smtp.aktif ? 'SMTP aktif' : 'SMTP TIDAK aktif'} · host {tes.smtp.host || '-'} · port {tes.smtp.port || '-'}
+                    {' '}· TLS {tes.smtp.tls ? 'on' : 'off'} · auth {tes.smtp.authMethod || '-'}
+                  </p>
+                  <p className="font-mono break-all">
+                    username {tes.smtp.username || '-'} · password {tes.smtp.adaPassword ? 'terisi' : 'KOSONG'} · pengirim {tes.smtp.pengirim || '-'}
+                  </p>
+                  <p className="mt-1 text-stone-500">
+                    Kalau ini tidak sama dengan yang kamu isi di Settings → Mail settings, berarti pengaturannya belum tersimpan
+                    di server yang menjalankan web ini.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {riwayat.length > 0 && (
             <div>
               <p className="text-xs font-bold text-stone-500 mb-1.5">Kabar terakhir</p>
               <ul className="space-y-1">
-                {riwayat.map((k) => {
+                {riwayat.map((k, i) => {
                   const st = STATUS[k.status] || STATUS.ANTRE;
+                  const bisaLanjut = i === 0 && k.status === 'GAGAL' && k.pendingCount > 0;
                   return (
-                    <li key={k.id} className="flex flex-wrap items-center gap-2 text-xs text-stone-600">
-                      <span className={`rounded-full border px-2 py-0.5 font-bold ${st.cls}`}>{st.label}</span>
-                      <span>{tglPanjang(k.created)}</span>
-                      <span>· {k.sent}/{k.total} terkirim{k.failed ? `, ${k.failed} gagal` : ''}</span>
-                      {k.failed > 0 && k.lastError && <span className="text-maroon-600 truncate max-w-xs" title={k.lastError}>({k.lastError})</span>}
+                    <li key={k.id} className="text-xs text-stone-600">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full border px-2 py-0.5 font-bold ${st.cls}`}>{st.label}</span>
+                        <span>{tglPanjang(k.created)}</span>
+                        <span>
+                          · {k.sent}/{k.total} terkirim{k.failed ? `, ${k.failed} gagal` : ''}
+                          {k.status === 'GAGAL' && k.pendingCount > 0 ? `, ${k.pendingCount} belum dikirim` : ''}
+                        </span>
+                        {bisaLanjut && (
+                          <button onClick={() => lanjutkan(k.id)} className="rounded-md border border-maroon-200 px-2 py-0.5 font-bold text-maroon-700 hover:bg-maroon-50">
+                            Lanjutkan pengiriman ({k.pendingCount})
+                          </button>
+                        )}
+                      </div>
+                      {k.lastError && (k.status === 'GAGAL' || k.failed > 0) && (
+                        <p className="mt-0.5 break-words text-maroon-700">{k.lastError}</p>
+                      )}
                     </li>
                   );
                 })}
