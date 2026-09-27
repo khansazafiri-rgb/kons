@@ -319,6 +319,58 @@ function rakitEmail(app, opsi) {
 }
 
 // ---------------------------------------------------------------------------
+// SMTP
+// ---------------------------------------------------------------------------
+
+// Satu-satunya tempat email kabar benar-benar dikirim - dipakai antrean DAN
+// tombol "Kirim tes", jadi hasil tes selalu sama dengan hasil kirim sungguhan.
+function kirimEmail(app, alamat, subjek, html) {
+  const settings = app.settings();
+  app.newMailClient().send(new MailerMessage({
+    from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+    to: [{ address: alamat }],
+    subject: subjek,
+    html: html,
+  }));
+}
+
+// Pengaturan SMTP yang sedang dibaca PROSES SERVER INI. Ditampilkan ke admin
+// supaya kelihatan kalau yang disimpan di dashboard berbeda dengan yang
+// dipakai server (mis. menyimpan di instance lain, atau lupa menekan Save).
+function infoSmtp(app) {
+  const st = app.settings();
+  const smtp = st.smtp || {};
+  return {
+    aktif: !!smtp.enabled,
+    host: String(smtp.host || ""),
+    port: smtp.port || 0,
+    username: String(smtp.username || ""),
+    tls: !!smtp.tls,
+    authMethod: String(smtp.authMethod || ""),
+    adaPassword: !!String(smtp.password || ""),
+    pengirim: String(st.meta.senderAddress || ""),
+  };
+}
+
+// Error yang pasti menimpa SEMUA penerima (login SMTP ditolak, server tidak
+// terjangkau). Kalau ketemu, antrean berhenti di tempat dan sisa siswa tetap
+// menunggu - bukan dihabiskan satu per satu jadi "gagal".
+function gagalTotal(pesan) {
+  return /\b(530|534|535)\b|username and password|authentication|auth.*(fail|rejected)|connection refused|no such host|i\/o timeout|dial tcp/i.test(pesan);
+}
+
+function jelaskanGagal(pesan) {
+  if (/\b(534|535)\b|username and password|authentication/i.test(pesan)) {
+    return "Server email menolak login SMTP (username / App Password salah, atau belum tersimpan di server ini). " +
+      "Cek Settings → Mail settings di dashboard PocketBase, lalu tekan \"Send test email\". Detail: " + pesan;
+  }
+  if (/connection refused|no such host|i\/o timeout|dial tcp/i.test(pesan)) {
+    return "Server tidak bisa terhubung ke server SMTP (host/port salah atau diblokir). Detail: " + pesan;
+  }
+  return pesan;
+}
+
+// ---------------------------------------------------------------------------
 // Antrean
 // ---------------------------------------------------------------------------
 
@@ -357,7 +409,10 @@ function prosesAntrean(app, batasKirim, batasMs) {
       let ok = 0;
       let gagal = 0;
       let pesanGagal = "";
+      let berhenti = "";
+      const kembalikan = [];
       ambil.forEach((uid) => {
+        if (berhenti) { kembalikan.push(uid); return; }
         try {
           const siswa = app.findRecordById("users", uid);
           const email = siswa.getString("email");
@@ -371,18 +426,18 @@ function prosesAntrean(app, batasKirim, batasMs) {
             opening: bc.getString("opening"),
             emailSubject: bc.getString("emailSubject"),
           });
-          const settings = app.settings();
-          app.newMailClient().send(new MailerMessage({
-            from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
-            to: [{ address: email }],
-            subject: isi.subjek,
-            html: isi.html,
-          }));
+          kirimEmail(app, email, isi.subjek, isi.html);
           ok += 1;
         } catch (err) {
+          const pesan = String(err);
+          console.log("kabar-update: gagal kirim ke", uid, pesan);
+          if (gagalTotal(pesan)) {
+            berhenti = pesan;
+            kembalikan.push(uid);
+            return;
+          }
           gagal += 1;
-          pesanGagal = String(err).slice(0, 300);
-          console.log("kabar-update: gagal kirim ke", uid, err);
+          pesanGagal = pesan;
         }
       });
       terkirim += ambil.length;
@@ -390,7 +445,16 @@ function prosesAntrean(app, batasKirim, batasMs) {
       const catat = app.findRecordById("subject_broadcasts", bc.id);
       catat.set("sent", catat.getInt("sent") + ok);
       catat.set("failed", catat.getInt("failed") + gagal);
-      if (pesanGagal) catat.set("lastError", pesanGagal);
+      if (pesanGagal) catat.set("lastError", jelaskanGagal(pesanGagal).slice(0, 1000));
+      if (berhenti) {
+        // Siswa yang belum sempat dikirimi dikembalikan ke depan antrean;
+        // admin melanjutkannya lewat tombol "Lanjutkan" setelah SMTP beres.
+        catat.set("pending", kembalikan.concat(jsonDari(catat, "pending", [])));
+        catat.set("status", "GAGAL");
+        catat.set("lastError", jelaskanGagal(berhenti).slice(0, 1000));
+        app.save(catat);
+        break;
+      }
       if (!jsonDari(catat, "pending", []).length) {
         catat.set("status", catat.getInt("sent") > 0 ? "SELESAI" : "GAGAL");
       }
@@ -409,6 +473,7 @@ function ringkasBaris(bc) {
     sent: bc.getInt("sent"),
     failed: bc.getInt("failed"),
     lastError: bc.getString("lastError"),
+    pendingCount: jsonDari(bc, "pending", []).length,
     created: String(bc.get("created")),
     sinceAt: String(bc.get("sinceAt")),
   };
@@ -429,5 +494,8 @@ module.exports = {
   pembukaBawaan,
   prosesAntrean,
   ringkasBaris,
+  kirimEmail,
+  infoSmtp,
+  jelaskanGagal,
   waktuMs,
 };

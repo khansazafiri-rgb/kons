@@ -173,3 +173,93 @@ routerAdd("GET", "/api/pcv/kabar/riwayat", (e) => {
   } catch (_) {}
   return e.json(200, { riwayat: rows.map((r) => kabar.ringkasBaris(r)) });
 });
+
+// Kirim SATU contoh email ke akun yang menekan tombol, saat itu juga (bukan
+// lewat antrean), dengan jalur kirim yang sama persis dengan antrean. Hasil
+// dan pesan error SMTP-nya langsung kembali ke layar, bersama pengaturan SMTP
+// yang sedang dibaca server ini (untuk admin).
+routerAdd("POST", "/api/pcv/kabar/tes", (e) => {
+  const kabar = require(`${__hooks}/kabar-shared.js`);
+  const body = new DynamicModel({ subjectId: "", area: "", since: "", emailSubject: "", opening: "" });
+  e.bindBody(body);
+
+  const subjectId = String(body.subjectId || "");
+  const area = String(body.area || "");
+  if (!kabar.areaInfo(area)) return e.json(400, { message: "area harus cbt atau latihan." });
+  if (!kabar.bolehKirim(e.auth, subjectId)) {
+    return e.json(403, { message: "Kamu tidak punya akses ke mata kuliah ini." });
+  }
+  const tujuan = e.auth.getString("email");
+  if (!tujuan) return e.json(400, { message: "Akunmu tidak punya alamat email untuk menerima email tes." });
+
+  let namaMk = "";
+  try {
+    namaMk = e.app.findRecordById("subjects", subjectId).getString("name");
+  } catch (_) {
+    return e.json(404, { message: "Mata kuliah tidak ditemukan." });
+  }
+
+  const peran = e.auth.getString("role");
+  const smtp = peran === "admin" || peran === "super_admin" ? kabar.infoSmtp(e.app) : null;
+
+  const terakhir = kabar.kabarTerakhir(e.app, subjectId, area);
+  let sinceMs = kabar.waktuMs(body.since);
+  if (isNaN(sinceMs)) {
+    sinceMs = terakhir ? kabar.waktuMs(terakhir.get("created")) : Date.now() - 7 * kabar.DAY_MS;
+  }
+  const ringkasan = kabar.ringkas(e.app, subjectId, area, sinceMs);
+  const isi = kabar.rakitEmail(e.app, {
+    area: area,
+    namaMk: namaMk,
+    subjectId: subjectId,
+    ringkasan: ringkasan,
+    siswa: null,
+    opening: body.opening,
+    emailSubject: body.emailSubject,
+  });
+
+  try {
+    kabar.kirimEmail(e.app, tujuan, "[TES] " + isi.subjek, isi.html);
+  } catch (err) {
+    console.log("kabar-update: tes gagal:", String(err));
+    return e.json(502, { ok: false, message: kabar.jelaskanGagal(String(err)), smtp: smtp });
+  }
+  return e.json(200, { ok: true, message: "Email tes terkirim ke " + tujuan + ". Cek kotak masuk (dan folder spam).", smtp: smtp });
+});
+
+// Melanjutkan kabar yang berhenti karena SMTP menolak. Hanya untuk kabar
+// TERBARU mata kuliah + halaman itu, supaya kabar lama tidak dikirim ulang
+// setelah admin sudah membuat kabar baru.
+routerAdd("POST", "/api/pcv/kabar/lanjutkan", (e) => {
+  const kabar = require(`${__hooks}/kabar-shared.js`);
+  const body = new DynamicModel({ id: "" });
+  e.bindBody(body);
+
+  let bc;
+  try {
+    bc = e.app.findRecordById("subject_broadcasts", String(body.id || ""));
+  } catch (_) {
+    return e.json(404, { message: "Kabar tidak ditemukan." });
+  }
+  const subjectId = bc.getString("subject");
+  const area = bc.getString("area");
+  if (!kabar.bolehKirim(e.auth, subjectId)) {
+    return e.json(403, { message: "Kamu tidak punya akses ke mata kuliah ini." });
+  }
+  if (bc.getString("status") !== "GAGAL") {
+    return e.json(400, { message: "Kabar ini tidak sedang berhenti." });
+  }
+  const terbaru = e.app.findRecordsByFilter(
+    "subject_broadcasts", "subject = {:s} && area = {:a}", "-created", 1, 0, { s: subjectId, a: area },
+  );
+  if (!terbaru.length || terbaru[0].id !== bc.id) {
+    return e.json(400, { message: "Sudah ada kabar yang lebih baru untuk mata kuliah ini, jadi kabar ini tidak dilanjutkan." });
+  }
+  const sisa = JSON.parse(bc.getString("pending") || "[]");
+  if (!sisa.length) return e.json(400, { message: "Tidak ada siswa yang tersisa untuk dikirimi." });
+
+  bc.set("status", "ANTRE");
+  bc.set("lastError", "");
+  e.app.save(bc);
+  return e.json(200, { message: "Dilanjutkan: " + sisa.length + " siswa masuk antrean lagi.", kabar: kabar.ringkasBaris(bc) });
+});
