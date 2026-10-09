@@ -4,7 +4,7 @@
 // Yang dijaga dua arah: jawaban yang benar tapi ditulis sedikit beda (salah
 // ketik, imbuhan, urutan, kata tambahan) harus diterima, dan jawaban yang
 // memang lain (obat lain, spesies lain, angka lain, disangkal) harus ditolak.
-import { cocokIsian, isianSiswa, jawabanDiterima, nilaiSub, subSudahDiisi } from '../src/lib/isian.js';
+import { cocokIsian, isianSiswa, jawabanDiterima, nilaiSub, pisahBentuk, subSudahDiisi } from '../src/lib/isian.js';
 
 const cocok = (siswa, kunci) => !!cocokIsian(siswa, kunci);
 
@@ -22,7 +22,34 @@ const spesies = {
   validAnswers: ['Ancylostoma braziliense', 'Ancylostoma caninum', 'Uncinaria stenocephala'],
 };
 
+// "Bagaimana cara mendapatkan angka 2?" - beberapa cara berbeda, semuanya benar.
+const angkaDua = {
+  label: 'A',
+  validAnswers: ['1 + 1', '1/2 + 1/2 + 1', '2 x 1 / 2 * 1 / dua kali satu'],
+};
+
 const kasus = [
+  // --- banyak cara menjawab, termasuk pecahan dan desimal ---
+  ['angka 2: cara pertama', nilaiSub(angkaDua, '1 + 1').benar, true],
+  ['angka 2: tanpa spasi', nilaiSub(angkaDua, '1+1').benar, true],
+  ['angka 2: cara kedua dengan pecahan', nilaiSub(angkaDua, '1/2 + 1/2 + 1').benar, true],
+  ['angka 2: pecahan urutan lain', nilaiSub(angkaDua, '1 + 1/2 + 1/2').benar, true],
+  ['angka 2: bentuk sinonim dipisah "/" di antara huruf', nilaiSub(angkaDua, 'dua kali satu').benar, true],
+  ['angka 2: bentuk sinonim "2 * 1"', nilaiSub(angkaDua, '2 * 1').benar, true],
+  ['angka 2: "1 + 5" ditolak (angka 1 tidak dihitung dua kali)', nilaiSub(angkaDua, '1 + 5').benar, false],
+  ['angka 2: "3 - 1" ditolak', nilaiSub(angkaDua, '3 - 1').benar, false],
+  ['angka 2: "1/2 + 1/2" ditolak (hasilnya 1)', nilaiSub(angkaDua, '1/2 + 1/2').benar, false],
+  ['angka 2: jawaban kosong ditolak', nilaiSub(angkaDua, '').benar, false],
+  ['pecahan di kunci tidak dipecah jadi sinonim', JSON.stringify(pisahBentuk('1/2 + 1/2 + 1')), '["1/2 + 1/2 + 1"]'],
+  ['sinonim dengan spasi tetap dipecah', JSON.stringify(pisahBentuk('Striated duct / Duktus striata')), '["Striated duct","Duktus striata"]'],
+  ['sinonim tanpa spasi (data lama) tetap dipecah', JSON.stringify(pisahBentuk('lidah/lingual')), '["lidah","lingual"]'],
+  ['tampilan jawaban diterima untuk siswa tidak dirusak', JSON.stringify(jawabanDiterima(angkaDua).slice(0, 2)), '["1 + 1","1/2 + 1/2 + 1"]'],
+  ['desimal koma = desimal titik', cocok('0,5 mg', '0.5 mg'), true],
+  ['dosis 0,5 mg bukan 5 mg', cocok('0,5 mg', '5 mg'), false],
+  ['dosis 5 mg bukan 0,5 mg', cocok('5 mg', '0,5 mg'), false],
+  ['dosis 1,5 mg bukan 5 mg', cocok('1,5 mg', '5 mg'), false],
+  ['pecahan 1/2 bukan 1 atau 2', cocok('1/2', '1'), false],
+
   // --- harus DITERIMA ---
   ['persis, beda huruf besar & tanda baca', cocok('ivermectin.', 'Ivermectin'), true],
   ['salah ketik 1 huruf', cocok('Ancylostoma brazilense', 'Ancylostoma braziliense'), true],
