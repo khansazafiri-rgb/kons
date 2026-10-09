@@ -16,7 +16,7 @@ import { hapusLunak, konfirmasiHapus, saringAktif } from '@/lib/akun';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
 import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
-import { jumlahKotak } from '@/lib/isian';
+import { jumlahKotak, nilaiSub } from '@/lib/isian';
 import { KIND_CBT, filterLatihan } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 import PilihFakultas from '@/components/PilihFakultas';
@@ -833,6 +833,47 @@ function bersihkanSub(sq) {
   return out;
 }
 
+// Kotak uji untuk penulis soal: ketik jawaban siswa apa adanya (salah ketik,
+// bahasa Inggris, singkatan) dan lihat langsung apakah diterima, dan lewat
+// bentuk kunci yang mana. Memakai fungsi penilaian yang SAMA dengan yang dipakai
+// siswa, jadi hasilnya bukan perkiraan.
+function UjiJawaban({ sub }) {
+  const [teks, setTeks] = useState('');
+  const kunci = bersihkanSub(sub);
+  const n = jumlahKotak(kunci);
+  if (!kunci.validAnswers.length) return null;
+
+  const hasil = teks.trim() ? nilaiSub(kunci, n > 1 ? teks.split(';') : [teks]) : null;
+  const tanpaTanda = (t) => String(t).replace(/^\s*=\s*/, '');
+  return (
+    <div className="rounded-md border border-dashed border-alba-300 bg-alba-50 px-3 py-2 space-y-1.5">
+      <label className="flex items-center gap-2 text-[11px] font-semibold text-stone-500">
+        Coba jawaban siswa
+        <input
+          value={teks}
+          onChange={(e) => setTeks(e.target.value)}
+          placeholder={n > 1 ? `Ketik ${n} jawaban, pisahkan dengan titik koma (;)` : 'mis. salah ketik, bahasa Inggris, atau singkatan'}
+          className="flex-1 min-w-0 rounded-md border border-alba-200 px-2 py-1 text-xs font-normal bg-alba-50"
+        />
+      </label>
+      {hasil && (
+        <div className="text-[11px] space-y-0.5">
+          <p className={`font-bold ${hasil.benar ? 'text-green-700' : 'text-red-600'}`}>
+            {hasil.benar ? '✓ Diterima sebagai benar' : (n > 1 ? `✗ Belum cukup: ${hasil.perKotak.filter(Boolean).length} dari ${n} tepat` : '✗ Tidak diterima')}
+          </p>
+          {hasil.cocok.map((c, k) => (c ? (
+            <p key={k} className="text-stone-500">
+              {n > 1 ? `Jawaban ${k + 1}: ` : ''}
+              {c.cara === 'persis' ? 'sama persis dengan' : 'dianggap benar karena mirip/sepadan dengan'}{' '}
+              <span className="font-semibold text-stone-700">{tanpaTanda(c.kunci)}</span>
+            </p>
+          ) : null))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Form soal bersama (dipakai EditSoal & EditSimulasi) - mendukung 4 tipe:
 // MCQ Biasa, MCQ Bergambar, Isian, Isian Bergambar
 function QuestionForm({ form, setForm }) {
@@ -931,13 +972,21 @@ function QuestionForm({ form, setForm }) {
                     {n > 1
                       ? 'Tiap baris = satu jawaban berbeda; siswa harus menyebut sebanyak jumlah kotak.'
                       : 'Tiap baris = satu cara menjawab yang benar; siswa cukup cocok dengan salah satu baris.'}
-                    {' '}Salah ketik kecil, imbuhan, dan urutan kata sudah ditoleransi otomatis. Sinonim dan cara lain yang hasilnya sama tetap perlu ditulis. Pecahan seperti 1/2 tidak dipecah.
+                    {' '}Pecahan seperti 1/2 tidak dipecah.
+                  </p>
+                  <p className="text-[11px] text-stone-400">
+                    Otomatis diterima: salah ketik (huruf bersebelahan di keyboard, huruf h hilang, huruf tertukar), imbuhan, urutan kata,
+                    ejaan Inggris/Latin vs Indonesia (thyroid = tiroid, anaemia = anemia), dan istilah umum (hookworm = cacing tambang,
+                    liver = hati). Sinonim lain dan cara lain yang hasilnya sama tetap perlu ditulis.
+                    Awali sebuah baris dengan <span className="font-mono font-semibold">=</span> kalau jawabannya HARUS persis
+                    (mis. <span className="font-mono">=gastrin</span>, supaya &ldquo;gastrik&rdquo; tidak ikut benar).
                   </p>
                   {n > 1 && barisJawaban < n && (
                     <p className="text-[11px] font-semibold text-maroon-600">
                       Baru {barisJawaban} jawaban benar, padahal siswa diminta {n}. Tambah jawabannya atau kurangi jumlahnya.
                     </p>
                   )}
+                  <UjiJawaban sub={sq} />
                   <textarea
                     value={sq.explanation || ''}
                     onChange={(e) => updateSub(i, 'explanation', e.target.value)}
@@ -1009,6 +1058,8 @@ const ISIAN_LANJUTAN_RULE = `ISIAN DENGAN BANYAK KUNCI & PEMBAHASAN PER BAGIAN:
 - Bentuk lain dari butir yang SAMA (sinonim, singkatan, istilah Indonesia/Inggris) digabung dalam string butir itu, dipisah " / ".
 - Sistem sudah menoleransi salah ketik kecil, imbuhan (menggunakan/gunakan), urutan kata, dan kata tambahan. Tapi sinonim TIDAK ditebak, jadi tulis sendiri bentuk lain yang wajar dipakai siswa.
 - Kalau butir kunci berupa kalimat panjang, tulis kalimat aslinya DAN versi kata kuncinya dalam string yang sama. Contoh: "Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal".
+- Sistem sudah menoleransi salah ketik (huruf bersebelahan di keyboard, huruf h hilang, huruf tertukar), ejaan Inggris/Latin vs Indonesia (thyroid = tiroid, anaemia = anemia, physiology = fisiologi), dan istilah umum (hookworm = cacing tambang, liver = hati). Jangan menuliskan bentuk-bentuk itu satu per satu; cukup tulis satu bentuk saja. Tulis sinonim hanya kalau bukan sekadar beda ejaan atau bahasa (mis. "brush border / striated border").
+- Jangan memakai tanda "=" di depan jawaban, kecuali saya minta tegas bahwa jawaban itu harus persis.
 - Tanda "/" di dalam jawaban dibaca sebagai pemisah bentuk lain. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing". Satu-satunya pengecualian: "/" di antara dua angka (pecahan "1/2", tanggal) tetap bagian jawaban.
 - Soal yang jawabannya bisa dicapai dengan banyak cara (hitungan, rumus, langkah) tulis tiap cara sebagai butir terpisah. Contoh "Bagaimana cara mendapatkan angka 2?": "validAnswers": ["1 + 1", "1/2 + 1/2 + 1", "2 x 1 / 2 * 1"]. Sistem tidak menghitung, jadi semua cara yang kamu anggap benar harus tertulis.
 - JANGAN tulis "answerCount", kecuali saya minta secara tegas bahwa siswa WAJIB menyebut sejumlah jawaban berbeda.

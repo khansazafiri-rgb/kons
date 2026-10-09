@@ -25,11 +25,18 @@
 //
 //   1. Persis, setelah huruf kecil, tanda baca, dan spasi dirapikan.
 //   2. Kata per kata, dengan toleransi:
-//      - salah ketik kecil: 1 huruf untuk kata 5-13 huruf, 2 huruf untuk kata
-//        yang lebih panjang. Kata <= 4 huruf dan angka harus persis, dan huruf
-//        pertamanya harus sama. Jadi "Ancylostoma brazilense" diterima untuk
-//        "braziliense", tapi "Mebendazole" tidak diterima untuk "Albendazole",
-//        dan "12 mg" tidak diterima untuk "21 mg";
+//      - salah ketik, diukur seperti orang sungguhan salah ketik (lihat
+//        "Salah ketik" di bawah): huruf yang bersebelahan di keyboard dan
+//        huruf "h" yang hilang dihitung setengah salah, huruf yang tertukar
+//        satu salah. Kata 5-7 huruf dimaafkan satu salah ketik, kata 8-13
+//        huruf setara satu kesalahan penuh, kata lebih panjang dua. Kata
+//        <= 4 huruf dan angka harus persis. Huruf pertama harus sama, kecuali
+//        salah tekan tombol sebelahnya atau h di depan yang hilang. Jadi
+//        "Scistosoma" dan "istologi" diterima, tapi "Mebendazole" tidak
+//        diterima untuk "Albendazole", dan "12 mg" tidak untuk "21 mg";
+//      - ejaan Inggris/Latin vs Indonesia dibakukan lebih dulu (ph->f, th->t,
+//        y->i, c->k/s, ae->e, akhiran -tion->-si, -ic->-ik, dst): "thyroid" =
+//        "tiroid", "anaemia" = "anemia", "physiology" = "fisiologi";
 //      - imbuhan: "gunakan", "menggunakan", dan "penggunaan" dianggap kata
 //        yang sama;
 //      - kata sambung ("yang", "dengan", "ketika", ...) tidak dihitung;
@@ -43,7 +50,17 @@
 //      untuk "telur non fertil".
 //
 // Toleransi ini tidak bisa menebak sinonim ("sandal" untuk "alas kaki").
-// Sinonim tetap harus ditulis di kunci, dipisah " / ".
+// Sinonim tetap harus ditulis di kunci, dipisah " / ". Pengecualiannya daftar
+// padanan istilah medis yang tidak ambigu di istilahMedis.js ("hati" = "liver"
+// = "hepar", "cacing tambang" = "hookworm"); yang tidak ada di daftar itu
+// tetap harus ditulis.
+//
+// YANG TIDAK BOLEH DISAMAKAN
+// Salah ketik dan istilah yang beda arti sering cuma selisih satu huruf
+// (hiper/hipo, makro/mikro, kalium/kalsium, trombosit/trombosis). Pasangan yang
+// diketahui rawan ditolak lebih dulu, apa pun jarak hurufnya (istilahMedis.js,
+// tidakBolehDisamakan). Untuk jawaban kritis lain, awali butir kunci dengan "="
+// ("=gastrin"): jawaban itu dinilai tanpa toleransi sama sekali.
 //
 // ANGKA
 //   - Desimal dan pecahan dibaca utuh: "0,5" sama dengan "0.5", tapi bukan "5";
@@ -54,6 +71,8 @@
 //     menolak "1 + 5".
 //   - Cara lain yang hasilnya sama ("1 + 1", "2 x 1", "0,5 + 1,5") tetap harus
 //     ditulis sebagai kunci sendiri-sendiri. Sistem tidak menghitung.
+
+import { kanonisKata, perluasanIstilah, tidakBolehDisamakan } from './istilahMedis.js';
 
 // ---------------------------------------------------------------------------
 // Merapikan teks
@@ -97,6 +116,90 @@ function akarKata(kata) {
   return k;
 }
 
+// ---------------------------------------------------------------------------
+// Salah ketik
+// ---------------------------------------------------------------------------
+//
+// Jaraknya berbobot menurut cara orang sungguhan salah ketik:
+//   - huruf yang salah tapi BERSEBELAHAN di keyboard (e/w, n/m, o/p): setengah
+//     kesalahan, karena itu jari yang meleset, bukan salah ingat ejaan;
+//   - huruf "h" yang hilang atau kelebihan (Schistosoma -> Scistosoma,
+//     histologi -> istologi): setengah kesalahan, huruf itu memang sering
+//     tidak terdengar;
+//   - dua huruf bertukar tempat (Plasmodium -> Plasmoidum): satu kesalahan,
+//     bukan dua;
+//   - selain itu satu huruf salah/hilang/lebih: satu kesalahan.
+//
+// Berapa kesalahan yang dimaafkan bergantung panjang kata, supaya kata pendek
+// yang artinya beda (HIV/HPV, otak/otot) tidak ikut lolos. Kata 4 huruf ke
+// bawah harus persis.
+
+const BARIS_KEYBOARD = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+const LETAK_HURUF = new Map();
+BARIS_KEYBOARD.forEach((baris, r) => [...baris].forEach((h, c) => LETAK_HURUF.set(h, [r, c])));
+
+// Baris atas bergeser setengah tombol ke kiri dari baris di bawahnya, jadi 's'
+// bersebelahan dengan w, e (atas) dan z, x (bawah).
+export function bersebelahan(x, y) {
+  const p = LETAK_HURUF.get(x);
+  const q = LETAK_HURUF.get(y);
+  if (!p || !q || x === y) return false;
+  const dr = q[0] - p[0];
+  const dc = q[1] - p[1];
+  if (dr === 0) return Math.abs(dc) === 1;
+  if (dr === -1) return dc === 0 || dc === 1;
+  if (dr === 1) return dc === -1 || dc === 0;
+  return false;
+}
+
+// Jarak antar dua kata beserta jumlah kesalahannya (pecahan = setengah salah).
+function jarakKetik(a, b) {
+  const n = a.length;
+  const m = b.length;
+  const biaya = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  const edit = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  const hapus = (h) => (h === 'h' ? 0.5 : 1);
+  // Pilih biaya terkecil; kalau sama, yang jumlah kesalahannya lebih sedikit.
+  const pilih = (c1, e1, c2, e2) => (c1 < c2 || (c1 === c2 && e1 <= e2) ? [c1, e1] : [c2, e2]);
+
+  for (let i = 1; i <= n; i++) { biaya[i][0] = biaya[i - 1][0] + hapus(a[i - 1]); edit[i][0] = edit[i - 1][0] + 1; }
+  for (let j = 1; j <= m; j++) { biaya[0][j] = biaya[0][j - 1] + hapus(b[j - 1]); edit[0][j] = edit[0][j - 1] + 1; }
+
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const x = a[i - 1];
+      const y = b[j - 1];
+      let [c, e] = x === y
+        ? [biaya[i - 1][j - 1], edit[i - 1][j - 1]]
+        : [biaya[i - 1][j - 1] + (bersebelahan(x, y) ? 0.5 : 1), edit[i - 1][j - 1] + 1];
+      [c, e] = pilih(c, e, biaya[i - 1][j] + hapus(x), edit[i - 1][j] + 1);
+      [c, e] = pilih(c, e, biaya[i][j - 1] + hapus(y), edit[i][j - 1] + 1);
+      if (i > 1 && j > 1 && x === b[j - 2] && a[i - 2] === y && x !== y) {
+        [c, e] = pilih(c, e, biaya[i - 2][j - 2] + 1, edit[i - 2][j - 2] + 1);
+      }
+      biaya[i][j] = c;
+      edit[i][j] = e;
+    }
+  }
+  return { biaya: biaya[n][m], edit: edit[n][m] };
+}
+
+// {biaya, edit} maksimum yang dimaafkan untuk kata sependek `panjang` huruf.
+// Kata 5-7 huruf: SATU salah ketik saja. Dua selip "ringan" sekalipun
+// (kulit -> mulut, manus -> mania) sudah menghasilkan kata lain. Kata 8-13
+// huruf: setara satu kesalahan penuh (dua selip ringan boleh). Kata panjang:
+// dua kesalahan penuh.
+function anggaran(panjang) {
+  if (panjang <= 4) return { biaya: 0, edit: 0 };
+  if (panjang <= 7) return { biaya: 1, edit: 1 };
+  if (panjang <= 13) return { biaya: 1, edit: 2 };
+  return { biaya: 2, edit: 3 };
+}
+
+// Aturan LAMA yang ketat, khusus untuk kata yang sudah dipotong imbuhannya:
+// pemotongnya kasar ("displasia" jadi "splasia", "metronidazol" jadi
+// "tronidazol"), jadi di sini tidak ada setengah-kesalahan dan huruf pertama
+// harus persis sama.
 function jarakEdit(a, b) {
   if (a === b) return 0;
   const baris = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -112,39 +215,70 @@ function jarakEdit(a, b) {
   return baris[b.length];
 }
 
-function toleransi(panjang) {
-  if (panjang <= 4) return 0;
-  if (panjang <= 13) return 1;
-  return 2;
-}
-
-function mirip(a, b) {
+function miripKetat(a, b) {
   if (a === b) return true;
-  if (/\d/.test(a) || /\d/.test(b)) return false; // angka & dosis harus persis
-  if (a[0] !== b[0]) return false;
-  const batas = toleransi(Math.min(a.length, b.length));
+  if (/\d/.test(a) || /\d/.test(b)) return false;
+  // Pengaman ditulis dalam ejaan baku, sedangkan kata di sini masih mentah.
+  if (a[0] !== b[0] || tidakBolehDisamakan(kanonisKata(a), kanonisKata(b))) return false;
+  const pendek = Math.min(a.length, b.length);
+  const batas = pendek <= 4 ? 0 : pendek <= 13 ? 1 : 2;
   return batas > 0 && Math.abs(a.length - b.length) <= batas && jarakEdit(a, b) <= batas;
 }
 
-function kataCocok(kunci, siswa) {
-  if (mirip(kunci, siswa)) return true;
-  const ak = akarKata(kunci);
-  const as = akarKata(siswa);
-  return (ak !== kunci || as !== siswa) && mirip(ak, as);
+// Beda mereka HANYA satu huruf "h" (hepar/epar, histologi/istologi).
+function hanyaBedaH(a, b) {
+  const [panjang, pendek] = a.length >= b.length ? [a, b] : [b, a];
+  if (panjang.length - pendek.length !== 1) return false;
+  for (let k = 0; k < panjang.length; k++) {
+    if (panjang[k] === 'h' && panjang.slice(0, k) + panjang.slice(k + 1) === pendek) return true;
+  }
+  return false;
 }
 
-// Satu jawaban siswa vs satu bentuk kunci. Mengembalikan null (tidak cocok),
-// 'persis', atau 'mirip'.
-export function cocokIsian(teksSiswa, teksKunci) {
-  const siswa = normalizeIsian(teksSiswa);
-  const kunci = normalizeIsian(teksKunci);
-  if (!siswa || !kunci) return null;
-  if (siswa === kunci) return 'persis';
+// a dan b sudah dalam ejaan baku (kanonisKata).
+function mirip(a, b) {
+  if (a === b) return true;
+  if (/\d/.test(a) || /\d/.test(b)) return false; // angka & dosis harus persis
+  if (tidakBolehDisamakan(a, b)) return false;     // hipo/hiper, ileum/ilium, ...
 
+  // Huruf pertama harus sama, kecuali salah tekan tombol sebelahnya atau
+  // h di depan yang hilang (hepar -> epar).
+  const awalSama = a[0] === b[0]
+    || bersebelahan(a[0], b[0])
+    || (a[0] === 'h' && a[1] === b[0])
+    || (b[0] === 'h' && b[1] === a[0]);
+  if (!awalSama) return false;
+
+  const pendek = Math.min(a.length, b.length);
+  if (Math.max(a.length, b.length) >= 5 && hanyaBedaH(a, b)) return true;
+
+  const batas = anggaran(pendek);
+  if (batas.biaya === 0 || Math.abs(a.length - b.length) > Math.ceil(batas.biaya)) return false;
+  const d = jarakKetik(a, b);
+  return d.biaya <= batas.biaya && d.edit <= batas.edit;
+}
+
+// Dua kata (belum dibakukan) dianggap sama kalau ejaan bakunya sama atau mirip.
+function kataCocok(kunci, siswa, pakaiAkar = true) {
+  const ck = kanonisKata(kunci);
+  const cs = kanonisKata(siswa);
+  if (ck === cs || mirip(ck, cs)) return true;
+  // Pemotongan imbuhan memakai kata ASLI, bukan ejaan baku: ejaan baku
+  // mengubah huruf (c -> k) dan, dipadu dengan pemotong yang kasar, menyambung
+  // kata yang tidak berkaitan ("cubiti" -> "kubit" ~ "kulit").
+  const ak = akarKata(kunci);
+  const as = akarKata(siswa);
+  return pakaiAkar && (ak !== kunci || as !== siswa) && miripKetat(ak, as);
+}
+
+// Satu jawaban siswa vs satu bentuk kunci, keduanya SUDAH dirapikan.
+// pakaiAkar=false dipakai untuk bentuk hasil perluasan istilah: padanan istilah
+// tidak ditumpuk dengan pemotongan imbuhan ("obatan" bukan "tatalaksana").
+function cocokTernormal(siswa, kunci, pakaiAkar = true) {
   const kataSiswa = siswa.split(' ');
   const kataKunciSemua = kunci.split(' ');
   const menyangkal = (daftar) => daftar.some((k) => PENYANGKAL.has(k));
-  if (menyangkal(kataSiswa) !== menyangkal(kataKunciSemua)) return null;
+  if (menyangkal(kataSiswa) !== menyangkal(kataKunciSemua)) return false;
 
   let kataKunci = kataKunciSemua.filter((k) => !KATA_SAMBUNG.has(k));
   if (!kataKunci.length) kataKunci = kataKunciSemua;
@@ -160,12 +294,35 @@ export function cocokIsian(teksSiswa, teksKunci) {
     if (j >= 0) { dipakai.add(j); ada[i] = true; }
   });
   cari((kk, ks) => kk === ks);
-  cari(kataCocok);
+  cari((kk, ks) => kataCocok(kk, ks, pakaiAkar));
   // Angka (dosis, jumlah, stadium) tidak boleh ikut "cukup dua pertiga":
   // "ivermectin 21 mg" bukan "Ivermectin 12 mg".
-  if (kataKunci.some((kk, i) => /\d/.test(kk) && !ada[i])) return null;
+  if (kataKunci.some((kk, i) => /\d/.test(kk) && !ada[i])) return false;
   const perlu = kataKunci.length <= 2 ? kataKunci.length : Math.ceil((kataKunci.length * 2) / 3);
-  return ada.filter(Boolean).length >= perlu ? 'mirip' : null;
+  return ada.filter(Boolean).length >= perlu;
+}
+
+export const kunciHarusPersis = (teks) => String(teks ?? '').trimStart().startsWith('=');
+
+// Satu jawaban siswa vs satu bentuk kunci. Mengembalikan null (tidak cocok),
+// 'persis', atau 'mirip' (salah ketik, ejaan Inggris/Latin, atau padanan istilah).
+export function cocokIsian(teksSiswa, teksKunci) {
+  const siswa = normalizeIsian(teksSiswa);
+  const kunci = normalizeIsian(teksKunci);
+  if (!siswa || !kunci) return null;
+  if (siswa === kunci) return 'persis';
+  // Kunci berawalan "=" harus ditulis persis (huruf besar/kecil dan tanda
+  // baca tetap tidak berpengaruh): tanpa toleransi salah ketik, ejaan, dan
+  // padanan. Untuk jawaban yang kalau salah satu hurufnya berbeda sudah
+  // menjadi hal lain, mis. "=gastrin" yang bukan "gastrik".
+  if (kunciHarusPersis(teksKunci)) return null;
+  if (cocokTernormal(siswa, kunci)) return 'mirip';
+  // Kunci yang memuat istilah berpadanan ("cacing tambang") juga diterima
+  // dalam tulisan padanannya ("hookworm").
+  for (const varian of perluasanIstilah(kunci)) {
+    if (cocokTernormal(siswa, varian, false)) return 'mirip';
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -254,5 +411,6 @@ export function subSudahDiisi(sub, nilai) {
 // Untuk ditampilkan ke siswa: satu baris per jawaban berbeda, bentuk lainnya
 // dipisah " / ".
 export function jawabanDiterima(sub) {
-  return daftarJawaban(sub).map((bentuk) => bentuk.join(' / '));
+  // Tanda "=" (kunci wajib persis) hanya urusan penilaian, bukan untuk dibaca siswa.
+  return daftarJawaban(sub).map((bentuk) => bentuk.map((t) => t.replace(/^\s*=\s*/, '')).join(' / '));
 }
