@@ -4,7 +4,8 @@
 // Yang dijaga dua arah: jawaban yang benar tapi ditulis sedikit beda (salah
 // ketik, imbuhan, urutan, kata tambahan) harus diterima, dan jawaban yang
 // memang lain (obat lain, spesies lain, angka lain, disangkal) harus ditolak.
-import { cocokIsian, isianSiswa, jawabanDiterima, nilaiSub, pisahBentuk, subSudahDiisi } from '../src/lib/isian.js';
+import { bersebelahan, cocokIsian, isianSiswa, jawabanDiterima, kunciHarusPersis, nilaiSub, pisahBentuk, subSudahDiisi } from '../src/lib/isian.js';
+import { frasaBertabrakan, kanonisKata } from '../src/lib/istilahMedis.js';
 
 const cocok = (siswa, kunci) => !!cocokIsian(siswa, kunci);
 
@@ -28,7 +29,7 @@ const angkaDua = {
   validAnswers: ['1 + 1', '1/2 + 1/2 + 1', '2 x 1 / 2 * 1 / dua kali satu'],
 };
 
-const kasus = [
+const kasusLama = [
   // --- banyak cara menjawab, termasuk pecahan dan desimal ---
   ['angka 2: cara pertama', nilaiSub(angkaDua, '1 + 1').benar, true],
   ['angka 2: tanpa spasi', nilaiSub(angkaDua, '1+1').benar, true],
@@ -85,6 +86,193 @@ const kasus = [
   ['banyak kotak: semua kosong = belum dijawab', subSudahDiisi(spesies, ['', ' ', '']), false],
   ['answerCount dibatasi 20', isianSiswa({ answerCount: 999, validAnswers: [] }, []).length, 20],
   ['daftar jawaban untuk siswa', JSON.stringify(jawabanDiterima(spesies).slice(0, 2)), '["Ancylostoma braziliense","Ancylostoma caninum"]'],
+];
+
+// ---------------------------------------------------------------------------
+// Salah ketik, ejaan Inggris/Latin vs Indonesia, padanan istilah
+// ---------------------------------------------------------------------------
+const terima = (siswa, kunci) => !!cocokIsian(siswa, kunci);
+// tolak: ditolak di KEDUA arah (dua istilah yang memang berbeda).
+const tolak = (siswa, kunci) => !cocokIsian(siswa, kunci) && !cocokIsian(kunci, siswa);
+// ditolak: ditolak pada satu arah saja (jawaban siswa vs kunci tertentu).
+const ditolak = (siswa, kunci) => !cocokIsian(siswa, kunci);
+
+const ketik = [
+  // huruf "h" hilang
+  ['h hilang di tengah (Schistosoma)', terima('Scistosoma', 'Schistosoma'), true],
+  ['h hilang di depan (histologi)', terima('istologi', 'histologi'), true],
+  ['h hilang di kata pendek (hepar)', terima('epar', 'hepar'), true],
+  ['h kelebihan', terima('Ahscaris', 'Ascaris') || terima('Ascharis', 'Ascaris'), true],
+  // tombol bersebelahan di keyboard
+  ['tombol sebelah: e/w', terima('Ivermwctin', 'Ivermectin'), true],
+  ['tombol sebelah: n/m', terima('albemdazole', 'albendazole'), true],
+  ['tombol sebelah di huruf pertama', terima('Mebendazole', 'Nebendazole'), true],
+  ['bersebelahan(): s dekat e, z, x, w', ['e', 'z', 'x', 'w', 'a', 'd'].every((h) => bersebelahan('s', h)), true],
+  ['bersebelahan(): a tidak dekat l', bersebelahan('a', 'l'), false],
+  // dua huruf bertukar
+  ['huruf bertukar (Plasmodium)', terima('Plasmoidum', 'Plasmodium'), true],
+  ['huruf bertukar (Strongyloides)', terima('Strongylodies', 'Strongyloides'), true],
+  // kata pendek harus persis
+  ['kata 3 huruf persis: HIV bukan HPV', tolak('HIV', 'HPV'), true],
+  ['kata 4 huruf persis: otak bukan otot', tolak('otak', 'otot'), true],
+  ['dua selip ringan di kata 6 huruf ditolak', tolak('mulut', 'kulit'), true],
+];
+
+const bahasa = [
+  ['thyroid = tiroid', terima('thyroid', 'tiroid'), true],
+  ['anaemia = anemia', terima('anaemia', 'anemia'), true],
+  ['oesophagus = esofagus', terima('oesophagus', 'esofagus'), true],
+  ['physiology = fisiologi', terima('physiology', 'fisiologi'), true],
+  ['cholesterol = kolesterol', terima('cholesterol', 'kolesterol'), true],
+  ['hypertension = hipertensi', terima('hypertension', 'hipertensi'), true],
+  ['hyperthyroidism = hipertiroidisme', terima('hyperthyroidism', 'hipertiroidisme'), true],
+  ['erythrocyte = eritrosit', terima('erythrocyte', 'eritrosit'), true],
+  ['lymphocyte = limfosit', terima('lymphocyte', 'limfosit'), true],
+  ['calcium = kalsium', terima('calcium', 'kalsium'), true],
+  ['glucose = glukosa', terima('glucose', 'glukosa'), true],
+  ['inflammation = inflamasi', terima('inflammation', 'inflamasi'), true],
+  ['infection = infeksi', terima('infection', 'infeksi'), true],
+  ['circulation = sirkulasi', terima('circulation', 'sirkulasi'), true],
+  ['mechanism = mekanisme', terima('mechanism', 'mekanisme'), true],
+  ['phosphate = fosfat', terima('phosphate', 'fosfat'), true],
+  ['haemoglobin = hemoglobin', terima('haemoglobin', 'hemoglobin'), true],
+  ['Taenia = tenia', terima('Taenia', 'tenia'), true],
+  ['toxin = toksin', terima('toxin', 'toksin'), true],
+  ['Rhesus = resus', terima('Rhesus', 'resus'), true],
+  ['urethra = uretra', terima('urethra', 'uretra'), true],
+  ['clinical = klinis', terima('clinical', 'klinis'), true],
+  ['ejaan Inggris + salah ketik sekaligus', terima('phisiology', 'fisiologi'), true],
+  ['kata Indonesia dengan "rh" tidak dirusak (terhadap)', kanonisKata('terhadap'), 'terhadap'],
+  ['kata Indonesia dengan "rh" tidak dirusak (berhasil)', kanonisKata('berhasil'), 'berhasil'],
+  ['ejaan bukan kata ber-angka dibiarkan', kanonisKata('hba1c'), 'hba1c'],
+  // kalimat: istilah di dalam jawaban yang lebih panjang
+  ['dalam kalimat: "hypertension grade 2"', terima('hypertension grade 2', 'hipertensi grade 2'), true],
+  ['angka tetap harus sama', tolak('hypertension grade 3', 'hipertensi grade 2'), true],
+  ['penyangkal tetap harus sama', tolak('non infection', 'infeksi'), true],
+];
+
+const padanan = [
+  ['hookworm = cacing tambang', terima('hookworm', 'cacing tambang'), true],
+  ['cacing tambang = hookworm (arah sebaliknya)', terima('cacing tambang', 'hookworm'), true],
+  ['tapeworm = cacing pita', terima('tapeworm', 'cacing pita'), true],
+  ['whipworm = Trichuris trichiura', terima('whipworm', 'Trichuris trichiura'), true],
+  ['pinworm = cacing kremi', terima('pinworm', 'cacing kremi'), true],
+  ['liver = hati', terima('liver', 'hati'), true],
+  ['liver = hepar', terima('liver', 'hepar'), true],
+  ['kidney = ginjal', terima('kidney', 'ginjal'), true],
+  ['red blood cell = eritrosit', terima('red blood cell', 'eritrosit'), true],
+  ['sel darah merah = erythrocyte', terima('sel darah merah', 'erythrocyte'), true],
+  ['platelet = trombosit', terima('platelet', 'trombosit'), true],
+  ['padanan + salah ketik: "hokworm"', terima('hokworm', 'cacing tambang'), true],
+  ['padanan di dalam kalimat: "blood pressure"', terima('blood pressure', 'tekanan darah'), true],
+  ['padanan di dalam kalimat: "intermediate host"', terima('intermediate host', 'inang perantara'), true],
+  ['dilaporkan sebagai "mirip", bukan "persis"', cocokIsian('hookworm', 'cacing tambang'), 'mirip'],
+  ['cacing saja bukan cacing tambang', ditolak('cacing', 'cacing tambang'), true],
+  ['hookworm bukan cacing gelang', tolak('hookworm', 'cacing gelang'), true],
+  ['hati bukan ginjal', tolak('hati', 'ginjal'), true],
+  ['liver bukan kidney', tolak('liver', 'kidney'), true],
+  ['padanan tidak ditumpuk imbuhan: obat bukan tatalaksana', tolak('obatan', 'tatalaksana'), true],
+  ['tidak ada frasa yang masuk dua grup padanan', JSON.stringify(frasaBertabrakan()), '[]'],
+];
+
+// Pasangan yang HARUS TETAP BEDA. Banyak yang dulu salah diterima sebagai
+// "salah ketik" karena cuma beda satu-dua huruf padahal artinya berlawanan.
+const bedaArti = [
+  ['tiroid / tifoid', 'thyroid', 'tifoid'],
+  ['hiper / hipo', 'hipotiroidisme', 'hipertiroidisme'],
+  ['makro / mikro', 'mikrositik', 'makrositik'],
+  ['sistolik / diastolik', 'diastolik', 'sistolik'],
+  ['eksotoksin / endotoksin', 'endotoksin', 'eksotoksin'],
+  ['osteoblas / osteoklas', 'osteoklas', 'osteoblas'],
+  ['abduksi / adduksi', 'adduksi', 'abduksi'],
+  ['intra / inter', 'interseluler', 'intraseluler'],
+  ['ileum / ilium / ileus', 'ilium', 'ileum'],
+  ['ileum / ileus', 'ileus', 'ileum'],
+  ['mitosis / miosis', 'miosis', 'mitosis'],
+  ['miosis / mikosis', 'mikosis', 'miosis'],
+  ['ureter / uretra', 'uretra', 'ureter'],
+  ['ureteritis / uretritis', 'uretritis', 'ureteritis'],
+  ['hematologi / hepatologi', 'hepatologi', 'hematologi'],
+  ['nefrologi / neurologi', 'neurologi', 'nefrologi'],
+  ['nekrosis / nefrosis', 'nefrosis', 'nekrosis'],
+  ['nefrotik / nefritik', 'nefritik', 'nefrotik'],
+  ['kalium / kalsium', 'kalsium', 'kalium'],
+  ['hiperkalemia / hiperkalsemia', 'hiperkalsemia', 'hiperkalemia'],
+  ['trombosit / trombosis', 'trombosis', 'trombosit'],
+  ['fibrosit / fibrosis', 'fibrosis', 'fibrosit'],
+  ['nefritis / nefrosis', 'nefrosis', 'nefritis'],
+  ['insulin / inulin', 'inulin', 'insulin'],
+  ['tirosin / tiroksin', 'tiroksin', 'tirosin'],
+  ['rubela / rubeola', 'rubeola', 'rubela'],
+  ['regenerasi / degenerasi', 'degenerasi', 'regenerasi'],
+  ['topikal / tropikal', 'topikal', 'tropikal'],
+  ['darah / daerah', 'daerah', 'darah'],
+  ['nafas / nifas', 'nifas', 'nafas'],
+  ['krisis / kritis', 'kritis', 'krisis'],
+  ['metronidazol / tinidazol (lewat pemotong imbuhan)', 'tinidazol', 'metronidazol'],
+  ['aplasia / displasia (lewat pemotong imbuhan)', 'displasia', 'aplasia'],
+  ['simulasi / sirkulasi', 'simulasi', 'sirkulasi'],
+  ['kulit / mulut', 'mulut', 'kulit'],
+  ['manus / mania', 'mania', 'manus'],
+  ['sitologi / etiologi', 'cytology', 'etiology'],
+];
+
+// Uji massal: 300-an istilah yang artinya BEDA. Satu pun tidak boleh diterima
+// untuk istilah lain. ("tenia" sengaja tidak ikut: itu ejaan lain dari Taenia.)
+const ISTILAH_BEDA = `
+ileum ilium ileus jejunum duodenum kolon sekum rektum anus
+ureter uretra ureteritis uretritis sistitis nefritis neuritis hepatitis hematitis
+hipertensi hipotensi hiperglikemia hipoglikemia hipernatremia hiponatremia hiperkalemia hipokalemia hiperkalsemia hipokalsemia
+hipertiroidisme hipotiroidisme hipertrofi hipotrofi atrofi hiperplasia hipoplasia aplasia displasia metaplasia anaplasia neoplasia
+makrositik mikrositik normositik makrofag mikrofag megaloblas eritroblas osteoblas osteoklas osteosit fibroblas fibrosit kondrosit kondroblas
+intraseluler interseluler ekstraseluler intravena intramuskular subkutan intradermal
+eksotoksin endotoksin enterotoksin neurotoksin sistolik diastolik sistole diastole
+abduksi adduksi fleksi ekstensi rotasi eversi inversi pronasi supinasi
+hematologi hepatologi nefrologi neurologi kardiologi pulmonologi gastroenterologi endokrinologi
+mitosis meiosis miosis midriasis mikosis insulin inulin glukagon glikogen glukosa fruktosa laktosa galaktosa maltosa sukrosa
+kreatinin kreatin urea bilirubin biliverdin eritrosit leukosit trombosit limfosit monosit neutrofil eosinofil basofil
+aferen eferen sensorik motorik simpatis parasimpatis anterior posterior superior inferior medial lateral proksimal distal dorsal ventral
+albendazol mebendazol ivermektin prazikuantel pirantel niklosamid metronidazol tinidazol klorokuin primakuin
+ascaris ancylostoma necator strongyloides trichuris enterobius taenia echinococcus schistosoma fasciola
+entamoeba giardia trichomonas plasmodium toxoplasma leishmania trypanosoma cryptosporidium balantidium
+vivax falciparum malariae ovale knowlesi mansoni japonicum haematobium solium saginata
+tiroid paratiroid timus pankreas adrenal hipofisis hipotalamus pineal aorta vena arteri arteriol venula kapiler atrium ventrikel
+bronkus bronkiolus alveolus trakea laring faring natrium kalium kalsium magnesium fosfat klorida bikarbonat
+amlodipin amiodaron captopril enalapril losartan valsartan atenolol propranolol furosemid spironolakton
+penisilin ampisilin amoksisilin sefalosporin gentamisin streptomisin tetrasiklin doksisiklin eritromisin azitromisin
+asidosis alkalosis anemia leukemia limfoma sarkoma karsinoma melanoma nekrosis apoptosis fibrosis sklerosis stenosis trombosis emboli
+nefrosis tirosin tiroksin lisin lisis rubela rubeola varisela variola tinea gastrin gastrik sekretin sekresi
+laktase laktat amilase amilosa tripsin pepsin pepsinogen tripsinogen albumin globulin globin hemoglobin mioglobin
+kolektomi kolostomi kolesistektomi apendektomi gastrektomi nefrektomi hematuria hematemesis hemoptisis melena glikosuria proteinuria albuminuria oliguria anuria poliuria
+bradikardia takikardia aritmia fibrilasi dispnea apnea takipnea ortopnea hiperpnea diare konstipasi disentri
+tetanus tetani difteri pertusis morbili parotitis herpes neutropenia leukopenia trombositopenia pansitopenia leukositosis eritrositosis trombositosis
+protein peptida polipeptida prolin valin leusin isoleusin serin treonin sistein metionin
+aspirin asetosal parasetamol ibuprofen naproksen diklofenak heparin warfarin klopidogrel glibenklamid glimepirid metformin omeprazol lansoprazol ranitidin simetidin
+regenerasi degenerasi topikal tropikal darah daerah nafas nifas krisis kritis simulasi sirkulasi kulit mulut manus mania
+`.split(/\s+/).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i);
+let bocor = [];
+for (const a of ISTILAH_BEDA) for (const b of ISTILAH_BEDA) {
+  if (a !== b && cocokIsian(a, b)) bocor.push(`${a} ~ ${b}`);
+}
+
+const batasKunci = [
+  ['kunci "=" harus persis: jawaban sama diterima', cocokIsian('Gastrin', '=gastrin'), 'persis'],
+  ['kunci "=" menolak salah ketik', ditolak('gastrim', '=gastrin'), true],
+  ['kunci "=" menolak ejaan lain', ditolak('thyroid', '=tiroid'), true],
+  ['kunci "=" menolak padanan', ditolak('liver', '= hati'), true],
+  ['kunci "=" masih mengabaikan huruf besar dan tanda baca', cocokIsian('GASTRIN.', '=gastrin'), 'persis'],
+  ['kunciHarusPersis mengenali "="', kunciHarusPersis('  =abc') && !kunciHarusPersis('abc'), true],
+  ['jawaban diterima tidak menampilkan "="', JSON.stringify(jawabanDiterima({ validAnswers: ['=Gastrin / gastrik'] })), '["Gastrin / gastrik"]'],
+  ['"=" hanya berlaku untuk bentuknya sendiri', nilaiSub({ validAnswers: ['=gastrin / tiroid'] }, 'thyroid').benar, true],
+  ['"=" pada bentuk lain tidak menular', nilaiSub({ validAnswers: ['=gastrin / tiroid'] }, 'gastrim').benar, false],
+  ['kunci tanpa "=" tetap toleran terhadap salah ketik', terima('gastrim', 'gastrin'), true],
+];
+
+const kasus = [
+  ...ketik, ...bahasa, ...padanan, ...batasKunci,
+  ...bedaArti.map(([nama, a, b]) => [`BEDA ARTI: ${nama}`, tolak(a, b), true]),
+  [`uji massal: ${ISTILAH_BEDA.length} istilah berbeda, tidak ada yang saling diterima`, bocor.join(' | '), ''],
+  ...kasusLama,
 ];
 
 let gagal = 0;
