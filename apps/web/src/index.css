@@ -264,3 +264,18 @@ body {
 .prose-rental ol { list-style: decimal; padding-left: 1.25rem; }
 .prose-rental li + li { margin-top: 0.25rem; }
 .prose-rental a { color: rgb(var(--sewa-rgb, 15 118 110)); text-decoration: underline; }
+
+/* GERAK
+   Pengunjung yang menyalakan "kurangi gerakan" di perangkatnya (kebiasaan
+   umum bagi yang mudah pusing oleh animasi) tidak diberi animasi CSS maupun
+   gulir halus. Gerak framer-motion ditangani terpisah lewat <MotionConfig
+   reducedMotion="user"> di App.jsx. Durasinya dipendekkan, bukan dihapus,
+   supaya elemen yang bergantung pada animationend/transitionend tetap jalan. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
