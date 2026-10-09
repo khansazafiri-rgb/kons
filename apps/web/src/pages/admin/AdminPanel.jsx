@@ -691,7 +691,7 @@ export function EditSoalHub({ allowedSubjectIds = null }) {
           <button onClick={() => setMode('cbt')} className="rounded-xl border-2 border-alba-200 hover:border-maroon-400 hover:bg-maroon-50 p-6 text-left transition-all">
             <p className="text-2xl mb-2">⏱️</p>
             <p className="font-bold text-stone-800 mb-1">Soal Simulasi CBT</p>
-            <p className="text-xs text-stone-500 leading-relaxed">Soal UTB/UAB per paket. Alur: pilih mata kuliah, pilih paket, lalu edit soal (tanpa BAB).</p>
+            <p className="text-xs text-stone-500 leading-relaxed">Soal tryout per BAB, dikelompokkan ke section buatanmu sendiri (UTB, UAB, Helminth, dst). Alur: pilih mata kuliah, atur section &amp; BAB, lalu edit soal.</p>
           </button>
         </div>
       </div>
@@ -2306,7 +2306,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
         {subjectId && (
           <div className="space-y-1">
-            <label className="text-xs font-bold text-stone-500">3. BAB simulasi — namanya bebas</label>
+            <label className="text-xs font-bold text-stone-500">3. Section &amp; BAB simulasi — namanya bebas</label>
             <ChapterManager
               subjectId={subjectId}
               selectedChapterId={chapterId}
@@ -2315,6 +2315,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
               refreshSignal={soalRefresh}
               kind={KIND_CBT}
               universityFilter={universityFilter}
+              sections
             />
           </div>
         )}
