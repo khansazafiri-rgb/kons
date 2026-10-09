@@ -1,66 +1,57 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, BookOpenText, CalendarDays, ClipboardList, History, Library, Stethoscope, Timer, CalendarClock } from 'lucide-react';
 import Header, { fetchEnrolledSubjectIds, fetchMyClass } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 
-const cards = [
- {
-   icon: BookOpenText,
-   title: 'Perdalam Materi',
-   desc: 'Perdalam pemahaman materimu dengan membaca PPT yang merupakan hasil simplifikasi dari PPT Dosen.',
-   to: '/perdalam-materi',
- },
- {
-   icon: ClipboardList,
-   title: 'Cicil Belajar',
-   desc: 'Cicil belajar dengan mengerjakan soal sesuai BAB yang sedang kamu pelajari, pilih!',
-   to: '/cicil-belajar',
- },
- {
-   icon: Timer,
-   title: 'CBT Test',
-   desc: 'Kerjakan paket-paket soal tryout dengan mode simulasi ujian atau mode belajar santai.',
-   to: '/simulasi-test',
- },
- {
-   icon: Stethoscope,
-   title: 'Kalkulator Klinis',
-   desc: 'Coba-coba hitung osmolalitas, klirens kreatinin, dan status gizi anak — lengkap dengan cara hitungnya.',
-   to: '/kalkulator-klinis',
- },
+// Kurva perlambatan lembut untuk semua gerak masuk di beranda.
+const EASE = [0.22, 1, 0.36, 1];
+
+// Tiga langkah belajar yang berurutan: baca materinya, review lewat soal per
+// BAB, lalu uji diri lewat simulasi ujian. CBT Test sengaja disorot karena itu
+// latihan yang paling mendekati ujian sungguhan.
+const langkah = [
+  {
+    n: 1,
+    verb: 'Baca',
+    icon: BookOpenText,
+    title: 'Perdalam Materi',
+    desc: 'Baca PPT hasil simplifikasi dari PPT dosen, per mata kuliah dan BAB.',
+    to: '/perdalam-materi',
+  },
+  {
+    n: 2,
+    verb: 'Review',
+    icon: ClipboardList,
+    title: 'Cicil Belajar',
+    desc: 'Habis membaca, cek pemahamanmu lewat soal per BAB dan baca pembahasannya.',
+    to: '/cicil-belajar',
+  },
+  {
+    n: 3,
+    verb: 'Uji dirimu',
+    icon: Timer,
+    title: 'CBT Test',
+    desc: 'Simulasi ujian sungguhan: soal UTB dan UAB dengan timer dan nilai otomatis.',
+    chips: ['UTB', 'UAB'],
+    sorot: true,
+    to: '/simulasi-test',
+  },
 ];
 
-// Aksen visual per kartu menu, dipakai bergiliran supaya deretan kartu tidak
-// terlihat seperti satu blok seragam.
-const CARD_ACCENTS = [
+// Alat bantu: berguna, tapi bukan bagian dari alur belajar utama.
+const alatTetap = [
   {
-    bar: 'bg-maroon-600',
-    border: 'border-alba-200 hover:border-maroon-300',
-    icon: 'bg-maroon-50 border border-maroon-100 text-maroon-600 group-hover:bg-maroon-600 group-hover:text-alba-50',
-    button: 'bg-maroon-600 text-alba-50 hover:bg-maroon-700',
-    corner: 'texture-corner-maroon',
-  },
-  {
-    bar: 'bg-gold-400',
-    border: 'border-alba-200 hover:border-gold-200',
-    icon: 'bg-gold-100 border border-gold-200 text-gold-600 group-hover:bg-gold-400 group-hover:text-alba-50',
-    button: 'bg-gold-400 text-alba-50 hover:bg-gold-600',
-    corner: 'texture-corner-gold',
-  },
-  {
-    bar: 'bg-maroon-400',
-    border: 'border-alba-200 hover:border-maroon-200',
-    icon: 'bg-alba-100 border border-alba-300 text-maroon-500 group-hover:bg-maroon-400 group-hover:text-alba-50',
-    button: 'bg-stone-800 text-alba-50 hover:bg-stone-900',
-    corner: 'texture-corner-dots',
+    icon: Stethoscope,
+    title: 'Kalkulator Klinis',
+    desc: 'Osmolalitas, klirens kreatinin, dan status gizi anak.',
+    to: '/kalkulator-klinis',
   },
 ];
 
 export default function LearningHome() {
- const navigate = useNavigate();
  const { user, role } = useAuth();
  const [resumeList, setResumeList] = useState([]);
  const [exams, setExams] = useState([]);
@@ -78,13 +69,13 @@ export default function LearningHome() {
    return () => { alive = false; };
  }, []);
 
- const menuCards = [
-   ...cards,
+ const alat = [
+   ...alatTetap,
    ...(showBank
      ? [{
          icon: Library,
          title: 'Bank Soal',
-         desc: 'Latihan bebas dari kumpulan soal berjumlah besar per mata kuliah dan BAB.',
+         desc: 'Latihan bebas dari kumpulan soal per mata kuliah dan BAB.',
          to: '/bank-soal',
        }]
      : []),
@@ -181,148 +172,159 @@ export default function LearningHome() {
 
  const firstName = (user?.name || '').split(' ')[0];
 
+ const adaInfo = exams.length > 0 || (kelas && classEvents.length > 0) || resumeList.length > 0;
+
  return (
    <div className="min-h-screen bg-glow-soft">
      <Header />
      <div className="max-w-6xl mx-auto px-6 py-14">
-       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE }}>
          <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2">WEB SISWA PCV</p>
          <h1 className="font-display text-3xl md:text-4xl font-semibold mb-2">
            Selamat Belajar{firstName ? `, ${firstName}` : ''}!
          </h1>
-         <p className="text-stone-600 mb-10">Pilih menu yang ingin kamu kerjakan hari ini.</p>
+         <p className="text-stone-600 mb-8">Baca materinya, review lewat soal, lalu uji dirimu di simulasi ujian.</p>
        </motion.div>
 
-       {/* Reminder Ujian - countdown menuju ujian terdekat */}
-       {exams.length > 0 && (
+       {/* Info singkat: reminder ujian, jadwal kelas, dan latihan yang belum
+           selesai. Dulu masing-masing satu kotak selebar layar padahal isinya
+           cuma satu-dua baris; sekarang chip kecil yang muat dalam satu baris. */}
+       {adaInfo && (
          <motion.div
-           initial={{ opacity: 0, y: 12 }}
+           initial={{ opacity: 0, y: 10 }}
            animate={{ opacity: 1, y: 0 }}
-           transition={{ duration: 0.4, delay: 0.03 }}
-           className="mb-10 rounded-2xl border border-maroon-200 bg-maroon-50/60 p-6"
+           transition={{ duration: 0.45, delay: 0.05, ease: EASE }}
+           className="mb-10 flex flex-wrap gap-2.5"
          >
-           <p className="flex items-center gap-2 text-sm font-bold text-maroon-600 mb-4">
-             <CalendarClock size={16} />
-             Reminder Ujian
-           </p>
-           <div className="flex flex-wrap gap-3">
-             {exams.map((e) => (
+           {exams.map((e) => (
+             <div
+               key={e.id}
+               title={e.date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+               className="inline-flex max-w-full items-center gap-2.5 rounded-full border border-maroon-100 bg-maroon-50 pl-3.5 pr-4 py-2"
+             >
+               <CalendarClock size={15} className="shrink-0 text-maroon-600" />
+               <span className="min-w-0 truncate text-sm font-semibold text-stone-800">{e.examName} · {e.name}</span>
+               <span className="shrink-0 text-xs font-bold text-maroon-600">{e.days === 0 ? 'Hari ini' : `${e.days} hari lagi`}</span>
+             </div>
+           ))}
+           {kelas && classEvents.slice(0, 3).map((ev, i) => {
+             const d = wibDate(ev.start);
+             const hari = d === todayWib ? 'Hari ini' : d === tomorrowWib ? 'Besok' : new Date(ev.start).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' });
+             return (
                <div
-                 key={e.id}
-                 className="flex items-center gap-3 rounded-xl bg-alba-50 border border-maroon-100 px-5 py-3"
+                 key={`kelas-${i}`}
+                 title={`${ev.title}${ev.location ? ' · ' + ev.location : ''}`}
+                 className={`inline-flex max-w-full items-center gap-2.5 rounded-full border pl-3.5 pr-4 py-2 ${d === todayWib || d === tomorrowWib ? 'border-maroon-100 bg-maroon-50' : 'border-alba-200 bg-alba-100/60'}`}
                >
-                 <div className="min-w-0">
-                   <p className="font-display font-semibold text-stone-800 leading-tight">{e.examName} · {e.name}</p>
-                   <p className="text-xs text-stone-500">
-                     {e.date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                   </p>
-                 </div>
-                 <div className="shrink-0 text-right pl-3 border-l border-maroon-100">
-                   <p className="font-display text-2xl font-bold text-maroon-600 leading-none">
-                     {e.days === 0 ? 'Hari ini' : e.days}
-                   </p>
-                   {e.days > 0 && <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">hari lagi</p>}
-                 </div>
+                 <CalendarDays size={15} className="shrink-0 text-maroon-600" />
+                 <span className="min-w-0 truncate text-sm font-semibold text-stone-800">{ev.title}</span>
+                 <span className="shrink-0 text-xs font-semibold text-stone-500">{hari}{!ev.allDay && ` · ${wibTime(ev.start)}`}</span>
                </div>
-             ))}
-           </div>
+             );
+           })}
+           {resumeList.map((r) => (
+             <Link
+               key={r.id}
+               to={`/cicil-belajar?subject=${r.expand.chapter.subject}&chapter=${r.chapter}`}
+               title="Lanjutkan latihan yang belum selesai"
+               className="group inline-flex max-w-full items-center gap-2.5 rounded-full border border-gold-200 bg-gold-100/50 pl-3.5 pr-4 py-2 text-sm font-semibold text-stone-700 transition-colors hover:border-gold-400"
+             >
+               <History size={15} className="shrink-0 text-gold-600" />
+               <span className="shrink-0 text-xs font-bold text-gold-600">Lanjutkan</span>
+               <span className="min-w-0 truncate">{r.expand.chapter.title}</span>
+               <ArrowRight size={14} className="shrink-0 text-gold-600 transition-transform group-hover:translate-x-0.5" />
+             </Link>
+           ))}
          </motion.div>
        )}
 
-       {/* Jadwal Kelas Reguler - sinkron dari Google Calendar kelas */}
-      {kelas && classEvents.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.04 }}
-          className="mb-10 rounded-2xl border border-alba-200 bg-alba-100/60 p-6"
-        >
-          <p className="flex items-center gap-2 text-sm font-bold text-stone-700 mb-1">
-            <CalendarClock size={16} className="text-maroon-600" />
-            Jadwal Kelasmu
-          </p>
-          <p className="text-xs text-stone-500 mb-4">{kelas.name}</p>
-          <div className="flex flex-wrap gap-3">
-            {classEvents.map((ev, i) => {
-              const d = wibDate(ev.start);
-              const isToday = d === todayWib;
-              const isTomorrow = d === tomorrowWib;
-              return (
-                <div key={i} className={`rounded-xl border px-5 py-3 ${isToday || isTomorrow ? 'bg-maroon-50 border-maroon-200' : 'bg-alba-50 border-alba-200'}`}>
-                  <p className="font-display font-semibold text-stone-800 leading-tight">{ev.title}</p>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {isToday ? 'Hari ini' : isTomorrow ? 'Besok' : new Date(ev.start).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Jakarta' })}
-                    {!ev.allDay && ` · ${wibTime(ev.start)} WIB`}
-                    {ev.location ? ` · ${ev.location}` : ''}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
+       {/* Alur belajar. Kartu 1-2 sama bobotnya; kartu 3 (CBT Test) sengaja
+           lebih besar dan berwarna penuh supaya siswa langsung tahu itu
+           simulasi ujiannya. */}
+       <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_1fr_1.3fr]">
+         {langkah.map((c, i) => (
+           <motion.div
+             key={c.title}
+             initial={{ opacity: 0, y: 18 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.5, delay: 0.1 + 0.09 * i, ease: EASE }}
+             className="flex"
+           >
+             <Link
+               to={c.to}
+               className={`group relative flex w-full flex-col overflow-hidden rounded-2xl p-7 transition-all duration-300 hover:-translate-y-1 ${
+                 c.sorot
+                   ? 'bg-maroon-600 text-alba-50 shadow-card-hover hover:bg-maroon-700 md:-my-2 md:p-8'
+                   : 'border border-alba-200 bg-alba-50 shadow-card hover:border-maroon-300 hover:shadow-card-hover'
+               }`}
+             >
+               {c.sorot && (
+                 <c.icon
+                   aria-hidden
+                   size={150}
+                   strokeWidth={1}
+                   className="pointer-events-none absolute -bottom-6 -right-6 text-white/10 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105"
+                 />
+               )}
+               <div className="relative flex items-center justify-between mb-5">
+                 <p className={`text-[11px] font-bold uppercase tracking-[0.18em] ${c.sorot ? 'text-alba-50/80' : 'text-maroon-600'}`}>
+                   Langkah {c.n} · {c.verb}
+                 </p>
+                 <span className={`flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${c.sorot ? 'bg-white/15 text-alba-50' : 'border border-maroon-100 bg-maroon-50 text-maroon-600 group-hover:bg-maroon-600 group-hover:text-alba-50'}`}>
+                   <c.icon size={20} />
+                 </span>
+               </div>
+               {c.sorot && (
+                 <span className="relative mb-3 inline-flex self-start items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider">
+                   <Timer size={12} /> Simulasi Ujian
+                 </span>
+               )}
+               <h2 className={`relative font-display font-semibold mb-2 ${c.sorot ? 'text-3xl' : 'text-xl'}`}>{c.title}</h2>
+               <p className={`relative flex-1 leading-relaxed mb-5 ${c.sorot ? 'text-[15px] text-alba-50/90' : 'text-sm text-stone-600'}`}>{c.desc}</p>
+               {c.chips && (
+                 <div className="relative mb-6 flex gap-2">
+                   {c.chips.map((x) => (
+                     <span key={x} className="rounded-full border border-white/35 px-3.5 py-1 text-xs font-bold tracking-wider">{x}</span>
+                   ))}
+                 </div>
+               )}
+               <span className={`relative inline-flex items-center gap-2 self-start text-sm font-bold ${c.sorot ? 'rounded-full bg-white px-6 py-2.5 text-[#740100] group-hover:bg-[#f8f4ec]' : 'text-maroon-600'}`}>
+                 {c.sorot ? 'Mulai simulasi' : 'Buka'}
+                 <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
+               </span>
+             </Link>
+           </motion.div>
+         ))}
+       </div>
 
-      {/* Lanjutkan Belajar */}
-       {resumeList.length > 0 && (
+       {alat.length > 0 && (
          <motion.div
-           initial={{ opacity: 0, y: 12 }}
+           initial={{ opacity: 0, y: 14 }}
            animate={{ opacity: 1, y: 0 }}
-           transition={{ duration: 0.4, delay: 0.05 }}
-           className="mb-10 rounded-2xl border border-gold-200 bg-gold-100/50 p-6"
+           transition={{ duration: 0.5, delay: 0.45, ease: EASE }}
+           className="mt-12"
          >
-           <p className="flex items-center gap-2 text-sm font-bold text-gold-600 mb-4">
-             <History size={16} />
-             Lanjutkan Belajar - latihan yang belum kamu selesaikan
-           </p>
-           <div className="flex flex-wrap gap-3">
-             {resumeList.map((r) => (
+           <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-stone-400">Alat bantu</p>
+           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+             {alat.map((c) => (
                <Link
-                 key={r.id}
-                 to={`/cicil-belajar?subject=${r.expand.chapter.subject}&chapter=${r.chapter}`}
-                 className="group inline-flex items-center gap-2 rounded-full bg-alba-50 border border-alba-300 px-5 py-2.5 text-sm font-semibold text-stone-700 hover:border-maroon-300 hover:text-maroon-600 transition-colors"
+                 key={c.title}
+                 to={c.to}
+                 className="group flex min-w-0 items-center gap-4 rounded-xl border border-alba-200 bg-alba-50 px-4 py-3.5 transition-all duration-200 hover:border-maroon-300 hover:shadow-card"
                >
-                 {r.expand.chapter.title}
-                 <ArrowRight size={14} className="text-maroon-400 group-hover:translate-x-0.5 transition-transform" />
+                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-alba-100 text-maroon-500 transition-colors group-hover:bg-maroon-600 group-hover:text-alba-50">
+                   <c.icon size={18} />
+                 </span>
+                 <span className="min-w-0 flex-1">
+                   <span className="block text-sm font-bold text-stone-800">{c.title}</span>
+                   <span className="block truncate text-xs text-stone-500">{c.desc}</span>
+                 </span>
+                 <ArrowRight size={15} className="shrink-0 text-stone-300 transition-all group-hover:translate-x-0.5 group-hover:text-maroon-500" />
                </Link>
              ))}
            </div>
          </motion.div>
        )}
-
-       {/* Kartu menu sengaja TIDAK seragam: tiap menu punya warna aksen dan
-           pola latar ikonnya sendiri, jadi siswa mengenali menu dari bentuknya,
-           bukan hanya dari tulisannya. */}
-       <div className={`grid gap-6 ${menuCards.length > 3 ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'}`}>
-         {menuCards.map((c, i) => {
-           const aksen = CARD_ACCENTS[i % CARD_ACCENTS.length];
-           return (
-             <motion.div
-               key={c.title}
-               initial={{ opacity: 0, y: 16 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ duration: 0.4, delay: 0.08 * (i + 1) }}
-               className={`group relative rounded-2xl border bg-alba-50 shadow-card overflow-hidden hover:shadow-card-hover hover:-translate-y-1 transition-all flex flex-col ${aksen.border}`}
-             >
-               <div className={`h-1.5 ${aksen.bar}`} />
-               <div className={`absolute top-1.5 right-0 w-24 h-24 ${aksen.corner} pointer-events-none`} aria-hidden />
-               <div className="relative p-7 flex flex-col flex-1">
-                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-5 transition-colors ${aksen.icon}`}>
-                   <c.icon size={20} />
-                 </div>
-                 <h2 className="font-display text-xl font-semibold mb-2">{c.title}</h2>
-                 <p className="text-sm text-stone-600 leading-relaxed flex-1 mb-6">{c.desc}</p>
-                 <button
-                   onClick={() => navigate(c.to)}
-                   className={`self-start inline-flex items-center gap-2 rounded-full text-sm font-bold px-6 py-2.5 transition-colors ${aksen.button}`}
-                 >
-                   Buka
-                   <ArrowRight size={14} />
-                 </button>
-               </div>
-             </motion.div>
-           );
-         })}
-       </div>
      </div>
    </div>
  );
