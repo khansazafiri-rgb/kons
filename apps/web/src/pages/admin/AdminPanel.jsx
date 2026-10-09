@@ -691,7 +691,7 @@ export function EditSoalHub({ allowedSubjectIds = null }) {
           <button onClick={() => setMode('cbt')} className="rounded-xl border-2 border-alba-200 hover:border-maroon-400 hover:bg-maroon-50 p-6 text-left transition-all">
             <p className="text-2xl mb-2">⏱️</p>
             <p className="font-bold text-stone-800 mb-1">Soal Simulasi CBT</p>
-            <p className="text-xs text-stone-500 leading-relaxed">Soal UTB/UAB per paket. Alur: pilih mata kuliah, pilih paket, lalu edit soal (tanpa BAB).</p>
+            <p className="text-xs text-stone-500 leading-relaxed">Soal tryout per BAB, dikelompokkan ke section buatanmu sendiri (UTB, UAB, Helminth, dst). Alur: pilih mata kuliah, atur section &amp; BAB, lalu edit soal.</p>
           </button>
         </div>
       </div>
@@ -924,11 +924,14 @@ function QuestionForm({ form, setForm }) {
                     value={sq.validAnswers}
                     onChange={(e) => updateSub(i, 'validAnswers', e.target.value)}
                     rows={Math.min(8, Math.max(2, barisJawaban + 1))}
-                    placeholder={'Satu jawaban benar per baris. Bentuk lain dari jawaban yang sama pisahkan dengan "/".\nMis.:\nMemakai alas kaki / sepatu / sandal\nCuci tangan'}
+                    placeholder={'Satu jawaban benar per baris. Bentuk lain dari jawaban yang sama pisahkan dengan " / ".\nMis. "Bagaimana cara mendapatkan angka 2?":\n1 + 1\n1/2 + 1/2 + 1\nMis. pencegahan:\nMemakai alas kaki / sepatu / sandal\nCuci tangan'}
                     className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
                   />
                   <p className="text-[11px] text-stone-400">
-                    Salah ketik kecil, imbuhan, dan urutan kata sudah ditoleransi otomatis. Sinonim tetap perlu ditulis.
+                    {n > 1
+                      ? 'Tiap baris = satu jawaban berbeda; siswa harus menyebut sebanyak jumlah kotak.'
+                      : 'Tiap baris = satu cara menjawab yang benar; siswa cukup cocok dengan salah satu baris.'}
+                    {' '}Salah ketik kecil, imbuhan, dan urutan kata sudah ditoleransi otomatis. Sinonim dan cara lain yang hasilnya sama tetap perlu ditulis. Pecahan seperti 1/2 tidak dipecah.
                   </p>
                   {n > 1 && barisJawaban < n && (
                     <p className="text-[11px] font-semibold text-maroon-600">
@@ -1006,7 +1009,8 @@ const ISIAN_LANJUTAN_RULE = `ISIAN DENGAN BANYAK KUNCI & PEMBAHASAN PER BAGIAN:
 - Bentuk lain dari butir yang SAMA (sinonim, singkatan, istilah Indonesia/Inggris) digabung dalam string butir itu, dipisah " / ".
 - Sistem sudah menoleransi salah ketik kecil, imbuhan (menggunakan/gunakan), urutan kata, dan kata tambahan. Tapi sinonim TIDAK ditebak, jadi tulis sendiri bentuk lain yang wajar dipakai siswa.
 - Kalau butir kunci berupa kalimat panjang, tulis kalimat aslinya DAN versi kata kuncinya dalam string yang sama. Contoh: "Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal".
-- Tanda "/" di dalam jawaban selalu dibaca sebagai pemisah. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing".
+- Tanda "/" di dalam jawaban dibaca sebagai pemisah bentuk lain. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing". Satu-satunya pengecualian: "/" di antara dua angka (pecahan "1/2", tanggal) tetap bagian jawaban.
+- Soal yang jawabannya bisa dicapai dengan banyak cara (hitungan, rumus, langkah) tulis tiap cara sebagai butir terpisah. Contoh "Bagaimana cara mendapatkan angka 2?": "validAnswers": ["1 + 1", "1/2 + 1/2 + 1", "2 x 1 / 2 * 1"]. Sistem tidak menghitung, jadi semua cara yang kamu anggap benar harus tertulis.
 - JANGAN tulis "answerCount", kecuali saya minta secara tegas bahwa siswa WAJIB menyebut sejumlah jawaban berbeda.
 - Kalau sebuah bagian punya pembahasan atau gambar penjelasannya sendiri, taruh di "explanation" MILIK sub-pertanyaan itu: teks, link gambar https://lh3.googleusercontent.com/d/FILE_ID, atau keduanya (pindah baris pakai <br>). Pembahasan untuk seluruh soal tetap di "explanation" tingkat soal.
 Contoh sub-pertanyaan:
@@ -2302,7 +2306,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
         {subjectId && (
           <div className="space-y-1">
-            <label className="text-xs font-bold text-stone-500">3. BAB simulasi — namanya bebas</label>
+            <label className="text-xs font-bold text-stone-500">3. Section &amp; BAB simulasi — namanya bebas</label>
             <ChapterManager
               subjectId={subjectId}
               selectedChapterId={chapterId}
@@ -2311,6 +2315,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
               refreshSignal={soalRefresh}
               kind={KIND_CBT}
               universityFilter={universityFilter}
+              sections
             />
           </div>
         )}

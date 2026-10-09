@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import ScrollToTop from './components/ScrollToTop';
 import { AuthProvider } from './context/AuthContext';
 import { OlimpAuthProvider } from './context/OlimpAuthContext';
@@ -156,6 +157,10 @@ function OlimpFallback({ children }) {
 
 function App() {
  return (
+   // reducedMotion="user": pengunjung yang menyalakan "kurangi gerakan" di
+   // perangkatnya tidak diberi gerak berpindah/berskala; perubahan opasitas
+   // tetap jalan supaya kemunculan elemen tidak terasa patah.
+   <MotionConfig reducedMotion="user">
    <Router>
      <AuthProvider>
        {/* OlimpAuthProvider ada DI DALAM AuthProvider karena ia perlu tahu
@@ -267,6 +272,7 @@ function App() {
        </OlimpAuthProvider>
      </AuthProvider>
    </Router>
+   </MotionConfig>
  );
 }
 

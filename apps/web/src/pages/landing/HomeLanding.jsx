@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import {
   ArrowRight, BookOpenText, CalendarClock, FlaskConical, GraduationCap,
   Instagram, MapPin, Medal, MessageCircle, Mic, Package, Quote, Sparkles, Star,
   Trophy, Users,
 } from 'lucide-react';
-import LandingLayout, { WA_CP, IG_URL, fadeUp } from './LandingLayout';
+import LandingLayout, { WA_CP, IG_URL, EASE, fadeUp, liftHover, staggerChild, staggerView } from './LandingLayout';
 import PostersSection from '@/components/landing/PostersSection';
 import AchievementsSection from '@/components/landing/AchievementsSection';
 import { PCV_LOGO_URL, PCV_LOGO_LOCAL } from '@/components/Header';
@@ -63,6 +63,14 @@ const TESTIMONIALS = [
   { name: 'Andin Zahra', cls: 'Kelas Ilmiah', text: 'Tentor kelas penelitiannya udah banyak membantu dan baik banget, mau membina dan mengarahkan juga.' },
 ];
 
+// Hero: elemen kolom kiri masuk berurutan dari atas ke bawah.
+const heroParent = { hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } } };
+const heroChild = { hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } } };
+
+// Chip kompetisi: banyak dan kecil, jadi muncul lebih rapat dan cukup dengan zoom tipis.
+const chipParent = { hidden: {}, show: { transition: { staggerChildren: 0.035 } } };
+const chipChild = { hidden: { opacity: 0, scale: 0.88 }, show: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: EASE } } };
+
 function SectionTitle({ eyebrow, title, sub }) {
   return (
     <motion.div {...fadeUp} className="text-center max-w-2xl mx-auto mb-12">
@@ -74,9 +82,15 @@ function SectionTitle({ eyebrow, title, sub }) {
 }
 
 // Baris fitur kecil di panel hero: cuplikan apa yang didapat Sobat PCV.
-function HeroFeatureRow({ icon: Icon, title, sub }) {
+function HeroFeatureRow({ icon: Icon, title, sub, delay = 0 }) {
   return (
-    <div className="flex items-center gap-3.5 rounded-2xl border border-alba-50/15 bg-alba-50/5 px-5 py-3.5">
+    <motion.div
+      initial={{ opacity: 0, x: 26 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.65, delay, ease: EASE }}
+      whileHover={{ x: 4, transition: { type: 'spring', stiffness: 300, damping: 22 } }}
+      className="flex items-center gap-3.5 rounded-2xl border border-alba-50/15 bg-alba-50/5 px-5 py-3.5 transition-colors duration-300 hover:bg-alba-50/10"
+    >
       <span className="w-9 h-9 rounded-xl bg-gold-400/90 text-maroon-900 flex items-center justify-center shrink-0">
         <Icon size={16} />
       </span>
@@ -84,12 +98,21 @@ function HeroFeatureRow({ icon: Icon, title, sub }) {
         <span className="block text-sm font-bold leading-tight">{title}</span>
         <span className="block text-xs text-alba-200 mt-0.5">{sub}</span>
       </span>
-    </div>
+    </motion.div>
   );
 }
 
 export default function HomeLanding() {
   const [t, setT] = useState(() => resolveLandingTexts(null));
+
+  // Bulatan dekoratif di hero bergeser lebih lambat dari isi saat digulir, jadi
+  // ada kesan kedalaman. Dimatikan untuk pengunjung yang menyalakan "kurangi
+  // gerakan" (parallax digerakkan gulir, jadi MotionConfig tidak menjangkaunya).
+  const heroRef = useRef(null);
+  const kurangiGerak = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+  const geserBesar = useTransform(scrollYProgress, [0, 1], [0, kurangiGerak ? 0 : 90]);
+  const geserKecil = useTransform(scrollYProgress, [0, 1], [0, kurangiGerak ? 0 : 160]);
 
   useEffect(() => {
     let alive = true;
@@ -103,65 +126,72 @@ export default function HomeLanding() {
   return (
     <LandingLayout>
       {/* HERO - visual dibangun murni dari tekstur CSS, tanpa foto/footage */}
-      <section className="relative bg-maroon-weave text-alba-50 overflow-hidden">
+      <section ref={heroRef} className="relative bg-maroon-weave text-alba-50 overflow-hidden">
         {/* Butiran noise tipis supaya bidang maroon tidak datar */}
         <div className="absolute inset-0 texture-noise opacity-[0.05] pointer-events-none" aria-hidden />
         {/* Aksen dekoratif: lingkaran garis besar + medan titik ivory */}
-        <div className="absolute -top-40 -right-40 w-[34rem] h-[34rem] rounded-full border border-alba-50/10 pointer-events-none" aria-hidden />
-        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full border border-gold-400/20 pointer-events-none" aria-hidden />
-        <div className="absolute bottom-0 left-1/2 w-72 h-40 texture-dots opacity-25 pointer-events-none" aria-hidden />
+        <motion.div style={{ y: geserBesar }} className="absolute -top-40 -right-40 w-[34rem] h-[34rem] rounded-full border border-alba-50/10 pointer-events-none" aria-hidden />
+        <motion.div style={{ y: geserKecil }} className="absolute -top-24 -right-24 w-80 h-80 rounded-full border border-gold-400/20 pointer-events-none" aria-hidden />
+        <motion.div style={{ y: geserKecil }} className="absolute bottom-0 left-1/2 w-72 h-40 texture-dots opacity-25 pointer-events-none" aria-hidden />
 
         <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-20 grid lg:grid-cols-[1.15fr_1fr] gap-14 items-center">
-          <motion.div {...fadeUp}>
-            <p className="inline-flex items-center gap-2 text-gold-200 font-bold tracking-[0.18em] text-xs mb-6 border border-alba-50/25 bg-alba-50/10 backdrop-blur rounded-full px-4 py-1.5">
+          <motion.div variants={heroParent} initial="hidden" animate="show">
+            <motion.p variants={heroChild} className="inline-flex items-center gap-2 text-gold-200 font-bold tracking-[0.18em] text-xs mb-6 border border-alba-50/25 bg-alba-50/10 backdrop-blur rounded-full px-4 py-1.5">
               {t.heroBadge}
-            </p>
-            <h1 className="font-display text-4xl md:text-[3.4rem] font-semibold leading-[1.1] mb-6">
+            </motion.p>
+            <motion.h1 variants={heroChild} className="font-display text-4xl md:text-[3.4rem] font-semibold leading-[1.1] mb-6">
               {t.heroTitle1}{' '}
               <span className="text-gold-200 italic">{t.heroTitleAccent}</span>{' '}
               {t.heroTitle2}
-            </h1>
-            <p className="text-alba-100/90 text-lg mb-9 max-w-xl leading-relaxed">{t.heroSub}</p>
-            <div className="flex flex-wrap items-center gap-4">
+            </motion.h1>
+            <motion.p variants={heroChild} className="text-alba-100/90 text-lg mb-9 max-w-xl leading-relaxed">{t.heroSub}</motion.p>
+            <motion.div variants={heroChild} className="flex flex-wrap items-center gap-4">
               <Link
                 to="/student-program"
-                className="group inline-flex items-center gap-2 rounded-full bg-alba-50 text-maroon-700 font-bold px-7 py-3.5 hover:bg-alba-100 transition-colors shadow-card"
+                className="group inline-flex items-center gap-2 rounded-full bg-alba-50 text-maroon-700 font-bold px-7 py-3.5 hover:bg-alba-100 hover:-translate-y-0.5 hover:shadow-card-hover active:scale-[0.97] transition-all duration-300 shadow-card"
               >
                 {t.heroCta1}
-                <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform duration-300" />
               </Link>
               <a
                 href={WA_CP}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-alba-50/40 text-sm font-semibold px-6 py-3.5 hover:bg-alba-50/10 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full border border-alba-50/40 text-sm font-semibold px-6 py-3.5 hover:bg-alba-50/10 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300"
               >
                 <MessageCircle size={16} /> {t.heroCta2}
               </a>
-            </div>
+            </motion.div>
 
-            <p className="mt-8 flex items-center gap-2 text-sm text-alba-200">
+            <motion.p variants={heroChild} className="mt-8 flex items-center gap-2 text-sm text-alba-200">
               <MapPin size={14} className="text-gold-200 shrink-0" />
               {t.heroLocation}
-            </p>
+            </motion.p>
 
-            <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
+            <motion.div variants={heroChild} className="mt-8 grid grid-cols-3 gap-4 max-w-md">
               <Stat value={t.stat1Value} label={t.stat1Label} />
               <Stat value={t.stat2Value} label={t.stat2Label} />
               <Stat value={t.stat3Value} label={t.stat3Label} />
-            </div>
+            </motion.div>
           </motion.div>
 
           {/* Panel identitas + cuplikan fitur, dengan kartu kecil "mengambang".
               Semuanya elemen UI, bukan foto, jadi tetap tajam di semua layar. */}
           <motion.div
-            {...fadeUp}
-            transition={{ ...fadeUp.transition, delay: 0.12 }}
+            initial={{ opacity: 0, x: 56, scale: 0.96 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ duration: 0.9, delay: 0.3, ease: EASE }}
             className="relative hidden lg:block"
           >
             <div className="absolute -top-6 -left-6 w-24 h-24 texture-dots opacity-40 rounded-2xl" aria-hidden />
 
-            <div className="relative rounded-[2rem] border border-alba-50/15 bg-alba-50/[0.06] backdrop-blur-sm p-8 shadow-card-hover">
+            {/* Panel melayang naik-turun sangat pelan; terlalu cepat atau
+                terlalu jauh akan terasa seperti iklan, bukan latar. */}
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1.4 }}
+              className="relative rounded-[2rem] border border-alba-50/15 bg-alba-50/[0.06] backdrop-blur-sm p-8 shadow-card-hover"
+            >
               <div className="absolute inset-0 texture-noise opacity-[0.06] rounded-[2rem] pointer-events-none" aria-hidden />
               <div className="relative flex items-center gap-4 pb-6 border-b border-alba-50/15">
                 <img
@@ -177,11 +207,11 @@ export default function HomeLanding() {
                 </div>
               </div>
               <div className="relative mt-6 space-y-3">
-                <HeroFeatureRow icon={BookOpenText} title="Materi + video per BAB" sub="PPT simplifikasi tentor, tinggal buka dan pelajari" />
-                <HeroFeatureRow icon={CalendarClock} title="Reminder ujian & kelas" sub="Countdown ujian dan pengingat jadwal kelasmu" />
-                <HeroFeatureRow icon={Trophy} title="Tryout CBT per paket" sub="Simulasi ujian dengan timer, skor, dan pembahasan" />
+                <HeroFeatureRow delay={0.75} icon={BookOpenText} title="Materi + video per BAB" sub="PPT simplifikasi tentor, tinggal buka dan pelajari" />
+                <HeroFeatureRow delay={0.9} icon={CalendarClock} title="Reminder ujian & kelas" sub="Countdown ujian dan pengingat jadwal kelasmu" />
+                <HeroFeatureRow delay={1.05} icon={Trophy} title="Tryout CBT per paket" sub="Simulasi ujian dengan timer, skor, dan pembahasan" />
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
@@ -197,22 +227,24 @@ export default function HomeLanding() {
             title="Semua Jalur Belajar di PCV"
             sub="Empat kelas utama plus program pendukung sepanjang tahun. Pilih sesuai kebutuhanmu."
           />
-          <motion.div {...fadeUp} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <motion.div {...staggerView} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {PROGRAMS.map((c, i) => (
-              <div
+              <motion.div
                 key={c.title}
-                className={`rounded-2xl p-6 transition-all hover:-translate-y-0.5 ${
+                variants={staggerChild}
+                whileHover={liftHover}
+                className={`group rounded-2xl p-6 transition-shadow duration-300 ${
                   i < 4
                     ? 'bg-alba-50 border border-alba-200 shadow-card hover:shadow-card-hover'
-                    : 'bg-gold-100/40 border border-gold-200'
+                    : 'bg-gold-100/40 border border-gold-200 hover:shadow-card'
                 }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${i < 4 ? 'bg-maroon-600 text-alba-50' : 'bg-gold-400 text-alba-50'}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6 ${i < 4 ? 'bg-maroon-600 text-alba-50' : 'bg-gold-400 text-alba-50'}`}>
                   <c.icon size={18} />
                 </div>
                 <h3 className="font-display text-lg font-semibold mb-1.5">{c.title}</h3>
                 <p className="text-sm text-stone-600 leading-relaxed">{c.desc}</p>
-              </div>
+              </motion.div>
             ))}
           </motion.div>
         </div>
@@ -235,24 +267,35 @@ export default function HomeLanding() {
             </p>
           </motion.div>
 
-          <motion.div {...fadeUp} className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
+          <motion.div {...staggerView} className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
             {TENTOR_POINTS.map((p) => (
-              <div key={p} className="flex items-center gap-3 rounded-2xl border border-alba-50/20 bg-alba-50/5 px-6 py-5">
-                <Star size={18} className="text-gold-400 shrink-0" />
+              <motion.div
+                key={p}
+                variants={staggerChild}
+                whileHover={{ y: -3, transition: { type: 'spring', stiffness: 320, damping: 22 } }}
+                className="group flex items-center gap-3 rounded-2xl border border-alba-50/20 bg-alba-50/5 px-6 py-5 transition-colors duration-300 hover:bg-alba-50/10"
+              >
+                <Star size={18} className="text-gold-400 shrink-0 transition-transform duration-500 group-hover:rotate-[72deg] group-hover:scale-110" />
                 <p className="font-semibold text-sm">{p}</p>
-              </div>
+              </motion.div>
             ))}
           </motion.div>
           <motion.div {...fadeUp} className="mt-10 text-center">
             <p className="text-xs uppercase tracking-[0.25em] text-alba-200 mb-4">Rekam jejak di kompetisi</p>
-            <div className="flex flex-wrap justify-center gap-2.5 max-w-3xl mx-auto">
+            <motion.div
+              variants={chipParent}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, margin: '-60px' }}
+              className="flex flex-wrap justify-center gap-2.5 max-w-3xl mx-auto"
+            >
               {COMPETITIONS.map((c) => (
-                <span key={c} className="rounded-full border border-alba-50/25 px-4 py-1.5 text-xs font-semibold text-alba-100">
+                <motion.span key={c} variants={chipChild} className="rounded-full border border-alba-50/25 px-4 py-1.5 text-xs font-semibold text-alba-100 transition-colors duration-200 hover:bg-alba-50/10 hover:border-alba-50/50">
                   {c}
-                </span>
+                </motion.span>
               ))}
-              <span className="rounded-full bg-gold-400 text-maroon-900 px-4 py-1.5 text-xs font-bold">and many more…</span>
-            </div>
+              <motion.span variants={chipChild} className="rounded-full bg-gold-400 text-maroon-900 px-4 py-1.5 text-xs font-bold">and many more…</motion.span>
+            </motion.div>
           </motion.div>
         </div>
       </section>
@@ -268,9 +311,14 @@ export default function HomeLanding() {
             title="Kata Mereka Soal Kelas PCV"
             sub="Testimoni Sobat PCV dari berbagai fakultas kedokteran di Indonesia."
           />
-          <motion.div {...fadeUp} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <motion.div {...staggerView} className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {TESTIMONIALS.map((ts) => (
-              <div key={ts.name} className="rounded-2xl bg-alba-50 border border-alba-200 p-6 shadow-card flex flex-col">
+              <motion.div
+                key={ts.name}
+                variants={staggerChild}
+                whileHover={liftHover}
+                className="rounded-2xl bg-alba-50 border border-alba-200 p-6 shadow-card hover:shadow-card-hover transition-shadow duration-300 flex flex-col"
+              >
                 <Quote size={18} className="text-maroon-300 mb-3" />
                 <p className="text-sm text-stone-700 leading-relaxed flex-1">"{ts.text}"</p>
                 <div className="mt-5 pt-4 border-t border-alba-200">
@@ -278,7 +326,7 @@ export default function HomeLanding() {
                   <p className="text-xs text-stone-500 mt-0.5">{ts.cls}</p>
                   <p className="text-gold-400 text-sm mt-1.5" aria-label="Rating 5 dari 5">★★★★★</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </motion.div>
         </div>
@@ -295,7 +343,7 @@ export default function HomeLanding() {
               href={IG_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-alba-50 text-maroon-700 font-bold px-7 py-3.5 hover:bg-alba-100 transition-colors"
+              className="inline-flex items-center gap-2 rounded-full bg-alba-50 text-maroon-700 font-bold px-7 py-3.5 hover:bg-alba-100 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300"
             >
               <Instagram size={17} /> @pcv.classroom
             </a>
@@ -303,7 +351,7 @@ export default function HomeLanding() {
               href={WA_CP}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-alba-50/40 font-bold px-7 py-3.5 hover:bg-alba-50/10 transition-colors"
+              className="inline-flex items-center gap-2 rounded-full border border-alba-50/40 font-bold px-7 py-3.5 hover:bg-alba-50/10 hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-300"
             >
               <MessageCircle size={17} /> Hubungi Admin
             </a>
@@ -316,7 +364,7 @@ export default function HomeLanding() {
 
 function Stat({ value, label }) {
   return (
-    <div className="rounded-xl border border-alba-50/25 bg-alba-50/10 backdrop-blur px-3 py-3 text-center">
+    <div className="rounded-xl border border-alba-50/25 bg-alba-50/10 backdrop-blur px-3 py-3 text-center transition-transform duration-300 hover:-translate-y-1">
       <p className="font-display text-xl font-bold text-gold-200">{value}</p>
       <p className="text-[11px] font-semibold text-alba-200 mt-0.5">{label}</p>
     </div>

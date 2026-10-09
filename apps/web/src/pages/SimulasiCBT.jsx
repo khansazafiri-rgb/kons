@@ -22,7 +22,8 @@ export default function SimulasiCBT() {
  const [attemptId, setAttemptId] = useState(null);
  const [completedAttempt, setCompletedAttempt] = useState(null); // attempt lama yg sudah selesai (untuk review)
  const [reviewing, setReviewing] = useState(false);
- const [babPerMk, setBabPerMk] = useState({});      // { subjectId: [{id,title}] BAB yang ada soalnya }
+ const [babPerMk, setBabPerMk] = useState({});      // { subjectId: [{id,title,section}] BAB yang ada soalnya }
+ const [sectionPerMk, setSectionPerMk] = useState({}); // { subjectId: [{id,title}] section, urut }
  const [babSelesai, setBabSelesai] = useState(() => new Set()); // id BAB yang sudah dituntaskan
  const [refreshKey, setRefreshKey] = useState(0);
  const [enrolled, setEnrolled] = useState(null);
@@ -63,7 +64,7 @@ export default function SimulasiCBT() {
        const semuaBab = await pb.collection('chapters').getFullList({
          sort: 'order',
          filter: gabung(filterCbtKind(), filterTampilSoal()),
-         fields: 'id,subject,title,order,universities',
+         fields: 'id,subject,title,order,universities,section',
        });
        const asalKuliah = String(user?.asalKuliah || '').trim();
        const babBoleh = semuaBab.filter((c) => cocokUniversitas(c.universities, asalKuliah));
@@ -76,9 +77,23 @@ export default function SimulasiCBT() {
        babBoleh.forEach((c) => {
          if (!adaSoal.has(c.id)) return;
          if (!perMk[c.subject]) perMk[c.subject] = [];
-         perMk[c.subject].push({ id: c.id, title: c.title });
+         perMk[c.subject].push({ id: c.id, title: c.title, section: c.section || '' });
        });
        setBabPerMk(perMk);
+
+       // Section dibuat admin (UTB, UAB, Helminth, ...). Gagal memuat tidak
+       // boleh menghalangi siswa membuka BAB - daftar jatuh ke tanpa kelompok.
+       try {
+         const secs = await pb.collection('chapter_sections').getFullList({ sort: 'order', fields: 'id,subject,title,order' });
+         const sPerMk = {};
+         secs.forEach((x) => {
+           if (!sPerMk[x.subject]) sPerMk[x.subject] = [];
+           sPerMk[x.subject].push({ id: x.id, title: x.title });
+         });
+         setSectionPerMk(sPerMk);
+       } catch (_) {
+         setSectionPerMk({});
+       }
 
        if (user?.id) {
          const attempts = await pb
@@ -251,6 +266,22 @@ export default function SimulasiCBT() {
 
  const babOfSubject = babPerMk[subjectId] || [];
 
+ // Kelompokkan BAB per section sesuai urutan section dari admin. BAB tanpa
+ // section (semua BAB lama) tampil dulu tanpa judul. Section yang tidak punya
+ // BAB berisoal untuk kampus ini tidak ditampilkan.
+ const kelompokBab = (() => {
+   const secs = sectionPerMk[subjectId] || [];
+   const idSec = new Set(secs.map((x) => x.id));
+   const bebas = babOfSubject.filter((b) => !b.section || !idSec.has(b.section));
+   const grup = [];
+   if (bebas.length) grup.push({ id: '', title: '', items: bebas });
+   secs.forEach((x) => {
+     const items = babOfSubject.filter((b) => b.section === x.id);
+     if (items.length) grup.push({ id: x.id, title: x.title, items });
+   });
+   return grup;
+ })();
+
  // Layar Awal Pemilihan Parameter Ujian
  return (
    <div className="min-h-screen bg-diagonal-soft">
@@ -312,26 +343,41 @@ export default function SimulasiCBT() {
              {babOfSubject.length === 0 ? (
                <p className="text-sm text-stone-400">Belum ada BAB simulasi untuk mata kuliah ini di kampusmu.</p>
              ) : (
-               <div className="grid grid-cols-1 gap-2">
-                 {babOfSubject.map((b) => {
-                   const done = babSelesai.has(b.id);
-                   const dipilih = chapterId === b.id;
-                   return (
-                     <button
-                       key={b.id}
-                       onClick={() => { setChapterId(b.id); scrollToRef(modeRef); }}
-                       title={done ? 'Sudah pernah kamu kerjakan' : 'Soal tersedia'}
-                       className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm font-bold transition-all ${
-                         dipilih
-                           ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
-                           : 'border-maroon-200 text-maroon-700 bg-maroon-50/50 hover:border-maroon-400'
-                       }`}
-                     >
-                       <span className="min-w-0 line-clamp-2">{b.title}</span>
-                       {done && <span className="shrink-0 text-[11px]">✅</span>}
-                     </button>
-                   );
-                 })}
+               <div className="space-y-4">
+                 {kelompokBab.map((g) => (
+                   <div key={g.id || 'tanpa-section'} className="space-y-2">
+                     {g.title && (
+                       <div className="flex items-center gap-2 pt-1">
+                         <h3 className="text-xs font-extrabold uppercase tracking-[0.14em] text-gold-700">{g.title}</h3>
+                         <span className="h-px flex-1 bg-gold-200" />
+                         <span className="text-[11px] font-semibold text-stone-400">
+                           {g.items.filter((b) => babSelesai.has(b.id)).length}/{g.items.length}
+                         </span>
+                       </div>
+                     )}
+                     <div className="grid grid-cols-1 gap-2">
+                       {g.items.map((b) => {
+                         const done = babSelesai.has(b.id);
+                         const dipilih = chapterId === b.id;
+                         return (
+                           <button
+                             key={b.id}
+                             onClick={() => { setChapterId(b.id); scrollToRef(modeRef); }}
+                             title={done ? 'Sudah pernah kamu kerjakan' : 'Soal tersedia'}
+                             className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm font-bold transition-all ${
+                               dipilih
+                                 ? 'border-maroon-600 bg-maroon-600 text-alba-50 shadow-sm'
+                                 : 'border-maroon-200 text-maroon-700 bg-maroon-50/50 hover:border-maroon-400'
+                             }`}
+                           >
+                             <span className="min-w-0 line-clamp-2">{b.title}</span>
+                             {done && <span className="shrink-0 text-[11px]">✅</span>}
+                           </button>
+                         );
+                       })}
+                     </div>
+                   </div>
+                 ))}
                </div>
              )}
              <p className="text-[11px] text-stone-400 mt-2">✅ = BAB yang pernah kamu tuntaskan</p>

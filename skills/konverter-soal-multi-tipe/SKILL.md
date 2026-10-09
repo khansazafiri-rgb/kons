@@ -240,7 +240,8 @@ Soal esai sering berbentuk satu kasus/gambar dengan beberapa bagian, dan kunci t
   - kata ≤ 4 huruf yang salah ketik
   - salah ketik di huruf pertama
 - **Butir berupa kalimat panjang** → tulis kalimat aslinya DAN versi kata kuncinya dalam string yang sama. Contoh: `"Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal"`. Kalimat panjang saja tetap bisa cocok lewat dua pertiga kata kuncinya, tapi siswa yang menjawab singkat ("pakai sepatu") baru diterima kalau bentuk singkatnya ada.
-- Tanda `/` di dalam jawaban SELALU dibaca sebagai pemisah. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing".
+- Tanda `/` di dalam jawaban dibaca sebagai pemisah bentuk lain. Jangan memakainya untuk hal lain: tulis "anjing atau kucing", bukan "anjing/kucing". Satu-satunya pengecualian: `/` di antara dua angka (pecahan `1/2`, tanggal) tetap bagian jawaban.
+- **Soal yang bisa dijawab dengan banyak cara** (hitungan, rumus, langkah) → tulis tiap cara sebagai butir terpisah. Contoh "Bagaimana cara mendapatkan angka 2?": `"validAnswers": ["1 + 1", "1/2 + 1/2 + 1", "2 x 1 / 2 * 1"]`. Sistem tidak menghitung, jadi semua cara yang dianggap benar harus tertulis. Angka desimal dan pecahan dibaca utuh ("0,5 mg" tidak sama dengan "5 mg").
 - **JANGAN tulis `answerCount`** kecuali user secara tegas meminta siswa WAJIB menyebut sejumlah jawaban berbeda. `answerCount: N` membuat N kotak yang semuanya wajib benar.
 - **Pembahasan atau gambar penjelasan milik satu bagian** (misalnya gambar tabel dosis obat di bawah jawaban bagian "Pengobatan") → taruh di `"explanation"` MILIK sub-pertanyaan itu: teks, link gambar lh3, atau keduanya, pindah baris pakai `<br>`. Siswa melihatnya tepat di bawah bagian itu setelah jawaban dicek. Pembahasan yang berlaku untuk seluruh soal tetap di `"explanation"` tingkat soal.
 - Kalau sebuah bagian tidak punya pembahasan, jangan tulis `"explanation"` di sub-pertanyaan itu.

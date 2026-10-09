@@ -44,6 +44,16 @@
 //
 // Toleransi ini tidak bisa menebak sinonim ("sandal" untuk "alas kaki").
 // Sinonim tetap harus ditulis di kunci, dipisah " / ".
+//
+// ANGKA
+//   - Desimal dan pecahan dibaca utuh: "0,5" sama dengan "0.5", tapi bukan "5";
+//     "1/2" bukan "1" dan "2".
+//   - Tanda "/" di antara dua angka bukan pemisah sinonim. Jadi kunci
+//     "1/2 + 1/2 + 1" tetap satu jawaban.
+//   - Tiap kata kunci hanya bisa dipenuhi satu kata siswa: kunci "1 + 1"
+//     menolak "1 + 5".
+//   - Cara lain yang hasilnya sama ("1 + 1", "2 x 1", "0,5 + 1,5") tetap harus
+//     ditulis sebagai kunci sendiri-sendiri. Sistem tidak menghitung.
 
 // ---------------------------------------------------------------------------
 // Merapikan teks
@@ -54,7 +64,13 @@ export function normalizeIsian(t) {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '') // é -> e
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')     // tanda baca, strip, garis miring -> spasi
+    .replace(/[_~]+/g, ' ')
+    // Angka desimal dan pecahan tetap SATU kata: "0,5" dan "0.5" jadi "0_5",
+    // "1/2" jadi "1~2". Kalau dipecah, "0,5 mg" akan terbaca "0", "5", "mg" dan
+    // lolos untuk kunci "5 mg" - dosis yang selisih sepuluh kali lipat.
+    .replace(/(\d)[.,](?=\d)/g, '$1_')
+    .replace(/(\d)\/(?=\d)/g, '$1~')
+    .replace(/[^a-z0-9_~]+/g, ' ')   // tanda baca, strip, garis miring -> spasi
     .trim();
 }
 
@@ -133,7 +149,18 @@ export function cocokIsian(teksSiswa, teksKunci) {
   let kataKunci = kataKunciSemua.filter((k) => !KATA_SAMBUNG.has(k));
   if (!kataKunci.length) kataKunci = kataKunciSemua;
 
-  const ada = kataKunci.map((kk) => kataSiswa.some((ks) => kataCocok(kk, ks)));
+  // Satu kata siswa hanya memenuhi SATU kata kunci. Tanpa ini kunci "1 + 1"
+  // menerima "1 + 5" (angka 1-nya dihitung dua kali). Yang persis didahulukan
+  // supaya kata yang cuma mirip tidak merebut jatah kata lain.
+  const dipakai = new Set();
+  const ada = kataKunci.map(() => false);
+  const cari = (cocokFn) => kataKunci.forEach((kk, i) => {
+    if (ada[i]) return;
+    const j = kataSiswa.findIndex((ks, idx) => !dipakai.has(idx) && cocokFn(kk, ks));
+    if (j >= 0) { dipakai.add(j); ada[i] = true; }
+  });
+  cari((kk, ks) => kk === ks);
+  cari(kataCocok);
   // Angka (dosis, jumlah, stadium) tidak boleh ikut "cukup dua pertiga":
   // "ivermectin 21 mg" bukan "Ivermectin 12 mg".
   if (kataKunci.some((kk, i) => /\d/.test(kk) && !ada[i])) return null;
@@ -152,10 +179,22 @@ export function jumlahKotak(sub) {
   return Number.isFinite(n) && n > 1 ? Math.min(n, 20) : 1;
 }
 
+// Memecah satu butir kunci jadi bentuk-bentuknya di tanda "/". Pengecualian:
+// "/" di antara dua angka (pecahan "1/2", tanggal "12/2024") bagian dari
+// jawabannya, bukan pemisah. Kalau tidak, "1/2 + 1/2 + 1" terpotong jadi
+// "1", "2 + 1", "2" dan kunci "1" menerima jawaban apa pun yang memuat angka 1.
+export function pisahBentuk(butir) {
+  return String(butir)
+    .replace(/(\d)\/(?=\d)/g, '$1\u0000')
+    .split('/')
+    .map((s) => s.replace(/\u0000/g, '/').trim())
+    .filter((s) => normalizeIsian(s));
+}
+
 // Jawaban benar yang berbeda-beda, masing-masing dengan bentuk-bentuknya.
 function daftarJawaban(sub) {
   return (sub?.validAnswers || [])
-    .map((v) => String(v).split('/').map((s) => s.trim()).filter((s) => normalizeIsian(s)))
+    .map(pisahBentuk)
     .filter((bentuk) => bentuk.length);
 }
 
