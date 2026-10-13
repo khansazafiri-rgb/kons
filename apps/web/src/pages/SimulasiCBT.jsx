@@ -5,20 +5,22 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import { touchActivity } from '@/lib/activityLog';
+import { susunSoal } from '@/lib/acakSoal';
 import { cocokUniversitas, filterCbtKind, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 
 // Soal simulasi dikelompokkan per BAB bernama bebas (bukan lagi "Paket 1/2/3"
 // bernomor), dan tiap BAB menempel pada satu universitas. Siswa hanya melihat
 // BAB milik kampusnya sendiri ditambah BAB "Semua Universitas". BAB simulasi
-// ditambahkan admin lewat tab Edit Soal -> Simulasi CBT.
+// ditambahkan admin lewat Edit Soal -> Soal Tahun Sebelumnya.
 export default function SimulasiCBT() {
  const { user, role } = useAuth();
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useUrlState('mk', '');
  const [chapterId, setChapterId] = useUrlState('bab', '');
  const [mode, setMode] = useUrlState('mode', '');
- const [questions, setQuestions] = useState(null);
+ const [questions, setQuestions] = useState(null); // soal yang tampil: urutan asli untuk review, sudah diacak untuk pengerjaan baru
+ const [babAcak, setBabAcak] = useState(false);     // BAB ini ditandai "acak soal" oleh admin
  const [attemptId, setAttemptId] = useState(null);
  const [completedAttempt, setCompletedAttempt] = useState(null); // attempt lama yg sudah selesai (untuk review)
  const [reviewing, setReviewing] = useState(false);
@@ -48,7 +50,7 @@ export default function SimulasiCBT() {
 
  // Nama BAB yang sedang dipilih, untuk pesan & jejak aktivitas.
  const babLabel = () =>
-   (babPerMk[subjectId] || []).find((b) => b.id === chapterId)?.title || 'BAB simulasi';
+   (babPerMk[subjectId] || []).find((b) => b.id === chapterId)?.title || 'BAB soal';
 
  // BAB simulasi yang boleh dilihat siswa ini: BAB kampusnya sendiri + BAB
  // "Semua Universitas". BAB yang belum ada soalnya sengaja tidak ditampilkan
@@ -64,7 +66,7 @@ export default function SimulasiCBT() {
        const semuaBab = await pb.collection('chapters').getFullList({
          sort: 'order',
          filter: gabung(filterCbtKind(), filterTampilSoal()),
-         fields: 'id,subject,title,order,universities,section',
+         fields: 'id,subject,title,order,universities,section,acakSoal',
        });
        const asalKuliah = String(user?.asalKuliah || '').trim();
        const babBoleh = semuaBab.filter((c) => cocokUniversitas(c.universities, asalKuliah));
@@ -77,7 +79,7 @@ export default function SimulasiCBT() {
        babBoleh.forEach((c) => {
          if (!adaSoal.has(c.id)) return;
          if (!perMk[c.subject]) perMk[c.subject] = [];
-         perMk[c.subject].push({ id: c.id, title: c.title, section: c.section || '' });
+         perMk[c.subject].push({ id: c.id, title: c.title, section: c.section || '', acak: !!c.acakSoal });
        });
        setBabPerMk(perMk);
 
@@ -107,7 +109,23 @@ export default function SimulasiCBT() {
    })();
  }, [user, refreshKey]);
 
+ // Penjaga klik ganda: dua pemanggilan start() sekaligus membuat dua
+ // pengerjaan dan dua acakan berbeda.
+ const [memulai, setMemulai] = useState(false);
+ const sedangMemulai = useRef(false);
  const start = async () => {
+   if (sedangMemulai.current) return;
+   sedangMemulai.current = true;
+   setMemulai(true);
+   try {
+     await mulaiPengerjaan();
+   } finally {
+     sedangMemulai.current = false;
+     setMemulai(false);
+   }
+ };
+
+ const mulaiPengerjaan = async () => {
    if (!subjectId || !chapterId || !mode) return;
    if (enrolled && !enrolled.includes(subjectId)) {
      alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
@@ -124,12 +142,18 @@ export default function SimulasiCBT() {
      return;
    }
 
+   // Status "acak soal" diambil segar dari server: admin bisa saja baru
+   // mengubahnya setelah daftar BAB di layar ini dimuat.
+   let acak = !!(babPerMk[subjectId] || []).find((b) => b.id === chapterId)?.acak;
+   try { acak = !!(await pb.collection('chapters').getOne(chapterId, { fields: 'id,acakSoal' })).acakSoal; } catch (_) { /* pakai nilai di daftar */ }
+   setBabAcak(acak);
+
    // Review pembahasan: buka kunci jawaban + alasannya tanpa perlu pernah
    // mengerjakan tryout ini. Tidak ada attempt yang dibuat/ditimpa.
    if (mode === 'review') {
      setCompletedAttempt(null);
      setAttemptId(null);
-     setQuestions(qs);
+     setQuestions(qs); // review selalu berurutan seperti aslinya, tidak diacak
      setReviewing(true);
      return;
    }
@@ -145,12 +169,12 @@ export default function SimulasiCBT() {
        });
      if (done[0]) {
        setCompletedAttempt(done[0]);
-       setQuestions(qs);
+       setQuestions(qs); // dipakai kalau siswa memilih review; "kerjakan ulang" mengacaknya di startFresh
        return;
      }
    }
 
-   setQuestions(qs);
+   setQuestions(susunSoal(qs, { acakAktif: acak, jenis: 'baru' }));
    if (user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
@@ -168,6 +192,8 @@ export default function SimulasiCBT() {
  const startFresh = async () => {
    setCompletedAttempt(null);
    setReviewing(false);
+   // Kerjakan ulang = pengerjaan baru: urutannya diacak lagi kalau BAB ini diacak.
+   setQuestions((lama) => susunSoal(lama || [], { acakAktif: babAcak, jenis: 'baru', hindari: (lama || []).map((q) => q.id) }));
    if (user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
@@ -199,7 +225,7 @@ export default function SimulasiCBT() {
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
    const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
-   touchActivity(pb, user, `Mengerjakan Simulasi CBT ${namaMk} · ${babLabel()} (nilai ${score})`);
+   touchActivity(pb, user, `Mengerjakan soal tahun sebelumnya ${namaMk} · ${babLabel()} (nilai ${score})`);
  };
 
  const exit = async () => {
@@ -220,9 +246,9 @@ export default function SimulasiCBT() {
            <div className="w-16 h-16 bg-green-50 text-green-700 rounded-full flex items-center justify-center mx-auto mb-5">
              <Trophy size={26} />
            </div>
-           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Tryout Ini Sudah Kamu Kerjakan</h2>
+           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Soal Ini Sudah Kamu Kerjakan</h2>
            <p className="text-sm font-medium text-stone-600 mb-6 leading-relaxed">
-             Nilai terakhirmu: <span className="font-bold text-maroon-600">{completedAttempt.score ?? 0}</span>. Mau review jawaban yang lalu, atau kerjakan ulang tryout ini?
+             Nilai terakhirmu: <span className="font-bold text-maroon-600">{completedAttempt.score ?? 0}</span>. Mau review jawaban yang lalu, atau kerjakan ulang soal ini?
            </p>
            <div className="flex flex-col gap-3">
              <button
@@ -235,7 +261,7 @@ export default function SimulasiCBT() {
                onClick={startFresh}
                className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 transition-colors"
              >
-               Kerjakan Ulang Tryout Ini
+               Kerjakan Ulang Soal Ini
              </button>
            </div>
          </div>
@@ -289,10 +315,10 @@ export default function SimulasiCBT() {
      <div className="max-w-3xl mx-auto px-6 py-14">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
          <Timer size={14} />
-         SIMULASI CBT TEST
+         KERJAKAN SOAL TAHUN SEBELUMNYA
        </p>
-       <h1 className="font-display text-3xl font-semibold mb-2">Tryout Simulasi</h1>
-       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah, BAB soal, dan mode ujian untuk memulai tryout.</p>
+       <h1 className="font-display text-3xl font-semibold mb-2">Pilih Soal Tahun Sebelumnya</h1>
+       <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah, BAB soal, dan mode ujian untuk mulai mengerjakan.</p>
 
        {enrolled && enrolled.length === 0 && (
          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-gold-200 bg-gold-100/60 p-5 text-sm text-stone-700">
@@ -341,7 +367,7 @@ export default function SimulasiCBT() {
            <div ref={babRef} className="animate-fade-in scroll-mt-24">
              <label className="block text-sm font-bold text-stone-700 mb-2">2. Pilih BAB Soal</label>
              {babOfSubject.length === 0 ? (
-               <p className="text-sm text-stone-400">Belum ada BAB simulasi untuk mata kuliah ini di kampusmu.</p>
+               <p className="text-sm text-stone-400">Belum ada BAB soal tahun sebelumnya untuk mata kuliah ini di kampusmu.</p>
              ) : (
                <div className="space-y-4">
                  {kelompokBab.map((g) => (
@@ -434,11 +460,11 @@ export default function SimulasiCBT() {
 
          <div ref={startRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
-             disabled={!subjectId || !chapterId || !mode}
+             disabled={!subjectId || !chapterId || !mode || memulai}
              onClick={start}
              className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
            >
-             {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Ujian Sekarang'}
+             {memulai ? 'Membuka…' : mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Ujian Sekarang'}
            </button>
          </div>
        </div>

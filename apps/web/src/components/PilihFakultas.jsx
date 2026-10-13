@@ -2,7 +2,7 @@ import React from 'react';
 import { FK_INDONESIA } from '@/data/fakultasKedokteran';
 
 // Pemilih FK multi-select yang dipakai bersama di beberapa tempat (jadwal
-// ujian per FK, BAB Simulasi CBT per FK). Daftar FK di Indonesia panjang
+// ujian per FK, BAB soal tahun sebelumnya per FK). Daftar FK di Indonesia panjang
 // (ratusan), jadi bukan deretan chip semua - dipilih satu per satu lewat
 // dropdown bergrup yang sama dengan halaman Sign Up, lalu yang terpilih muncul
 // sebagai chip yang bisa dilepas.

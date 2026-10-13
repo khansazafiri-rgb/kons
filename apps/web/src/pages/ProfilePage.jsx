@@ -135,7 +135,7 @@ export default function ProfilePage() {
          <div className="mt-8 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-7 animate-fade-in">
            <p className="flex items-center gap-2 text-sm font-bold text-maroon-600 mb-5">
              <TrendingUp size={16} />
-             Riwayat Nilai Simulasi CBT ({attempts.length} tryout selesai)
+             Riwayat Nilai Soal Tahun Sebelumnya ({attempts.length} set soal selesai)
            </p>
            <div className="h-56">
              <ResponsiveContainer width="100%" height="100%">

@@ -16,7 +16,7 @@ struktur BAB, maupun database kamu** — dipakai di samping alur yang sudah ada.
 4) KELEMAHAN  hasil ujian ─▶ laporan lemah-di-mana + slide review        [src/weakness.mjs]
 ```
 
-Langkah 3-4 inilah yang menjawab kebutuhan **Simulasi CBT**: soal CBT itu untuk
+Langkah 3-4 inilah yang menjawab kebutuhan **Kerjakan Soal Tahun Sebelumnya**: soal CBT itu untuk
 satu mata kuliah penuh dan **tidak menyimpan BAB**-nya. Mesin ini memetakan tiap
 soal ke BAB/sub-topik lewat *teks*-nya (dicocokkan ke isi PPT), lalu menunjuk
 konsep yang lemah.
@@ -78,7 +78,7 @@ Kalau PPT-nya **sudah** diupload lewat panel Admin/Pengajar di web app (fitur
 upload PPT yang sudah ada, collection `ppt_files`), tidak perlu unduh manual
 sama sekali. Script ini menarik semua PPT dari PocketBase, parse tiap file,
 lalu menulis hasilnya balik ke collection `topics` — web app langsung memuat
-korpus dari sana secara otomatis setiap kali ada siswa submit Simulasi CBT.
+korpus dari sana secara otomatis setiap kali ada siswa submit soal tahun sebelumnya.
 
 ```bash
 export PB_ADMIN_EMAIL=admin@x.com
@@ -187,11 +187,11 @@ pelengkap untuk sinonim/parafrasa, tapi tidak diperlukan untuk kualitas dasar.
 
 - **[SELESAI]** Seluruh mesin di atas, teruji pada 4 PPT lintas mata kuliah
   (Anatomi, Reproduksi, Pelvis, Embriologi) — semua `high` confidence.
-- **[SELESAI]** Integrasi penuh ke PocketBase + Simulasi CBT: collection
+- **[SELESAI]** Integrasi penuh ke PocketBase + Kerjakan Soal Tahun Sebelumnya: collection
   `topics` (migration `1784707735_topics_ml_corpus.js`), `npm run sync` untuk
   mengisinya dari PPT yang sudah diupload, dan `QuestionRunner.jsx` yang
   otomatis memuat korpus itu + menampilkan laporan kelemahan ML setelah siswa
-  submit Simulasi CBT. Diverifikasi end-to-end memakai PocketBase asli
+  submit soal tahun sebelumnya. Diverifikasi end-to-end memakai PocketBase asli
   (upload PPT → `npm run sync` → cek record `topics` terisi benar).
 - **[BELUM]** Menjalankan `npm run sync` otomatis/berjadwal (mis. tiap kali
   PPT baru diupload). Untuk sekarang jalankan manual setelah upload/perbarui

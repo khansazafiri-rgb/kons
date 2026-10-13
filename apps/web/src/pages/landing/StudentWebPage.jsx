@@ -11,18 +11,18 @@ import pb from '@/lib/pocketbaseClient';
 const FEATURES = [
   {
     icon: BookOpenText,
-    title: 'Perdalam Materi',
+    title: 'Baca PPT',
     desc: 'PPT high-yield per topik yang sudah distandarisasi tentor. Baca ringkas, fokus ke materi yang sering keluar.',
   },
   {
     icon: ClipboardList,
-    title: 'Cicil Belajar per BAB',
+    title: 'Kerjakan Soal Tiap BAB',
     desc: 'Latihan soal yang terpisah otomatis per BAB. Jawab, langsung dapat pembahasan tiap opsi, termasuk soal essai bergambar yang dinilai otomatis.',
   },
   {
     icon: Timer,
-    title: 'Simulasi CBT',
-    desc: 'Ujian tiruan bertimer persis suasana exam asli: timer berjalan, submit di akhir, skor langsung keluar.',
+    title: 'Kerjakan Soal Tahun Sebelumnya',
+    desc: 'Kerjakan soal-soal ujian tahun sebelumnya, bisa dalam mode ujian bertimer persis suasana exam asli: timer berjalan, submit di akhir, skor langsung keluar.',
   },
   {
     icon: CalendarClock,
@@ -47,9 +47,9 @@ export default function StudentWebPage() {
             Web Belajar Interaktif <span className="text-maroon-600 italic">Khusus Sobat PCV</span>
           </h1>
           <p className="text-stone-600 text-lg leading-relaxed">
-            Student Web adalah rumah belajar mandirimu: materi high-yield, latihan soal
-            per BAB, dan simulasi CBT dalam satu tempat, pendamping kelas PCV yang bisa
-            diakses kapan pun.
+            Student Web adalah rumah belajar mandirimu: baca PPT high-yield, kerjakan soal
+            tiap BAB dan soal tahun sebelumnya dalam satu tempat, pendamping kelas PCV
+            yang bisa diakses kapan pun.
           </p>
         </motion.div>
       </section>
@@ -178,7 +178,7 @@ function IsiWeb() {
       <p className="text-sm font-bold text-stone-700 mb-1">Isi web saat ini:</p>
       <p className="text-sm text-stone-600 mb-4 leading-relaxed">
         {t.mataKuliah} mata kuliah · {t.bab} BAB · {t.babPpt} PPT materi · {t.soal} soal latihan
-        {t.soalSimulasi > 0 && <> · {t.soalSimulasi} soal simulasi CBT</>}
+        {t.soalSimulasi > 0 && <> · {t.soalSimulasi} soal tahun sebelumnya</>}
       </p>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -203,7 +203,7 @@ function IsiWeb() {
               {s.soalSimulasi > 0 && (
                 <span>
                   <span className="text-alba-300 mr-2">|</span>
-                  <span className="text-maroon-600 font-semibold">{s.soalSimulasi} soal CBT</span>
+                  <span className="text-maroon-600 font-semibold">{s.soalSimulasi} soal tahun sebelumnya</span>
                 </span>
               )}
             </div>

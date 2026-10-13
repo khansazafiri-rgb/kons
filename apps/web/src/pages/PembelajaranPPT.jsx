@@ -19,7 +19,7 @@ export default function PembelajaranPPT() {
  const [done, setDone] = useState(false);
  const [denied, setDenied] = useState(false); // akses ditolak (mata kuliah di luar jatah siswa)
 
- // Sudah dibukakan tab baru dari halaman Perdalam Materi? (klik "Pelajari" =
+ // Sudah dibukakan tab baru dari halaman Baca PPT (PerdalamMateri)? (klik "Pelajari" =
  // gesture user, jadi tab pasti terbuka tanpa diblokir popup). Kalau ya, jangan
  // auto-buka lagi di sini supaya tidak muncul dua tab.
  const openedFromList = location.state?.pptOpened === true;
@@ -203,7 +203,7 @@ export default function PembelajaranPPT() {
                onClick={() => navigate(`/cicil-belajar?subject=${subjectId}&chapter=${chapterId}`)}
                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border-2 border-maroon-600 text-maroon-600 font-bold px-8 py-3 hover:bg-maroon-50 transition-colors"
              >
-               Lanjut ke Latihan Soal
+               Lanjut Kerjakan Soal BAB Ini
                <ArrowRight size={15} />
              </button>
            </div>

@@ -12,6 +12,7 @@ Dokumentasi ini merangkum design system, color palette, tipografi, dan komponen 
 - [Custom Utilities](#custom-utilities)
 - [Komponen UI](#komponen-ui)
 - [Halaman & Layout](#halaman--layout)
+- [Nama menu siswa](#nama-menu-siswa)
 - [Pola UX Khusus](#pola-ux-khusus)
 
 ---
@@ -166,10 +167,10 @@ Folder: `apps/web/src/pages/`
 | `LoginPage.jsx` | Halaman login |
 | `HomePage.jsx` | Dashboard setelah login |
 | `LearningHome.jsx` | Pemilihan mode belajar |
-| `CicilBelajar.jsx` | Mode cicil belajar, dengan auto-scroll ke section BAB |
-| `PerdalamMateri.jsx` | Mode pendalaman materi, auto-scroll serupa |
-| `SimulasiCBT.jsx` | Simulasi ujian, auto-scroll saat pilih tahun → mode → mulai |
-| `PembelajaranPPT.jsx` | Mode belajar lewat PPT/PDF |
+| `CicilBelajar.jsx` | Halaman Kerjakan Soal Tiap BAB, dengan auto-scroll ke section BAB |
+| `PerdalamMateri.jsx` | Halaman Baca PPT (pilih mata kuliah dan BAB), auto-scroll serupa |
+| `SimulasiCBT.jsx` | Halaman Kerjakan Soal Tahun Sebelumnya, auto-scroll saat pilih mata kuliah → BAB → mode → mulai |
+| `PembelajaranPPT.jsx` | Pembaca PPT/PDF, dibuka dari halaman Baca PPT |
 | `admin/AdminPanel.jsx` | Panel admin (kelola soal, siswa, import massal) |
 | `teacher/TeacherPanel.jsx` | Panel pengajar (profil, siswa, edit soal, upload PPT/PDF) |
 
@@ -178,10 +179,34 @@ Folder: `apps/web/src/pages/`
 
 ---
 
+## Nama menu siswa
+
+Tiga menu belajar siswa sudah berganti nama di tampilan. Kolom route dan file sengaja tidak ikut berganti.
+
+| Nama baru | Label di header | Route | File komponen | Catatan |
+|---|---|---|---|---|
+| Baca PPT | Baca PPT | `/perdalam-materi` | `PerdalamMateri.jsx` + `PembelajaranPPT.jsx` | Dulu "Perdalam Materi". Pilih mata kuliah dan BAB, lalu PPT/PDF dibuka di pembaca (`/pembelajaran-ppt`). |
+| Kerjakan Soal Tiap BAB | Soal Tiap BAB | `/cicil-belajar` | `CicilBelajar.jsx` | Dulu "Cicil Belajar" / "Cicil BAB". |
+| Kerjakan Soal Tahun Sebelumnya | Soal Tahun Sebelumnya | `/simulasi-test` | `SimulasiCBT.jsx` | Dulu "Simulasi" / "Simulasi CBT" / "Simulasi Test" / "CBT Test". "Mode Simulasi" (ujian bertimer, di samping Mode Learning dan Review Pembahasan) adalah nama mode, bukan nama menu, jadi tidak berubah. |
+
+Kartu beranda dan eyebrow halaman memakai nama lengkap (eyebrow tetap kapital: "BACA PPT", "KERJAKAN SOAL TIAP BAB", "KERJAKAN SOAL TAHUN SEBELUMNYA"). Header memakai label pendek karena ruangnya sempit.
+
+Yang **sengaja tetap memakai nama lama**:
+
+- **Route** (`/perdalam-materi`, `/pembelajaran-ppt`, `/cicil-belajar`, `/simulasi-test`): bookmark siswa dan tautan yang sudah terkirim (WhatsApp, email) harus tetap jalan.
+- **Parameter URL dan nilainya** (`subject`, `chapter`, `mk`, `bab`, `mode`, `lembar`, `tab`, dan nilai seperti `simulasi`): dibaca langsung oleh kode dan ikut tersimpan di tautan.
+- **Kunci tab panel admin** (nilai `TABS` di `AdminPanel.jsx`, misalnya `Perdalam Materi`): nilainya dipakai sebagai `?tab=` di URL dan dibandingkan dengan `===`. Tulisan di tombol tab dipetakan lewat `TAB_LABEL`, jadi tampil "Baca PPT".
+- **Nama tab Google Sheets Peta Konten** ("Cicil Belajar", "Perdalam Materi", "Simulasi CBT", "Bank Soal"): Apps Script yang sudah ditempel admin mencari tab lewat nama persis, jadi mengganti nama membuat sinkronisasi diam-diam gagal.
+- **Nama file dan komponen, koleksi/field PocketBase, kunci localStorage, kode section log aktivitas**: ini identifier, bukan tulisan untuk siswa.
+
+Teks yang tersimpan atau terkirim (ringkasan log aktivitas, aktivitas terakhir, email, WhatsApp) memakai nama baru sejak perubahan ini. Catatan lama tetap memakai nama lama.
+
+---
+
 ## Pola UX Khusus
 
 - **Carousel looping** (`LandingPage.jsx`): saat scroll mentok kanan, otomatis lompat ke awal; mentok kiri, lompat ke akhir. Ada hint teks "← geser →" di mobile.
-- **Auto-scroll** (`CicilBelajar.jsx`, `PerdalamMateri.jsx`, `SimulasiCBT.jsx`): setelah user memilih mata kuliah/BAB/tahun/mode, halaman otomatis `scrollIntoView({ behavior: 'smooth' })` ke section berikutnya.
+- **Auto-scroll** (`CicilBelajar.jsx`, `PerdalamMateri.jsx`, `SimulasiCBT.jsx`): setelah user memilih mata kuliah/BAB/mode, halaman otomatis `scrollIntoView({ behavior: 'smooth' })` ke section berikutnya.
 - **Validasi upload file** (`TeacherPanel.jsx`): PDF only, maksimal 100MB, pesan error jelas dalam Bahasa Indonesia.
 - **Device limit** (`context/AuthContext.jsx`): admin tanpa batas device, teacher 1 device, student sesuai tipenya (reguler & privat 1, Student - Web 2). Kuncinya menempel ke device, bukan ke sesi: di device yang sama boleh berapa pun tab, dan **logout tidak melepas slotnya** — pelepasan hanya lewat tombol Reset Device di Dashboard Admin. Bukan elemen visual, tapi memengaruhi alur UX login (dan copy pengumuman di `LoginPage.jsx`).
 

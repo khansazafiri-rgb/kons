@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import ChapterSelect from '@/components/ChapterSelect';
 import { touchActivity } from '@/lib/activityLog';
+import { idUrutan, susunSoal } from '@/lib/acakSoal';
 import useUrlState from '@/lib/useUrlState';
 
 export default function CicilBelajar() {
@@ -18,7 +19,12 @@ export default function CicilBelajar() {
  const [chapters, setChapters] = useState([]);
  const [chapterId, setChapterId] = useUrlState('chapter', '');
  const [mode, setMode] = useUrlState('mode', ''); // 'kerjakan' | 'review'
- const [questions, setQuestions] = useState(null);
+ const [questions, setQuestions] = useState(null); // soal BAB ini dalam urutan asli (dari admin)
+ const [soalJalan, setSoalJalan] = useState(null);   // soal yang dikerjakan, sesudah diacak kalau BAB ini diacak
+ const [babAcak, setBabAcak] = useState(false);      // BAB ini ditandai "acak soal" oleh admin
+ const [membuka, setMembuka] = useState(false);      // tombol mulai sedang diproses (mencegah klik ganda)
+ const sedangMembuka = useRef(false);
+ const urutanRef = useRef([]);                       // ID soal menurut urutan pengerjaan yang berjalan (disimpan untuk "lanjutkan")
  const [priorProgress, setPriorProgress] = useState(null);
  const [resume, setResume] = useState(null);
  const [progressMap, setProgressMap] = useState({}); // { subjectId: { done, total } }
@@ -91,7 +97,23 @@ export default function CicilBelajar() {
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then(setChapters);
  }, [subjectId]);
 
+ // Dibungkus penjaga: klik ganda pada tombol mulai (atau klik ulang karena
+ // layar belum berubah di koneksi lambat) tidak boleh menjalankan dua
+ // pembukaan sekaligus. Dua pembukaan = dua acakan berbeda, dan yang tersimpan
+ // untuk "lanjutkan" bisa bukan yang dilihat siswa.
  const openChapter = async () => {
+   if (sedangMembuka.current) return;
+   sedangMembuka.current = true;
+   setMembuka(true);
+   try {
+     await bukaBab();
+   } finally {
+     sedangMembuka.current = false;
+     setMembuka(false);
+   }
+ };
+
+ const bukaBab = async () => {
    if (!chapterId || !mode) return;
    if (enrolled && subjectId && !enrolled.includes(subjectId)) {
      alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
@@ -108,11 +130,17 @@ export default function CicilBelajar() {
    }
    setQuestions(qs);
 
+   // Status "acak soal" diambil segar dari server: admin bisa saja baru
+   // mengubahnya setelah daftar BAB di layar ini dimuat.
+   let acak = !!chapters.find((c) => c.id === chapterId)?.acakSoal;
+   try { acak = !!(await pb.collection('chapters').getOne(chapterId, { fields: 'id,acakSoal' })).acakSoal; } catch (_) { /* pakai nilai di daftar */ }
+   setBabAcak(acak);
+
    // Review pembahasan: langsung buka kunci jawaban + alasannya, tanpa perlu
    // pernah mengerjakan BAB ini. Progress lama sengaja tidak disentuh.
    if (mode === 'review') {
      setPriorProgress(null);
-     setResume('review');
+     mulai('review', qs, null, acak);
      return;
    }
 
@@ -127,11 +155,28 @@ export default function CicilBelajar() {
        setPriorProgress(rec);
        setResume('completed');     // → layar pilih review / kerjakan ulang
      } else {
-       setResume('restart');
+       mulai('restart', qs, null, acak);
      }
    } else {
-     setResume('restart');
+     mulai('restart', qs, null, acak);
    }
+ };
+
+ // Menentukan urutan soal lalu membuka layar pengerjaan.
+ //   restart : pengerjaan baru -> urutan acak baru kalau BAB ini diacak
+ //             (menghindari urutan pengerjaan sebelumnya)
+ //   resume  : lanjutkan -> urutan yang tersimpan, bukan acak ulang
+ //   review  : baca pembahasan / jawaban sendiri -> urutan asli
+ const mulai = (jenis, qs = questions, progress = priorProgress, acak = babAcak) => {
+   const susun = susunSoal(qs, {
+     acakAktif: acak,
+     jenis: jenis === 'resume' ? 'lanjut' : jenis === 'review' ? 'review' : 'baru',
+     tersimpan: progress?.urutan,
+     hindari: Array.isArray(progress?.urutan) ? progress.urutan : null,
+   });
+   urutanRef.current = idUrutan(susun);
+   setSoalJalan(susun);
+   setResume(jenis);
  };
 
  // Alamat yang sudah membawa BAB + mode "review" (mis. pintasan "lihat isi" di
@@ -160,10 +205,15 @@ export default function CicilBelajar() {
        .collection('soal_progress')
        .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
 
+     // Urutan ikut disimpan (hanya untuk BAB yang diacak) supaya "lanjutkan"
+     // tidak mengacak ulang di tengah jalan.
+     // Selalu ditulis (null kalau acak mati): urutan basi dari pengerjaan
+     // sebelumnya tidak boleh bertahan lalu dipakai "lanjutkan" belakangan.
+     const urutan = { urutan: babAcak ? urutanRef.current : null };
      if (existing[0]) {
-       await pb.collection('soal_progress').update(existing[0].id, { answers: ans, status: 'in_progress' });
+       await pb.collection('soal_progress').update(existing[0].id, { answers: ans, status: 'in_progress', ...urutan });
      } else {
-       await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers: ans, status: 'in_progress' });
+       await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers: ans, status: 'in_progress', ...urutan });
      }
    } catch (error) {
      console.error('Gagal mengamankan progress:', error);
@@ -176,10 +226,11 @@ export default function CicilBelajar() {
      .collection('soal_progress')
      .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
 
+   const urutan = { urutan: babAcak ? urutanRef.current : null };
    if (existing[0]) {
-     await pb.collection('soal_progress').update(existing[0].id, { answers, score, status: 'completed' });
+     await pb.collection('soal_progress').update(existing[0].id, { answers, score, status: 'completed', ...urutan });
    } else {
-     await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score, status: 'completed' });
+     await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score, status: 'completed', ...urutan });
    }
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
@@ -204,15 +255,15 @@ export default function CicilBelajar() {
            </p>
            <div className="flex flex-col gap-3">
              <button
-               onClick={() => setResume('resume')}
+               onClick={() => mulai('resume')}
                className="w-full rounded-xl bg-maroon-600 text-alba-50 px-5 py-3.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
              >
                Lanjutkan Pengerjaan Sebelumnya
              </button>
              <button
                onClick={async () => {
+                 mulai('restart');
                  await savePartial({});
-                 setResume('restart');
                }}
                className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 transition-colors"
              >
@@ -241,13 +292,13 @@ export default function CicilBelajar() {
            </p>
            <div className="flex flex-col gap-3 mt-6">
              <button
-               onClick={() => setResume('review')}
+               onClick={() => mulai('review')}
                className="w-full rounded-xl bg-maroon-600 text-alba-50 px-5 py-3.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
              >
                Review Jawaban Saya (semua jawaban sudah terisi, review di sini!)
              </button>
              <button
-               onClick={() => setResume('restart')}
+               onClick={() => mulai('restart')}
                className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 transition-colors"
              >
                Kerjakan Ulang dari Awal
@@ -260,19 +311,20 @@ export default function CicilBelajar() {
  }
 
  // Layar Utama Pengerjaan Ujian (atau Review)
- if (questions && resume !== null && resume !== 'completed') {
+ if (questions && soalJalan && resume !== null && resume !== 'completed') {
    const isReview = resume === 'review';
    return (
      <div className="min-h-screen bg-grid-soft">
        <Header />
        <div className="max-w-5xl mx-auto px-6 py-10">
          <QuestionRunner
-           questions={questions}
+           questions={soalJalan}
            mode={isReview ? 'review' : 'learning'}
            initialAnswers={(resume === 'resume' || isReview) ? priorProgress?.answers || {} : {}}
            onAnswerChange={savePartial}
            onExit={() => {
              setQuestions(null);
+             setSoalJalan(null);
              setPriorProgress(null);
              setResume(null);
              setRefreshKey((k) => k + 1); // refresh progress bar
@@ -291,7 +343,7 @@ export default function CicilBelajar() {
      <div className="max-w-3xl mx-auto px-6 py-14">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
          <ClipboardList size={14} />
-         CICIL BELAJAR
+         KERJAKAN SOAL TIAP BAB
        </p>
        <h1 className="font-display text-3xl font-semibold mb-2">Latihan Soal per BAB</h1>
        <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap, atau langsung baca pembahasannya dulu.</p>
@@ -391,11 +443,11 @@ export default function CicilBelajar() {
 
              <div className="pt-4 border-t border-alba-200">
                <button
-                 disabled={!chapterId || !mode}
+                 disabled={!chapterId || !mode || membuka}
                  onClick={openChapter}
                  className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
                >
-                 {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Latihan Sekarang'}
+                 {membuka ? 'Membuka…' : mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Latihan Sekarang'}
                </button>
                {(!chapterId || !mode) && (
                  <p className="text-[11px] text-stone-400 mt-2 text-center">Pilih BAB dan mode dulu untuk memulai.</p>

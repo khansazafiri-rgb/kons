@@ -42,7 +42,7 @@ export default function LoginPage() {
            {[
              'PPT High Yield per Topik',
              'Latihan soal dengan pembahasan tiap opsi',
-             'Simulasi CBT',
+             'Soal tahun sebelumnya dengan timer ujian',
            ].map((t) => (
              <li key={t} className="flex gap-3">
                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0" />

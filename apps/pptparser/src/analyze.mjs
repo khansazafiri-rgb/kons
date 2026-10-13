@@ -7,8 +7,8 @@
 // answers : JSON array [{ text, options, wasCorrect }] — bentuk record `questions`
 //           aplikasi ditambah flag wasCorrect (aplikasi sudah tahu benar/salah).
 //
-// Ini demo alur end-to-end untuk Simulasi CBT: soal seluruh mata kuliah dipetakan
-// ke BAB/sub-topik, lalu ditunjukkan siswa lemah di mana.
+// Ini demo alur end-to-end untuk halaman soal tahun sebelumnya: soal seluruh
+// mata kuliah dipetakan ke BAB/sub-topik, lalu ditunjukkan siswa lemah di mana.
 
 import fs from 'node:fs';
 import { buildCorpus } from './corpus.mjs';

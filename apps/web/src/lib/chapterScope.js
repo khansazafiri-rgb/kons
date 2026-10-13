@@ -2,14 +2,14 @@ import pb from '@/lib/pocketbaseClient';
 
 // BAB dipakai oleh DUA hal yang berbeda dan tidak boleh saling bocor:
 //
-// - kind "latihan" -> BAB Cicil Belajar & Perdalam Materi. Milik mata kuliah,
+// - kind "latihan" -> BAB Soal Tiap BAB & Baca PPT. Milik mata kuliah,
 //   berlaku untuk semua siswa. BAB lama (sebelum ada field kind) nilainya masih
 //   kosong dan tetap dibaca sebagai latihan, jadi data lama aman.
-// - kind "cbt"     -> BAB Simulasi CBT. Selain milik mata kuliah, dia juga
+// - kind "cbt"     -> BAB Soal Tahun Sebelumnya. Selain milik mata kuliah, dia juga
 //   milik SATU universitas, karena soal simulasi tiap kampus beda.
 //
 // Semua tempat yang membaca BAB harus lewat helper di sini supaya filternya
-// seragam - kalau tidak, BAB Simulasi ikut muncul di daftar Cicil Belajar.
+// seragam - kalau tidak, BAB Soal Tahun Sebelumnya ikut muncul di daftar Soal Tiap BAB.
 
 export const KIND_LATIHAN = 'latihan';
 export const KIND_CBT = 'cbt';
@@ -48,14 +48,14 @@ export const filterCbtKind = () => pb.filter('kind = {:kind}', { kind: KIND_CBT 
 // ---------------------------------------------------------------------------
 // SEMBUNYIKAN BAB - dipisah per halaman
 //
-// Satu BAB latihan dipakai DUA halaman siswa: Cicil Belajar (soal) dan Perdalam
-// Materi (PPT/video). Penyembunyiannya berdiri sendiri-sendiri, karena sering
+// Satu BAB latihan dipakai DUA halaman siswa: Soal Tiap BAB (soal) dan Baca PPT
+// (PPT/video). Penyembunyiannya berdiri sendiri-sendiri, karena sering
 // PPT-nya sudah siap dibaca padahal soalnya belum digarap (atau sebaliknya):
 //
 //   hidden       -> sembunyikan dari halaman SOAL. Untuk BAB latihan berarti
-//                   Cicil Belajar & Bank Soal; untuk BAB kind "cbt" berarti
-//                   Simulasi CBT. Tombolnya ada di Edit Soal / Simulasi CBT.
-//   hiddenMateri -> sembunyikan dari Perdalam Materi. Tombolnya ada di
+//                   Soal Tiap BAB & Bank Soal; untuk BAB kind "cbt" berarti
+//                   Soal Tahun Sebelumnya. Tombolnya ada di Edit Soal / Soal Tahun Sebelumnya.
+//   hiddenMateri -> sembunyikan dari Baca PPT. Tombolnya ada di
 //                   PPT Mata Kuliah. Tidak dipakai BAB kind "cbt".
 //
 // Yang TIDAK dipisah: menambah BAB. Satu record dipakai kedua halaman, jadi BAB
@@ -66,11 +66,11 @@ export const filterCbtKind = () => pb.filter('kind = {:kind}', { kind: KIND_CBT 
 export const SCOPE_SOAL = 'hidden';
 export const SCOPE_MATERI = 'hiddenMateri';
 
-// BAB yang boleh dilihat siswa di halaman soal (Cicil Belajar / Bank Soal /
-// Simulasi CBT).
+// BAB yang boleh dilihat siswa di halaman soal (Soal Tiap BAB / Bank Soal /
+// Soal Tahun Sebelumnya).
 export const filterTampilSoal = () => `${SCOPE_SOAL} != true`;
 
-// BAB yang boleh dilihat siswa di Perdalam Materi.
+// BAB yang boleh dilihat siswa di Baca PPT.
 export const filterTampilMateri = () => `${SCOPE_MATERI} != true`;
 
 // Gabungkan beberapa potongan filter dengan &&, buang yang kosong.

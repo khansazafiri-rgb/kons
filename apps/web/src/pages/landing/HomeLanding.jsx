@@ -207,9 +207,9 @@ export default function HomeLanding() {
                 </div>
               </div>
               <div className="relative mt-6 space-y-3">
-                <HeroFeatureRow delay={0.75} icon={BookOpenText} title="Materi + video per BAB" sub="PPT simplifikasi tentor, tinggal buka dan pelajari" />
+                <HeroFeatureRow delay={0.75} icon={BookOpenText} title="Baca PPT + video per BAB" sub="PPT simplifikasi tentor, tinggal buka dan pelajari" />
                 <HeroFeatureRow delay={0.9} icon={CalendarClock} title="Reminder ujian & kelas" sub="Countdown ujian dan pengingat jadwal kelasmu" />
-                <HeroFeatureRow delay={1.05} icon={Trophy} title="Tryout CBT per paket" sub="Simulasi ujian dengan timer, skor, dan pembahasan" />
+                <HeroFeatureRow delay={1.05} icon={Trophy} title="Kerjakan Soal Tahun Sebelumnya" sub="Bertimer ala ujian asli, plus skor dan pembahasan" />
               </div>
             </motion.div>
           </motion.div>

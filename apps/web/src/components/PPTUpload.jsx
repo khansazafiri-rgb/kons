@@ -297,7 +297,7 @@ export default function PPTUpload({ allowedSubjectIds = null }) {
 
   return (
     <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 max-w-2xl shadow-card">
-      <h2 className="font-display text-lg font-semibold">Perdalam Materi: PPT (PDF) + Video per BAB</h2>
+      <h2 className="font-display text-lg font-semibold">Baca PPT: PDF + Video per BAB</h2>
       <select
         value={subjectId}
         onChange={(e) => setSubjectId(e.target.value)}

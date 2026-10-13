@@ -12,7 +12,7 @@ Apa yang **sudah jalan** di repo ini:
 | Area | Lokasi | Status |
 |---|---|---|
 | Landing & profil perusahaan | `apps/web/src/pages/landing/` | 5 halaman, konten sebagian bisa diedit admin |
-| Web siswa (Perdalam Materi, Cicil Belajar, Simulasi CBT) | `apps/web/src/pages/` | Lengkap, dipakai |
+| Web siswa (Baca PPT, Kerjakan Soal Tiap BAB, Kerjakan Soal Tahun Sebelumnya) | `apps/web/src/pages/` | Lengkap, dipakai |
 | Bank soal + 4 tipe soal (MCQ/isian, ±gambar) | `AdminPanel.jsx`, `QuestionRunner.jsx` | Lengkap, ada bulk import |
 | Analisis kelemahan berbasis ML (BM25 per sub-topik) | `apps/pptparser/`, `lib/weaknessAnalyzer.js` | Lengkap — **ini aset paling langka** |
 | Jadwal ujian + countdown | `exam_schedules`, `LearningHome.jsx` | Lengkap |

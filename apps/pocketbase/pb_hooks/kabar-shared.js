@@ -9,16 +9,18 @@
 //                      diperbarui/dilengkapi. Tiap paket membawa daftar FK-nya.
 //   untukSiswa()     - saring ringkasan itu ke paket yang memang terlihat oleh
 //                      siswa tertentu (FK-nya cocok), sama seperti halaman
-//                      Simulasi CBT menyaring BAB.
+//                      Kerjakan Soal Tahun Sebelumnya menyaring BAB.
 //   penerima()       - siswa aktif yang mengambil mata kuliah itu.
 //   rakitEmail()     - subjek + HTML email untuk satu siswa.
 //   prosesAntrean()  - dipanggil cron tiap menit, mencicil pengiriman.
 
 const DAY_MS = 86400000;
 
+// halaman = nama lengkap halaman (dipakai sebagai teks tombol); nama = bentuk
+// kalimat untuk di tengah kalimat (subjek & isi email).
 const AREA = {
-  cbt: { halaman: "Simulasi CBT", satuan: "paket", path: "/simulasi-test", param: "mk" },
-  latihan: { halaman: "Cicil Belajar", satuan: "BAB", path: "/cicil-belajar", param: "subject" },
+  cbt: { halaman: "Kerjakan Soal Tahun Sebelumnya", nama: "soal tahun sebelumnya", satuan: "paket", path: "/simulasi-test", param: "mk" },
+  latihan: { halaman: "Kerjakan Soal Tiap BAB", nama: "soal tiap BAB", satuan: "BAB", path: "/cicil-belajar", param: "subject" },
 };
 
 function areaInfo(area) {
@@ -238,8 +240,8 @@ function ujianTerdekat(app, subjectId, asalKuliah) {
 
 function pembukaBawaan(area, namaMk) {
   return area === "cbt"
-    ? "Simulasi CBT " + namaMk + " sudah di-update! Yuk dikerjakan untuk persiapan ujianmu."
-    : "Soal latihan Cicil Belajar " + namaMk + " sudah di-update! Yuk dicicil dari sekarang.";
+    ? "Soal tahun sebelumnya " + namaMk + " sudah di-update! Yuk dikerjakan untuk persiapan ujianmu."
+    : "Soal tiap BAB " + namaMk + " sudah di-update! Yuk dicicil dari sekarang.";
 }
 
 // Subjek otomatis, dari angka yang dilihat siswa ini.
@@ -250,7 +252,9 @@ function subjekOtomatis(area, namaMk, r) {
   const soalBaru = jumlah(r.soalBaru);
   if (soalBaru) bagian.push(soalBaru + " soal baru");
   if (!bagian.length && r.soalDiubah.length) bagian.push("soal diperbarui");
-  return info.halaman + " " + namaMk + " sudah di-update" + (bagian.length ? ": " + bagian.join(", ") : "");
+  // Awal kalimat, jadi huruf pertama "soal ..." dibuat kapital.
+  const awal = info.nama.charAt(0).toUpperCase() + info.nama.slice(1);
+  return awal + " " + namaMk + " sudah di-update" + (bagian.length ? ": " + bagian.join(", ") : "");
 }
 
 function daftarHtml(daftar, teks) {
@@ -265,7 +269,7 @@ function blokRingkasan(area, namaMk, r) {
   let html = "";
   if (r.paketBaru.length) {
     html += "<p style=\"margin:0\"><b>" + r.paketBaru.length + " " + info.satuan + " baru</b> sudah ditambahkan di " +
-      esc(info.halaman) + " " + esc(namaMk) + ":</p>" +
+      esc(info.nama) + " " + esc(namaMk) + ":</p>" +
       daftarHtml(r.paketBaru, (p) => esc(p.title) + " <span style=\"color:#78716c\">(" + p.soal + " soal)</span>");
   }
   if (r.soalBaru.length) {
@@ -309,7 +313,7 @@ function rakitEmail(app, opsi) {
     blokUjian +
     "<p style=\"margin-top:20px\">" +
     "<a href=\"" + esc(tautan) + "\" style=\"background:#8E0100;color:#FFFFFF;text-decoration:none;" +
-    "padding:12px 24px;border-radius:999px;font-weight:bold;display:inline-block\">Buka " + esc(info.halaman) + "</a>" +
+    "padding:12px 24px;border-radius:999px;font-weight:bold;display:inline-block\">" + esc(info.halaman) + "</a>" +
     "</p>" +
     "<p style=\"color:#78716c;font-size:13px;margin-top:24px\">- PCV Classroom &middot; Primus Coltus Virtus</p>" +
     "</div>";

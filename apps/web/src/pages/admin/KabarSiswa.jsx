@@ -3,7 +3,7 @@ import { FlaskConical, Mail, RefreshCw, Send } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { labelUniversitas } from '@/lib/chapterScope';
 
-// KABARI SISWA - kirim email "Simulasi CBT Mikrobiologi sudah di-update: 5
+// KABARI SISWA - kirim email "Soal Tahun Sebelumnya Mikrobiologi sudah di-update: 5
 // paket baru" ke siswa yang mengambil mata kuliah ini.
 //
 // Isi ringkasannya dihitung server dari data soal (paket/BAB baru, soal baru
@@ -11,7 +11,7 @@ import { labelUniversitas } from '@/lib/chapterScope';
 // per siswa sesuai FK-nya - siswa FK lain tidak diberi tahu paket yang tidak
 // bisa mereka buka. Pengirimannya dicicil server tiap menit.
 //
-// area: 'cbt' (Simulasi CBT) | 'latihan' (Cicil Belajar)
+// area: 'cbt' (Soal Tahun Sebelumnya) | 'latihan' (Soal Tiap BAB)
 
 const SATUAN = { cbt: 'paket', latihan: 'BAB' };
 

@@ -525,7 +525,7 @@ const PCV_LOGO='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccq
 const logoHTML = `<span class="logo"><img class="mk" src="${PCV_LOGO}" alt="Logo PCV"><span class="wd">PCV <b>Classroom</b></span></span>`;
 document.querySelectorAll('img.pcvlogo').forEach(i=>i.src=PCV_LOGO);
 function appbar(active){
-  const items=['Beranda','Perdalam Materi','Cicil Belajar!','Simulasi Test'];
+  const items=['Beranda','Baca PPT','Soal Tiap BAB','Soal Tahun Sebelumnya'];
   return `<div class="appbar"><div style="display:flex;align-items:center">${logoHTML}
     <span class="nav">${items.map(n=>`<span class="${n===active?'on':''}">${n}</span>`).join('')}</span></div>
     <div class="right">
@@ -622,7 +622,7 @@ mk('landing','landing',
       <div>
         <span class="badge">${ic('steth')} BIMBEL KEDOKTERAN TER-WORTH IT</span>
         <h1>Belajar Terarah, <span class="m">Lulus PBL</span> Percaya Diri</h1>
-        <p class="land-sub">PCV Classroom menghadirkan Ringkasan Materi, Latihan Soal Per BAB dan Simulasi Latihan Soal berupa CBT.</p>
+        <p class="land-sub">PCV Classroom menghadirkan PPT Ringkasan Materi, Soal Tiap BAB, dan Soal Tahun Sebelumnya berupa CBT.</p>
         <div class="land-ctas">
           <span class="btn-mrn">Pergi Ke Web Siswa ${ic('arrow')}</span>
           <span class="lnk">Lihat program kami</span>
@@ -637,9 +637,9 @@ mk('landing','landing',
         <p class="k">Fokus Utama</p>
         <ul>
           <li>Drill Kumpulan Soal per Bab dan Mata Kuliah</li>
-          <li>Latihan CBT per bab, terpisah otomatis</li>
+          <li>Kerjakan soal tiap BAB, terpisah otomatis</li>
           <li>PPT Materi High Yield Memudahkan Kamu Belajar!</li>
-          <li>Challenge Pemahamanmu Dengan Simulasi CBT Bertimer</li>
+          <li>Challenge Pemahamanmu Dengan Soal Tahun Sebelumnya Bertimer</li>
         </ul>
         <div class="ft">${ic('grad')} Didesain oleh dan untuk mahasiswa FK</div>
       </div></div>
@@ -662,15 +662,15 @@ mk('studentHome','studentHome',
     </div>
     <div class="home-cards">
       <div class="hc perdalam"><div class="top"></div><div class="in">
-        <span class="ico">${ic('book')}</span><h2>Perdalam Materi</h2>
-        <p>Perdalam pemahaman materimu dengan membaca PPT yang merupakan hasil simplifikasi dari PPT Dosen.</p>
+        <span class="ico">${ic('book')}</span><h2>Baca PPT</h2>
+        <p>Pahami materimu lebih dalam dengan membaca PPT yang merupakan hasil simplifikasi dari PPT Dosen.</p>
         <span class="go">Click here! ${ic('arrow')}</span></div></div>
       <div class="hc cicil"><div class="top"></div><div class="in">
-        <span class="ico">${ic('clip')}</span><h2>Cicil Belajar</h2>
-        <p>Cicil belajar dengan mengerjakan soal sesuai BAB yang sedang kamu pelajari, pilih!</p>
+        <span class="ico">${ic('clip')}</span><h2>Kerjakan Soal Tiap BAB</h2>
+        <p>Belajar sedikit demi sedikit dengan mengerjakan soal sesuai BAB yang sedang kamu pelajari, pilih!</p>
         <span class="go">Click here! ${ic('arrow')}</span></div></div>
       <div class="hc cbt"><div class="top"></div><div class="in">
-        <span class="ico">${ic('timer')}</span><h2>CBT Test</h2>
+        <span class="ico">${ic('timer')}</span><h2>Kerjakan Soal Tahun Sebelumnya</h2>
         <p>Kerjakan soal-soal angkatan sebelumnya sesuai dengan bab yang kamu pilih.</p>
         <span class="go">Click here! ${ic('arrow')}</span></div></div>
     </div>
@@ -701,15 +701,15 @@ function pickerHTML(o){
       </div>
     </div></div>`;
 }
-mk('pickPerdalam','picker',pickerHTML({nav:'Perdalam Materi',icon:ic('book'),eyebrow:'PERDALAM MATERI',
+mk('pickPerdalam','picker',pickerHTML({nav:'Baca PPT',icon:ic('book'),eyebrow:'BACA PPT',
   title:'Pilih Materi Belajarmu',sub:'Pilih mata kuliah dan BAB yang ingin kamu pelajari.',
   l1:'1. Mata Kuliah',l2:'2. BAB',btn:'Pelajari'}));
-mk('pickCicil','picker',pickerHTML({nav:'Cicil Belajar!',icon:ic('clip'),eyebrow:'CICIL BELAJAR',
+mk('pickCicil','picker',pickerHTML({nav:'Soal Tiap BAB',icon:ic('clip'),eyebrow:'KERJAKAN SOAL TIAP BAB',
   title:'Latihan Soal per BAB',sub:'Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap.',
   l1:'1. Pilih Mata Kuliah',l2:'2. Pilih BAB Pembelajaran',btn:'Kerjakan Soal'}));
 
 mk('ppt','ppt',
- `${appbar('Perdalam Materi')}
+ `${appbar('Baca PPT')}
   <div class="ppt-wrap">
     <span class="backlnk">${ic('arrowL')} Kembali ke Daftar Materi</span>
     <h1>BAB 4 — Sistem Kardiovaskular</h1>
@@ -735,7 +735,7 @@ mk('ppt','ppt',
   </div>`);
 
 mk('quiz1','quizA',
- `${appbar('Cicil Belajar!')}
+ `${appbar('Soal Tiap BAB')}
   <div class="run">
     <div class="run-top"><span class="md">Latihan · Anatomi — BAB 4</span>
       <span class="ex">${ic('x')} Keluar</span></div>
@@ -750,7 +750,7 @@ mk('quiz1','quizA',
   </div>`);
 
 mk('quiz2','quizB',
- `${appbar('Cicil Belajar!')}
+ `${appbar('Soal Tiap BAB')}
   <div class="run">
     <div class="run-top"><span class="md">Latihan · Anatomi — BAB 4</span>
       <span class="ex">${ic('x')} Keluar</span></div>
@@ -774,7 +774,7 @@ mk('quiz2','quizB',
 
 function scoreHTML(kind){
   const cbt=kind==='cbt';
-  return `${appbar(cbt?'Simulasi Test':'Cicil Belajar!')}<div class="score" style="flex:1"><div>
+  return `${appbar(cbt?'Soal Tahun Sebelumnya':'Soal Tiap BAB')}<div class="score" style="flex:1"><div>
     <div class="ring" style="background:var(--green-50);border:3px solid var(--green-600)">
       <span class="num" style="color:var(--green-600)">0</span></div>
     <h2>${cbt?'Simulasi Selesai!':'Latihan Selesai!'}</h2>
@@ -793,12 +793,12 @@ mk('warn','warn',
   <div class="warn-line t"></div><div class="warn-line b"></div>
   <div class="warn-in"><span class="tri">${ic('alert')}</span>
     <p class="kicker">Mode Ujian Aktif</p>
-    <h3>Anda Dipindahkan ke</h3><h1>HALAMAN SIMULASI TEST</h1>
+    <h3>Anda Dipindahkan ke</h3><h1>HALAMAN SOAL TAHUN SEBELUMNYA</h1>
     <p>Ujian sesungguhnya akan segera dimulai — bersiaplah.</p></div>`);
 
 mk('cbtExam','exam',
  `<div class="appbar"><div style="display:flex;align-items:center">${logoHTML}
-    <span class="nav"><span class="on">Simulasi Test</span></span></div>
+    <span class="nav"><span class="on">Soal Tahun Sebelumnya</span></span></div>
     <span class="timer">${ic('timer')} <span class="tval">00:58</span></span></div>
   <div class="run">
     <div class="run-top"><span class="md">Mode Simulasi · Anatomi 2023</span>
@@ -1041,7 +1041,7 @@ const B=[
  }},
  /* S6 pop perdalam + klik */
  {d:beats(3),run(){
-   setTag('BELAJAR PAKAI PPT TERSTANDARISASI','Perdalam Materi — high yield');
+   setTag('BELAJAR PAKAI PPT TERSTANDARISASI','Baca PPT — high yield');
    camSet(1.5,41,-106,0,0);show('studentHome','pop-perdalam dim');sfx('whooshIn');
    acts([{at:.6,sel:'.hc.perdalam .go',click:1}]);
  }},
@@ -1060,7 +1060,7 @@ const B=[
  }},
  /* S9 cicil terbang + klik */
  {d:beats(3),run(){
-   setTag('CICIL SOAL PER BAB','Latihan terpisah otomatis tiap BAB');
+   setTag('KERJAKAN SOAL TIAP BAB','Latihan terpisah otomatis tiap BAB');
    camSet(1.5,0,-106,0,0);show('studentHome','fly-cicil dim');sfx('whooshIn');
    const cc=byId('studentHome').querySelector('.hc.cicil');
    cc.style.animation='none';void cc.offsetWidth;cc.style.animation='';
@@ -1092,7 +1092,7 @@ const B=[
  }},
  /* S14 ujian CBT bertimer */
  {d:beats(4),run(){
-   setTag('SIMULASI CBT — SEPERTI UJIAN ASLI','Timer berjalan, submit di akhir');
+   setTag('KERJAKAN SOAL TAHUN SEBELUMNYA','Seperti ujian asli: timer berjalan, submit di akhir');
    camSet(1.05,0,0,0,0);show('cbtExam');sfx('whooshIn');
    const scr=byId('cbtExam');runExam(scr);
    acts([{at:.42,sel:'.opt2[data-o="1"]',click:1,fx:'pickB'},

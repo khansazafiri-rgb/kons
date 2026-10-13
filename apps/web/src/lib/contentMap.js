@@ -15,14 +15,26 @@ import { KIND_CBT, daftarUniversitas, labelUniversitas } from '@/lib/chapterScop
 // - Perdalam Materi : BAB kind "latihan", PPT di ppt_files + link videoUrl
 // - Simulasi CBT    : BAB kind "cbt" (per universitas), soal type "cbt"
 // - Bank Soal       : BAB kind "latihan", soal type "bank"
+//
+// `label` di bawah adalah NAMA TAB di Google Sheets admin, bukan nama menu siswa.
+// Sengaja tetap memakai nama lama (Cicil Belajar / Perdalam Materi / Simulasi CBT)
+// karena Apps Script yang sudah ditempel admin mencari tab lewat nama persis.
+// Nama menu siswa sekarang: Soal Tiap BAB / Baca PPT / Soal Tahun Sebelumnya.
 
+// `label` = nama tab di Google Sheets (dibekukan, lihat catatan di atas).
+// `judul` = nama yang dilihat admin/pengajar di tombol lembar; sama dengan nama
+// menu di web siswa. Hanya `label` yang boleh dipakai untuk mencari tab.
 export const SHEETS = [
   { key: 'ringkasan', label: 'Ringkasan' },
-  { key: 'cicil', label: 'Cicil Belajar' },
-  { key: 'materi', label: 'Perdalam Materi' },
-  { key: 'cbt', label: 'Simulasi CBT' },
+  { key: 'cicil', label: 'Cicil Belajar', judul: 'Soal Tiap BAB' },
+  { key: 'materi', label: 'Perdalam Materi', judul: 'Baca PPT' },
+  { key: 'cbt', label: 'Simulasi CBT', judul: 'Soal Tahun Sebelumnya' },
   { key: 'bank', label: 'Bank Soal' },
 ];
+
+// Kalimat penjelas yang dipakai di panel Peta Konten dan di pesan galat skrip.
+export const KETERANGAN_NAMA_TAB =
+  'Nama tab ini tidak sama dengan nama menu di web (Cicil Belajar = Soal Tiap BAB, Perdalam Materi = Baca PPT, Simulasi CBT = Soal Tahun Sebelumnya). Jangan diganti, karena skrip mencari tab lewat nama persis.';
 
 export const SHEET_KEYS = SHEETS.map((s) => s.key);
 
@@ -107,7 +119,7 @@ export async function loadContentMap(allowedSubjectIds = null) {
         title: c.title,
         order: c.order || 0,
         // Penyembunyian dipisah per halaman (lihat lib/chapterScope.js):
-        // `hidden` untuk halaman soal, `hiddenMateri` untuk Perdalam Materi.
+        // `hidden` untuk halaman soal, `hiddenMateri` untuk Baca PPT.
         hidden: c.hidden === true,
         hiddenMateri: c.hiddenMateri === true,
         // BAB lama nilainya kosong dan tetap dibaca sebagai latihan.
@@ -146,7 +158,7 @@ export async function loadContentMap(allowedSubjectIds = null) {
       soalBank: s.bank,
     }));
 
-  // Daftar FK yang benar-benar disebut di suatu BAB Simulasi, untuk isi
+  // Daftar FK yang benar-benar disebut di suatu BAB Soal Tahun Sebelumnya, untuk isi
   // dropdown penyaring. BAB "Semua FK" (universities kosong) tidak perlu masuk
   // sini sebagai entri tersendiri - dia otomatis cocok dengan FK apa pun yang
   // dipilih (lihat cocokUniversitas), jadi tetap muncul difilter FK manapun.
@@ -183,7 +195,7 @@ export function ringkasPerSubjek(subjects, rows) {
       subjectName: s.name,
       babLatihan: latihan.length,
       // Yang dihitung: BAB yang BENAR-BENAR tidak bisa dibuka siswa, yaitu
-      // tersembunyi di halaman soal DAN di Perdalam Materi. BAB yang cuma
+      // tersembunyi di halaman soal DAN di Baca PPT. BAB yang cuma
       // disembunyikan di salah satunya masih bisa dipakai siswa, jadi tidak
       // pantas dilaporkan sebagai "disembunyikan dari siswa".
       babTersembunyi: latihan.filter((r) => r.hidden && r.hiddenMateri).length,

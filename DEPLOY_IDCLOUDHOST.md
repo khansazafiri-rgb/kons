@@ -162,7 +162,7 @@ sudo systemctl start pocketbase
 ```
 
 **Jangan matikan VPS Hostinger** sampai kamu memverifikasi minimal: login siswa,
-buka PPT, kerjakan satu soal CBT, dan panel admin bisa menyimpan soal.
+buka Baca PPT, kerjakan satu soal di Kerjakan Soal Tiap BAB, dan panel admin bisa menyimpan soal.
 
 ---
 
@@ -337,7 +337,7 @@ Atau pakai `deploy/update.sh` yang sudah ada di repo.
 - [ ] `setup-vps.sh` jalan di VM-1, PocketBase `active (running)`
 - [ ] `pb_data` dari Hostinger ter-rsync, jumlah record cocok
 - [ ] Frontend ter-build, `https://pcvclassroom.com` bisa dibuka
-- [ ] Login siswa, buka PPT, kerjakan CBT, simpan soal di admin — semua OK
+- [ ] Login siswa, buka Baca PPT, kerjakan soal di Kerjakan Soal Tiap BAB, simpan soal di admin — semua OK
 - [ ] `admin_passwd` + `proxy_mode` + `list_db=False` di-set di Odoo
 - [ ] `ufw deny 8069/tcp` aktif di VM-2
 - [ ] `https://erp.pcvclassroom.com` HTTPS hijau, database `pcv` dibuat

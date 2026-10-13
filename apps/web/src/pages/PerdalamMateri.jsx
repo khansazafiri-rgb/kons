@@ -48,7 +48,7 @@ export default function PerdalamMateri() {
      setSubjects(subs);
      try {
        // BAB yang di-hide tidak dihitung sebagai bagian dari progress siswa.
-       // Yang dipakai di sini penyembunyian khusus Perdalam Materi - BAB yang
+       // Yang dipakai di sini penyembunyian khusus Baca PPT - BAB yang
        // cuma disembunyikan dari halaman soal tetap ikut dihitung di sini.
        const allChapters = await pb.collection('chapters').getFullList({ filter: gabung(filterTampilMateri(), filterLatihan()), fields: 'id,subject' });
        const totals = {};
@@ -77,7 +77,7 @@ export default function PerdalamMateri() {
  useEffect(() => {
    if (!subjectId) return setChapters([]);
    // Yang menentukan di sini cuma tombol 👁 di "PPT Mata Kuliah"; BAB yang
-   // disembunyikan dari Cicil Belajar TETAP tampil di sini selama PPT/videonya
+   // disembunyikan dari Soal Tiap BAB TETAP tampil di sini selama PPT/videonya
    // memang mau dibaca siswa.
    const filter = gabung(pb.filter('subject = {:s}', { s: subjectId }), filterTampilMateri(), filterLatihan());
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then((chs) => {
@@ -129,7 +129,7 @@ export default function PerdalamMateri() {
      <div className="max-w-3xl mx-auto px-6 py-14">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
          <BookOpenText size={14} />
-         PERDALAM MATERI
+         BACA PPT
        </p>
        <h1 className="font-display text-3xl font-semibold mb-2">Pilih Materi Belajarmu</h1>
        <p className="text-stone-600 mb-8">Pilih mata kuliah dan BAB yang ingin kamu pelajari.</p>

@@ -17,7 +17,7 @@ export const ACTIVITY_SECTIONS = {
   soal_tambah: { label: 'Penambahan soal', icon: '➕', tone: 'green' },
   soal_ubah: { label: 'Perubahan soal', icon: '✏️', tone: 'gold' },
   soal_hapus: { label: 'Penghapusan soal', icon: '🗑️', tone: 'red' },
-  soal_pindah: { label: 'Soal ke Simulasi', icon: '📤', tone: 'maroon' },
+  soal_pindah: { label: 'Pindah ke Soal Tahun Sebelumnya', icon: '📤', tone: 'maroon' },
   ppt_tambah: { label: 'Upload PPT', icon: '📊', tone: 'green' },
   ppt_hapus: { label: 'Hapus PPT', icon: '🗑️', tone: 'red' },
   bab_ubah: { label: 'Perubahan BAB', icon: '📚', tone: 'gold' },

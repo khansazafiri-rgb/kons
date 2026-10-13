@@ -13,6 +13,11 @@
 //
 // Catatan penulisan: isi skrip di bawah disimpan sebagai template literal, jadi
 // JANGAN memakai backtick atau ${...} di dalamnya.
+//
+// Nama tab di LEMBAR (Cicil Belajar / Perdalam Materi / Simulasi CBT) SENGAJA
+// tetap nama lama: skrip yang sudah ditempel admin mencari tab lewat nama
+// persis, jadi jangan ikut diganti saat nama menu siswa berubah (sekarang: Soal
+// Tiap BAB / Baca PPT / Soal Tahun Sebelumnya).
 
 export const GSHEET_SCRIPT = `/**
  * PETA KONTEN - PCV Classroom
@@ -95,7 +100,7 @@ function pasangCekCepat() {
   }
   if (!halaman.length) {
     sh.getRange('A6').setValue(
-      'Tab impor belum ada. Buat dulu tab bernama persis: Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal.'
+      'Tab impor belum ada. Buat dulu tab bernama persis: Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab ini tidak sama dengan nama menu di web (Cicil Belajar = Soal Tiap BAB, Perdalam Materi = Baca PPT, Simulasi CBT = Soal Tahun Sebelumnya). Jangan diganti, karena skrip mencari tab lewat nama persis.'
     ).setFontColor('#b3261e');
     return;
   }

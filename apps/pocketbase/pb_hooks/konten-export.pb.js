@@ -126,8 +126,8 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
       title: c.getString("title"),
       order: c.getInt("order") || 0,
       // Penyembunyian dipisah per halaman: "hidden" untuk halaman soal
-      // (Cicil Belajar/Bank Soal/Simulasi CBT), "hiddenMateri" untuk
-      // Perdalam Materi. Tiap lembar di bawah memakai yang sesuai.
+      // (Soal Tiap BAB/Bank Soal/Soal Tahun Sebelumnya), "hiddenMateri" untuk
+      // Baca PPT. Tiap lembar di bawah memakai yang sesuai.
       hidden: c.getBool("hidden"),
       hiddenMateri: c.getBool("hiddenMateri"),
       cbt: cbt,
@@ -158,7 +158,7 @@ routerAdd("GET", "/api/pcv/peta-konten.csv", (e) => {
   if (lembar === "ringkasan") {
     const out = [[
       "Mata kuliah", "BAB latihan", "BAB ber-PPT", "BAB ber-video", "BAB ber-soal",
-      "Soal cicil", "Soal bank", "BAB simulasi", "BAB simulasi ber-soal", "Soal simulasi",
+      "Soal tiap BAB", "Soal bank", "BAB tahun sebelumnya", "BAB tahun sebelumnya ber-soal", "Soal tahun sebelumnya",
     ]];
     subjects.forEach((s) => {
       const milik = rows.filter((r) => r.subjectId === s.id);
