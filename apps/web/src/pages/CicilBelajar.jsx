@@ -22,6 +22,8 @@ export default function CicilBelajar() {
  const [questions, setQuestions] = useState(null); // soal BAB ini dalam urutan asli (dari admin)
  const [soalJalan, setSoalJalan] = useState(null);   // soal yang dikerjakan, sesudah diacak kalau BAB ini diacak
  const [babAcak, setBabAcak] = useState(false);      // BAB ini ditandai "acak soal" oleh admin
+ const [membuka, setMembuka] = useState(false);      // tombol mulai sedang diproses (mencegah klik ganda)
+ const sedangMembuka = useRef(false);
  const urutanRef = useRef([]);                       // ID soal menurut urutan pengerjaan yang berjalan (disimpan untuk "lanjutkan")
  const [priorProgress, setPriorProgress] = useState(null);
  const [resume, setResume] = useState(null);
@@ -95,7 +97,23 @@ export default function CicilBelajar() {
    pb.collection('chapters').getFullList({ sort: 'order', filter }).then(setChapters);
  }, [subjectId]);
 
+ // Dibungkus penjaga: klik ganda pada tombol mulai (atau klik ulang karena
+ // layar belum berubah di koneksi lambat) tidak boleh menjalankan dua
+ // pembukaan sekaligus. Dua pembukaan = dua acakan berbeda, dan yang tersimpan
+ // untuk "lanjutkan" bisa bukan yang dilihat siswa.
  const openChapter = async () => {
+   if (sedangMembuka.current) return;
+   sedangMembuka.current = true;
+   setMembuka(true);
+   try {
+     await bukaBab();
+   } finally {
+     sedangMembuka.current = false;
+     setMembuka(false);
+   }
+ };
+
+ const bukaBab = async () => {
    if (!chapterId || !mode) return;
    if (enrolled && subjectId && !enrolled.includes(subjectId)) {
      alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
@@ -189,7 +207,9 @@ export default function CicilBelajar() {
 
      // Urutan ikut disimpan (hanya untuk BAB yang diacak) supaya "lanjutkan"
      // tidak mengacak ulang di tengah jalan.
-     const urutan = babAcak ? { urutan: urutanRef.current } : {};
+     // Selalu ditulis (null kalau acak mati): urutan basi dari pengerjaan
+     // sebelumnya tidak boleh bertahan lalu dipakai "lanjutkan" belakangan.
+     const urutan = { urutan: babAcak ? urutanRef.current : null };
      if (existing[0]) {
        await pb.collection('soal_progress').update(existing[0].id, { answers: ans, status: 'in_progress', ...urutan });
      } else {
@@ -206,7 +226,7 @@ export default function CicilBelajar() {
      .collection('soal_progress')
      .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
 
-   const urutan = babAcak ? { urutan: urutanRef.current } : {};
+   const urutan = { urutan: babAcak ? urutanRef.current : null };
    if (existing[0]) {
      await pb.collection('soal_progress').update(existing[0].id, { answers, score, status: 'completed', ...urutan });
    } else {
@@ -423,11 +443,11 @@ export default function CicilBelajar() {
 
              <div className="pt-4 border-t border-alba-200">
                <button
-                 disabled={!chapterId || !mode}
+                 disabled={!chapterId || !mode || membuka}
                  onClick={openChapter}
                  className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
                >
-                 {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Latihan Sekarang'}
+                 {membuka ? 'Membuka…' : mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Latihan Sekarang'}
                </button>
                {(!chapterId || !mode) && (
                  <p className="text-[11px] text-stone-400 mt-2 text-center">Pilih BAB dan mode dulu untuk memulai.</p>

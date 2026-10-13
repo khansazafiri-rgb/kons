@@ -109,7 +109,23 @@ export default function SimulasiCBT() {
    })();
  }, [user, refreshKey]);
 
+ // Penjaga klik ganda: dua pemanggilan start() sekaligus membuat dua
+ // pengerjaan dan dua acakan berbeda.
+ const [memulai, setMemulai] = useState(false);
+ const sedangMemulai = useRef(false);
  const start = async () => {
+   if (sedangMemulai.current) return;
+   sedangMemulai.current = true;
+   setMemulai(true);
+   try {
+     await mulaiPengerjaan();
+   } finally {
+     sedangMemulai.current = false;
+     setMemulai(false);
+   }
+ };
+
+ const mulaiPengerjaan = async () => {
    if (!subjectId || !chapterId || !mode) return;
    if (enrolled && !enrolled.includes(subjectId)) {
      alert('Akun Anda tidak memiliki akses ke mata kuliah ini.');
@@ -444,11 +460,11 @@ export default function SimulasiCBT() {
 
          <div ref={startRef} className="pt-4 border-t border-alba-200 scroll-mt-24">
            <button
-             disabled={!subjectId || !chapterId || !mode}
+             disabled={!subjectId || !chapterId || !mode || memulai}
              onClick={start}
              className="w-full rounded-xl bg-maroon-600 text-alba-50 font-bold py-3.5 shadow-card hover:bg-maroon-700 disabled:opacity-40 transition-colors"
            >
-             {mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Ujian Sekarang'}
+             {memulai ? 'Membuka…' : mode === 'review' ? 'Buka Pembahasan Sekarang' : 'Mulai Ujian Sekarang'}
            </button>
          </div>
        </div>

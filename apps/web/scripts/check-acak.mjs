@@ -31,10 +31,25 @@ const cek = (nama, dapat, harap) => kasus.push([nama, dapat, harap]);
   cek('acak: daftar asli tidak diubah', ids(lima), 'q1,q2,q3,q4,q5');
 }
 {
-  // 200 pengacakan dari 200 benih: tidak boleh ada yang keluar urutan asli (n >= 3)
-  let asli = 0;
-  for (let b = 1; b <= 200; b++) if (ids(acakSoal(lima, { acak: benih(b) })) === ids(lima)) asli++;
-  cek('acak: tidak pernah menghasilkan urutan asli untuk 5 soal (200 percobaan)', asli, 0);
+  // Pengacak BERSKRIP: n-1 panggilan pertama mengembalikan hampir 1, yang membuat
+  // kocok() menghasilkan urutan ASLI persis pada percobaan pertama; sesudahnya
+  // memakai benih biasa. Kalau pengaman "bukan urutan asli" dihapus, acakSoal
+  // akan mengembalikan urutan asli dan tes ini gagal. (Tes dengan benih acak
+  // saja tidak menangkapnya: urutan asli hanya keluar 1 dari 120 kali.)
+  const skrip = (n, lanjut) => { let i = 0; return () => (i++ < n - 1 ? 0.9999999 : lanjut()); };
+  cek('kocok: pengacak berskrip memang menghasilkan urutan asli (alat tes valid)', ids(kocok(lima, skrip(5, benih(2)))), ids(lima));
+  const hasil = acakSoal(lima, { acak: skrip(5, benih(2)) });
+  cek('acak: percobaan pertama = urutan asli -> ditolak dan diacak ulang', ids(hasil) !== ids(lima) && urut(hasil) === urut(lima), true);
+  cek('susun: urutan asli dari pengacak juga ditolak', ids(susunSoal(lima, { acakAktif: true, jenis: 'baru', acak: skrip(5, benih(2)) })) !== ids(lima), true);
+}
+{
+  // Sama untuk "hindari": benih yang sama dipakai untuk membuat urutan terlarang
+  // dan untuk mengacak, jadi percobaan pertama PASTI jatuh ke urutan terlarang.
+  const terlarang = kocok(lima, benih(5)).map((q) => q.id);
+  cek('alat tes valid: benih 5 memang menghasilkan urutan terlarang', ids(kocok(lima, benih(5))), terlarang.join(','));
+  const hasil = acakSoal(lima, { hindari: terlarang, acak: benih(5) });
+  cek('acak: percobaan pertama = urutan sebelumnya -> ditolak dan diacak ulang', ids(hasil) !== terlarang.join(',') && urut(hasil) === urut(lima), true);
+  cek('susun: urutan sebelumnya juga dihindari lewat susunSoal', ids(susunSoal(lima, { acakAktif: true, jenis: 'baru', hindari: terlarang, acak: benih(5) })) !== terlarang.join(','), true);
 }
 {
   // Sebaran: tiap soal harus mendarat di tiap posisi dengan frekuensi kira-kira sama.
@@ -46,12 +61,6 @@ const cek = (nama, dapat, harap) => kasus.push([nama, dapat, harap]);
   const harap = putaran / n;
   const terjauh = Math.max(...cacah.flat().map((c) => Math.abs(c - harap) / harap));
   cek('kocok: sebaran posisi merata (selisih terbesar < 8% dari rata-rata)', terjauh < 0.08, true);
-}
-{
-  const sebelumnya = ['q3', 'q1', 'q5', 'q2', 'q4'];
-  let sama = 0;
-  for (let b = 1; b <= 200; b++) if (ids(acakSoal(lima, { hindari: sebelumnya, acak: benih(b) })) === sebelumnya.join(',')) sama++;
-  cek('acak: menghindari urutan pengerjaan sebelumnya (200 percobaan)', sama, 0);
 }
 {
   cek('acak: 1 soal dikembalikan apa adanya', ids(acakSoal(soal(1))), 'q1');
@@ -83,7 +92,6 @@ const cek = (nama, dapat, harap) => kasus.push([nama, dapat, harap]);
   cek('susun: acak NYALA + baru -> teracak', ids(susunSoal(lima, { acakAktif: true, jenis: 'baru', acak: benih(3) })) !== ids(lima), true);
   cek('susun: acak NYALA + lanjut -> urutan tersimpan', ids(susunSoal(lima, { acakAktif: true, jenis: 'lanjut', tersimpan })), tersimpan.join(','));
   cek('susun: acak NYALA + review -> urutan asli', ids(susunSoal(lima, { acakAktif: true, jenis: 'review', tersimpan })), ids(lima));
-  cek('susun: acak NYALA + kerjakan ulang menghindari urutan tadi', ids(susunSoal(lima, { acakAktif: true, jenis: 'baru', hindari: tersimpan, acak: benih(11) })) !== tersimpan.join(','), true);
 }
 cek('idUrutan: daftar ID', JSON.stringify(idUrutan(soal(3))), '["q1","q2","q3"]');
 cek('idUrutan: null aman', JSON.stringify(idUrutan(null)), '[]');

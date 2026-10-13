@@ -231,12 +231,15 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
   // (setelah disaring FK). Hanya BAB yang nilainya memang beda yang ditulis.
   const setAcakSemua = async (nilai) => {
     setError('');
-    try {
-      await Promise.all(
-        chapters.filter((c) => !!c.acakSoal !== nilai).map((c) => pb.collection('chapters').update(c.id, { acakSoal: nilai })),
-      );
-      reload();
-    } catch (e) { setError(errMsg(e)); }
+    // allSettled, bukan all: kalau satu BAB gagal (dihapus admin lain, jaringan),
+    // yang lain tetap tertulis di server, jadi daftar harus SELALU dimuat ulang
+    // supaya yang tampil sama dengan yang ada di server.
+    const hasil = await Promise.allSettled(
+      chapters.filter((c) => !!c.acakSoal !== nilai).map((c) => pb.collection('chapters').update(c.id, { acakSoal: nilai })),
+    );
+    const gagal = hasil.find((h) => h.status === 'rejected');
+    if (gagal) setError(errMsg(gagal.reason));
+    reload();
   };
 
   // Panah ▲▼: geser satu langkah di dalam kelompoknya (seluruh daftar kalau
@@ -382,7 +385,7 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
           )}
         </button>
       </div>
-      <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto pb-1 sm:pb-0">
+      <div className="flex flex-wrap items-center justify-end gap-1 max-w-full sm:shrink-0 self-end sm:self-auto pb-1 sm:pb-0">
         {renderIndicator(c)}
         {adaSection && (
           <select
@@ -482,7 +485,10 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
             <button onClick={() => setAcakSemua(false)} disabled={jumlahAcak === 0} className="rounded-md border border-alba-300 bg-alba-50 px-2.5 py-1 font-semibold text-stone-600 hover:bg-alba-100 disabled:opacity-40">Matikan semua</button>
           </span>
           <span className="basis-full text-[11px] text-stone-400">
-            BAB yang diacak: tiap siswa mulai atau mengerjakan ulang, urutan soalnya baru. &quot;Lanjutkan&quot; memakai urutan pengerjaan itu, dan review tetap berurutan seperti aslinya. Tombol 🔀 di tiap BAB mengatur satu per satu.
+            {cbt
+              ? 'BAB yang diacak: tiap siswa mulai atau mengerjakan ulang, urutan soalnya baru. Review tetap berurutan seperti aslinya. '
+              : 'BAB yang diacak: tiap siswa mulai atau mengerjakan ulang, urutan soalnya baru. "Lanjutkan" memakai urutan pengerjaan itu, dan review tetap berurutan seperti aslinya. '}
+            Tombol 🔀 di tiap BAB mengatur satu per satu.
           </span>
         </div>
       )}
