@@ -214,6 +214,31 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
     catch (e) { setError(errMsg(e)); }
   };
 
+  // ---- ACAK SOAL ----
+  // Hanya untuk daftar BAB yang berisi soal (Edit Soal & Edit Simulasi), bukan
+  // daftar BAB untuk PPT. BAB yang ditandai acak mengacak urutan soalnya tiap
+  // kali siswa mulai mengerjakan (lihat lib/acakSoal.js).
+  const punyaSoal = indicator === 'soal';
+  const jumlahAcak = chapters.filter((c) => c.acakSoal).length;
+
+  const toggleAcak = async (c) => {
+    setError('');
+    try { await pb.collection('chapters').update(c.id, { acakSoal: !c.acakSoal }); reload(); }
+    catch (e) { setError(errMsg(e)); }
+  };
+
+  // Menyalakan/mematikan acak untuk semua BAB yang sedang tampil di daftar
+  // (setelah disaring FK). Hanya BAB yang nilainya memang beda yang ditulis.
+  const setAcakSemua = async (nilai) => {
+    setError('');
+    try {
+      await Promise.all(
+        chapters.filter((c) => !!c.acakSoal !== nilai).map((c) => pb.collection('chapters').update(c.id, { acakSoal: nilai })),
+      );
+      reload();
+    } catch (e) { setError(errMsg(e)); }
+  };
+
   // Panah ▲▼: geser satu langkah di dalam kelompoknya (seluruh daftar kalau
   // tanpa section). Cara cepat lainnya adalah menyeret pegangan ⠿.
   const geser = (idGrup, items, index, arah) => {
@@ -337,6 +362,7 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
         <button onClick={() => onSelect?.(c.id)} title={c.title} className={`flex-1 min-w-0 line-clamp-2 text-left px-2 py-2 text-sm ${selectedChapterId === c.id ? 'font-semibold text-maroon-700' : ''} ${disembunyikan(c) ? 'text-stone-400' : ''}`}>
           <span className="text-stone-400 mr-1">{nomorBab.get(c.id)}.</span>
           {disembunyikan(c) && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Hidden</span>}
+          {punyaSoal && c.acakSoal && <span className="mr-1.5 text-[9px] font-bold uppercase tracking-wide text-gold-700 bg-gold-100 border border-gold-200 rounded-full px-2 py-0.5" title="Urutan soal diacak tiap kali siswa mengerjakan">🔀 Acak</span>}
           {/* Status halaman sebelah ikut ditampilkan (sekadar keterangan,
               tidak bisa diklik di sini) supaya tidak bingung waktu BAB
               kelihatan normal di layar ini tapi hilang di halaman satunya. */}
@@ -371,6 +397,14 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
         )}
         {cbt && (
           <button onClick={() => setEditFkId(editFkId === c.id ? null : c.id)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Atur FK pemilik BAB ini">🎓</button>
+        )}
+        {punyaSoal && (
+          <button
+            onClick={() => toggleAcak(c)}
+            aria-pressed={!!c.acakSoal}
+            className={`w-8 h-8 shrink-0 rounded-md ${c.acakSoal ? 'bg-gold-100 text-gold-700 ring-1 ring-gold-400' : 'text-stone-400 hover:bg-gold-100 hover:text-gold-600'}`}
+            title={c.acakSoal ? 'Soal DIACAK tiap siswa mengerjakan. Klik untuk mematikan.' : 'Urutan soal tetap. Klik untuk mengacak urutan soal tiap siswa mengerjakan.'}
+          >🔀</button>
         )}
         <button onClick={() => renameChapter(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-gold-100 hover:text-gold-600" title="Ubah nama BAB">✏️</button>
         <button onClick={() => toggleHide(c)} className="w-8 h-8 shrink-0 rounded-md text-stone-400 hover:bg-maroon-50 hover:text-maroon-600" title={disembunyikan(c) ? `Tampilkan di ${namaHalaman}` : `Sembunyikan dari ${namaHalaman}`}>{disembunyikan(c) ? '🙈' : '👁'}</button>
@@ -437,6 +471,19 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
             className="flex-1 min-w-0 rounded-lg border border-gold-300 px-3 py-2 text-sm bg-alba-50"
           />
           <button onClick={addSection} className="shrink-0 rounded-lg border border-gold-400 bg-gold-100 text-gold-700 text-sm font-semibold px-4 hover:bg-gold-200">+ Section</button>
+        </div>
+      )}
+      {punyaSoal && chapters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-gold-200 bg-gold-100/40 px-3 py-2 text-xs">
+          <span className="font-bold text-stone-600">🔀 Acak urutan soal</span>
+          <span className="text-stone-500">{jumlahAcak} dari {chapters.length} BAB diacak</span>
+          <span className="flex gap-1.5 sm:ml-auto">
+            <button onClick={() => setAcakSemua(true)} disabled={jumlahAcak === chapters.length} className="rounded-md border border-gold-400 bg-alba-50 px-2.5 py-1 font-semibold text-gold-700 hover:bg-gold-100 disabled:opacity-40">Nyalakan di semua BAB</button>
+            <button onClick={() => setAcakSemua(false)} disabled={jumlahAcak === 0} className="rounded-md border border-alba-300 bg-alba-50 px-2.5 py-1 font-semibold text-stone-600 hover:bg-alba-100 disabled:opacity-40">Matikan semua</button>
+          </span>
+          <span className="basis-full text-[11px] text-stone-400">
+            BAB yang diacak: tiap siswa mulai atau mengerjakan ulang, urutan soalnya baru. &quot;Lanjutkan&quot; memakai urutan pengerjaan itu, dan review tetap berurutan seperti aslinya. Tombol 🔀 di tiap BAB mengatur satu per satu.
+          </span>
         </div>
       )}
       <p className="text-xs text-stone-400">

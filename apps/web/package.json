@@ -11,6 +11,7 @@
    "check:teks": "node scripts/check-text-repair.mjs",
    "check:soal": "node scripts/check-teks-soal.mjs",
    "check:isian": "node scripts/check-isian.mjs",
+   "check:acak": "node scripts/check-acak.mjs",
    "lint:warn": "eslint ."
  },
  "dependencies": {

@@ -5,6 +5,7 @@ import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner from '@/components/QuestionRunner';
 import { touchActivity } from '@/lib/activityLog';
+import { susunSoal } from '@/lib/acakSoal';
 import { cocokUniversitas, filterCbtKind, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 
@@ -18,7 +19,8 @@ export default function SimulasiCBT() {
  const [subjectId, setSubjectId] = useUrlState('mk', '');
  const [chapterId, setChapterId] = useUrlState('bab', '');
  const [mode, setMode] = useUrlState('mode', '');
- const [questions, setQuestions] = useState(null);
+ const [questions, setQuestions] = useState(null); // soal yang tampil: urutan asli untuk review, sudah diacak untuk pengerjaan baru
+ const [babAcak, setBabAcak] = useState(false);     // BAB ini ditandai "acak soal" oleh admin
  const [attemptId, setAttemptId] = useState(null);
  const [completedAttempt, setCompletedAttempt] = useState(null); // attempt lama yg sudah selesai (untuk review)
  const [reviewing, setReviewing] = useState(false);
@@ -64,7 +66,7 @@ export default function SimulasiCBT() {
        const semuaBab = await pb.collection('chapters').getFullList({
          sort: 'order',
          filter: gabung(filterCbtKind(), filterTampilSoal()),
-         fields: 'id,subject,title,order,universities,section',
+         fields: 'id,subject,title,order,universities,section,acakSoal',
        });
        const asalKuliah = String(user?.asalKuliah || '').trim();
        const babBoleh = semuaBab.filter((c) => cocokUniversitas(c.universities, asalKuliah));
@@ -77,7 +79,7 @@ export default function SimulasiCBT() {
        babBoleh.forEach((c) => {
          if (!adaSoal.has(c.id)) return;
          if (!perMk[c.subject]) perMk[c.subject] = [];
-         perMk[c.subject].push({ id: c.id, title: c.title, section: c.section || '' });
+         perMk[c.subject].push({ id: c.id, title: c.title, section: c.section || '', acak: !!c.acakSoal });
        });
        setBabPerMk(perMk);
 
@@ -124,12 +126,18 @@ export default function SimulasiCBT() {
      return;
    }
 
+   // Status "acak soal" diambil segar dari server: admin bisa saja baru
+   // mengubahnya setelah daftar BAB di layar ini dimuat.
+   let acak = !!(babPerMk[subjectId] || []).find((b) => b.id === chapterId)?.acak;
+   try { acak = !!(await pb.collection('chapters').getOne(chapterId, { fields: 'id,acakSoal' })).acakSoal; } catch (_) { /* pakai nilai di daftar */ }
+   setBabAcak(acak);
+
    // Review pembahasan: buka kunci jawaban + alasannya tanpa perlu pernah
    // mengerjakan tryout ini. Tidak ada attempt yang dibuat/ditimpa.
    if (mode === 'review') {
      setCompletedAttempt(null);
      setAttemptId(null);
-     setQuestions(qs);
+     setQuestions(qs); // review selalu berurutan seperti aslinya, tidak diacak
      setReviewing(true);
      return;
    }
@@ -145,12 +153,12 @@ export default function SimulasiCBT() {
        });
      if (done[0]) {
        setCompletedAttempt(done[0]);
-       setQuestions(qs);
+       setQuestions(qs); // dipakai kalau siswa memilih review; "kerjakan ulang" mengacaknya di startFresh
        return;
      }
    }
 
-   setQuestions(qs);
+   setQuestions(susunSoal(qs, { acakAktif: acak, jenis: 'baru' }));
    if (user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
@@ -168,6 +176,8 @@ export default function SimulasiCBT() {
  const startFresh = async () => {
    setCompletedAttempt(null);
    setReviewing(false);
+   // Kerjakan ulang = pengerjaan baru: urutannya diacak lagi kalau BAB ini diacak.
+   setQuestions((lama) => susunSoal(lama || [], { acakAktif: babAcak, jenis: 'baru', hindari: (lama || []).map((q) => q.id) }));
    if (user) {
      const rec = await pb.collection('cbt_attempts').create({
        owner: user.id,
