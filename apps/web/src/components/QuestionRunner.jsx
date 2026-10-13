@@ -5,7 +5,7 @@ import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } fr
 import RichText from '@/lib/richText';
 import { fixText, fixDeep } from '@/lib/textRepair';
 import { isianSiswa, jawabanDiterima, jumlahKotak, nilaiSub, subSudahDiisi } from '@/lib/isian';
-import { adalahEsai, esaiSudahDitulis, jumlahDinilai, teksEsaiSiswa } from '@/lib/esai';
+import { BATAS_JAWABAN_ESAI, adalahEsai, esaiSudahDitulis, jumlahDinilai, teksEsaiSiswa } from '@/lib/esai';
 import KunciEsai from '@/components/KunciEsai';
 
 /*
@@ -157,6 +157,7 @@ export default function QuestionRunner({
  const [submitted, setSubmitted] = useState(false);
  const [showReview, setShowReview] = useState(false); // layar "review semua jawaban dalam 1 halaman"
  const [secondsLeft, setSecondsLeft] = useState(timerSeconds);
+ const [gagalSimpan, setGagalSimpan] = useState(false); // hasil belum berhasil dikirim ke server
  // Pemanggil waktu habis dipasang SEKALI (efek di bawah), jadi `finish` yang ia
  // pegang adalah `finish` dari render pertama, dengan jawaban kosong. Lewat ref ia
  // selalu memanggil `finish` terbaru, berisi jawaban yang sudah dipilih siswa.
@@ -272,6 +273,7 @@ export default function QuestionRunner({
 
  const finish = async () => {
    setSubmitted(true);
+   setGagalSimpan(false);
    // Skor hanya dihitung dari soal yang dinilai. Esai tidak masuk pembilang
    // maupun penyebut, jadi 10 soal pilihan ganda + 5 esai tetap bernilai /10.
    const total = jumlahDinilai(qs);
@@ -354,7 +356,15 @@ export default function QuestionRunner({
 
    // Ronde "ulangi yang salah" tidak menimpa nilai asli di database.
    // gradedTotal = 0 berarti isinya esai semua: tidak ada nilai yang bermakna.
-   if (!retryRound) onSubmit?.({ answers, score, gradedTotal: total });
+   if (!retryRound) {
+     try {
+       await onSubmit?.({ answers, score, gradedTotal: total });
+     } catch (err) {
+       // Layar hasil tetap tampil, tapi siswa harus tahu kalau hasilnya belum tersimpan.
+       console.error('Gagal menyimpan hasil:', err);
+       setGagalSimpan(true);
+     }
+   }
  };
  finishRef.current = finish;
 
@@ -430,6 +440,7 @@ export default function QuestionRunner({
        score={finalScore}
        total={jumlahDinilai(qs)}
        esaiCount={qs.length - jumlahDinilai(qs)}
+       gagalSimpan={gagalSimpan}
        wrongCount={wrongQuestions.length}
        weakChapters={weakChapters}
        weakTopics={weakTopics}
@@ -525,11 +536,15 @@ export default function QuestionRunner({
                    value={teksEsaiSiswa(nilai)}
                    onChange={(e) => typeEsai(sub, e.target.value)}
                    disabled={terkunci}
+                   maxLength={BATAS_JAWABAN_ESAI}
                    rows={3}
                    placeholder="Tulis jawabanmu di sini (boleh dikosongkan, soal ini tidak dinilai)..."
                    aria-label={`Jawabanmu untuk ${sub.question || 'soal esai'}`}
                    className="w-full rounded-xl border border-alba-300 px-4 py-2.5 text-sm bg-alba-50 focus:outline-none focus:ring-4 focus:ring-maroon-600/10 focus:border-maroon-400 transition disabled:bg-alba-100 disabled:text-stone-600 resize-y"
                  />
+                 {!terkunci && teksEsaiSiswa(nilai).length > BATAS_JAWABAN_ESAI * 0.8 && (
+                   <p className="mt-1 text-right text-[11px] font-semibold text-stone-500">{teksEsaiSiswa(nilai).length}/{BATAS_JAWABAN_ESAI} huruf</p>
+                 )}
                  {showResult && <KunciEsai sub={sub} />}
                  {showResult && <PembahasanSub sub={sub} />}
                </div>
@@ -811,7 +826,7 @@ function ScoreRing({ score }) {
 // HALAMAN HASIL (setelah submit) - terpisah dari halaman soal, mirip cek skor
 // Google Form: tampil skor dulu, lalu tombol "Review Jawaban Saya!".
 // ==========================================================================
-function ResultScreen({ score, total, esaiCount = 0, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
+function ResultScreen({ score, total, esaiCount = 0, gagalSimpan = false, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
  // total = jumlah soal yang DINILAI. Nol berarti isinya esai semua: tidak ada
  // skor yang bermakna, jadi cincin nilai dan "benar dari N" tidak ditampilkan.
  const adaNilai = total > 0;
@@ -820,6 +835,12 @@ function ResultScreen({ score, total, esaiCount = 0, wrongCount, weakChapters, w
    <div className="max-w-2xl mx-auto animate-fade-in">
      <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-8 text-center">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-6">HASIL PENGERJAAN</p>
+       {gagalSimpan && (
+         <p role="alert" className="mb-5 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-3 text-xs font-semibold text-stone-700 leading-relaxed">
+           Hasil ini belum berhasil tersimpan di server (mungkin koneksi terputus atau jawabanmu terlalu panjang).
+           Jawaban yang tersimpan sementara tetap ada: buka lagi BAB ini dan selesaikan sekali lagi.
+         </p>
+       )}
        {adaNilai ? (
          <>
            <div className="flex justify-center mb-5">

@@ -74,10 +74,10 @@ export default function BankSoal() {
     setQuestions(qs);
   };
 
-  const submit = async ({ score }) => {
+  const submit = async ({ score, gradedTotal }) => {
     await bumpStreak(pb, user);
     const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
-    touchActivity(pb, user, `Mengerjakan Bank Soal ${namaMk} (nilai ${score})`);
+    touchActivity(pb, user, `Mengerjakan Bank Soal ${namaMk} (${gradedTotal === 0 ? 'esai, tidak dinilai' : `nilai ${score}`})`);
   };
 
   if (enabled === null) return null;

@@ -1,18 +1,18 @@
 ---
 name: konverter-soal-multi-tipe
-description: "ubah SATU kumpulan soal PCV Classroom yang isinya CAMPURAN beberapa tipe sekaligus (isian singkat bergambar, isian singkat non-gambar, MCQ bergambar, MCQ non-gambar) jadi SATU array JavaScript tunggal yang berurutan sesuai urutan soal aslinya, tanpa dipisah-pisah jadi beberapa array atau dikasih komentar header per tipe (web PCV Classroom butuh satu array nyambung dari awal sampai akhir). WAJIB dipakai kalau user kasih soal-soal dengan tipe campuran dalam satu kiriman dan minta dikonversi sekaligus, semua jadi kode, atau menyebut mau proses banyak tipe soal (isian + MCQ, bergambar + non-gambar) dalam satu permintaan. Skill ini juga otomatis mengubah link Google Drive gambar jadi format lh3.googleusercontent.com kalau linknya masih mentah, dan otomatis mengenali soal yang pembahasannya CUMA SATU untuk seluruh soal (sering berupa screenshot slide, kadang plus sedikit keterangan ketikan) lalu menaruhnya di field \"explanation\" tingkat soal, bukan dipaksa disalin ke tiap opsi."
+description: "ubah SATU kumpulan soal PCV Classroom yang isinya CAMPURAN beberapa tipe sekaligus (isian singkat bergambar, isian singkat non-gambar, MCQ bergambar, MCQ non-gambar, serta esai tidak dinilai dengan kunci berpoin, dengan atau tanpa gambar) jadi SATU array JavaScript tunggal yang berurutan sesuai urutan soal aslinya, tanpa dipisah-pisah jadi beberapa array atau dikasih komentar header per tipe (web PCV Classroom butuh satu array nyambung dari awal sampai akhir). WAJIB dipakai kalau user kasih soal-soal dengan tipe campuran dalam satu kiriman dan minta dikonversi sekaligus, semua jadi kode, atau menyebut mau proses banyak tipe soal (isian + MCQ, bergambar + non-gambar) dalam satu permintaan. Skill ini juga otomatis mengubah link Google Drive gambar jadi format lh3.googleusercontent.com kalau linknya masih mentah, dan otomatis mengenali soal yang pembahasannya CUMA SATU untuk seluruh soal (sering berupa screenshot slide, kadang plus sedikit keterangan ketikan) lalu menaruhnya di field \"explanation\" tingkat soal, bukan dipaksa disalin ke tiap opsi."
 ---
 
 # Konverter Soal Multi-Tipe (PCV Classroom)
 
-Kamu adalah konverter soal untuk web CBT PCV Classroom yang bisa memproses BANYAK TIPE SOAL SEKALIGUS dalam satu kiriman: isian singkat bergambar, isian singkat non-gambar, MCQ bergambar, dan MCQ non-gambar — tercampur, urutan bebas, jumlah bebas.
+Kamu adalah konverter soal untuk web CBT PCV Classroom yang bisa memproses BANYAK TIPE SOAL SEKALIGUS dalam satu kiriman: isian singkat bergambar, isian singkat non-gambar, MCQ bergambar, MCQ non-gambar, dan esai tidak dinilai (dengan atau tanpa gambar) — tercampur, urutan bebas, jumlah bebas.
 
 **Penting:** walaupun tipenya campur-campur, OUTPUT AKHIR SELALU SATU ARRAY JAVASCRIPT TUNGGAL. Web PCV Classroom nggak mau nerima kode yang dipecah jadi beberapa array atau dikasih komentar pemisah kayak `// soal essai` / `// ===== MCQ =====` dsb — itu bikin importnya gagal. Jadi tiap objek soal (apapun tipenya) tinggal disambung pakai koma di dalam satu `[` ... `]` yang sama, persis urutan kemunculan aslinya.
 
 ## Alur Kerja
 
 1. Baca semua soal yang dikirim, satu per satu, sesuai urutan kemunculannya.
-2. Klasifikasikan tiap soal ke salah satu dari 4 kategori (lihat "Cara Deteksi Tipe") — klasifikasi ini HANYA untuk menentukan bentuk objeknya (field apa saja yang dipakai), BUKAN untuk mengelompokkan/memisah output.
+2. Klasifikasikan tiap soal ke salah satu dari 6 kategori: 4 dasar + esai tidak dinilai (dengan atau tanpa gambar) (lihat "Cara Deteksi Tipe") — klasifikasi ini HANYA untuk menentukan bentuk objeknya (field apa saja yang dipakai), BUKAN untuk mengelompokkan/memisah output.
 3. Kalau ada link gambar mentah, ubah dulu ke format lh3 (lihat "Konversi Link Gambar").
 3b. Tentukan bentuk pembahasannya: PER OPSI atau SATU UNTUK SELURUH SOAL (lihat "Pembahasan Tunggal vs Pembahasan per Opsi").
 4. Konversi tiap soal jadi satu objek JS sesuai bentuk kategorinya (lihat "Bentuk Objek per Kategori").
@@ -29,14 +29,14 @@ Untuk tiap soal, tentukan 2 hal secara independen:
 
 **B. MCQ atau Isian?**
 - MCQ (pilihan ganda) → ada daftar pilihan berlabel (A/B/C/D/E, atau baris "Pilihan:"), user diminta memilih satu/beberapa yang benar dari opsi yang sudah tersedia.
-- Isian (esai singkat) → TIDAK ada pilihan berlabel; soal berupa pernyataan yang perlu dilengkapi, atau satu/beberapa sub-pertanyaan yang jawabannya diketik bebas (nama struktur, istilah, dll), bukan dipilih dari opsi.
+- Isian (jawaban singkat, DINILAI komputer) → TIDAK ada pilihan berlabel; soal berupa pernyataan yang perlu dilengkapi, atau satu/beberapa sub-pertanyaan yang jawabannya diketik bebas (nama struktur, istilah, dll), bukan dipilih dari opsi.
 
 **C. Esai tidak dinilai?** (kategori ke-5 dan ke-6, berlaku bersama A)
 - Esai tidak dinilai → soal yang jawabannya tidak bisa dinilai komputer dengan tepat (mengenali gambar preparat, menjelaskan mekanisme, menyebut ciri-ciri), dan sumbernya hanya memberi KUNCI berupa jawaban utama dan/atau butir-butir (sering satu baris yang dipisah " / ", "Ciri-ciri: a / b / c"). Siswa menulis jawabannya, lalu membuka kunci dan membandingkannya sendiri; tidak ada benar/salah dan tidak masuk skor.
-- Tandanya: user menyebut "esai", "tidak dinilai", "dicocokkan sendiri", atau kuncinya berupa daftar ciri/poin yang panjang, bukan satu-dua kata yang bisa diketik persis. Kalau user tidak menyebut tetapi kuncinya jelas daftar panjang yang tidak mungkin diketik persis oleh siswa, tanyakan lewat baris "❓ perlu klarifikasi" apakah soal itu esai tidak dinilai atau isian biasa, jangan menebak.
+- Tandanya: user menyebut "esai", "tidak dinilai", "dicocokkan sendiri", atau kuncinya berupa daftar ciri/poin yang panjang, bukan satu-dua kata yang bisa diketik persis. Kalau user tidak menyebut tetapi kuncinya jelas daftar panjang yang tidak mungkin diketik persis oleh siswa, tanyakan lewat baris "❓ perlu klarifikasi" apakah soal itu esai tidak dinilai atau isian biasa, jangan menebak. Sebaliknya, kalau user menyebut "esai" tetapi kuncinya hanya kata atau frasa pendek yang bisa diketik persis, tanyakan juga: mungkin maksudnya isian biasa yang dinilai.
 - Soal esai memakai `"dinilai": false` dan `subQuestions` (lihat "5) ESAI TIDAK DINILAI" di bawah). Soal isian biasa TIDAK boleh diberi `"dinilai": false`, dan soal esai TIDAK boleh ditulis sebagai isian.
 
-Kombinasi A + B menentukan bentuk objeknya: ISIAN BERGAMBAR, ISIAN NON-GAMBAR, MCQ BERGAMBAR, atau MCQ NON-GAMBAR (lihat bentuk masing-masing di bawah). Keempatnya tetap masuk ke array yang SAMA — kombinasi ini cuma nentuin field mana yang dipakai per objek, bukan array mana objeknya taruh.
+Kombinasi A + B menentukan bentuk objeknya: ISIAN BERGAMBAR, ISIAN NON-GAMBAR, MCQ BERGAMBAR, MCQ NON-GAMBAR, atau ESAI (bergambar / non-gambar, lihat bentuk masing-masing di bawah). Semuanya tetap masuk ke array yang SAMA — kombinasi ini cuma nentuin field mana yang dipakai per objek, bukan array mana objeknya taruh.
 
 Kalau ada soal yang ambigu (nggak jelas MCQ atau isian, ada link gambar tapi nggak jelas itu punya soal yang mana, atau nggak ada tanda jawaban benar sama sekali padahal soal MCQ), JANGAN menebak diam-diam. Taruh soal itu di baris paling akhir output (di luar array) dengan format:
 ❓ perlu klarifikasi: <ringkasan singkat soalnya> — alasan: <kenapa ambigu>
@@ -169,7 +169,7 @@ diganti jadi "alfa", "derajat", atau escape `α`.
 
 Ini cuma nentuin field apa yang dipakai tiap objek — semuanya (termasuk esai) tetap disambung jadi satu array yang sama, TANPA header pemisah.
 
-Keempat bentuk di bawah ditulis tanpa pembahasan tunggal (kasus paling umum). Kalau soalnya ternyata punya satu pembahasan untuk keseluruhan, tambahkan `"explanation": "..."` tepat setelah `"hint"` pada bentuk mana pun — lihat "Pembahasan Tunggal vs Pembahasan per Opsi".
+Bentuk 1-4 di bawah ditulis tanpa pembahasan tunggal (kasus paling umum). Kalau soalnya ternyata punya satu pembahasan untuk keseluruhan, tambahkan `"explanation": "..."` tepat setelah `"hint"` pada bentuk mana pun — lihat "Pembahasan Tunggal vs Pembahasan per Opsi".
 
 ### 1) ISIAN BERGAMBAR
 ```
@@ -247,8 +247,8 @@ Sama seperti isian, tetapi WAJIB ada `"dinilai": false`, dan kuncinya ditulis da
 ```
 - Soal esai tanpa gambar: hilangkan `"imageUrl"` seluruhnya (sama seperti isian non-gambar).
 - `"validAnswers"` = JAWABAN UTAMA yang ditanyakan, satu string per jawaban (tampil tebal; beberapa jawaban tampil berpoin). Tidak perlu sinonim atau variasi: esai tidak dinilai komputer.
-- `"keyPoints"` = butir-butir pendukung kunci, SATU BUTIR PER STRING. Butir yang di sumber ditulis dalam satu baris dan dipisah " / " (atau titik koma, bullet, nomor) HARUS DIPECAH jadi string-string terpisah; satu string hanya satu gagasan.
-- `"keyPointsTitle"` = judul daftar butir itu seperti di sumber ("Ciri-ciri", "Karakteristik", "Komplikasi"). Kalau sumber tidak punya judul, hilangkan field ini (tampil sebagai "Poin kunci").
+- `"keyPoints"` = butir-butir pendukung kunci, SATU BUTIR PER STRING. Butir yang di sumber ditulis dalam satu baris dan dipisah " / " (atau ditulis sebagai bullet, nomor, atau baris terpisah) HARUS DIPECAH jadi string-string terpisah; satu string hanya satu gagasan. Titik koma (;) di dalam satu butir adalah bagian dari butir itu, jangan dipecah.
+- `"keyPointsTitle"` = judul daftar butir itu seperti di sumber, tanpa titik dua di akhir ("Ciri-ciri", "Karakteristik", "Komplikasi"). Kalau sumber tidak punya judul, hilangkan field ini (tampil sebagai "Poin kunci").
 - Salin isi butir PERSIS seperti sumber: angka, satuan, nama latin, tanda baca. Jangan meringkas, menambah, atau memperbaiki isinya. Kalau butir di sumber diawali huruf kecil karena aslinya potongan kalimat, boleh dikapitalkan pada huruf pertamanya, kecuali satuan atau lambang (mm, µm, pH).
 - Tanda "/" TANPA spasi di dalam butir ("larva/L3", "mL/hari") bagian dari isi butir; jangan dipecah.
 - Jangan tulis `"answerCount"` pada esai. Pembahasan tambahan (teks/gambar) tetap di `"explanation"` sub-pertanyaan atau tingkat soal.
@@ -256,7 +256,7 @@ Sama seperti isian, tetapi WAJIB ada `"dinilai": false`, dan kuncinya ditulis da
 
 ### Isian: kunci berisi banyak jawaban, dan pembahasan per bagian
 
-Soal esai sering berbentuk satu kasus/gambar dengan beberapa bagian, dan kunci tiap bagian bisa memuat banyak butir ("Sebutkan pencegahan" dengan 4-6 butir, "Karakteristik", "Komplikasi"). Butir-butir itu adalah **jawaban yang sama-sama diterima**: siswa mengisi SATU kotak, dan jawabannya benar kalau cocok dengan salah satu butir. Tulis tiap bagian sebagai satu sub-pertanyaan (A, B, C, ...), lalu:
+Soal isian sering berbentuk satu kasus/gambar dengan beberapa bagian, dan kunci tiap bagian bisa memuat banyak butir ("Sebutkan pencegahan" dengan 4-6 butir, "Karakteristik", "Komplikasi"). Butir-butir itu adalah **jawaban yang sama-sama diterima**: siswa mengisi SATU kotak, dan jawabannya benar kalau cocok dengan salah satu butir. Tulis tiap bagian sebagai satu sub-pertanyaan (A, B, C, ...), lalu:
 
 - **Satu pertanyaan di soal yang menanyakan dua hal** (mis. "Nama penyakit dan spesies penyebab") → pecah jadi dua sub-pertanyaan, supaya siswa tidak dinilai benar hanya karena menjawab salah satunya.
 - **Tiap butir kunci** → satu string TERPISAH di `validAnswers`.
@@ -281,7 +281,7 @@ Soal esai sering berbentuk satu kasus/gambar dengan beberapa bagian, dan kunci t
 - **Pembahasan atau gambar penjelasan milik satu bagian** (misalnya gambar tabel dosis obat di bawah jawaban bagian "Pengobatan") → taruh di `"explanation"` MILIK sub-pertanyaan itu: teks, link gambar lh3, atau keduanya, pindah baris pakai `<br>`. Siswa melihatnya tepat di bawah bagian itu setelah jawaban dicek. Pembahasan yang berlaku untuk seluruh soal tetap di `"explanation"` tingkat soal.
 - Kalau sebuah bagian tidak punya pembahasan, jangan tulis `"explanation"` di sub-pertanyaan itu.
 
-**Contoh — soal esai bergambar dengan beberapa bagian:**
+**Contoh — soal isian bergambar dengan beberapa bagian:**
 ```
 {
   "text": "Perhatikan gambar berikut.",

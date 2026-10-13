@@ -5,7 +5,7 @@
 // biasa ("larva/L3", "µm", pecahan), kunci tampil utuh dan berurutan, jawaban
 // siswa dalam bentuk apa pun tidak membuat error, dan esai tidak pernah ikut
 // dihitung sebagai soal yang dinilai.
-import { adalahEsai, esaiSudahDitulis, jumlahDinilai, kunciEsai, pecahPoin, teksEsaiSiswa } from '../src/lib/esai.js';
+import { BATAS_JAWABAN_ESAI, TANPA_NILAI, adaNilai, adalahEsai, esaiSudahDitulis, jumlahDinilai, kunciEsai, pecahPoin, teksEsaiSiswa } from '../src/lib/esai.js';
 
 const kasus = [];
 const cek = (nama, dapat, harap) => kasus.push([nama, dapat, harap]);
@@ -62,6 +62,18 @@ cek('kunci: isi non-string tidak melempar galat', kunciEsai({ validAnswers: [1, 
   const k = kunciEsai({ validAnswers: ['a'], answerCount: 3 });
   cek('kunci: answerCount lama diabaikan', k.jawaban, ['a']);
 }
+
+cek('kunci: judul berakhiran titik dua dibersihkan', kunciEsai({ keyPoints: ['a'], keyPointsTitle: 'Ciri-ciri:' }).judulPoin, 'Ciri-ciri');
+cek('kunci: judul dengan titik dua dan spasi', kunciEsai({ keyPoints: ['a'], keyPointsTitle: ' Ciri-ciri : ' }).judulPoin, 'Ciri-ciri');
+cek('kunci: judul hanya titik dua -> bawaan', kunciEsai({ keyPoints: ['a'], keyPointsTitle: ':' }).judulPoin, 'Poin kunci');
+cek('kunci: titik dua di tengah judul tetap', kunciEsai({ keyPoints: ['a'], keyPointsTitle: 'Catatan: penting' }).judulPoin, 'Catatan: penting');
+
+// --- penanda tanpa nilai ---
+cek('nilai: skor 0 sungguhan tetap bernilai', adaNilai(0), true);
+cek('nilai: skor 100 bernilai', adaNilai(100), true);
+cek('nilai: penanda TANPA_NILAI bukan nilai', adaNilai(TANPA_NILAI), false);
+cek('nilai: null / undefined / teks bukan nilai', [adaNilai(null), adaNilai(undefined), adaNilai('80')], [false, false, false]);
+cek('nilai: batas jawaban esai masuk akal (115 soal x batas x 3 byte per huruf < batas field 1000000 byte di migrasi 1787700000)', 115 * BATAS_JAWABAN_ESAI * 3 < 1000000, true);
 
 // --- jawaban siswa ---
 cek('tulisan: string apa adanya', teksEsaiSiswa('halo'), 'halo');
