@@ -12,6 +12,7 @@
    "check:soal": "node scripts/check-teks-soal.mjs",
    "check:isian": "node scripts/check-isian.mjs",
    "check:acak": "node scripts/check-acak.mjs",
+   "check:esai": "node scripts/check-esai.mjs",
    "lint:warn": "eslint ."
  },
  "dependencies": {

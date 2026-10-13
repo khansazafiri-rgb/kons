@@ -3,7 +3,7 @@ import { BookOpen, ListChecks, Lock, Timer, Trophy } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
-import QuestionRunner from '@/components/QuestionRunner';
+import QuestionRunner, { semuaEsai } from '@/components/QuestionRunner';
 import { touchActivity } from '@/lib/activityLog';
 import { susunSoal } from '@/lib/acakSoal';
 import { cocokUniversitas, filterCbtKind, filterTampilSoal, gabung } from '@/lib/chapterScope';
@@ -218,14 +218,14 @@ export default function SimulasiCBT() {
    }
  };
 
- const submit = async ({ answers, score }) => {
+ const submit = async ({ answers, score, gradedTotal }) => {
    if (attemptId) {
      await pb.collection('cbt_attempts').update(attemptId, { answers, score, status: 'completed' });
    }
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
    const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
-   touchActivity(pb, user, `Mengerjakan soal tahun sebelumnya ${namaMk} · ${babLabel()} (nilai ${score})`);
+   touchActivity(pb, user, `Mengerjakan soal tahun sebelumnya ${namaMk} · ${babLabel()} (${gradedTotal === 0 ? 'esai, tidak dinilai' : `nilai ${score}`})`);
  };
 
  const exit = async () => {
@@ -248,7 +248,10 @@ export default function SimulasiCBT() {
            </div>
            <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Soal Ini Sudah Kamu Kerjakan</h2>
            <p className="text-sm font-medium text-stone-600 mb-6 leading-relaxed">
-             Nilai terakhirmu: <span className="font-bold text-maroon-600">{completedAttempt.score ?? 0}</span>. Mau review jawaban yang lalu, atau kerjakan ulang soal ini?
+             {semuaEsai(questions)
+               ? 'Soal di sini berupa esai, jadi tidak ada nilai.'
+               : <>Nilai terakhirmu: <span className="font-bold text-maroon-600">{completedAttempt.score ?? 0}</span>.</>}
+             {' '}Mau review jawaban yang lalu, atau kerjakan ulang soal ini?
            </p>
            <div className="flex flex-col gap-3">
              <button

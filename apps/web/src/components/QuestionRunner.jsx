@@ -5,15 +5,19 @@ import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } fr
 import RichText from '@/lib/richText';
 import { fixText, fixDeep } from '@/lib/textRepair';
 import { isianSiswa, jawabanDiterima, jumlahKotak, nilaiSub, subSudahDiisi } from '@/lib/isian';
+import { adalahEsai, esaiSudahDitulis, jumlahDinilai, teksEsaiSiswa } from '@/lib/esai';
+import KunciEsai from '@/components/KunciEsai';
 
 /*
- QuestionRunner mendukung 4 tipe soal. Karena database TIDAK bisa ditambah field
+ QuestionRunner mendukung 6 tipe soal. Karena database TIDAK bisa ditambah field
  baru, semua data tipe soal (qtype, imageUrl, subQuestions) DISIMPAN di dalam field
  "options" (JSON) yang sudah ada, dalam bentuk objek amplop:
    { qtype, imageUrl, choices: [...], subQuestions: [...] }
  Soal MCQ lama yang options-nya masih array biasa tetap didukung (dianggap 'mcq').
 
- Tipe: mcq | mcq_img | isian | isian_img
+ Tipe: mcq | mcq_img | isian | isian_img | esai | esai_img
+ Esai TIDAK DINILAI: siswa menulis, lalu membuka kunci berpoin dan membandingkan
+ sendiri. Tidak pernah benar/salah dan tidak ikut skor (lihat lib/esai).
 */
 
 // Baca record soal apa adanya -> bentuk seragam { qtype, imageUrl, options(choices), subQuestions }
@@ -50,14 +54,20 @@ export function normalizeQuestion(q) {
  };
 }
 
-const isIsian = (q) => String(q?.qtype || '').startsWith('isian') || (!(q?.options || []).length && (q?.subQuestions || []).length > 0);
+// Esai juga memakai subQuestions tanpa options, jadi harus dikeluarkan dulu:
+// kalau tidak, ia akan dinilai sebagai isian.
+const isIsian = (q) => !adalahEsai(q) && (String(q?.qtype || '').startsWith('isian') || (!(q?.options || []).length && (q?.subQuestions || []).length > 0));
 
 // Aturan penilaiannya (satu kotak vs banyak kotak) ada di lib/isian.
 export function isSubAnswerCorrect(sub, userValue) {
  return nilaiSub(sub, userValue).benar;
 }
 
+// Esai tidak punya benar/salah. Fungsi ini sengaja mengembalikan false supaya
+// tidak ada jalur yang tidak sengaja menghitungnya benar; pemanggil yang
+// menghitung skor harus menyaring esai dulu (lihat `dinilai`).
 function isQuestionCorrect(q, ans) {
+ if (adalahEsai(q)) return false;
  if (isIsian(q)) {
    const subs = q.subQuestions || [];
    if (!subs.length) return false;
@@ -66,7 +76,15 @@ function isQuestionCorrect(q, ans) {
  return ans !== undefined && (q.options || [])[ans]?.correct;
 }
 
+const dinilai = (q) => !adalahEsai(q);
+
+// Daftar soal yang isinya esai semua (record mentah dari database juga boleh).
+// Halaman memakainya untuk tidak menampilkan "Nilai terakhirmu: 0" pada set
+// yang memang tidak punya nilai.
+export const semuaEsai = (daftar) => Array.isArray(daftar) && daftar.length > 0 && daftar.every((q) => adalahEsai(normalizeQuestion(q)));
+
 function isQuestionAnswered(q, ans) {
+ if (adalahEsai(q)) return esaiSudahDitulis(q, ans);
  if (isIsian(q)) {
    const subs = q.subQuestions || [];
    return subs.length > 0 && subs.every((sub) => subSudahDiisi(sub, (ans || {})[sub.label]));
@@ -165,16 +183,21 @@ export default function QuestionRunner({
  const q = qs[idx];
  const selected = answers[q?.id];
  const qIsIsian = isIsian(q);
+ const qIsEsai = adalahEsai(q);
  // Mode learning: jawaban baru dibuka SETELAH siswa menekan "Cek Jawaban".
  // Sebelum dicek, jawaban masih bebas diganti-ganti (berlaku MCQ maupun isian).
  const isChecked = checked.has(q?.id);
  const revealAnswer = mode === 'learning' && isChecked;
- // MCQ wajib pilih opsi dulu; isian boleh dicek kapan saja (seperti sebelumnya).
- const canCheck = qIsIsian || selected !== undefined;
+ // MCQ wajib pilih opsi dulu; isian dan esai boleh dicek kapan saja (esai
+ // malah boleh dibuka tanpa menulis apa-apa: tidak ada yang dinilai).
+ const canCheck = qIsIsian || qIsEsai || selected !== undefined;
+ // Esai dianggap sudah dikerjakan kalau ditulis ATAU kuncinya sudah dibuka.
+ // (Dibuka tanpa menulis tetap sah: soalnya tidak dinilai.)
+ const sudahDijawab = (qq) => isQuestionAnswered(qq, answers[qq.id]) || (adalahEsai(qq) && checked.has(qq.id));
  const showImage = q?.imageUrl && (String(q?.qtype || '').includes('img') || true);
 
  const choose = useCallback((optIdx) => {
-   if (submitted || !q || isIsian(q)) return;
+   if (submitted || !q || isIsian(q) || adalahEsai(q)) return;
    if (mode === 'learning' && checked.has(q.id)) return; // sudah dicek → dikunci
    if (optIdx >= (q.options || []).length) return;
    setAnswers((a) => {
@@ -197,6 +220,20 @@ export default function QuestionRunner({
        isi[kotak] = value;
      }
      const newAnswers = { ...a, [q.id]: { ...cur, [sub.label]: isi } };
+     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
+     return newAnswers;
+   });
+ };
+
+ // Esai: satu teks bebas per sub-pertanyaan. Dikunci begitu kuncinya dibuka
+ // (mode learning) supaya "jawabanmu" yang dibandingkan tidak diubah-ubah
+ // setelah melihat kunci.
+ const typeEsai = (sub, value) => {
+   if (submitted || !q) return;
+   if (mode === 'learning' && checked.has(q.id)) return;
+   setAnswers((a) => {
+     const cur = typeof a[q.id] === 'object' && a[q.id] !== null && !Array.isArray(a[q.id]) ? a[q.id] : {};
+     const newAnswers = { ...a, [q.id]: { ...cur, [sub.label]: value } };
      if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
      return newAnswers;
    });
@@ -227,11 +264,13 @@ export default function QuestionRunner({
 
  useEffect(() => { setShowHint(false); }, [idx]);
 
- const answeredCount = qs.filter((qq) => isQuestionAnswered(qq, answers[qq.id])).length;
+ const answeredCount = qs.filter(sudahDijawab).length;
 
  const finish = async () => {
    setSubmitted(true);
-   const total = qs.length;
+   // Skor hanya dihitung dari soal yang dinilai. Esai tidak masuk pembilang
+   // maupun penyebut, jadi 10 soal pilihan ganda + 5 esai tetap bernilai /10.
+   const total = jumlahDinilai(qs);
    let correct = 0;
 
    const weakChapList = new Set();
@@ -239,6 +278,7 @@ export default function QuestionRunner({
    const wrongList = [];
 
    qs.forEach((qq, index) => {
+     if (!dinilai(qq)) return;
      if (isQuestionCorrect(qq, answers[qq.id])) {
        correct += 1;
      } else {
@@ -295,7 +335,7 @@ export default function QuestionRunner({
 
        if (corpus.length) {
          const index = buildIndex(corpus);
-         const gradedQuestions = qs.map((qq) => ({
+         const gradedQuestions = qs.filter(dinilai).map((qq) => ({
            bundle: normalizeQuestionForML(qq),
            wasCorrect: isQuestionCorrect(qq, answers[qq.id]),
          }));
@@ -308,12 +348,14 @@ export default function QuestionRunner({
      console.warn('Weakness analysis unavailable:', err);
    }
 
-   // Ronde "ulangi yang salah" tidak menimpa nilai asli di database
-   if (!retryRound) onSubmit?.({ answers, score });
+   // Ronde "ulangi yang salah" tidak menimpa nilai asli di database.
+   // gradedTotal = 0 berarti isinya esai semua: tidak ada nilai yang bermakna.
+   if (!retryRound) onSubmit?.({ answers, score, gradedTotal: total });
  };
 
  const confirmFinish = () => {
-   const left = qs.length - answeredCount;
+   // Esai yang dilewati tidak merugikan siapa pun, jadi tidak ikut diingatkan.
+   const left = qs.filter((qq) => dinilai(qq) && !sudahDijawab(qq)).length;
    if (left > 0 && !confirm(`Masih ada ${left} soal yang belum dijawab. Yakin ingin submit sekarang?`)) return;
    finish();
  };
@@ -381,7 +423,8 @@ export default function QuestionRunner({
    return (
      <ResultScreen
        score={finalScore}
-       total={qs.length}
+       total={jumlahDinilai(qs)}
+       esaiCount={qs.length - jumlahDinilai(qs)}
        wrongCount={wrongQuestions.length}
        weakChapters={weakChapters}
        weakTopics={weakTopics}
@@ -459,8 +502,36 @@ export default function QuestionRunner({
          </div>
        )}
 
-       {/* ===== TIPE ISIAN ===== */}
-       {qIsIsian ? (
+       {/* ===== TIPE ESAI (tidak dinilai), lalu ISIAN, lalu MCQ ===== */}
+       {qIsEsai ? (
+         <div className="space-y-4 mb-6">
+           {(q.subQuestions || []).map((sub) => {
+             const nilai = (typeof selected === 'object' && selected !== null && !Array.isArray(selected) ? selected : {})[sub.label];
+             const terkunci = submitted || (mode === 'learning' && checked.has(q.id));
+             return (
+               <div key={sub.label} className="rounded-xl border border-alba-200 p-4 bg-alba-100/60">
+                 <p className="text-sm font-bold text-stone-700 mb-2">
+                   {(q.subQuestions || []).length > 1 && (
+                     <span className="inline-flex w-6 h-6 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sub.label}</span>
+                   )}
+                   {sub.question}
+                 </p>
+                 <textarea
+                   value={teksEsaiSiswa(nilai)}
+                   onChange={(e) => typeEsai(sub, e.target.value)}
+                   disabled={terkunci}
+                   rows={3}
+                   placeholder="Tulis jawabanmu di sini (boleh dikosongkan, soal ini tidak dinilai)..."
+                   aria-label={`Jawabanmu untuk ${sub.question || 'soal esai'}`}
+                   className="w-full rounded-xl border border-alba-300 px-4 py-2.5 text-sm bg-alba-50 focus:outline-none focus:ring-4 focus:ring-maroon-600/10 focus:border-maroon-400 transition disabled:bg-alba-100 disabled:text-stone-600 resize-y"
+                 />
+                 {showResult && <KunciEsai sub={sub} />}
+                 {showResult && <PembahasanSub sub={sub} />}
+               </div>
+             );
+           })}
+         </div>
+       ) : qIsIsian ? (
          <div className="space-y-4 mb-6">
            {(q.subQuestions || []).map((sub) => {
              const nilai = (typeof selected === 'object' && selected !== null ? selected : {})[sub.label];
@@ -594,9 +665,13 @@ export default function QuestionRunner({
              ? 'text-stone-500 bg-alba-100/70 border-alba-200'
              : 'text-maroon-700 bg-maroon-50 border-maroon-100'
          }`}>
-           {isChecked
-             ? 'Jawaban soal ini sudah dicek. Lanjut ke soal berikutnya, atau pakai "Ulangi Soal yang Salah" setelah submit untuk mencoba lagi.'
-             : 'Santai saja, jawabanmu masih bisa diganti-ganti. Kalau sudah mantap, tekan "Cek Jawaban" untuk melihat benar/salah beserta alasannya.'}
+           {qIsEsai
+             ? isChecked
+               ? 'Kunci jawaban sudah dibuka. Soal esai tidak dinilai, jadi bandingkan sendiri jawabanmu dengan poin-poin kunci di atas.'
+               : 'Soal esai tidak dinilai. Tulis jawabanmu dulu kalau mau, lalu tekan "Lihat Kunci Jawaban" untuk membandingkannya dengan poin-poin kunci.'
+             : isChecked
+               ? 'Jawaban soal ini sudah dicek. Lanjut ke soal berikutnya, atau pakai "Ulangi Soal yang Salah" setelah submit untuk mencoba lagi.'
+               : 'Santai saja, jawabanmu masih bisa diganti-ganti. Kalau sudah mantap, tekan "Cek Jawaban" untuk melihat benar/salah beserta alasannya.'}
          </p>
        )}
 
@@ -636,11 +711,15 @@ export default function QuestionRunner({
              <button
                onClick={() => setChecked((c) => new Set(c).add(q.id))}
                disabled={isChecked || !canCheck}
-               title={isChecked ? 'Jawaban soal ini sudah dicek' : 'Lihat benar/salah beserta pembahasannya'}
+               title={qIsEsai
+                 ? (isChecked ? 'Kunci jawaban sudah dibuka' : 'Buka kunci jawaban berpoin untuk dibandingkan dengan jawabanmu')
+                 : (isChecked ? 'Jawaban soal ini sudah dicek' : 'Lihat benar/salah beserta pembahasannya')}
                className="inline-flex items-center gap-1.5 rounded-full border border-green-600 bg-green-50 text-green-800 hover:bg-green-100 disabled:opacity-40 disabled:hover:bg-green-50 px-4 py-2.5 text-sm font-bold transition-colors"
              >
                <CheckCircle2 size={14} />
-               {isChecked ? 'Sudah Dicek' : 'Cek Jawaban'}
+               {qIsEsai
+                 ? (isChecked ? 'Kunci Terbuka' : 'Lihat Kunci Jawaban')
+                 : (isChecked ? 'Sudah Dicek' : 'Cek Jawaban')}
              </button>
            )}
          </div>
@@ -673,7 +752,7 @@ export default function QuestionRunner({
        <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">Navigasi Soal</p>
        <div className="grid grid-cols-8 lg:grid-cols-5 gap-1.5">
          {qs.map((qq, i) => {
-           const isAnswered = isQuestionAnswered(qq, answers[qq.id]);
+           const isAnswered = sudahDijawab(qq);
            const isFlagged = flagged.has(qq.id);
            const isCurrent = i === idx;
            let cls = 'border-alba-300 text-stone-500 hover:border-maroon-300';
@@ -727,21 +806,41 @@ function ScoreRing({ score }) {
 // HALAMAN HASIL (setelah submit) - terpisah dari halaman soal, mirip cek skor
 // Google Form: tampil skor dulu, lalu tombol "Review Jawaban Saya!".
 // ==========================================================================
-function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
+function ResultScreen({ score, total, esaiCount = 0, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
+ // total = jumlah soal yang DINILAI. Nol berarti isinya esai semua: tidak ada
+ // skor yang bermakna, jadi cincin nilai dan "benar dari N" tidak ditampilkan.
+ const adaNilai = total > 0;
  const correct = Math.round((score / 100) * total);
  return (
    <div className="max-w-2xl mx-auto animate-fade-in">
      <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-8 text-center">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-6">HASIL PENGERJAAN</p>
-       <div className="flex justify-center mb-5">
-         <ScoreRing score={score} />
-       </div>
-       <h2 className="font-display text-2xl font-semibold text-stone-800 mb-1">
-         {score >= 80 ? 'Kerja bagus, pertahankan!' : score >= 60 ? 'Sudah lumayan, sedikit lagi!' : 'Jangan menyerah, ulangi materinya ya.'}
-       </h2>
-       <p className="text-sm text-stone-500 mb-8">
-         Kamu menjawab benar <strong className="text-maroon-600">{correct}</strong> dari <strong>{total}</strong> soal.
-       </p>
+       {adaNilai ? (
+         <>
+           <div className="flex justify-center mb-5">
+             <ScoreRing score={score} />
+           </div>
+           <h2 className="font-display text-2xl font-semibold text-stone-800 mb-1">
+             {score >= 80 ? 'Kerja bagus, pertahankan!' : score >= 60 ? 'Sudah lumayan, sedikit lagi!' : 'Jangan menyerah, ulangi materinya ya.'}
+           </h2>
+           <p className="text-sm text-stone-500 mb-8">
+             Kamu menjawab benar <strong className="text-maroon-600">{correct}</strong> dari <strong>{total}</strong> soal.
+             {esaiCount > 0 && <> {esaiCount} soal esai tidak dinilai, cek kuncinya di review.</>}
+           </p>
+         </>
+       ) : (
+         <>
+           <div className="flex justify-center mb-5">
+             <span className="w-24 h-24 rounded-full bg-green-50 border border-green-200 grid place-items-center text-green-700">
+               <CheckCircle2 size={44} />
+             </span>
+           </div>
+           <h2 className="font-display text-2xl font-semibold text-stone-800 mb-1">Selesai!</h2>
+           <p className="text-sm text-stone-500 mb-8">
+             Soal di sini berupa esai ({esaiCount} soal), jadi tidak ada nilai. Buka review untuk membandingkan jawabanmu dengan kunci jawabannya.
+           </p>
+         </>
+       )}
 
        <div className="flex flex-col sm:flex-row gap-3 justify-center">
          <button
@@ -818,8 +917,9 @@ function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode
        </div>
      )}
 
-     {/* Rekomendasi belajar otomatis (fallback jika ML tidak tersedia) */}
-     {!weaknessReport && (
+     {/* Rekomendasi belajar otomatis (fallback jika ML tidak tersedia). Disembunyikan
+         untuk set esai saja: tanpa soal yang dinilai, "Jawabanmu benar semua" menyesatkan. */}
+     {!weaknessReport && adaNilai && (
        <div className="mt-6 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-6">
          <p className="font-bold text-sm text-stone-700 mb-3">Rekomendasi Belajar Otomatis</p>
          {weakChapters.length === 0 && weakTopics.length === 0 ? (
@@ -867,21 +967,28 @@ function ResultScreen({ score, total, wrongCount, weakChapters, weakTopics, mode
 function ReviewSheet({ qs, answers, onBack, backLabel, title, subtitle }) {
  const list = (qs || []).map(normalizeQuestion);
  const total = list.length;
- const correct = list.filter((qq) => isQuestionCorrect(qq, answers[qq.id])).length;
- const score = total ? Math.round((correct / total) * 100) : 0;
+ // Skor hanya dari soal yang dinilai; esai tidak masuk hitungan.
+ const totalDinilai = jumlahDinilai(list);
+ const esaiCount = total - totalDinilai;
+ const correct = list.filter((qq) => dinilai(qq) && isQuestionCorrect(qq, answers[qq.id])).length;
+ const score = totalDinilai ? Math.round((correct / totalDinilai) * 100) : 0;
 
  // Kalau tidak ada satu pun jawaban tersimpan, ini murni "review pembahasan":
  // tidak ada skor & tidak ada label benar/salah - langsung kunci jawaban + alasannya.
  const pembahasanOnly = !list.some((qq) => isQuestionAnswered(qq, answers[qq.id]));
+ // Tanpa soal yang dinilai (esai semua) tidak ada skor yang bisa ditampilkan.
+ const ringkasan = pembahasanOnly
+   ? `${total} soal · kunci jawaban & pembahasan lengkap`
+   : totalDinilai
+     ? `Benar ${correct} dari ${totalDinilai} soal · Nilai ${score}${esaiCount ? ` · ${esaiCount} esai tidak dinilai` : ''}`
+     : `${total} soal esai · tidak dinilai, bandingkan sendiri dengan kunci`;
 
  return (
    <div className="max-w-3xl mx-auto animate-fade-in">
      <div className="sticky top-0 z-10 -mx-2 px-2 py-3 bg-alba-50/95 backdrop-blur border-b border-alba-200 flex items-center justify-between gap-3 mb-6">
        <div>
          <h2 className="font-display text-xl font-semibold text-stone-800">{title}</h2>
-         <p className="text-xs text-stone-500">
-           {pembahasanOnly ? `${total} soal · kunci jawaban & pembahasan lengkap` : `Benar ${correct} dari ${total} soal · Nilai ${score}`}
-         </p>
+         <p className="text-xs text-stone-500">{ringkasan}</p>
        </div>
        <button
          onClick={onBack}
@@ -984,17 +1091,22 @@ function PembahasanSub({ sub, kecil = false }) {
 // Satu kartu soal versi baca-saja untuk halaman review.
 function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
  const qq = normalizeQuestion(q);
+ const esai = adalahEsai(qq);
  const isian = isIsian(qq);
  const answered = isQuestionAnswered(qq, ans);
  const correct = isQuestionCorrect(qq, ans);
 
  return (
    <div className={`rounded-2xl border bg-alba-50 shadow-card p-5 md:p-6 ${
-     pembahasanOnly ? 'border-alba-200' : correct ? 'border-green-200' : 'border-maroon-200'
+     pembahasanOnly || esai ? 'border-alba-200' : correct ? 'border-green-200' : 'border-maroon-200'
    }`}>
      <div className="flex items-center justify-between gap-3 mb-3">
        <span className="text-sm font-bold text-stone-500">Soal {index + 1}</span>
-       {pembahasanOnly ? (
+       {esai ? (
+         <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-500 bg-alba-100 border border-alba-200 rounded-full px-3 py-1">
+           <ListChecks size={13} /> {pembahasanOnly ? 'Kunci jawaban' : 'Esai · tidak dinilai'}
+         </span>
+       ) : pembahasanOnly ? (
          <span className="inline-flex items-center gap-1 text-xs font-bold text-stone-500 bg-alba-100 border border-alba-200 rounded-full px-3 py-1">
            <ListChecks size={13} /> Pembahasan
          </span>
@@ -1019,7 +1131,31 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
        <img src={qq.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" loading="lazy" className="max-h-80 w-auto max-w-full rounded-xl border border-alba-200 shadow-sm mx-auto mb-4" />
      )}
 
-     {isian ? (
+     {esai ? (
+       <div className="space-y-3">
+         {(qq.subQuestions || []).map((sub) => {
+           const tulisan = teksEsaiSiswa((typeof ans === 'object' && ans !== null && !Array.isArray(ans) ? ans : {})[sub.label]).trim();
+           return (
+             <div key={sub.label} className="rounded-xl border border-alba-200 p-3 bg-alba-100/60">
+               <p className="text-sm font-bold text-stone-700 mb-1.5">
+                 {(qq.subQuestions || []).length > 1 && (
+                   <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-[11px] font-bold mr-2">{sub.label}</span>
+                 )}
+                 {sub.question}
+               </p>
+               {!pembahasanOnly && (
+                 <div className="text-sm mb-2">
+                   <p className="text-stone-600">Jawabanmu:</p>
+                   <p className={`mt-0.5 whitespace-pre-wrap break-words ${tulisan ? 'font-semibold text-stone-800' : 'text-stone-400'}`}>{tulisan || 'Tidak ditulis'}</p>
+                 </div>
+               )}
+               <KunciEsai sub={sub} kecil />
+               <PembahasanSub sub={sub} kecil />
+             </div>
+           );
+         })}
+       </div>
+     ) : isian ? (
        <div className="space-y-3">
          {(qq.subQuestions || []).map((sub) => {
            const nilai = (typeof ans === 'object' && ans !== null ? ans : {})[sub.label];
