@@ -17,6 +17,7 @@ import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSr
 import RichText, { hasImageLink } from '@/lib/richText';
 import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
 import { jumlahKotak, nilaiSub } from '@/lib/isian';
+import KunciEsai from '@/components/KunciEsai';
 import { KIND_CBT, filterLatihan } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 import PilihFakultas from '@/components/PilihFakultas';
@@ -720,10 +721,15 @@ const EMPTY_FORM = {
   explanation: '',
   imageUrl: '',
   options: [{ text: '', correct: true, explanation: '' }, { text: '', correct: false, explanation: '' }],
-  subQuestions: [{ label: 'A', question: '', validAnswers: '', answerCount: 1, explanation: '' }],
+  subQuestions: [{ label: 'A', question: '', validAnswers: '', answerCount: 1, explanation: '', keyPoints: '', keyPointsTitle: '' }],
 };
 
 const isIsianType = (t) => String(t || '').startsWith('isian');
+// Esai = soal TIDAK DINILAI: siswa menulis lalu membandingkan sendiri dengan kunci
+// berpoin (lib/esai). Bentuk datanya seperti isian (subQuestions), bedanya kunci
+// tidak dipakai untuk menilai.
+const isEsaiType = (t) => String(t || '').startsWith('esai');
+const memakaiSub = (t) => isIsianType(t) || isEsaiType(t);
 const hasImageType = (t) => String(t || '').includes('img');
 
 // Database TIDAK bisa ditambah field baru, jadi qtype/imageUrl/subQuestions
@@ -763,12 +769,12 @@ function normalizeQuestion(q) {
 
 // Bungkus data ke amplop yang disimpan di field "options"
 function packOptions(n) {
-  const isian = isIsianType(n.qtype);
+  const adaSub = memakaiSub(n.qtype);
   return {
     qtype: n.qtype || 'mcq',
     imageUrl: hasImageType(n.qtype) ? (n.imageUrl || '') : '',
-    choices: isian ? [] : (n.options || []),
-    subQuestions: isian ? (n.subQuestions || []) : [],
+    choices: adaSub ? [] : (n.options || []),
+    subQuestions: adaSub ? (n.subQuestions || []) : [],
     // Pembahasan tunggal: satu penjelasan untuk seluruh soal (sering cuma
     // berupa link gambar). Berlaku untuk semua tipe, MCQ maupun isian.
     explanation: n.explanation || '',
@@ -794,6 +800,9 @@ function formFromQuestion(raw) {
           validAnswers: (sq.validAnswers || []).join('\n'),
           answerCount: jumlahKotak(sq),
           explanation: sq.explanation || '',
+          // Hanya dipakai soal esai: satu poin per baris.
+          keyPoints: (Array.isArray(sq.keyPoints) ? sq.keyPoints : []).join('\n'),
+          keyPointsTitle: sq.keyPointsTitle || '',
         }))
       : EMPTY_FORM.subQuestions,
   };
@@ -802,7 +811,8 @@ function formFromQuestion(raw) {
 // Hanya menulis ke field yang SUDAH ADA: text, hint, options (amplop JSON).
 // subject/chapter/type/year/order ditambahkan oleh pemanggil.
 function payloadFromForm(form) {
-  const isian = isIsianType(form.qtype);
+  const adaSub = memakaiSub(form.qtype);
+  const esai = isEsaiType(form.qtype);
   return {
     text: form.text,
     hint: form.hint,
@@ -810,11 +820,11 @@ function payloadFromForm(form) {
       qtype: form.qtype,
       imageUrl: form.imageUrl,
       explanation: form.explanation,
-      options: isian ? [] : form.options,
-      subQuestions: isian
+      options: adaSub ? [] : form.options,
+      subQuestions: adaSub
         ? form.subQuestions
             .filter((sq) => sq.question.trim())
-            .map((sq) => bersihkanSub(sq))
+            .map((sq) => (esai ? bersihkanSubEsai(sq) : bersihkanSub(sq)))
         : [],
     }),
   };
@@ -832,6 +842,23 @@ function bersihkanSub(sq) {
   };
   const n = jumlahKotak(sq);
   if (n > 1) out.answerCount = n;
+  if (String(sq.explanation || '').trim()) out.explanation = sq.explanation.trim();
+  return out;
+}
+
+// Satu sub-pertanyaan ESAI dari form -> bentuk yang disimpan. Tidak ada
+// answerCount: esai tidak dinilai, jadi tidak ada hitungan "berapa jawaban".
+// Kolom di form berisi satu isi per baris.
+function bersihkanSubEsai(sq) {
+  const baris = (v) => String(v || '').split('\n').map((x) => x.trim()).filter(Boolean);
+  const out = {
+    label: sq.label,
+    question: sq.question,
+    validAnswers: baris(sq.validAnswers),
+  };
+  const poin = baris(sq.keyPoints);
+  if (poin.length) out.keyPoints = poin;
+  if (String(sq.keyPointsTitle || '').trim()) out.keyPointsTitle = sq.keyPointsTitle.trim();
   if (String(sq.explanation || '').trim()) out.explanation = sq.explanation.trim();
   return out;
 }
@@ -881,6 +908,7 @@ function UjiJawaban({ sub }) {
 // MCQ Biasa, MCQ Bergambar, Isian, Isian Bergambar
 function QuestionForm({ form, setForm }) {
   const isian = isIsianType(form.qtype);
+  const esai = isEsaiType(form.qtype);
   const withImg = hasImageType(form.qtype);
 
   const updateOption = (i, key, val) => {
@@ -898,6 +926,8 @@ function QuestionForm({ form, setForm }) {
           <option value="mcq_img">MCQ Bergambar</option>
           <option value="isian">Isian</option>
           <option value="isian_img">Isian Bergambar</option>
+          <option value="esai">Esai (tidak dinilai)</option>
+          <option value="esai_img">Esai Bergambar (tidak dinilai)</option>
         </select>
       </div>
 
@@ -940,7 +970,60 @@ function QuestionForm({ form, setForm }) {
         )}
       </div>
 
-      {isian ? (
+      {esai ? (
+        <>
+          <p className="text-[11px] text-stone-500 bg-gold-100/40 border border-gold-200 rounded-lg px-3 py-2 leading-relaxed">
+            Soal esai <b>tidak dinilai</b>: siswa boleh menulis jawabannya, lalu membuka kunci dan membandingkannya sendiri.
+            Tidak masuk skor. Kunci tampil sebagai poin-poin: jawaban utama di atas, lalu daftar butir pendukungnya.
+          </p>
+          {form.subQuestions.map((sq, i) => (
+            <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
+              <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
+              <div className="flex-1 min-w-0 space-y-2">
+                <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Pertanyaan ${sq.label}, mis. "Spesies dan stadium yang ditunjukkan pada gambar adalah:"`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                <textarea
+                  value={sq.validAnswers}
+                  onChange={(e) => updateSub(i, 'validAnswers', e.target.value)}
+                  rows={2}
+                  placeholder={'Jawaban utama (tebal di kunci). Satu baris per jawaban.\nMis. Ascaris lumbricoides — telur dibuahi (fertilized egg)'}
+                  className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
+                />
+                <input
+                  value={sq.keyPointsTitle || ''}
+                  onChange={(e) => updateSub(i, 'keyPointsTitle', e.target.value)}
+                  placeholder={'Judul daftar poin (opsional), mis. "Ciri-ciri". Kosong = "Poin kunci".'}
+                  className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
+                />
+                <textarea
+                  value={sq.keyPoints || ''}
+                  onChange={(e) => updateSub(i, 'keyPoints', e.target.value)}
+                  rows={Math.min(10, Math.max(3, String(sq.keyPoints || '').split('\n').length + 1))}
+                  placeholder={'Satu poin per baris. Bentuk satu baris yang dipisah " / " juga boleh ditempel apa adanya, otomatis dipecah jadi poin-poin.\nMis.\nBentuk bulat sampai oval\nDinding tebal berlapis\nBerisi satu sel telur'}
+                  className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
+                />
+                {/* Pratinjau persis seperti yang dilihat siswa setelah membuka kunci. */}
+                <KunciEsai sub={bersihkanSubEsai(sq)} kecil />
+                <textarea
+                  value={sq.explanation || ''}
+                  onChange={(e) => updateSub(i, 'explanation', e.target.value)}
+                  rows={2}
+                  placeholder={`Pembahasan ${sq.label} (opsional) - teks, link gambar lh3/Drive, atau keduanya. Muncul bersama kunci.`}
+                  className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
+                />
+              </div>
+              {form.subQuestions.length > 1 && (
+                <button onClick={() => setForm((f) => ({ ...f, subQuestions: f.subQuestions.filter((_, idx) => idx !== i) }))} className="text-red-600 text-xs font-bold px-1 mt-2">✕</button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() => setForm((f) => ({ ...f, subQuestions: [...f.subQuestions, { label: String.fromCharCode(65 + f.subQuestions.length), question: '', validAnswers: '', answerCount: 1, explanation: '', keyPoints: '', keyPointsTitle: '' }] }))}
+            className="text-xs font-semibold rounded-lg border border-alba-300 px-4 py-2 hover:bg-alba-100"
+          >
+            + Tambah Sub-Pertanyaan
+          </button>
+        </>
+      ) : isian ? (
         <>
           {form.subQuestions.map((sq, i) => {
             const n = jumlahKotak(sq);
@@ -1070,6 +1153,17 @@ const ISIAN_LANJUTAN_RULE = `ISIAN DENGAN BANYAK KUNCI & PEMBAHASAN PER BAGIAN:
 Contoh sub-pertanyaan:
 { "label": "B", "question": "Sebutkan pencegahan", "validAnswers": ["Menggunakan alas kaki ketika kontak dengan tanah / alas kaki / sepatu / sandal", "Cuci tangan dan kaki setelah kontak dengan tanah / cuci tangan", "Hindari bermain di tanah yang terdapat banyak hewan"], "explanation": "Larva menembus kulit yang kontak langsung dengan tanah.<br>https://lh3.googleusercontent.com/d/FILE_ID" }`;
 
+const ESAI_RULE = `SOAL ESAI TIDAK DINILAI:
+- Soal esai TIDAK dinilai komputer: siswa menulis jawabannya, lalu membuka KUNCI dan membandingkannya sendiri. Jadi tidak perlu menebak sinonim atau variasi jawaban; yang penting kuncinya lengkap dan terbaca rapi.
+- Tiap soal wajib punya "dinilai": false dan "subQuestions" (min 1). JANGAN pakai "options".
+- "validAnswers" = JAWABAN UTAMA yang ditanyakan (mis. nama spesies dan stadiumnya). Satu string = satu baris tebal di kunci. Kalau ada beberapa jawaban yang sama-sama sah, tulis tiap jawaban sebagai string terpisah (tampil berpoin).
+- "keyPoints" = butir-butir pendukung kunci (ciri-ciri, mekanisme, langkah, komplikasi, dst), SATU BUTIR PER STRING. Butir yang di sumber ditulis dalam satu baris dan dipisah " / " (atau titik koma, bullet, nomor) HARUS DIPECAH jadi string-string terpisah. Satu string hanya satu gagasan.
+- "keyPointsTitle" = judul daftar butir itu persis seperti di sumber (mis. "Ciri-ciri", "Karakteristik", "Komplikasi"). Kalau sumber tidak punya judul, hilangkan field ini.
+- Salin isi tiap butir PERSIS seperti sumber (angka, satuan, nama latin, tanda baca, huruf besar). Jangan meringkas, menambah, atau memperbaiki isinya. Tanda "/" tanpa spasi di dalam sebuah butir (mis. "larva/L3") tetap bagian butir itu.
+- Kalau ada pembahasan tambahan (teks atau gambar), taruh di "explanation" milik sub-pertanyaan, atau di "explanation" tingkat soal kalau berlaku untuk seluruh soal.
+Contoh sub-pertanyaan esai:
+{ "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Ukuran sekitar 45–75 × 35–50 µm", "Dinding tebal berlapis", "Berisi satu sel telur yang terpisah dari dinding"] }`;
+
 const GEMINI_PROMPTS = {
   'MCQ Biasa': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda berikut menjadi SATU array JavaScript.
 
@@ -1159,12 +1253,58 @@ ${ISIAN_LANJUTAN_RULE}
 Konversi soal-soal isian bergambar berikut (sertakan link gambar + semua jawaban yang diterima):
 <<< TEMPEL SOAL + LINK GAMBAR DI SINI >>>`,
 
+  'Esai (tidak dinilai)': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal ESAI berikut menjadi SATU array JavaScript. Soal esai ini TIDAK dinilai: kuncinya hanya ditampilkan sebagai poin-poin setelah siswa menulis jawabannya.
+
+${OUTPUT_RULES}
+
+${PEMBAHASAN_TUNGGAL_RULE}
+
+FORMAT TIAP SOAL:
+{
+  "text": "Instruksi/konteks soal",
+  "hint": "boleh \\"\\"",
+  "dinilai": false,
+  "subQuestions": [
+    { "label": "A", "question": "Pertanyaan A", "validAnswers": ["jawaban utama"], "keyPointsTitle": "Poin kunci", "keyPoints": ["butir 1", "butir 2", "butir 3"] }
+  ]
+}
+ATURAN ISI: setiap soal wajib "dinilai": false dan "subQuestions" (min 1); JANGAN pakai "options"; tiap sub-pertanyaan wajib punya "validAnswers" dan/atau "keyPoints".
+
+${ESAI_RULE}
+
+Konversi soal-soal esai berikut (sertakan jawaban utama dan semua butir kuncinya):
+<<< TEMPEL SOAL DI SINI >>>`,
+
+  'Esai Bergambar (tidak dinilai)': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal ESAI BERGAMBAR berikut menjadi SATU array JavaScript. Soal esai ini TIDAK dinilai: kuncinya hanya ditampilkan sebagai poin-poin setelah siswa menulis jawabannya.
+
+${OUTPUT_RULES}
+
+${PEMBAHASAN_TUNGGAL_RULE}
+- "imageUrl" WAJIB ada, format https://lh3.googleusercontent.com/d/FILE_ID (pakai ID gambar yang saya beri per soal).
+
+FORMAT TIAP SOAL:
+{
+  "text": "Perhatikan gambar berikut",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID",
+  "hint": "boleh \\"\\"",
+  "dinilai": false,
+  "subQuestions": [
+    { "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Dinding tebal berlapis"] }
+  ]
+}
+ATURAN ISI: setiap soal wajib "dinilai": false dan "subQuestions" (min 1); JANGAN pakai "options"; pasangkan tiap soal dengan link gambarnya masing-masing.
+
+${ESAI_RULE}
+
+Konversi soal-soal esai bergambar berikut (sertakan link gambar + jawaban utama + semua butir kuncinya):
+<<< TEMPEL SOAL + LINK GAMBAR DI SINI >>>`,
+
   'Acak (Campur)': `Kamu konverter soal untuk web CBT PCV Classroom. Soal-soal di bawah CAMPURAN dari beberapa tipe. Ubah SEMUANYA menjadi SATU array JavaScript, di mana tiap soal memakai format sesuai tipenya masing-masing.
 
 ${OUTPUT_RULES}
 
 ${PEMBAHASAN_TUNGGAL_RULE}
-- Boleh mencampur keempat tipe di bawah dalam satu array yang sama, dengan urutan mengikuti urutan soal yang saya beri.
+- Boleh mencampur semua tipe di bawah dalam satu array yang sama, dengan urutan mengikuti urutan soal yang saya beri.
 
 TIPE 1 - MCQ BIASA (pilihan ganda, tanpa gambar):
 {
@@ -1208,19 +1348,36 @@ TIPE 4 - ISIAN BERGAMBAR (isian singkat + gambar): sama seperti TIPE 3, TAPI tam
   ]
 }
 
+TIPE 5 - ESAI (TIDAK DINILAI, dengan atau tanpa gambar): tambahkan "dinilai": false, dan tambahkan "imageUrl" kalau soalnya bergambar:
+{
+  "text": "Perhatikan gambar berikut",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID",
+  "hint": "boleh \\"\\"",
+  "dinilai": false,
+  "subQuestions": [
+    { "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Dinding tebal berlapis"] }
+  ]
+}
+
 ATURAN ISI (penting, karena tipe tiap soal ditebak dari bentuk datanya):
 - Soal pilihan ganda WAJIB pakai "options" (min 2, TEPAT SATU "correct": true, SETIAP opsi wajib "explanation") dan DILARANG punya "subQuestions".
 - Soal isian WAJIB pakai "subQuestions" (min 1, "validAnswers" = array; tiap string = satu jawaban yang diterima, bentuk lainnya dipisah " / ") dan DILARANG punya "options".
+- Soal esai (jawabannya tidak bisa dinilai komputer) WAJIB pakai "subQuestions" DAN "dinilai": false; kuncinya ditulis di "validAnswers" (jawaban utama) dan "keyPoints" (satu butir per string). Tanpa "dinilai": false, soal itu dianggap isian dan DINILAI.
 - JANGAN pernah menulis "options" dan "subQuestions" pada soal yang sama.
 - "imageUrl" HANYA ditulis pada soal yang memang punya gambar, dan pakai link gambar milik soal itu sendiri. Soal tanpa gambar: hilangkan "imageUrl" sepenuhnya (jangan ditulis "").
 
 ${ISIAN_LANJUTAN_RULE}
 
+${ESAI_RULE}
+
 Konversi soal-soal campuran berikut (sertakan link gambar untuk soal yang bergambar, kunci jawaban & pembahasan untuk MCQ, semua jawaban yang diterima untuk isian):
 <<< TEMPEL SOAL DI SINI >>>`,
 };
 
-const TYPE_LABEL = { mcq: 'MCQ Biasa', mcq_img: 'MCQ Bergambar', isian: 'Isian Biasa', isian_img: 'Isian Bergambar', mixed: 'Acak (Campur)' };
+const TYPE_LABEL = {
+  mcq: 'MCQ Biasa', mcq_img: 'MCQ Bergambar', isian: 'Isian Biasa', isian_img: 'Isian Bergambar',
+  esai: 'Esai (tidak dinilai)', esai_img: 'Esai Bergambar (tidak dinilai)', mixed: 'Acak (Campur)',
+};
 
 // "mixed" bukan tipe soal sungguhan yang disimpan ke database - ia hanya mode
 // import yang membolehkan satu tempelan berisi campuran keempat tipe, lalu tipe
@@ -1288,8 +1445,9 @@ function BulkImport({ onImport, status }) {
       </div>
       {qtype === MIXED_TYPE && (
         <p className="text-[11px] text-stone-500 bg-gold-100/40 border border-gold-200 rounded-lg px-3 py-2">
-          Mode <b>Acak</b>: satu tempelan boleh berisi campuran MCQ Biasa, MCQ Bergambar, Isian Biasa, dan Isian Bergambar.
+          Mode <b>Acak</b>: satu tempelan boleh berisi campuran MCQ, Isian, dan Esai (masing-masing biasa atau bergambar).
           Tipe tiap soal dibaca otomatis dari bentuk datanya — ada <code>options</code> = MCQ, ada <code>subQuestions</code> = Isian,
+          ada <code>subQuestions</code> dengan <code>&quot;dinilai&quot;: false</code> = Esai (tidak dinilai),
           dan yang punya <code>imageUrl</code> jadi versi bergambar.
         </p>
       )}
@@ -1325,12 +1483,16 @@ function BulkImport({ onImport, status }) {
 // mana satu tempelan boleh berisi campuran keempat tipe soal sekaligus.
 // Aturannya: "options" = MCQ, "subQuestions" = Isian, dan "imageUrl" yang terisi
 // menaikkannya ke varian bergambar.
+// Tanda soal esai di data tempelan: "dinilai": false (atau "qtype": "esai...").
+const itemEsai = (item) => item.dinilai === false || String(item.qtype || '').startsWith('esai');
+
 function detectItemType(item, no) {
   const hasSubs = Array.isArray(item.subQuestions) && item.subQuestions.length > 0;
   const hasOpts = Array.isArray(item.options) && item.options.length > 0;
   if (hasSubs && hasOpts) throw new Error(`Soal #${no}: berisi "options" DAN "subQuestions" sekaligus, jadi tipenya tidak jelas. Satu soal hanya boleh punya salah satu.`);
   if (!hasSubs && !hasOpts) throw new Error(`Soal #${no}: tidak punya "options" (MCQ) maupun "subQuestions" (Isian), jadi tipenya tidak bisa ditebak. Cek lagi hasil dari Gemini.`);
   const withImg = String(item.imageUrl || '').trim() !== '';
+  if (hasSubs && itemEsai(item)) return withImg ? 'esai_img' : 'esai';
   if (hasSubs) return withImg ? 'isian_img' : 'isian';
   return withImg ? 'mcq_img' : 'mcq';
 }
@@ -1350,12 +1512,14 @@ function parseBulkItems(bulkText, qtype) {
     const hasSubs = Array.isArray(item.subQuestions) && item.subQuestions.length > 0;
     const hasOpts = Array.isArray(item.options) && item.options.length > 0;
     const itemType = acak ? detectItemType(item, no) : qtype;
-    const isian = isIsianType(itemType);
+    const esai = isEsaiType(itemType);
+    const isian = memakaiSub(itemType); // isian ATAU esai: keduanya berbentuk subQuestions
     const withImg = hasImageType(itemType);
     if (!acak) {
-      if (isian && !hasSubs) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "subQuestions". Pakai prompt Isian, atau ganti tipe ke MCQ.`);
+      if (isian && !hasSubs) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "subQuestions". Pakai prompt ${esai ? 'Esai' : 'Isian'}, atau ganti tipe ke MCQ.`);
       if (!isian && !hasOpts) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "options". Pakai prompt MCQ, atau ganti tipe ke Isian.`);
-      if (!isian && hasSubs) throw new Error(`Soal #${no}: berisi "subQuestions" (format Isian) padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Ganti tipe ke Isian.`);
+      if (!isian && hasSubs) throw new Error(`Soal #${no}: berisi "subQuestions" (format Isian/Esai) padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Ganti tipe ke Isian atau Esai.`);
+      if (isian && hasOpts) throw new Error(`Soal #${no}: berisi "options" padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Satu soal hanya boleh punya salah satu.`);
       if (withImg && !item.imageUrl) throw new Error(`Soal #${no}: tipe bergambar tapi tidak ada "imageUrl". Tambahkan link gambarnya.`);
     }
     // Teks dibersihkan dari "kode aneh" SEBELUM disimpan (lihat lib/textRepair),
@@ -1375,6 +1539,17 @@ function parseBulkItems(bulkText, qtype) {
               question: fixText(sq.question || ''),
               validAnswers: (Array.isArray(sq.validAnswers) ? sq.validAnswers : [String(sq.validAnswers || '')]).map(fixText),
             };
+            // Esai: tidak ada hitungan jawaban. Yang ada kunci berpoin (jawaban
+            // utama + butir pendukung); setidaknya salah satunya harus terisi.
+            if (esai) {
+              const poin = (Array.isArray(sq.keyPoints) ? sq.keyPoints : (sq.keyPoints ? [String(sq.keyPoints)] : [])).map(fixText);
+              const adaKunci = out.validAnswers.some((v) => String(v).trim()) || poin.some((v) => String(v).trim());
+              if (!adaKunci) throw new Error(`Soal #${no} bagian ${out.label}: esai tidak punya kunci. Isi "validAnswers" (jawaban utama) dan/atau "keyPoints" (butir kunci).`);
+              if (poin.length) out.keyPoints = poin;
+              if (String(sq.keyPointsTitle || '').trim()) out.keyPointsTitle = fixText(sq.keyPointsTitle).trim();
+              if (String(sq.explanation || '').trim()) out.explanation = fixText(sq.explanation);
+              return out;
+            }
             const n = jumlahKotak(sq);
             if (n > 1) {
               const ada = out.validAnswers.filter((v) => String(v).trim()).length;
@@ -1699,7 +1874,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
 }
 
 function QtypeBadge({ qtype }) {
-  const label = { mcq: 'MCQ', mcq_img: 'MCQ 🖼', isian: 'Isian', isian_img: 'Isian 🖼' }[qtype || 'mcq'] || 'MCQ';
+  const label = { mcq: 'MCQ', mcq_img: 'MCQ 🖼', isian: 'Isian', isian_img: 'Isian 🖼', esai: 'Esai', esai_img: 'Esai 🖼' }[qtype || 'mcq'] || 'MCQ';
   return <span className="inline-block mr-2 text-[10px] font-bold uppercase bg-alba-200 text-stone-600 rounded px-1.5 py-0.5">{label}</span>;
 }
 
@@ -1715,6 +1890,7 @@ function searchableParts(q) {
   for (const sq of q.subQuestions || []) {
     parts.push(stripHtml(sq.question));
     for (const a of sq.validAnswers || []) parts.push(String(a));
+    for (const k of sq.keyPoints || []) parts.push(String(k));
   }
   for (const o of q.options || []) {
     parts.push(stripHtml(o.text));
@@ -2102,7 +2278,8 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
 
 function PreviewModal({ previewData, onClose }) {
   if (!previewData) return null;
-  const isian = isIsianType(previewData.qtype) || (previewData.subQuestions || []).length > 0;
+  const esai = isEsaiType(previewData.qtype);
+  const isian = !esai && (isIsianType(previewData.qtype) || (previewData.subQuestions || []).length > 0);
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-alba-50 rounded-2xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
@@ -2124,7 +2301,27 @@ function PreviewModal({ previewData, onClose }) {
             </div>
           )}
 
-          {isian ? (
+          {esai ? (
+            <div className="space-y-3 mt-4">
+              <p className="text-xs font-semibold text-stone-500">Soal esai: tidak dinilai, siswa membandingkan sendiri dengan kunci.</p>
+              {(previewData.subQuestions || []).map((sq, i) => (
+                <div key={i} className="p-4 rounded-xl border-2 border-alba-200 bg-alba-100/60">
+                  <p className="font-semibold text-sm mb-1">
+                    {(previewData.subQuestions || []).length > 1 && (
+                      <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sq.label}</span>
+                    )}
+                    {sq.question}
+                  </p>
+                  <KunciEsai sub={sq} />
+                  {sq.explanation && (
+                    <div className="mt-2 text-xs text-stone-700 rounded-lg border border-maroon-100 bg-maroon-50/60 px-3 py-2">
+                      <span className="font-bold text-maroon-700">Pembahasan {sq.label}: </span><RichText text={sq.explanation} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : isian ? (
             <div className="space-y-3 mt-4">
               {(previewData.subQuestions || []).map((sq, i) => (
                 <div key={i} className="p-4 rounded-xl border-2 border-alba-200 bg-alba-100/60">

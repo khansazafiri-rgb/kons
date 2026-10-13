@@ -5,7 +5,7 @@ import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header
 import pb from '@/lib/pocketbaseClient';
 import { filterLatihan, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
-import QuestionRunner from '@/components/QuestionRunner';
+import QuestionRunner, { semuaEsai } from '@/components/QuestionRunner';
 import ChapterSelect from '@/components/ChapterSelect';
 import { touchActivity } from '@/lib/activityLog';
 import { idUrutan, susunSoal } from '@/lib/acakSoal';
@@ -220,7 +220,7 @@ export default function CicilBelajar() {
    }
  };
 
- const submit = async ({ answers, score }) => {
+ const submit = async ({ answers, score, gradedTotal }) => {
    if (!user) return;
    const existing = await pb
      .collection('soal_progress')
@@ -236,7 +236,7 @@ export default function CicilBelajar() {
    // Jejak untuk "last activity" di Dashboard Activity admin.
    const namaBab = chapters.find((c) => c.id === chapterId)?.title || '';
    const namaMk = subjects.find((s) => s.id === subjectId)?.name || '';
-   touchActivity(pb, user, `Mengerjakan latihan ${namaMk}${namaBab ? ` - BAB ${namaBab}` : ''} (nilai ${score})`);
+   touchActivity(pb, user, `Mengerjakan latihan ${namaMk}${namaBab ? ` - BAB ${namaBab}` : ''} (${gradedTotal === 0 ? 'esai, tidak dinilai' : `nilai ${score}`})`);
  };
 
  // Layar Peringatan Resume Pengerjaan
@@ -288,7 +288,10 @@ export default function CicilBelajar() {
            </div>
            <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">BAB Ini Sudah Kamu Selesaikan</h2>
            <p className="text-sm font-medium text-stone-600 mb-2 leading-relaxed">
-             Nilai terakhirmu: <span className="font-bold text-maroon-600">{priorProgress.score ?? 0}</span>. Mau lihat kembali jawabanmu, atau kerjakan ulang dari awal?
+             {semuaEsai(questions)
+               ? 'Soal di BAB ini berupa esai, jadi tidak ada nilai.'
+               : <>Nilai terakhirmu: <span className="font-bold text-maroon-600">{priorProgress.score ?? 0}</span>.</>}
+             {' '}Mau lihat kembali jawabanmu, atau kerjakan ulang dari awal?
            </p>
            <div className="flex flex-col gap-3 mt-6">
              <button

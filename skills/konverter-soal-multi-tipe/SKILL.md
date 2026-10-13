@@ -31,6 +31,11 @@ Untuk tiap soal, tentukan 2 hal secara independen:
 - MCQ (pilihan ganda) → ada daftar pilihan berlabel (A/B/C/D/E, atau baris "Pilihan:"), user diminta memilih satu/beberapa yang benar dari opsi yang sudah tersedia.
 - Isian (esai singkat) → TIDAK ada pilihan berlabel; soal berupa pernyataan yang perlu dilengkapi, atau satu/beberapa sub-pertanyaan yang jawabannya diketik bebas (nama struktur, istilah, dll), bukan dipilih dari opsi.
 
+**C. Esai tidak dinilai?** (kategori ke-5 dan ke-6, berlaku bersama A)
+- Esai tidak dinilai → soal yang jawabannya tidak bisa dinilai komputer dengan tepat (mengenali gambar preparat, menjelaskan mekanisme, menyebut ciri-ciri), dan sumbernya hanya memberi KUNCI berupa jawaban utama dan/atau butir-butir (sering satu baris yang dipisah " / ", "Ciri-ciri: a / b / c"). Siswa menulis jawabannya, lalu membuka kunci dan membandingkannya sendiri; tidak ada benar/salah dan tidak masuk skor.
+- Tandanya: user menyebut "esai", "tidak dinilai", "dicocokkan sendiri", atau kuncinya berupa daftar ciri/poin yang panjang, bukan satu-dua kata yang bisa diketik persis. Kalau user tidak menyebut tetapi kuncinya jelas daftar panjang yang tidak mungkin diketik persis oleh siswa, tanyakan lewat baris "❓ perlu klarifikasi" apakah soal itu esai tidak dinilai atau isian biasa, jangan menebak.
+- Soal esai memakai `"dinilai": false` dan `subQuestions` (lihat "5) ESAI TIDAK DINILAI" di bawah). Soal isian biasa TIDAK boleh diberi `"dinilai": false`, dan soal esai TIDAK boleh ditulis sebagai isian.
+
 Kombinasi A + B menentukan bentuk objeknya: ISIAN BERGAMBAR, ISIAN NON-GAMBAR, MCQ BERGAMBAR, atau MCQ NON-GAMBAR (lihat bentuk masing-masing di bawah). Keempatnya tetap masuk ke array yang SAMA — kombinasi ini cuma nentuin field mana yang dipakai per objek, bukan array mana objeknya taruh.
 
 Kalau ada soal yang ambigu (nggak jelas MCQ atau isian, ada link gambar tapi nggak jelas itu punya soal yang mana, atau nggak ada tanda jawaban benar sama sekali padahal soal MCQ), JANGAN menebak diam-diam. Taruh soal itu di baris paling akhir output (di luar array) dengan format:
@@ -162,7 +167,7 @@ diganti jadi "alfa", "derajat", atau escape `α`.
 
 ## Bentuk Objek per Kategori
 
-Ini cuma nentuin field apa yang dipakai tiap objek — keempatnya tetap disambung jadi satu array yang sama, TANPA header pemisah.
+Ini cuma nentuin field apa yang dipakai tiap objek — semuanya (termasuk esai) tetap disambung jadi satu array yang sama, TANPA header pemisah.
 
 Keempat bentuk di bawah ditulis tanpa pembahasan tunggal (kasus paling umum). Kalau soalnya ternyata punya satu pembahasan untuk keseluruhan, tambahkan `"explanation": "..."` tepat setelah `"hint"` pada bentuk mana pun — lihat "Pembahasan Tunggal vs Pembahasan per Opsi".
 
@@ -220,6 +225,34 @@ Keempat bentuk di bawah ditulis tanpa pembahasan tunggal (kasus paling umum). Ka
 - `subQuestions`: minimal 1 per soal isian. `validAnswers` = array; tiap string = satu jawaban yang diterima, dan siswa cukup cocok dengan SALAH SATU-nya. Bentuk lain dari jawaban yang sama (sinonim, Indonesia/Inggris, singkatan) digabung dalam string itu, dipisah `" / "`. Sistem sudah menoleransi huruf besar/kecil, tanda baca, salah ketik kecil, imbuhan, dan urutan kata (lihat bagian di bawah).
 - `options`: tepat SATU `correct: true` per soal MCQ (kecuali soal memang eksplisit multi-jawaban-benar, ikuti instruksi soal).
 - Soal isian JANGAN pakai `options`. Soal MCQ JANGAN pakai `subQuestions`.
+
+### 5) ESAI TIDAK DINILAI (dengan atau tanpa gambar)
+Sama seperti isian, tetapi WAJIB ada `"dinilai": false`, dan kuncinya ditulis dalam dua bagian: jawaban utama dan butir-butir pendukung.
+```
+{
+  "text": "Perhatikan gambar berikut.",
+  "imageUrl": "https://lh3.googleusercontent.com/d/FILE_ID",
+  "hint": "",
+  "dinilai": false,
+  "subQuestions": [
+    {
+      "label": "A",
+      "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:",
+      "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"],
+      "keyPointsTitle": "Ciri-ciri",
+      "keyPoints": ["Bentuk bulat sampai oval", "Ukuran sekitar 45–75 × 35–50 µm", "Dinding tebal berlapis"]
+    }
+  ]
+}
+```
+- Soal esai tanpa gambar: hilangkan `"imageUrl"` seluruhnya (sama seperti isian non-gambar).
+- `"validAnswers"` = JAWABAN UTAMA yang ditanyakan, satu string per jawaban (tampil tebal; beberapa jawaban tampil berpoin). Tidak perlu sinonim atau variasi: esai tidak dinilai komputer.
+- `"keyPoints"` = butir-butir pendukung kunci, SATU BUTIR PER STRING. Butir yang di sumber ditulis dalam satu baris dan dipisah " / " (atau titik koma, bullet, nomor) HARUS DIPECAH jadi string-string terpisah; satu string hanya satu gagasan.
+- `"keyPointsTitle"` = judul daftar butir itu seperti di sumber ("Ciri-ciri", "Karakteristik", "Komplikasi"). Kalau sumber tidak punya judul, hilangkan field ini (tampil sebagai "Poin kunci").
+- Salin isi butir PERSIS seperti sumber: angka, satuan, nama latin, tanda baca. Jangan meringkas, menambah, atau memperbaiki isinya. Kalau butir di sumber diawali huruf kecil karena aslinya potongan kalimat, boleh dikapitalkan pada huruf pertamanya, kecuali satuan atau lambang (mm, µm, pH).
+- Tanda "/" TANPA spasi di dalam butir ("larva/L3", "mL/hari") bagian dari isi butir; jangan dipecah.
+- Jangan tulis `"answerCount"` pada esai. Pembahasan tambahan (teks/gambar) tetap di `"explanation"` sub-pertanyaan atau tingkat soal.
+- Satu pertanyaan yang menanyakan dua hal tetap dipecah jadi dua sub-pertanyaan (A, B), masing-masing dengan kuncinya sendiri.
 
 ### Isian: kunci berisi banyak jawaban, dan pembahasan per bagian
 

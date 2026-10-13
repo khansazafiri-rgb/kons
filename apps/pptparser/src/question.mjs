@@ -4,6 +4,7 @@
 // Menangani kedua bentuk soal di aplikasi (amplop JSON di field `options`):
 //   - mcq / mcq_img : { choices: [{text, correct, explanation}], imageUrl }
 //   - isian / isian_img : { subQuestions: [{label, question, validAnswers[]}], imageUrl }
+//   - esai / esai_img   : seperti isian, plus keyPoints[] (soal tidak dinilai)
 //
 // Kunci penting untuk soal BERGAMBAR: gambarnya tidak perlu "dilihat" — teks
 // jawaban ("Cellular Cementum", "Bell Stage") sudah membawa konsepnya. URL
@@ -33,7 +34,11 @@ export function fromRecord(rec) {
 
 // Susun bundel seragam dari bagian-bagian mentah.
 function build({ id, qtype, imageUrl, stem, choices, subQuestions }) {
-  const isian = String(qtype).startsWith('isian');
+  // Esai (tidak dinilai) berbentuk sama dengan isian: jawaban utama di
+  // validAnswers, ditambah butir kunci di keyPoints. Untuk analisis cakupan
+  // materi, butir-butir itu sama bernilainya dengan jawaban isian.
+  const esai = String(qtype).startsWith('esai');
+  const isian = String(qtype).startsWith('isian') || esai;
   const imageBased = String(qtype).includes('img') || Boolean(imageUrl);
 
   const subStems = [], answers = [], correctOptions = [], distractors = [], explanations = [];
@@ -44,6 +49,11 @@ function build({ id, qtype, imageUrl, stem, choices, subQuestions }) {
       for (const a of sq?.validAnswers || []) {
         // validAnswers bisa "Lidah / Lingual" (beberapa alias) -> pisahkan.
         String(a).split('/').map((s) => s.trim()).filter(Boolean).forEach((s) => answers.push(s));
+      }
+      if (esai) {
+        for (const k of sq?.keyPoints || []) {
+          String(k).split(/\s+\/\s+/).map((s) => s.trim()).filter(Boolean).forEach((s) => answers.push(s));
+        }
       }
     }
   } else {
