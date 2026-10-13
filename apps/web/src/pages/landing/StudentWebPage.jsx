@@ -177,7 +177,7 @@ function IsiWeb() {
     <>
       <p className="text-sm font-bold text-stone-700 mb-1">Isi web saat ini:</p>
       <p className="text-sm text-stone-600 mb-4 leading-relaxed">
-        {t.mataKuliah} mata kuliah · {t.bab} BAB · {t.babPpt} PPT materi · {t.soal} soal tiap BAB
+        {t.mataKuliah} mata kuliah · {t.bab} BAB · {t.babPpt} PPT materi · {t.soal} soal latihan
         {t.soalSimulasi > 0 && <> · {t.soalSimulasi} soal tahun sebelumnya</>}
       </p>
 

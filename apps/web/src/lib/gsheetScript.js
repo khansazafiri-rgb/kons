@@ -100,7 +100,7 @@ function pasangCekCepat() {
   }
   if (!halaman.length) {
     sh.getRange('A6').setValue(
-      'Tab impor belum ada. Buat dulu tab bernama persis: Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab sengaja tetap memakai istilah lama karena skrip mencari tab lewat nama.'
+      'Tab impor belum ada. Buat dulu tab bernama persis: Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab ini tidak sama dengan nama menu di web (Cicil Belajar = Soal Tiap BAB, Perdalam Materi = Baca PPT, Simulasi CBT = Soal Tahun Sebelumnya). Jangan diganti, karena skrip mencari tab lewat nama persis.'
     ).setFontColor('#b3261e');
     return;
   }

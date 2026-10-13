@@ -7,7 +7,7 @@ import { GSHEET_SCRIPT } from '@/lib/gsheetScript';
 import useUrlState from '@/lib/useUrlState';
 import { cocokUniversitas } from '@/lib/chapterScope';
 import {
-  SHEETS, SHEET_KEYS, isiLengkap, loadContentMap, persen, ringkasPerSubjek,
+  KETERANGAN_NAMA_TAB, SHEETS, SHEET_KEYS, isiLengkap, loadContentMap, persen, ringkasPerSubjek,
   rowsForSheet, totalKeseluruhan, unduhCsv,
 } from '@/lib/contentMap';
 
@@ -145,7 +145,7 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
               lembar === s.key ? 'bg-maroon-600 text-alba-50' : 'border border-alba-300 text-stone-600 hover:bg-maroon-50'
             }`}
           >
-            {s.label}
+            {s.judul || s.label}
           </button>
         ))}
       </div>
@@ -419,7 +419,7 @@ function SambunganSheets() {
             <ol className="mt-2 text-xs text-stone-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
               <li>Geser saklar di atas sampai tulisannya berubah jadi &quot;Alamat CSV aktif&quot;. Selama masih mati, rumusnya pasti gagal dan Google cuma menampilkan #N/A.</li>
               <li>Buat spreadsheet baru di Google Sheets.</li>
-              <li>Buat satu tab untuk tiap lembar, dan beri nama PERSIS seperti label di daftar rumus: Ringkasan, Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab dipakai skrip &quot;Cek Cepat&quot; untuk menemukan datanya. Nama-nama ini sengaja tetap memakai istilah lama karena spreadsheet yang sudah terpasang mencari tab-nya lewat nama.</li>
+              <li>Buat satu tab untuk tiap lembar, dan beri nama PERSIS seperti label di daftar rumus: Ringkasan, Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab dipakai skrip &quot;Cek Cepat&quot; untuk menemukan datanya. {KETERANGAN_NAMA_TAB}</li>
               <li>Di tiap tab, klik sel A1 lalu tempel rumus lembar yang sesuai.</li>
               <li>Tunggu sebentar - datanya masuk sendiri, dan ikut tersegarkan berkala tanpa disentuh lagi.</li>
             </ol>
@@ -832,8 +832,8 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading, onLompat }) {
           <ul className="text-xs text-stone-600 space-y-1">
             {tanpaBab.map((t) => (
               <li key={t.subjectId}>
-                <span className="font-semibold">{t.subjectName}</span>: {t.soalLatihan} soal tiap BAB,
-                {' '}{t.soalCbt} soal tahun sebelumnya, {t.soalBank} bank
+                <span className="font-semibold">{t.subjectName}</span>: {t.soalLatihan} di Soal Tiap BAB,
+                {' '}{t.soalCbt} di Soal Tahun Sebelumnya, {t.soalBank} di Bank Soal
               </li>
             ))}
           </ul>

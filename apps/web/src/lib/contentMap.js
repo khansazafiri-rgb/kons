@@ -21,13 +21,20 @@ import { KIND_CBT, daftarUniversitas, labelUniversitas } from '@/lib/chapterScop
 // karena Apps Script yang sudah ditempel admin mencari tab lewat nama persis.
 // Nama menu siswa sekarang: Soal Tiap BAB / Baca PPT / Soal Tahun Sebelumnya.
 
+// `label` = nama tab di Google Sheets (dibekukan, lihat catatan di atas).
+// `judul` = nama yang dilihat admin/pengajar di tombol lembar; sama dengan nama
+// menu di web siswa. Hanya `label` yang boleh dipakai untuk mencari tab.
 export const SHEETS = [
   { key: 'ringkasan', label: 'Ringkasan' },
-  { key: 'cicil', label: 'Cicil Belajar' },
-  { key: 'materi', label: 'Perdalam Materi' },
-  { key: 'cbt', label: 'Simulasi CBT' },
+  { key: 'cicil', label: 'Cicil Belajar', judul: 'Soal Tiap BAB' },
+  { key: 'materi', label: 'Perdalam Materi', judul: 'Baca PPT' },
+  { key: 'cbt', label: 'Simulasi CBT', judul: 'Soal Tahun Sebelumnya' },
   { key: 'bank', label: 'Bank Soal' },
 ];
+
+// Kalimat penjelas yang dipakai di panel Peta Konten dan di pesan galat skrip.
+export const KETERANGAN_NAMA_TAB =
+  'Nama tab ini tidak sama dengan nama menu di web (Cicil Belajar = Soal Tiap BAB, Perdalam Materi = Baca PPT, Simulasi CBT = Soal Tahun Sebelumnya). Jangan diganti, karena skrip mencari tab lewat nama persis.';
 
 export const SHEET_KEYS = SHEETS.map((s) => s.key);
 
