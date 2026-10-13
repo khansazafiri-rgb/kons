@@ -45,7 +45,7 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
     subjects = e.app.findRecordsByFilter("subjects", "id != ''", "order", 0, 0);
     // Semua BAB ditarik, penyaringannya dilakukan per angka di bawah:
     // penyembunyian sekarang dipisah per halaman ("hidden" untuk halaman soal,
-    // "hiddenMateri" untuk Perdalam Materi), jadi satu filter di query tidak
+    // "hiddenMateri" untuk Baca PPT), jadi satu filter di query tidak
     // lagi cukup - BAB yang cuma disembunyikan di salah satu halaman tetap
     // terlihat siswa di halaman satunya dan masih pantas dihitung.
     chapters = e.app.findRecordsByFilter("chapters", "id != ''", "", 0, 0);
@@ -115,8 +115,8 @@ routerAdd("GET", "/api/pcv/konten-stats", (e) => {
       target.soalSimulasi += soal.cbt;
       return;
     }
-    const adaSoal = !c.getBool("hidden");        // tampil di Cicil Belajar
-    const adaMateri = !c.getBool("hiddenMateri"); // tampil di Perdalam Materi
+    const adaSoal = !c.getBool("hidden");        // tampil di Soal Tiap BAB
+    const adaMateri = !c.getBool("hiddenMateri"); // tampil di Baca PPT
     if (!adaSoal && !adaMateri) return;          // tertutup di dua-duanya
     target.bab += 1;
     if (adaMateri && punyaPpt[c.id]) target.babPpt += 1;

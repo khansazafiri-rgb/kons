@@ -85,11 +85,11 @@ export default function StudentProgramPage() {
             <p className="text-alba-200 leading-relaxed max-w-2xl mb-4">
               Untuk mahasiswa FK UNAIR tersedia paket pendampingan paling lengkap:
               kelas reguler per semester yang mengikuti kurikulum blok, plus akses web
-              pembelajaran interaktif berisi PPT high-yield, latihan soal per BAB, dan
-              simulasi CBT.
+              pembelajaran interaktif berisi PPT high-yield, soal tiap BAB, dan
+              soal tahun sebelumnya.
             </p>
             <ul className="space-y-2 text-sm text-alba-100">
-              {['Kelas mengikuti jadwal blok & ujian FK UNAIR', 'Web siswa: materi + latihan CBT per BAB', 'Tentor lintas angkatan FK UNAIR \'18-\'24'].map((t) => (
+              {['Kelas mengikuti jadwal blok & ujian FK UNAIR', 'Web siswa: baca PPT + kerjakan soal tiap BAB', 'Tentor lintas angkatan FK UNAIR \'18-\'24'].map((t) => (
                 <li key={t} className="flex gap-2.5 items-start">
                   <CheckCircle2 size={16} className="text-gold-400 shrink-0 mt-0.5" /> {t}
                 </li>
@@ -125,7 +125,7 @@ export default function StudentProgramPage() {
             <h2 className="font-display text-3xl font-semibold mb-3">Belajar Mandiri Lewat Web Siswa</h2>
             <p className="text-stone-600 leading-relaxed">
               Peserta Student Program mendapat akses web interaktif berisi PPT high-yield,
-              rangkuman, dan latihan CBT per BAB. Saat ini web difokuskan untuk kurikulum
+              rangkuman, dan soal tiap BAB. Saat ini web difokuskan untuk kurikulum
               FK UNAIR (Semester 1 &amp; 3) dan terus dikembangkan untuk kampus lain.
             </p>
           </motion.div>
@@ -138,9 +138,9 @@ export default function StudentProgramPage() {
           </motion.div>
           <motion.div {...fadeUp} className="grid sm:grid-cols-3 gap-5 mb-8">
             {[
-              { icon: BookOpenText, t: 'Perdalam Materi', d: 'PPT high-yield per topik' },
-              { icon: ClipboardList, t: 'Cicil Belajar', d: 'Latihan soal per BAB + pembahasan' },
-              { icon: Timer, t: 'Simulasi CBT', d: 'Latihan bertimer ala ujian asli' },
+              { icon: BookOpenText, t: 'Baca PPT', d: 'PPT high-yield per topik' },
+              { icon: ClipboardList, t: 'Kerjakan Soal Tiap BAB', d: 'Latihan soal per BAB + pembahasan' },
+              { icon: Timer, t: 'Kerjakan Soal Tahun Sebelumnya', d: 'Bisa dikerjakan bertimer ala ujian asli' },
             ].map((f) => (
               <div key={f.t} className="rounded-2xl bg-alba-50 border border-alba-200 p-6 shadow-card">
                 <f.icon size={20} className="text-maroon-600 mb-3" />

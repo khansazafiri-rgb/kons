@@ -9,32 +9,32 @@ import { useAuth } from '@/context/AuthContext';
 // Kurva perlambatan lembut untuk semua gerak masuk di beranda.
 const EASE = [0.22, 1, 0.36, 1];
 
-// Tiga langkah belajar yang berurutan: baca materinya, review lewat soal per
-// BAB, lalu uji diri lewat simulasi ujian. CBT Test sengaja disorot karena itu
-// latihan yang paling mendekati ujian sungguhan.
+// Tiga langkah belajar yang berurutan: baca PPT-nya, review lewat soal tiap
+// BAB, lalu uji diri lewat soal tahun sebelumnya. Kartu terakhir sengaja
+// disorot karena itu latihan yang paling mendekati ujian sungguhan.
 const langkah = [
   {
     n: 1,
-    verb: 'Baca',
+    verb: 'Pelajari',
     icon: BookOpenText,
-    title: 'Perdalam Materi',
-    desc: 'Baca PPT hasil simplifikasi dari PPT dosen, per mata kuliah dan BAB.',
+    title: 'Baca PPT',
+    desc: 'PPT hasil simplifikasi dari PPT dosen, per mata kuliah dan BAB.',
     to: '/perdalam-materi',
   },
   {
     n: 2,
     verb: 'Review',
     icon: ClipboardList,
-    title: 'Cicil Belajar',
-    desc: 'Habis membaca, cek pemahamanmu lewat soal per BAB dan baca pembahasannya.',
+    title: 'Kerjakan Soal Tiap BAB',
+    desc: 'Habis membaca, cek pemahamanmu lewat latihan soal dan baca pembahasannya.',
     to: '/cicil-belajar',
   },
   {
     n: 3,
     verb: 'Uji dirimu',
     icon: Timer,
-    title: 'CBT Test',
-    desc: 'Simulasi ujian sungguhan: soal UTB dan UAB dengan timer dan nilai otomatis.',
+    title: 'Kerjakan Soal Tahun Sebelumnya',
+    desc: 'Soal UTB dan UAB dari ujian sebelumnya, dengan timer dan nilai otomatis.',
     chips: ['UTB', 'UAB'],
     sorot: true,
     to: '/simulasi-test',
@@ -183,7 +183,7 @@ export default function LearningHome() {
          <h1 className="font-display text-3xl md:text-4xl font-semibold mb-2">
            Selamat Belajar{firstName ? `, ${firstName}` : ''}!
          </h1>
-         <p className="text-stone-600 mb-8">Baca materinya, review lewat soal, lalu uji dirimu di simulasi ujian.</p>
+         <p className="text-stone-600 mb-8">Baca PPT-nya, kerjakan soal tiap BAB, lalu uji dirimu dengan soal tahun sebelumnya.</p>
        </motion.div>
 
        {/* Info singkat: reminder ujian, jadwal kelas, dan latihan yang belum
@@ -238,9 +238,9 @@ export default function LearningHome() {
          </motion.div>
        )}
 
-       {/* Alur belajar. Kartu 1-2 sama bobotnya; kartu 3 (CBT Test) sengaja
-           lebih besar dan berwarna penuh supaya siswa langsung tahu itu
-           simulasi ujiannya. */}
+       {/* Alur belajar. Kartu 1-2 sama bobotnya; kartu 3 (Kerjakan Soal Tahun
+           Sebelumnya) sengaja lebih besar dan berwarna penuh supaya siswa
+           langsung tahu itu latihan paling mirip ujian. */}
        <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_1fr_1.3fr]">
          {langkah.map((c, i) => (
            <motion.div
@@ -276,10 +276,10 @@ export default function LearningHome() {
                </div>
                {c.sorot && (
                  <span className="relative mb-3 inline-flex self-start items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider">
-                   <Timer size={12} /> Simulasi Ujian
+                   <Timer size={12} /> Seperti ujian sungguhan
                  </span>
                )}
-               <h2 className={`relative font-display font-semibold mb-2 ${c.sorot ? 'text-3xl' : 'text-xl'}`}>{c.title}</h2>
+               <h2 className={`relative font-display font-semibold mb-2 ${c.sorot ? 'text-2xl' : 'text-xl'}`}>{c.title}</h2>
                <p className={`relative flex-1 leading-relaxed mb-5 ${c.sorot ? 'text-[15px] text-alba-50/90' : 'text-sm text-stone-600'}`}>{c.desc}</p>
                {c.chips && (
                  <div className="relative mb-6 flex gap-2">
@@ -289,7 +289,7 @@ export default function LearningHome() {
                  </div>
                )}
                <span className={`relative inline-flex items-center gap-2 self-start text-sm font-bold ${c.sorot ? 'rounded-full bg-white px-6 py-2.5 text-[#740100] group-hover:bg-[#f8f4ec]' : 'text-maroon-600'}`}>
-                 {c.sorot ? 'Mulai simulasi' : 'Buka'}
+                 {c.sorot ? 'Mulai mengerjakan' : 'Buka'}
                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-1" />
                </span>
              </Link>

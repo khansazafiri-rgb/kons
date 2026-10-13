@@ -1,10 +1,10 @@
 # ML Weakness Analysis Integration Guide
 
-This document explains how to integrate the pptparser ML system with the Simulasi CBT feature.
+This document explains how to integrate the pptparser ML system with the Kerjakan Soal Tahun Sebelumnya (previous-year exam questions) feature.
 
 ## Overview
 
-The Simulasi CBT now supports **ML-based weakness analysis** that:
+The Kerjakan Soal Tahun Sebelumnya feature now supports **ML-based weakness analysis** that:
 1. Parses PPT materials to extract sub-topic structure
 2. Maps student answers to sub-topics via BM25 term matching
 3. Identifies weakness per concept (not just per chapter)
@@ -84,7 +84,7 @@ localStorage.setItem('ml_corpus', JSON.stringify(topicRecords));
 
 ### 3. Submission Flow
 
-When a student submits a Simulasi CBT exam:
+When a student submits an exam in Kerjakan Soal Tahun Sebelumnya:
 
 1. **QuestionRunner** calculates correctness for each question
 2. **finish()** function calls **analyzeWeakness()** if corpus data is available
@@ -129,7 +129,7 @@ To deploy this end-to-end:
 
 3. **Test integration** by:
    - Starting web app development server
-   - Taking a Simulasi CBT exam
+   - Taking an exam in Kerjakan Soal Tahun Sebelumnya
    - Checking if weakness report shows sub-topics + slide ranges
 
 4. **Production deployment**:

@@ -130,8 +130,8 @@ export default function PetaKonten({ allowedSubjectIds = null, basePath = '/admi
           <Kartu label="BAB ber-PPT" nilai={total.babBerPpt} dari={total.babLatihan} onKlik={() => lompatKe('materi', '', 'sudah')} />
           <Kartu label="BAB ber-video" nilai={total.babBerVideo} dari={total.babLatihan} onKlik={() => lompatKe('materi')} />
           <Kartu label="BAB ber-soal" nilai={total.babBerSoal} dari={total.babLatihan} onKlik={() => lompatKe('cicil', '', 'sudah')} />
-          <Kartu label="Soal cicil belajar" nilai={total.soalLatihan} onKlik={() => lompatKe('cicil')} />
-          <Kartu label="BAB simulasi CBT" nilai={total.babCbt} sub={`${total.soalCbt} soal`} onKlik={() => lompatKe('cbt')} />
+          <Kartu label="Soal tiap BAB" nilai={total.soalLatihan} onKlik={() => lompatKe('cicil')} />
+          <Kartu label="BAB tahun sebelumnya" nilai={total.babCbt} sub={`${total.soalCbt} soal`} onKlik={() => lompatKe('cbt')} />
         </div>
       </div>
 
@@ -419,7 +419,7 @@ function SambunganSheets() {
             <ol className="mt-2 text-xs text-stone-600 space-y-1.5 list-decimal pl-4 leading-relaxed">
               <li>Geser saklar di atas sampai tulisannya berubah jadi &quot;Alamat CSV aktif&quot;. Selama masih mati, rumusnya pasti gagal dan Google cuma menampilkan #N/A.</li>
               <li>Buat spreadsheet baru di Google Sheets.</li>
-              <li>Buat satu tab untuk tiap lembar, dan beri nama PERSIS seperti label di daftar rumus: Ringkasan, Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab dipakai skrip &quot;Cek Cepat&quot; untuk menemukan datanya.</li>
+              <li>Buat satu tab untuk tiap lembar, dan beri nama PERSIS seperti label di daftar rumus: Ringkasan, Cicil Belajar, Perdalam Materi, Simulasi CBT, Bank Soal. Nama tab dipakai skrip &quot;Cek Cepat&quot; untuk menemukan datanya. Nama-nama ini sengaja tetap memakai istilah lama karena spreadsheet yang sudah terpasang mencari tab-nya lewat nama.</li>
               <li>Di tiap tab, klik sel A1 lalu tempel rumus lembar yang sesuai.</li>
               <li>Tunggu sebentar - datanya masuk sendiri, dan ikut tersegarkan berkala tanpa disentuh lagi.</li>
             </ol>
@@ -475,7 +475,7 @@ function Penyaring({
   // Yang diunduh persis yang sedang tampil di tabel, termasuk hasil penyaring -
   // jadi "hanya yang belum terisi" bisa langsung jadi daftar tugas.
   const unduh = () => {
-    const header = ['Mata kuliah', 'BAB', 'Universitas', 'Disembunyikan', 'PPT', 'Video', 'Soal cicil', 'Soal simulasi', 'Soal bank'];
+    const header = ['Mata kuliah', 'BAB', 'Universitas', 'Disembunyikan', 'PPT', 'Video', 'Soal tiap BAB', 'Soal tahun sebelumnya', 'Soal bank'];
     const baris = rowsTampil.map((r) => [
       r.subjectName, r.title, r.universityLabel || '-',
       (lembar === 'materi' ? r.hiddenMateri : r.hidden) ? 'ya' : 'tidak',
@@ -723,7 +723,7 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading, onLompat }) {
   if (!ringkasan.length) return <p className="text-sm text-stone-500 py-6">Belum ada mata kuliah.</p>;
 
   const unduh = () => {
-    const header = ['Mata kuliah', 'BAB latihan', 'BAB ber-PPT', 'BAB ber-video', 'BAB ber-soal', 'Soal cicil', 'Soal bank', 'BAB simulasi', 'Soal simulasi'];
+    const header = ['Mata kuliah', 'BAB latihan', 'BAB ber-PPT', 'BAB ber-video', 'BAB ber-soal', 'Soal tiap BAB', 'Soal bank', 'BAB tahun sebelumnya', 'Soal tahun sebelumnya'];
     const baris = ringkasan.map((r) => [
       r.subjectName, r.babLatihan, r.babBerPpt, r.babBerVideo, r.babBerSoal,
       r.soalLatihan, r.soalBank, r.babCbt, r.soalCbt,
@@ -760,10 +760,10 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading, onLompat }) {
               <th className={th}>PPT</th>
               <th className={th}>Video</th>
               <th className={th}>BAB ber-soal</th>
-              <th className={th}>Soal cicil</th>
+              <th className={th}>Soal tiap BAB</th>
               <th className={th}>Soal bank</th>
-              <th className={th}>BAB simulasi</th>
-              <th className={th}>Soal simulasi</th>
+              <th className={th}>BAB tahun sebelumnya</th>
+              <th className={th}>Soal tahun sebelumnya</th>
             </tr>
           </thead>
           <tbody>
@@ -781,8 +781,8 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading, onLompat }) {
                       tertukar dengan yang benar-benar tertutup di atas. */}
                   {(r.babTersembunyiSoal > r.babTersembunyi || r.babTersembunyiMateri > r.babTersembunyi) && (
                     <span className="block text-[11px] font-medium text-stone-400">
-                      sebagian: {r.babTersembunyiSoal - r.babTersembunyi} BAB hanya disembunyikan dari Cicil Belajar,
-                      {' '}{r.babTersembunyiMateri - r.babTersembunyi} BAB hanya dari Perdalam Materi
+                      sebagian: {r.babTersembunyiSoal - r.babTersembunyi} BAB hanya disembunyikan dari Soal Tiap BAB,
+                      {' '}{r.babTersembunyiMateri - r.babTersembunyi} BAB hanya dari Baca PPT
                     </span>
                   )}
                 </td>
@@ -832,8 +832,8 @@ function LembarRingkasan({ ringkasan, tanpaBab, loading, onLompat }) {
           <ul className="text-xs text-stone-600 space-y-1">
             {tanpaBab.map((t) => (
               <li key={t.subjectId}>
-                <span className="font-semibold">{t.subjectName}</span>: {t.soalLatihan} cicil,
-                {' '}{t.soalCbt} simulasi, {t.soalBank} bank
+                <span className="font-semibold">{t.subjectName}</span>: {t.soalLatihan} soal tiap BAB,
+                {' '}{t.soalCbt} soal tahun sebelumnya, {t.soalBank} bank
               </li>
             ))}
           </ul>

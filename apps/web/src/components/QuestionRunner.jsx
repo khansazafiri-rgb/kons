@@ -266,9 +266,9 @@ export default function QuestionRunner({
 
    // Analisis kelemahan berbasis ML (kalau korpus materi tersedia).
    // Dipakai di DUA tempat:
-   //  - Simulasi CBT  : soal lintas BAB tanpa info BAB → dicocokkan ke seluruh korpus.
-   //  - Cicil Belajar : soal satu BAB → korpus dipersempit ke BAB itu saja supaya
-   //                    sub-topik yang ditunjuk akurat (tidak nyasar ke BAB lain).
+   //  - Soal Tahun Sebelumnya : soal lintas BAB tanpa info BAB → dicocokkan ke seluruh korpus.
+   //  - Soal Tiap BAB         : soal satu BAB → korpus dipersempit ke BAB itu saja supaya
+   //                            sub-topik yang ditunjuk akurat (tidak nyasar ke BAB lain).
    try {
      // Sumber utama: collection `topics` di PocketBase, diisi oleh
      // `npm run sync` (apps/pptparser) dari PPT yang sudah diupload admin/
@@ -285,7 +285,7 @@ export default function QuestionRunner({
      if (parseResults && parseResults.length) {
        let corpus = buildCorpus(parseResults);
 
-       // Cicil Belajar: semua soal berasal dari satu BAB. Persempit korpus ke
+       // Soal Tiap BAB: semua soal berasal dari satu BAB. Persempit korpus ke
        // BAB itu. Kalau BAB tsb belum punya materi terparse, korpus jadi kosong
        // → ML dilewati & tampil rekomendasi biasa (jujur, tidak memaksa cocok).
        const chapterIds = [...new Set(qs.map((qq) => qq.chapter).filter(Boolean))];

@@ -5,7 +5,7 @@ import SortableList from '@/components/SortableList';
 import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, cocokUniversitas, filterCbtKind, filterLatihan, gabung, labelUniversitas } from '@/lib/chapterScope';
 
 // Manajemen BAB per mata kuliah: tambah, ubah nama, hide/tampilkan, urutkan,
-// hapus, dan PILIH bab. Dipakai bersama di "Edit Soal" (Cicil Belajar) & "PPT
+// hapus, dan PILIH bab. Dipakai bersama di "Edit Soal" (Soal Tiap BAB) & "PPT
 // Mata Kuliah", untuk admin maupun pengajar (izin ditegakkan oleh API rules).
 //
 // Menambah/mengubah nama/mengurutkan/menghapus BAB itu BERSAMA: satu record
@@ -20,8 +20,8 @@ import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, cocokUniversitas, filterCbtKind, fi
 //                        'soal' -> badge jumlah soal pada bab
 // - refreshSignal      : ubah nilainya untuk memaksa muat ulang (mis. setelah
 //                        upload PPT / tambah soal dari komponen induk)
-// - kind               : 'latihan' (default) untuk BAB Cicil Belajar & PPT,
-//                        'cbt' untuk BAB Simulasi CBT
+// - kind               : 'latihan' (default) untuk BAB di Soal Tiap BAB & Baca PPT,
+//                        'cbt' untuk BAB di Soal Tahun Sebelumnya
 // - universityFilter    : hanya dipakai saat kind 'cbt' - daftar FK (array)
 //                        untuk MENYARING BAB mana yang ditampilkan (BAB "semua
 //                        FK" selalu ikut tampil apa pun isi filternya). Array
@@ -31,13 +31,13 @@ import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, cocokUniversitas, filterCbtKind, fi
 //                        menempel ke FK yang sedang dilihat admin.
 // - scope              : HALAMAN MANA yang disembunyikan tombol 👁 di sini.
 //                        SCOPE_SOAL (bawaan)  -> field `hidden`, mempengaruhi
-//                          Cicil Belajar / Bank Soal / Simulasi CBT.
+//                          Soal Tiap BAB / Bank Soal / Soal Tahun Sebelumnya.
 //                        SCOPE_MATERI         -> field `hiddenMateri`,
-//                          mempengaruhi Perdalam Materi saja.
+//                          mempengaruhi Baca PPT saja.
 // - sections           : true -> BAB dikelompokkan ke SECTION buatan admin (mis.
 //                        UTB, UAB, Helminth, Protozoa). Admin bisa menambah,
 //                        mengganti nama, menghapus, dan menyeret section; BAB di
-//                        dalamnya ikut pindah. Hanya dipakai di Simulasi CBT.
+//                        dalamnya ikut pindah. Hanya dipakai di Soal Tahun Sebelumnya.
 //
 // URUTAN diubah dengan menyeret pegangan ⠿ (panah ▲▼ tetap ada untuk layar
 // sentuh kecil dan keyboard). Urutan tampil = urutan section, lalu urutan BAB di
@@ -46,11 +46,11 @@ import { KIND_CBT, SCOPE_MATERI, SCOPE_SOAL, cocokUniversitas, filterCbtKind, fi
 // tetap mendapat susunan yang sama.
 export default function ChapterManager({ subjectId, selectedChapterId, onSelect, indicator, refreshSignal, kind = 'latihan', universityFilter = [], scope = SCOPE_SOAL, sections = false }) {
   const cbt = kind === KIND_CBT;
-  // BAB Simulasi cuma punya satu halaman, jadi di sana tidak ada "halaman
+  // BAB Soal Tahun Sebelumnya cuma punya satu halaman, jadi di sana tidak ada "halaman
   // sebelah" yang perlu dilaporkan statusnya.
   const scopeLain = cbt ? null : (scope === SCOPE_SOAL ? SCOPE_MATERI : SCOPE_SOAL);
-  const namaHalaman = scope === SCOPE_MATERI ? 'Perdalam Materi' : (cbt ? 'Simulasi CBT' : 'Cicil Belajar');
-  const namaHalamanLain = scope === SCOPE_MATERI ? 'Cicil Belajar' : 'Perdalam Materi';
+  const namaHalaman = scope === SCOPE_MATERI ? 'Baca PPT' : (cbt ? 'Soal Tahun Sebelumnya' : 'Soal Tiap BAB');
+  const namaHalamanLain = scope === SCOPE_MATERI ? 'Soal Tiap BAB' : 'Baca PPT';
   const disembunyikan = (c) => !!c?.[scope];
   const [chapters, setChapters] = useState([]);
   const [sectionList, setSectionList] = useState([]);       // section milik mata kuliah ini (urut)
@@ -502,8 +502,8 @@ export default function ChapterManager({ subjectId, selectedChapterId, onSelect,
       )}
       <p className="text-xs text-stone-400">
         {scopeLain
-          ? <>👁 di sini cuma mengatur <span className="font-semibold text-stone-500">{namaHalaman}</span>. Untuk menyembunyikan dari {namaHalamanLain}, pakai tombol 👁 di halaman itu. Menambah, mengubah nama, mengurutkan, dan menghapus BAB tetap berlaku untuk dua-duanya.</>
-          : <>👁 di sini mengatur tampil/tidaknya BAB di <span className="font-semibold text-stone-500">{namaHalaman}</span>.</>}
+          ? <>👁 di sini cuma mengatur halaman <span className="font-semibold text-stone-500">{namaHalaman}</span>. Untuk menyembunyikan dari halaman {namaHalamanLain}, pakai tombol 👁 di halaman itu. Menambah, mengubah nama, mengurutkan, dan menghapus BAB tetap berlaku untuk dua-duanya.</>
+          : <>👁 di sini mengatur tampil/tidaknya BAB di halaman <span className="font-semibold text-stone-500">{namaHalaman}</span>.</>}
       </p>
       {error && <p className="text-xs whitespace-pre-wrap bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">{error}</p>}
       {adaSection && (

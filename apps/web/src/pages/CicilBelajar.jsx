@@ -343,7 +343,7 @@ export default function CicilBelajar() {
      <div className="max-w-3xl mx-auto px-6 py-14">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
          <ClipboardList size={14} />
-         CICIL BELAJAR
+         KERJAKAN SOAL TIAP BAB
        </p>
        <h1 className="font-display text-3xl font-semibold mb-2">Latihan Soal per BAB</h1>
        <p className="text-stone-600 font-medium mb-8">Pilih mata kuliah dan BAB, lalu kerjakan latihan soalnya secara bertahap, atau langsung baca pembahasannya dulu.</p>

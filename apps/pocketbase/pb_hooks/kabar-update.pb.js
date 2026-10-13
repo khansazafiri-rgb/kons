@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// KABAR UPDATE SOAL - tombol "Kabari siswa" di Edit Soal (Cicil Belajar) dan
-// Edit Soal Simulasi CBT.
+// KABAR UPDATE SOAL - tombol "Kabari siswa" di Edit Soal Tiap BAB dan
+// Edit Soal Tahun Sebelumnya.
 //
 //   POST /api/pcv/kabar/pratinjau  { subjectId, area, since? }
 //        -> ringkasan perubahan sejak kabar terakhir, jumlah penerima, dan

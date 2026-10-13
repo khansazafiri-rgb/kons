@@ -119,9 +119,9 @@ export async function heartbeat(pb, user) {
 const navItems = [
  { to: '/beranda', label: 'Beranda' },
  { to: '/jadwal-kelas', label: 'Jadwal Kelas' },
- { to: '/perdalam-materi', label: 'Perdalam Materi' },
- { to: '/cicil-belajar', label: 'Cicil Belajar!' },
- { to: '/simulasi-test', label: 'Simulasi Test' },
+ { to: '/perdalam-materi', label: 'Baca PPT' },
+ { to: '/cicil-belajar', label: 'Soal Tiap BAB' },
+ { to: '/simulasi-test', label: 'Soal Tahun Sebelumnya' },
  { to: '/kalkulator-klinis', label: 'Kalkulator Klinis' },
 ];
 

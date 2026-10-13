@@ -1,6 +1,6 @@
 // Analitik kelemahan sisi-web: memetakan tiap soal ke sub-topik materi (BM25),
 // lalu merangkum siswa lemah di konsep apa. Dipakai QuestionRunner setelah
-// submit (Simulasi CBT & Cicil Belajar).
+// submit (Soal Tahun Sebelumnya & Soal Tiap BAB).
 //
 // PENTING: logika di sini adalah port setia dari modul Node yang sudah teruji
 // (apps/pptparser: text.mjs, matcher.mjs, question.mjs). Jaga agar tetap sama

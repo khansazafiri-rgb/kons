@@ -233,7 +233,7 @@ async function main() {
   const skipPart = skipped ? `, ${C.dim}${skipped} dilewati (tak berubah)${C.reset}` : '';
   console.log(`\n${C.bold}Selesai:${C.reset} ${C.green}${okCount} diperbarui${C.reset}, ${failCount ? C.red : C.dim}${failCount} gagal${C.reset}${skipPart}`);
   if (okCount > 0) {
-    console.log(`${C.dim}Korpus ML di collection 'topics' sudah diperbarui — web app otomatis memakainya di Simulasi CBT & Cicil Belajar.${C.reset}`);
+    console.log(`${C.dim}Korpus ML di collection 'topics' sudah diperbarui — web app otomatis memakainya di halaman soal tahun sebelumnya & soal tiap BAB.${C.reset}`);
   } else if (skipped && !failCount) {
     console.log(`${C.dim}Tidak ada materi baru/berubah — korpus sudah mutakhir.${C.reset}`);
   }

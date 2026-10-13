@@ -27,6 +27,9 @@ import EventManager from '@/pages/admin/event/EventManager';
 import KabarSiswa from '@/pages/admin/KabarSiswa';
 
 const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'Event/Lomba'];
+// Nilai TABS juga dipakai sebagai ?tab= di URL dan dibandingkan dengan ===, jadi
+// nilainya tidak boleh diganti. Tulisan di tombol tab saja yang dipetakan di sini.
+const TAB_LABEL = { 'Perdalam Materi': 'Baca PPT' };
 export default function AdminPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
   const [tab, setTab] = useUrlState('tab', 'Pengajar');
@@ -54,7 +57,7 @@ export default function AdminPanel() {
           <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-maroon-500">Dashboard Admin</p>
           {TABS.map((t) => (
             <button key={t} onClick={() => setTab(t)} className={`w-full text-left rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors ${tab === t ? 'bg-maroon-600 text-alba-50 shadow-sm' : 'hover:bg-maroon-50 hover:text-maroon-600 text-stone-600'}`}>
-              {t}
+              {TAB_LABEL[t] || t}
             </button>
           ))}
         </nav>
@@ -671,7 +674,7 @@ function BiodataEditor({ user, onSaved, siswa = false }) {
 }
 
 // ==========================================
-// EDIT SOAL - HUB: pilih dulu mau edit Cicil Belajar atau Simulasi CBT
+// EDIT SOAL - HUB: pilih dulu mau edit Soal Tiap BAB atau Soal Tahun Sebelumnya
 // (workflow sesuai PRD: CBT tidak lewat BAB, langsung mata kuliah → paket)
 // ==========================================
 export function EditSoalHub({ allowedSubjectIds = null }) {
@@ -685,13 +688,13 @@ export function EditSoalHub({ allowedSubjectIds = null }) {
         <div className="grid sm:grid-cols-2 gap-4">
           <button onClick={() => setMode('cicil')} className="rounded-xl border-2 border-alba-200 hover:border-maroon-400 hover:bg-maroon-50 p-6 text-left transition-all">
             <p className="text-2xl mb-2">📚</p>
-            <p className="font-bold text-stone-800 mb-1">Soal Cicil Belajar</p>
+            <p className="font-bold text-stone-800 mb-1">Soal Tiap BAB</p>
             <p className="text-xs text-stone-500 leading-relaxed">Latihan per BAB. Alur: pilih mata kuliah → pilih BAB → edit soal.</p>
           </button>
           <button onClick={() => setMode('cbt')} className="rounded-xl border-2 border-alba-200 hover:border-maroon-400 hover:bg-maroon-50 p-6 text-left transition-all">
             <p className="text-2xl mb-2">⏱️</p>
-            <p className="font-bold text-stone-800 mb-1">Soal Simulasi CBT</p>
-            <p className="text-xs text-stone-500 leading-relaxed">Soal tryout per BAB, dikelompokkan ke section buatanmu sendiri (UTB, UAB, Helminth, dst). Alur: pilih mata kuliah, atur section &amp; BAB, lalu edit soal.</p>
+            <p className="font-bold text-stone-800 mb-1">Soal Tahun Sebelumnya</p>
+            <p className="text-xs text-stone-500 leading-relaxed">Soal ujian tahun sebelumnya per BAB, dikelompokkan ke section buatanmu sendiri (UTB, UAB, Helminth, dst). Alur: pilih mata kuliah, atur section &amp; BAB, lalu edit soal.</p>
           </button>
         </div>
       </div>
@@ -1399,7 +1402,7 @@ function summarizeTypes(items) {
 // Buat banyak soal sekaligus dengan tahan-banting: retry saat kena batas
 // kecepatan server (429) atau gangguan jaringan sesaat (502/503), plus jeda
 // kecil antar-soal supaya tidak menabrak rate limit. Dipakai BERSAMA oleh
-// EditSoal (Cicil Belajar) & EditSimulasi (CBT) agar keduanya SAMA andalnya -
+// EditSoal (Soal Tiap BAB) & EditSimulasi (Soal Tahun Sebelumnya) agar keduanya SAMA andalnya -
 // sebelumnya import di Simulasi tidak punya retry sehingga sering "gagal di
 // tengah jalan" saat soalnya banyak.
 async function bulkCreateQuestions({ items, buildPayload, startOrder, setStatus, summary }) {
@@ -1633,7 +1636,7 @@ export function EditSoal({ allowedSubjectIds = null }) {
   return (
     <div className="space-y-6">
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold">Edit Soal Cicil Belajar</h2>
+        <h2 className="font-display text-lg font-semibold">Edit Soal Tiap BAB</h2>
         {!allowedSubjectIds && (
           <div className="flex gap-2">
             <input value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} placeholder="Tambah mata kuliah baru" className="flex-1 min-w-0 rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
@@ -1746,10 +1749,10 @@ function Highlight({ text, terms }) {
 }
 
 // Daftar soal dengan PENCARIAN + fitur PILIH BANYAK lalu hapus sekaligus.
-// Dipakai bersama oleh EditSoal (Cicil Belajar) & EditSimulasi (CBT).
+// Dipakai bersama oleh EditSoal (Soal Tiap BAB) & EditSimulasi (Soal Tahun Sebelumnya).
 // onReload dipanggil setelah hapus agar daftar disegarkan.
-// onMoveToSimulasi: hanya diisi oleh Edit Soal Cicil Belajar. Kalau kosong,
-// tombol "→ Simulasi" tidak muncul (mis. saat dipakai di Edit Simulasi CBT).
+// onMoveToSimulasi: hanya diisi oleh Edit Soal Tiap BAB. Kalau kosong,
+// tombol "→ Soal Tahun Sebelumnya" tidak muncul (mis. saat dipakai di Edit Soal Tahun Sebelumnya).
 function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToSimulasi = null, whereLabel = '' }) {
   const { user } = useAuth();
   const [selected, setSelected] = useState(() => new Set());
@@ -1847,7 +1850,7 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToS
                 disabled={selected.size === 0 || busy}
                 className="text-xs font-bold rounded-lg border border-maroon-300 text-maroon-600 px-3 py-1.5 hover:bg-maroon-50 disabled:opacity-40"
               >
-                → Simulasi ({selected.size})
+                → Soal Tahun Sebelumnya ({selected.size})
               </button>
             )}
             <button
@@ -1926,10 +1929,10 @@ function QuestionList({ title, questions, onPreview, onEdit, onReload, onMoveToS
               {onMoveToSimulasi && (
                 <button
                   onClick={() => onMoveToSimulasi([q])}
-                  title="Salin / pindahkan soal ini ke bank soal Simulasi CBT"
+                  title="Salin / pindahkan soal ini ke bank soal tahun sebelumnya"
                   className="text-xs text-maroon-600 hover:underline font-semibold"
                 >
-                  → Simulasi
+                  → Soal Tahun Sebelumnya
                 </button>
               )}
               <button onClick={() => deleteOne(q.id)} className="text-xs text-red-600 hover:underline font-semibold">Hapus</button>
@@ -2017,7 +2020,7 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
     if (ok > 0) {
       logActivity(pb, user, {
         section: 'soal_pindah',
-        summary: `${mode === 'move' ? 'Memindahkan' : 'Menyalin'} ${ok} soal ke Simulasi CBT ${subjectName || ''} Paket ${year}`,
+        summary: `${mode === 'move' ? 'Memindahkan' : 'Menyalin'} ${ok} soal ke soal tahun sebelumnya ${subjectName || ''} Paket ${year}`,
         targetLabel: items.map((q) => shorten(q.text, 60)).slice(0, 3).join(' · '),
         detail: items.slice(0, 10).map(questionSnapshot),
       });
@@ -2025,7 +2028,7 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
     if (failed.length) {
       setStatus(`Selesai sebagian: ${ok} berhasil, ${failed.length} gagal.\n` + failed.join('\n'));
     } else {
-      onDone?.(`✅ ${ok} soal ${mode === 'move' ? 'dipindahkan' : 'disalin'} ke Simulasi CBT ${subjectName || ''} Paket ${year}.`);
+      onDone?.(`✅ ${ok} soal ${mode === 'move' ? 'dipindahkan' : 'disalin'} ke soal tahun sebelumnya ${subjectName || ''} Paket ${year}.`);
     }
   };
 
@@ -2033,9 +2036,9 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-alba-50 rounded-2xl w-full max-w-lg p-6 shadow-card-hover space-y-4" onClick={(e) => e.stopPropagation()}>
         <div>
-          <h3 className="font-display text-lg font-semibold text-maroon-700">Kirim ke Simulasi CBT</h3>
+          <h3 className="font-display text-lg font-semibold text-maroon-700">Kirim ke Soal Tahun Sebelumnya</h3>
           <p className="text-sm text-stone-500 mt-1 leading-relaxed">
-            {items.length === 1 ? '1 soal' : `${items.length} soal`} akan masuk ke bank soal Simulasi CBT
+            {items.length === 1 ? '1 soal' : `${items.length} soal`} akan masuk ke bank soal tahun sebelumnya
             mata kuliah <b>{subjectName || 'ini'}</b> - mata kuliah otomatis mengikuti soal asal.
           </p>
         </div>
@@ -2079,7 +2082,7 @@ function MoveToSimulasiModal({ items, subjectId, subjectName, onClose, onDone })
           </div>
           {mode === 'move' && (
             <p className="mt-2 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              Soal akan hilang dari latihan Cicil Belajar BAB ini. Progres siswa yang sudah mengerjakan tidak ikut terhapus.
+              Soal akan hilang dari daftar Soal Tiap BAB untuk BAB ini. Progres siswa yang sudah mengerjakan tidak ikut terhapus.
             </p>
           )}
         </div>
@@ -2215,7 +2218,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
   const [bulkStatus, setBulkStatus] = useState('');
 
   const subjectLabel = () => subjects.find((s) => s.id === subjectId)?.name || 'Mata kuliah';
-  const whereLabel = () => `Simulasi CBT · ${subjectLabel()} · ${chapterTitle || 'BAB'}`;
+  const whereLabel = () => `Soal Tahun Sebelumnya · ${subjectLabel()} · ${chapterTitle || 'BAB'}`;
 
   useEffect(() => {
     pb.collection('subjects').getFullList({ sort: 'order' }).then((subs) => {
@@ -2332,7 +2335,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
   return (
     <div className="space-y-6">
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold">Edit Soal Simulasi CBT</h2>
+        <h2 className="font-display text-lg font-semibold">Edit Soal Tahun Sebelumnya</h2>
 
         <div className="space-y-1">
           <label className="text-xs font-bold text-stone-500">1. Mata kuliah</label>
@@ -2357,7 +2360,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
         {subjectId && (
           <div className="space-y-1">
-            <label className="text-xs font-bold text-stone-500">3. Section &amp; BAB simulasi — namanya bebas</label>
+            <label className="text-xs font-bold text-stone-500">3. Section &amp; BAB soal tahun sebelumnya — namanya bebas</label>
             <ChapterManager
               subjectId={subjectId}
               selectedChapterId={chapterId}
@@ -2376,7 +2379,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
       {chapterId && (
         <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 space-y-4 shadow-card">
-          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Simulasi' : 'Tambah Soal Simulasi'}</h3>
+          <h3 className="font-bold text-maroon-600">{editingId ? 'Edit Soal Tahun Sebelumnya' : 'Tambah Soal Tahun Sebelumnya'}</h3>
           <p className="text-xs text-stone-400 -mt-2">{whereLabel()}</p>
           <QuestionForm form={form} setForm={setForm} />
 
@@ -2392,7 +2395,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
           <BulkImport onImport={importBulk} status={bulkStatus} />
 
           <QuestionList
-            title="Daftar Soal di BAB Simulasi Ini"
+            title="Daftar Soal di BAB Ini"
             questions={questions}
             onPreview={setPreviewData}
             onEdit={startEdit}
@@ -3071,8 +3074,8 @@ function LinkUndangan() {
 
 // ==========================================
 // TAB JADWAL UJIAN + URUTAN MATA KULIAH
-// Admin mengatur: (1) urutan mata kuliah yang tampil di "Cicil Belajar" &
-// "Perdalam Materi", dan (2) jadwal ujian tiap mata kuliah (bisa LEBIH DARI SATU
+// Admin mengatur: (1) urutan mata kuliah yang tampil di "Kerjakan Soal Tiap BAB" &
+// "Baca PPT", dan (2) jadwal ujian tiap mata kuliah (bisa LEBIH DARI SATU
 // per mata kuliah - mis. UTB 1 & UTB 2 dalam satu blok) yang dipakai untuk
 // countdown di beranda siswa. Tiap jadwal bisa ditambah, diedit, dan dihapus.
 // Data jadwal disimpan di collection terpisah "exam_schedules".
@@ -3217,7 +3220,7 @@ function JadwalUjian() {
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-6 shadow-card">
         <h2 className="font-display text-lg font-semibold text-maroon-600">Jadwal Ujian & Urutan Mata Kuliah</h2>
         <p className="text-sm text-stone-500 mt-1 leading-relaxed">
-          Panah <b>↑ ↓</b> mengatur urutan tampil mata kuliah di halaman <b>Cicil Belajar</b> dan <b>Perdalam Materi</b>.
+          Panah <b>↑ ↓</b> mengatur urutan tampil mata kuliah di halaman <b>Kerjakan Soal Tiap BAB</b> dan <b>Baca PPT</b>.
           Tiap mata kuliah bisa punya <b>beberapa jadwal ujian</b> (mis. UTB 1 &amp; UTB 2). Tambah lewat baris <b>+ Tambah jadwal</b>,
           lalu jadwal bisa <b>diedit</b> atau <b>dihapus</b> kapan saja. Siswa hanya melihat hitung mundur untuk mata kuliah yang ia ambil. Tiap jadwal juga bisa dibatasi ke <b>FK tertentu</b> - karena jadwal ujian tiap fakultas berbeda; kalau daftarnya dibiarkan kosong, jadwal itu tampil ke semua FK.
         </p>
