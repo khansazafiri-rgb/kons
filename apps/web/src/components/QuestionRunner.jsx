@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Flag, Lightbulb, ListChecks, RotateCcw, TimerReset, X, XCircle } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } from '@/lib/weaknessAnalyzer';
@@ -157,6 +157,10 @@ export default function QuestionRunner({
  const [submitted, setSubmitted] = useState(false);
  const [showReview, setShowReview] = useState(false); // layar "review semua jawaban dalam 1 halaman"
  const [secondsLeft, setSecondsLeft] = useState(timerSeconds);
+ // Pemanggil waktu habis dipasang SEKALI (efek di bawah), jadi `finish` yang ia
+ // pegang adalah `finish` dari render pertama, dengan jawaban kosong. Lewat ref ia
+ // selalu memanggil `finish` terbaru, berisi jawaban yang sudah dipilih siswa.
+ const finishRef = useRef(null);
 
  const [finalScore, setFinalScore] = useState(null);
  const [weakChapters, setWeakChapters] = useState([]);
@@ -170,7 +174,7 @@ export default function QuestionRunner({
      setSecondsLeft((s) => {
        if (s <= 1) {
          clearInterval(t);
-         finish();
+         finishRef.current?.();
          return 0;
        }
        return s - 1;
@@ -352,6 +356,7 @@ export default function QuestionRunner({
    // gradedTotal = 0 berarti isinya esai semua: tidak ada nilai yang bermakna.
    if (!retryRound) onSubmit?.({ answers, score, gradedTotal: total });
  };
+ finishRef.current = finish;
 
  const confirmFinish = () => {
    // Esai yang dilewati tidak merugikan siapa pun, jadi tidak ikut diingatkan.
