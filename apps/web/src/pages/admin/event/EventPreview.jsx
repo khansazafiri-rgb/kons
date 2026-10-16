@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { jamMundur, rupiah, tanggalPanjang } from '@/lib/eventLomba';
+import { teksInfoKeHtml } from '@/lib/teksSoal';
 import TandaAirUjian from '@/components/TandaAirUjian';
 import { teksKeHtml } from '@/lib/teksSoal';
 
@@ -75,15 +76,19 @@ function PreviewPublik({ ev, jumlahSoal }) {
 
         {ev.description && (
           <div
-            className="mt-3 text-sm leading-relaxed text-stone-600 [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-2"
-            dangerouslySetInnerHTML={{ __html: ev.description }}
+            className="mt-3 text-sm leading-relaxed text-stone-600 break-words [&_a]:font-semibold [&_a]:text-maroon-600 [&_a]:underline [&_em]:italic [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-2 [&_strong]:font-semibold"
+            dangerouslySetInnerHTML={{ __html: teksInfoKeHtml(ev.description) }}
           />
         )}
 
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-maroon-200 bg-maroon-50/40 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-maroon-500">Biaya</p>
-            <p className="mt-1 font-display text-2xl font-semibold text-maroon-600">{rupiah(ev.price)}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
+              {ev.registrationMode === 'GFORM' ? 'Pendaftaran' : 'Biaya'}
+            </p>
+            <p className="mt-1 font-display text-2xl font-semibold text-maroon-600">
+              {ev.registrationMode === 'GFORM' ? 'Lewat Google Form' : rupiah(ev.price)}
+            </p>
           </div>
           <dl className="rounded-2xl border border-alba-200 bg-alba-50 p-4 text-[13px]">
             {[

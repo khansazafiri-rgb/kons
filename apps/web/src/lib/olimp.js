@@ -274,6 +274,8 @@ export function olimpAccess(sesi) {
       reason:
         user.status === 'pending'
           ? 'Pendaftaranmu masih menunggu konfirmasi admin.'
+          : user.status === 'lomba'
+            ? 'Akun ini akun peserta lomba, jadi belum membuka bank soal Web Olimp. Hubungi admin kalau mau ikut program Web Olimp.'
           : user.status === 'expired'
             ? 'Masa berlaku paketmu sudah berakhir. Hubungi admin untuk memperpanjang.'
             : 'Akun ini belum aktif. Hubungi admin PCV.',

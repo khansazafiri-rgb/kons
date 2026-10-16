@@ -101,6 +101,8 @@ export default function EventInfoTab({ ev, onSimpan }) {
         timingModel: f.timingModel,
         durationMinutes: Number(f.durationMinutes) || 0,
         paymentContactWa: f.paymentContactWa,
+        registrationMode: f.registrationMode === 'GFORM' ? 'GFORM' : 'WEB',
+        gformUrl: String(f.gformUrl || '').trim(),
         rulesText: f.rulesText,
         sebRequired: !!f.sebRequired,
         watermarkOff: !!f.watermarkOff,
@@ -194,14 +196,17 @@ export default function EventInfoTab({ ev, onSimpan }) {
           <label htmlFor="ev-desc" className={labelCls}>Deskripsi</label>
           <textarea
             id="ev-desc"
-            rows={5}
+            rows={8}
             value={f.description || ''}
             onChange={ubah('description')}
             className={inputCls}
             placeholder="Info lomba, format soal, siapa yang boleh ikut…"
           />
-          <p className="mt-1 text-[11px] text-stone-500">
-            Boleh memakai HTML sederhana: &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;&lt;li&gt;.
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+            Boleh langsung tempel dari broadcast WhatsApp: Enter dan baris kosong tetap seperti aslinya,
+            <span className="font-mono"> *tebal*</span>, <span className="font-mono">_miring_</span>,
+            <span className="font-mono"> ~coret~</span> ikut terformat, dan tautan bisa diklik.
+            HTML sederhana (&lt;p&gt;, &lt;strong&gt;, &lt;ul&gt;&lt;li&gt;) juga tetap boleh.
           </p>
         </div>
 
@@ -209,28 +214,80 @@ export default function EventInfoTab({ ev, onSimpan }) {
           <label htmlFor="ev-rules" className={labelCls}>Aturan &amp; instruksi</label>
           <textarea
             id="ev-rules"
-            rows={4}
+            rows={10}
             value={f.rulesText || ''}
             onChange={ubah('rulesText')}
             className={inputCls}
             placeholder="Larangan, sanksi, hal yang perlu disiapkan peserta…"
           />
+          <p className="mt-1 text-[11px] text-stone-500">
+            Sama seperti deskripsi: Enter, baris kosong, format WhatsApp, dan tautan tampil apa adanya di halaman lomba.
+          </p>
         </div>
       </Bagian>
 
-      <Bagian judul="Biaya & kuota">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor="ev-price" className={labelCls}>Harga (Rp)</label>
-            <input id="ev-price" type="number" min={0} value={f.price ?? 0} onChange={ubah('price')} className={inputCls} />
-          </div>
+      <Bagian
+        judul="Cara pendaftaran"
+        catatan="Menentukan apa yang dilihat peserta di halaman daftar dan tombol WhatsApp yang mereka tekan."
+      >
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {[
+            ['WEB', 'Daftar & bayar di web', 'Peserta isi biodata di web ini, lalu transfer dan kirim bukti bayar ke WA admin. Kamu tandai lunas, lalu ACC.'],
+            ['GFORM', 'Sudah daftar lewat Google Form', 'Pendaftaran & pembayaran sudah lewat Google Form. Di web ini peserta cuma buat akun (atau masuk), lalu chat admin untuk konfirmasi. Tidak ada harga & langkah bayar.'],
+          ].map(([nilai, judul, isi]) => (
+            <button
+              key={nilai}
+              type="button"
+              onClick={() => set('registrationMode', nilai)}
+              className={`rounded-xl border p-4 text-left transition-colors ${
+                (f.registrationMode === 'GFORM' ? 'GFORM' : 'WEB') === nilai
+                  ? 'border-maroon-300 bg-maroon-50 ring-1 ring-maroon-200'
+                  : 'border-alba-200 bg-alba-50 hover:border-maroon-200'
+              }`}
+            >
+              <span className="block text-[13px] font-semibold text-stone-800">{judul}</span>
+              <span className="mt-0.5 block text-[12px] leading-relaxed text-stone-500">{isi}</span>
+            </button>
+          ))}
+        </div>
+        {f.registrationMode === 'GFORM' && (
+          <>
+            <div>
+              <label htmlFor="ev-gform" className={labelCls}>
+                Tautan Google Form <span className="font-normal text-stone-400">(opsional)</span>
+              </label>
+              <input id="ev-gform" value={f.gformUrl || ''} onChange={ubah('gformUrl')} className={inputCls} placeholder="https://forms.gle/…" />
+              <p className="mt-1 text-[11px] text-stone-500">
+                Kalau diisi, pengunjung yang belum mengisi formulirnya ditunjukkan tautan ini di halaman lomba.
+              </p>
+            </div>
+            <p className="rounded-xl bg-alba-100/60 px-4 py-2.5 text-[12px] leading-relaxed text-stone-600">
+              Peserta yang belum punya akun bisa langsung membuat <span className="font-semibold">akun peserta lomba</span> di
+              halaman daftar — akunnya langsung bisa dipakai masuk, tanpa ACC akun terpisah. Yang kamu konfirmasi cukup
+              pendaftaran lombanya: tab <span className="font-semibold">Peserta</span> → <span className="font-semibold">ACC</span>.
+              Akun ini tidak membuka bank soal Web Olimp.
+            </p>
+          </>
+        )}
+      </Bagian>
+
+      <Bagian judul={f.registrationMode === 'GFORM' ? 'Kuota & kontak admin' : 'Biaya & kuota'}>
+        <div className={`grid grid-cols-1 gap-4 ${f.registrationMode === 'GFORM' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
+          {f.registrationMode !== 'GFORM' && (
+            <div>
+              <label htmlFor="ev-price" className={labelCls}>Harga (Rp)</label>
+              <input id="ev-price" type="number" min={0} value={f.price ?? 0} onChange={ubah('price')} className={inputCls} />
+            </div>
+          )}
           <div>
             <label htmlFor="ev-quota" className={labelCls}>Kuota peserta</label>
             <input id="ev-quota" type="number" min={0} value={f.quota ?? 0} onChange={ubah('quota')} className={inputCls} />
             <p className="mt-1 text-[11px] text-stone-500">0 = tanpa batas.</p>
           </div>
           <div>
-            <label htmlFor="ev-wa" className={labelCls}>WA pembayaran</label>
+            <label htmlFor="ev-wa" className={labelCls}>
+              {f.registrationMode === 'GFORM' ? 'WA admin (konfirmasi)' : 'WA pembayaran'}
+            </label>
             <input id="ev-wa" value={f.paymentContactWa || ''} onChange={ubah('paymentContactWa')} className={inputCls} placeholder="08xxxxxxxxxx" />
           </div>
         </div>

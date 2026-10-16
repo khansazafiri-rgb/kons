@@ -177,35 +177,7 @@ routerAdd("POST", "/api/event/register", (e) => {
 
   const col = e.app.findCollectionByNameOrId("event_registrations");
   const reg = lama || new Record(col);
-  reg.set("event", ev.id);
-  reg.set(peserta.kind === "users" ? "user" : "olimpUser", peserta.id);
-  reg.set("pesertaNama", String(body.nama || peserta.nama || "").slice(0, 160));
-  reg.set("pesertaEmail", peserta.email);
-  reg.set("pesertaWa", String(body.whatsapp || peserta.wa || "").slice(0, 40));
-  reg.set("pesertaAsal", String(body.asal || peserta.asal || "").slice(0, 200));
-  reg.set("contactInfo", {
-    catatan: String(body.catatan || "").slice(0, 1000),
-    semester: String(body.semester || "").slice(0, 20),
-  });
-  // Selalu mulai dari nol, apa pun yang dikirim browser.
-  reg.set("paymentStatus", "PENDING_PAYMENT");
-  reg.set("rejectionReason", "");
-  reg.set("approvedBy", "");
-  reg.set("deviceId", "");
-  reg.set("deviceResetPending", false);
-  reg.set("score", null);
-  reg.set("rank", null);
-  // Token unduhan berkas .seb - personal, jadi berkas orang lain tidak bisa
-  // diambil dengan menebak alamat.
-  // Token dibuat SEKALI dan tidak pernah diganti selama pendaftarannya hidup
-  // (PRD Revisi 2 bagian 6.3). Kalau ia digenerate ulang tiap kali, berkas .seb
-  // yang sudah terlanjur diunduh peserta mendadak tidak berlaku tanpa sebab
-  // yang bisa mereka lihat.
-  if (!reg.getString("sebConfigToken")) {
-    reg.set("sebConfigToken", $security.randomString(40));
-    reg.set("configTokenGeneratedAt", new Date().toISOString());
-  }
-  reg.set("deletedAt", null);
+  H.isiPendaftaran(reg, ev, peserta, body);
   e.app.save(reg);
 
   return e.json(200, {
@@ -213,6 +185,111 @@ routerAdd("POST", "/api/event/register", (e) => {
     pendaftaranId: reg.id,
     status: "PENDING_PAYMENT",
     waPembayaran: ev.getString("paymentContactWa"),
+    modeDaftar: ev.getString("registrationMode") === "GFORM" ? "GFORM" : "WEB",
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3b. Buat akun + mendaftar sekaligus (khusus lomba mode Google Form)
+// ---------------------------------------------------------------------------
+//
+// Di mode GFORM peserta sudah mendaftar & membayar lewat Google Form. Yang
+// tersisa di web ini cuma: punya akun, tercatat di lomba, lalu dikonfirmasi
+// admin. Endpoint ini menggabungkan dua yang pertama supaya peserta tidak
+// harus melewati alur daftar akun PCV/Olimp yang masing-masing butuh ACC
+// tersendiri.
+//
+// Akunnya `olimp_users` berstatus `lomba` - lihat migrasi 1787800000 untuk
+// alasannya. Disimpan lewat e.app.save (bukan API collection), jadi hook
+// pendaftaran Web Olimp yang mengirim email "pendaftar baru menunggu ACC" ke
+// admin tidak ikut terpicu untuk setiap peserta lomba.
+routerAdd("POST", "/api/event/akun-baru", (e) => {
+  const H = require(`${__hooks}/event-shared.js`);
+
+  if (e.auth) {
+    return e.json(400, { message: "Kamu sudah masuk. Muat ulang halaman ini untuk mendaftar dengan akun itu." });
+  }
+
+  const body = e.requestInfo().body || {};
+  const ev = H.cariEventBySlug(e.app, body.slug);
+  if (!ev || ev.getString("status") === "DRAFT") {
+    return e.json(404, { message: "Lomba tidak ditemukan." });
+  }
+  if (ev.getString("registrationMode") !== "GFORM") {
+    return e.json(400, { message: "Lomba ini tidak memakai pendaftaran akun langsung. Masuk dengan akunmu untuk mendaftar." });
+  }
+
+  const fase = H.fasePendaftaran(ev, Date.now());
+  if (fase === "BELUM_BUKA") return e.json(400, { message: "Pendaftaran lomba ini belum dibuka." });
+  if (fase !== "BUKA") return e.json(400, { message: "Pendaftaran lomba ini sudah ditutup." });
+
+  const nama = String(body.nama || "").trim().slice(0, 120);
+  const email = String(body.email || "").trim().toLowerCase().slice(0, 200);
+  const password = String(body.password || "");
+  const whatsapp = String(body.whatsapp || "").trim().slice(0, 40);
+  if (!nama) return e.json(400, { message: "Nama lengkap wajib diisi." });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return e.json(400, { message: "Alamat email belum benar." });
+  }
+  if (password.length < 8) return e.json(400, { message: "Password minimal 8 karakter." });
+  if (password !== String(body.passwordConfirm || "")) {
+    return e.json(400, { message: "Password dan ulangi password belum sama." });
+  }
+  const digitWa = whatsapp.replace(/\D/g, "");
+  if (digitWa.length < 10 || digitWa.length > 15) {
+    return e.json(400, { message: "Nomor WhatsApp belum benar. Tulis seperti 08123456789." });
+  }
+
+  // Email yang sudah punya akun Web Olimp tidak dibuatkan akun kedua - orangnya
+  // diminta masuk saja, lalu mendaftar dari akun itu.
+  try {
+    e.app.findAuthRecordByEmail("olimp_users", email);
+    return e.json(400, {
+      kode: "EMAIL_TERPAKAI",
+      message: "Email ini sudah punya akun. Masuk dengan akun itu (pilihan \"Akun Web Olimp\"), lalu daftar lomba dari sana.",
+    });
+  } catch (_) { /* belum ada - lanjut */ }
+
+  const kuota = ev.getInt("quota");
+  if (kuota > 0 && H.hitungTerdaftar(e.app, ev.id) >= kuota) {
+    return e.json(400, { message: "Kuota peserta lomba ini sudah penuh.", kode: "KUOTA_PENUH" });
+  }
+
+  const semester = parseInt(body.semester, 10);
+  let reg = null;
+  e.app.runInTransaction((tx) => {
+    const akun = new Record(tx.findCollectionByNameOrId("olimp_users"));
+    akun.set("name", nama);
+    akun.set("email", email);
+    akun.set("emailVisibility", true);
+    akun.setPassword(password);
+    akun.set("whatsapp", whatsapp);
+    akun.set("asalKampus", String(body.asal || "").trim().slice(0, 160));
+    if (semester >= 1 && semester <= 14) akun.set("semester", semester);
+    akun.set("minatLomba", [ev.getString("name")]);
+    akun.set("catatan", "Akun peserta lomba: " + ev.getString("name"));
+    akun.set("status", "lomba");
+    akun.set("packageIds", []);
+    tx.save(akun);
+
+    reg = new Record(tx.findCollectionByNameOrId("event_registrations"));
+    H.isiPendaftaran(reg, ev, {
+      kind: "olimp_users",
+      id: akun.id,
+      nama: nama,
+      email: email,
+      wa: whatsapp,
+      asal: akun.getString("asalKampus"),
+    }, body);
+    tx.save(reg);
+  });
+
+  return e.json(200, {
+    ok: true,
+    pendaftaranId: reg.id,
+    status: "PENDING_PAYMENT",
+    waPembayaran: ev.getString("paymentContactWa"),
+    modeDaftar: "GFORM",
   });
 });
 

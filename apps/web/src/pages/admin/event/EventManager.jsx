@@ -98,7 +98,7 @@ function KartuDaftar({ ev, jumlahSoal, jumlahPeserta, onBuka, onGandakan }) {
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] text-stone-600 sm:grid-cols-4">
         <div><dt className="text-stone-400">Ujian</dt><dd className="font-medium">{tanggalPendek(ev.examStartAt)}</dd></div>
-        <div><dt className="text-stone-400">Harga</dt><dd className="font-medium">{rupiah(ev.price)}</dd></div>
+        <div><dt className="text-stone-400">Harga</dt><dd className="font-medium">{ev.registrationMode === 'GFORM' ? 'Google Form' : rupiah(ev.price)}</dd></div>
         <div><dt className="text-stone-400">Soal</dt><dd className="font-medium">{jumlahSoal}</dd></div>
         <div><dt className="text-stone-400">Pendaftar</dt><dd className="font-medium">{jumlahPeserta}</dd></div>
       </dl>

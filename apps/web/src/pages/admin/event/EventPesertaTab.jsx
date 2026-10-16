@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Download, Laptop, RotateCcw, Search, Trash2, Wallet, X } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
-import { STATUS_BAYAR, tanggalPendek } from '@/lib/eventLomba';
+import { gayaStatus, tanggalPendek } from '@/lib/eventLomba';
 import { hapusLunak, konfirmasiHapus, yangAktif } from '@/lib/akun';
 
 // TAB 3 - PESERTA (PRD bagian 9.2)
@@ -17,6 +17,10 @@ import { hapusLunak, konfirmasiHapus, yangAktif } from '@/lib/akun';
 //
 // Begitu APPROVED, peserta bisa mengunduh berkas .seb miliknya sendiri dari
 // halaman lomba - tidak ada yang perlu dikirim admin satu per satu.
+//
+// Lomba mode Google Form tidak punya langkah bayar: pembayarannya sudah lewat
+// Google Form. Pendaftar masuk sebagai "Menunggu konfirmasi" (PENDING_PAYMENT
+// di basis data) dan admin langsung ACC setelah mencocokkannya.
 
 const SARINGAN = [
   { key: 'PAID_PENDING_APPROVAL', label: 'Menunggu ACC' },
@@ -24,9 +28,20 @@ const SARINGAN = [
   { key: 'APPROVED', label: 'Disetujui' },
   { key: '', label: 'Semua' },
 ];
+const SARINGAN_GFORM = [
+  { key: 'PENDING_PAYMENT', label: 'Menunggu konfirmasi' },
+  { key: 'APPROVED', label: 'Disetujui' },
+  { key: '', label: 'Semua' },
+];
+
+// Status yang dianggap "antrean ACC" - yang dihitung, disaring pertama kali,
+// dan ikut "ACC semua".
+const statusAntre = (gform) => (gform ? ['PENDING_PAYMENT', 'PAID_PENDING_APPROVAL'] : ['PAID_PENDING_APPROVAL']);
 
 export default function EventPesertaTab({ ev }) {
   const { user: admin } = useAuth();
+  const gform = ev.registrationMode === 'GFORM';
+  const antreKey = statusAntre(gform);
   const [baris, setBaris] = useState(null);
   const [cari, setCari] = useState('');
   // Saringan awal ditentukan SETELAH data masuk (lihat muat()): membuka tab ini
@@ -48,14 +63,17 @@ export default function EventPesertaTab({ ev }) {
         setBaris(r);
         setPertama((awal) => {
           if (!awal) return false;
-          if (r.some((x) => x.paymentStatus === 'PAID_PENDING_APPROVAL')) {
-            setSaring('PAID_PENDING_APPROVAL');
+          const antre = statusAntre(ev.registrationMode === 'GFORM');
+          if (r.some((x) => x.paymentStatus === antre[antre.length - 1])) {
+            setSaring(antre[antre.length - 1]);
+          } else if (r.some((x) => antre.includes(x.paymentStatus))) {
+            setSaring(antre[0]);
           }
           return false;
         });
       })
       .catch((err) => setError('Gagal memuat peserta: ' + (err?.message || '')));
-  }, [ev.id]);
+  }, [ev.id, ev.registrationMode]);
 
   useEffect(muat, [muat]);
 
@@ -124,9 +142,12 @@ export default function EventPesertaTab({ ev }) {
   };
 
   const accSemua = async () => {
-    const antre = (baris || []).filter((r) => r.paymentStatus === 'PAID_PENDING_APPROVAL');
+    const antre = (baris || []).filter((r) => antreKey.includes(r.paymentStatus));
     if (!antre.length) return;
-    if (!window.confirm(`Setujui ${antre.length} pendaftar yang sudah bayar?`)) return;
+    const tanya = gform
+      ? `Setujui ${antre.length} pendaftar yang menunggu konfirmasi? Pastikan semuanya sudah kamu cocokkan dengan isian Google Form.`
+      : `Setujui ${antre.length} pendaftar yang sudah bayar?`;
+    if (!window.confirm(tanya)) return;
     setSibuk('massal');
     setError('');
     try {
@@ -149,7 +170,7 @@ export default function EventPesertaTab({ ev }) {
     const kolom = ['Nama', 'Email', 'WhatsApp', 'Asal', 'Status', 'Daftar', 'Mulai', 'Kumpul', 'Perangkat'];
     const isi = (baris || []).map((r) => [
       r.pesertaNama, r.pesertaEmail, r.pesertaWa, r.pesertaAsal,
-      STATUS_BAYAR[r.paymentStatus]?.teks || r.paymentStatus,
+      gayaStatus(r.paymentStatus, ev.registrationMode).teks,
       tanggalPendek(r.created), tanggalPendek(r.examStartedAt), tanggalPendek(r.examSubmittedAt),
       r.deviceId ? 'terkunci' : 'belum',
     ]);
@@ -177,7 +198,7 @@ export default function EventPesertaTab({ ev }) {
     });
   }, [baris, cari, saring]);
 
-  const antreAcc = (baris || []).filter((r) => r.paymentStatus === 'PAID_PENDING_APPROVAL').length;
+  const antreAcc = (baris || []).filter((r) => antreKey.includes(r.paymentStatus)).length;
 
   return (
     <div className="space-y-4">
@@ -186,7 +207,7 @@ export default function EventPesertaTab({ ev }) {
           <h3 className="font-display text-lg font-semibold text-stone-800">Peserta</h3>
           <p className="mt-0.5 text-[13px] text-stone-500">
             {baris ? `${baris.length} pendaftar` : 'Memuat…'}
-            {antreAcc > 0 && ` · ${antreAcc} menunggu ACC`}
+            {antreAcc > 0 && ` · ${antreAcc} ${gform ? 'menunggu konfirmasi' : 'menunggu ACC'}`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -221,7 +242,7 @@ export default function EventPesertaTab({ ev }) {
             className="w-full rounded-xl border border-alba-300 bg-alba-50 py-2.5 pl-9 pr-3.5 text-sm text-stone-800 focus:border-maroon-300 focus:outline-none"
           />
         </div>
-        {SARINGAN.map((s) => (
+        {(gform ? SARINGAN_GFORM : SARINGAN).map((s) => (
           <button
             key={s.key || 'semua'}
             onClick={() => setSaring(s.key)}
@@ -249,7 +270,7 @@ export default function EventPesertaTab({ ev }) {
 
       <div className="space-y-2.5">
         {tersaring.map((r) => {
-          const gaya = STATUS_BAYAR[r.paymentStatus] || STATUS_BAYAR.PENDING_PAYMENT;
+          const gaya = gayaStatus(r.paymentStatus, ev.registrationMode);
           const kerja = sibuk === r.id;
           return (
             <div key={r.id} className="rounded-2xl border border-alba-200 bg-alba-50 p-4 shadow-card">
@@ -282,7 +303,7 @@ export default function EventPesertaTab({ ev }) {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2 border-t border-alba-200 pt-3">
-                {r.paymentStatus === 'PENDING_PAYMENT' && (
+                {!gform && r.paymentStatus === 'PENDING_PAYMENT' && (
                   <button onClick={() => tandaiBayar(r)} disabled={kerja} className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-1.5 text-[12px] font-semibold text-alba-50 hover:bg-sky-700 disabled:opacity-50">
                     <Wallet size={12} /> Tandai sudah bayar
                   </button>

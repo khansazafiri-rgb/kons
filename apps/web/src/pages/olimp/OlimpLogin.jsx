@@ -23,10 +23,12 @@ export default function OlimpLogin() {
     setError('');
     setSibuk(true);
     try {
-      await login(email.trim(), password);
+      const rec = await login(email.trim(), password);
       // Peserta Olimp juga bisa datang dari halaman lomba (Event/Lomba menerima
-      // dua jenis akun), jadi titipan alamatnya dihormati di sini juga.
-      navigate(tujuanSetelahMasuk('/olimp'), { replace: true });
+      // dua jenis akun), jadi titipan alamatnya dihormati di sini juga. Akun
+      // lomba tidak punya bank soal Olimp, jadi tanpa titipan ia diarahkan ke
+      // Pusat Ujian - daftar lomba yang ia ikuti.
+      navigate(tujuanSetelahMasuk(rec?.status === 'lomba' ? '/ujian' : '/olimp'), { replace: true });
     } catch (err) {
       setError(err?.message || 'Email atau password salah.');
     } finally {

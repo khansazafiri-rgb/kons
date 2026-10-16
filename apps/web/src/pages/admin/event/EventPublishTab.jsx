@@ -113,8 +113,10 @@ export default function EventPublishTab({ ev, onSimpan, onKeTab }) {
       key: 'wa',
       wajib: false,
       lolos: !!(ev.paymentContactWa || '').trim(),
-      judul: 'Nomor WhatsApp pembayaran terisi',
-      isi: 'Tanpa nomor ini, peserta tidak punya jalan untuk membayar.',
+      judul: ev.registrationMode === 'GFORM' ? 'Nomor WhatsApp admin terisi' : 'Nomor WhatsApp pembayaran terisi',
+      isi: ev.registrationMode === 'GFORM'
+        ? 'Tanpa nomor ini, tombol "Chat admin untuk konfirmasi" tidak muncul.'
+        : 'Tanpa nomor ini, peserta tidak punya jalan untuk membayar.',
       aksi: 'Ke Info Dasar',
       tab: 'Info Dasar',
     },

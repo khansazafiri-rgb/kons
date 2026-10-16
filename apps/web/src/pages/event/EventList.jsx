@@ -102,7 +102,7 @@ function KartuEvent({ ev }) {
 
         <div className="mt-4 flex items-center justify-between border-t border-alba-200 pt-3">
           <span className="font-display text-base font-semibold text-maroon-600">
-            {rupiah(ev.harga)}
+            {ev.modeDaftar === 'GFORM' ? 'Daftar via Google Form' : rupiah(ev.harga)}
           </span>
           {penuh ? (
             <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">

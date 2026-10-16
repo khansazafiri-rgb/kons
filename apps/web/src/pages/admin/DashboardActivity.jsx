@@ -597,7 +597,7 @@ function PreviewRiwayat({ data, onClose }) {
                     <div className="mt-3 space-y-1.5">
                       {it.subQuestions.map((s, j) => (
                         <p key={j} className="text-xs bg-alba-50 border border-alba-200 rounded-lg px-3 py-1.5 text-stone-600">
-                          <span className="font-bold mr-1.5">{s.label}.</span>{s.question}
+                          <span className="font-bold mr-1.5">{s.label}.</span><span className="whitespace-pre-line">{s.question}</span>
                           {s.validAnswers?.length > 0 && (
                             <span className="text-green-800 font-semibold"> - {s.validAnswers.join(' | ')}</span>
                           )}

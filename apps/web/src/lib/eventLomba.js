@@ -145,6 +145,19 @@ export const STATUS_BAYAR = {
   CANCELLED: { teks: 'Dibatalkan', cls: 'bg-stone-100 text-stone-600 border-stone-200' },
 };
 
+// Lomba mode Google Form: peserta sudah mendaftar & membayar di luar web ini,
+// jadi "belum bayar" menyesatkan. Statusnya tetap sama di basis data - yang
+// berubah cuma sebutannya.
+const STATUS_GFORM = {
+  PENDING_PAYMENT: { teks: 'Menunggu konfirmasi', cls: 'bg-gold-100 text-gold-600 border-gold-200' },
+  PAID_PENDING_APPROVAL: { teks: 'Menunggu ACC', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+};
+
+export function gayaStatus(status, modeDaftar) {
+  if (modeDaftar === 'GFORM' && STATUS_GFORM[status]) return STATUS_GFORM[status];
+  return STATUS_BAYAR[status] || STATUS_BAYAR.PENDING_PAYMENT;
+}
+
 export const rupiah = (n) => {
   const angka = Number(n) || 0;
   if (angka <= 0) return 'Gratis';
@@ -193,12 +206,27 @@ export function sisaWaktuKalimat(iso) {
 }
 
 // Pesan template WhatsApp untuk pembayaran (PRD bagian 4.1 langkah 4).
-export function tautanWaPembayaran(nomor, namaPeserta, namaEvent, harga) {
+function tautanWa(nomor, pesan) {
   const digit = String(nomor || '').replace(/\D/g, '');
   if (!digit) return '';
   const nomorWa = digit.startsWith('0') ? `62${digit.slice(1)}` : digit.startsWith('62') ? digit : `62${digit}`;
-  const pesan = `Halo, saya ${namaPeserta || '...'} mau daftar ${namaEvent}. Nominalnya ${rupiah(harga)}.`;
   return `https://api.whatsapp.com/send/?phone=${nomorWa}&text=${encodeURIComponent(pesan)}&type=phone_number&app_absent=0`;
+}
+
+export function tautanWaPembayaran(nomor, namaPeserta, namaEvent, harga) {
+  return tautanWa(nomor, `Halo, saya ${namaPeserta || '...'} mau daftar ${namaEvent}. Nominalnya ${rupiah(harga)}.`);
+}
+
+// Lomba mode Google Form: yang diminta ke admin cuma konfirmasi akun, bukan
+// pembayaran. Email akun ikut disebut supaya admin langsung menemukan barisnya
+// di tab Peserta dan mencocokkannya dengan isian Google Form.
+export function tautanWaKonfirmasi(nomor, namaPeserta, email, namaEvent) {
+  return tautanWa(
+    nomor,
+    `Halo kak, saya ${namaPeserta || '...'} sudah daftar ${namaEvent} lewat Google Form `
+      + `dan sudah membuat akun di web PCV${email ? ` (email: ${email})` : ''}. `
+      + 'Mohon konfirmasi pendaftaran akun saya ya kak, terima kasih.',
+  );
 }
 
 // Slug dari nama event - dipakai form admin untuk mengisi otomatis.
