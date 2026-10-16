@@ -150,6 +150,11 @@ routerAdd("GET", "/api/olimp/seb-config", (e) => {
     // aplikasinya secara permanen). Dengan begitu setelan ini hanya berlaku
     // selama sesi, dan SEB kembali ke setelan semula setelah ditutup.
     "  <key>sebConfigPurpose</key><integer>0</integer>\n" +
+    // WAJIB: tanpa ini SEB TIDAK mengirim Config Key / Browser Exam Key ke
+    // server sama sekali (bawaannya mati - DataValues.cs seb-win-refactoring,
+    // nama kuncinya memang "sendBrowserExamKey" walau mengatur keduanya), dan
+    // semua peserta ditolak SEB_REQUIRED begitu admin mengisi kuncinya.
+    "  <key>sendBrowserExamKey</key><true/>\n" +
     "  <key>startURL</key><string>" + x(startUrl) + "</string>\n" +
     "  <key>hashedQuitPassword</key><string>" + quitHash + "</string>\n" +
     "  <key>hashedAdminPassword</key><string>" + adminHash + "</string>\n" +
@@ -274,18 +279,14 @@ routerUse((e) => {
 
   // SEB menghitung SHA256(alamat lengkap + kunci). Alamat lengkapnya harus
   // persis seperti yang diminta peramban, termasuk query string-nya.
-  const penuh =
-    (e.request.tls ? "https" : "http") + "://" + e.request.host + e.request.url.requestURI();
+  // Alamat yang dihitung SEB adalah alamat https publik, bukan yang dilihat
+  // PocketBase di belakang Caddy - lihat alamatSebKandidat di pcv-shared.js.
+  const pcv = require(`${__hooks}/pcv-shared.js`);
+  const kandidat = pcv.alamatSebKandidat(e.app, e);
 
-  if (configKey && hashConfig
-      && $security.sha256(penuh + configKey).toLowerCase() === hashConfig.toLowerCase()) {
-    return e.next();
-  }
-  if (hashBek) {
-    const diminta = hashBek.toLowerCase();
-    for (let i = 0; i < beks.length; i += 1) {
-      if ($security.sha256(penuh + beks[i]).toLowerCase() === diminta) return e.next();
-    }
+  if (pcv.hashSebCocok(kandidat, configKey, hashConfig)) return e.next();
+  for (let i = 0; i < beks.length; i += 1) {
+    if (pcv.hashSebCocok(kandidat, beks[i], hashBek)) return e.next();
   }
 
   return e.json(403, {

@@ -309,6 +309,11 @@ routerAdd("GET", "/api/event/seb-config", (e) => {
     "<dict>\n" +
     // 0 = berkas untuk MEMULAI ujian, bukan mengatur aplikasinya permanen.
     "  <key>sebConfigPurpose</key><integer>0</integer>\n" +
+    // WAJIB: tanpa ini SEB TIDAK mengirim Config Key / Browser Exam Key ke
+    // server sama sekali (bawaannya mati - DataValues.cs seb-win-refactoring,
+    // nama kuncinya memang "sendBrowserExamKey" walau mengatur keduanya), dan
+    // semua peserta ditolak SEB_REQUIRED begitu admin mengisi kuncinya.
+    "  <key>sendBrowserExamKey</key><true/>\n" +
     "  <key>startURL</key><string>" + x(startUrl) + "</string>\n" +
     "  <key>hashedQuitPassword</key><string>" + hash(setelan.quitPassword) + "</string>\n" +
     "  <key>hashedAdminPassword</key><string>" + hash(setelan.adminPassword) + "</string>\n" +

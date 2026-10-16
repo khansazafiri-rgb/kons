@@ -110,7 +110,7 @@ function KartuPendaftaran({ ev, saya, onUnduh, sibuk, pesanUnduh }) {
               {!ev.sebSiap && (
                 <p className="mt-2 inline-flex items-start gap-1.5 text-[11px] leading-relaxed text-gold-600">
                   <AlertTriangle size={13} className="mt-0.5 shrink-0" />
-                  Penguncian SEB untuk lomba ini belum sepenuhnya aktif (Browser Exam Key belum
+                  Penguncian SEB untuk lomba ini belum sepenuhnya aktif (kunci SEB belum
                   diisi admin). Berkasnya tetap bisa dipakai.
                 </p>
               )}

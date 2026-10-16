@@ -419,8 +419,8 @@ export default function EventInfoTab({ ev, onSimpan }) {
             <p className="mt-2 text-[11px] leading-relaxed text-stone-500">
               Kunci ini tidak bisa dihitung server — ia dihasilkan dari isi berkas .seb yang sudah jadi.
               <span className="font-semibold"> Tiap kali kamu mengubah pengaturan SEB di atas, kuncinya berubah</span> —
-              unduh ulang berkasnya dan salin kuncinya lagi. Kunci lomba lain juga tidak akan cocok,
-              karena alamat mulainya berbeda.
+              unduh ulang berkasnya dan salin kuncinya lagi. Lomba lain dengan pengaturan SEB yang sama
+              memakai kunci yang sama, karena berkas .seb-nya identik.
             </p>
           </div>
         </div>
