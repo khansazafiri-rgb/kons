@@ -60,7 +60,8 @@ const jadiPoin = (nilai) => {
 export function kunciEsai(sub) {
   const jawaban = jadiPoin(sub?.validAnswers);
   const poin = jadiPoin(sub?.keyPoints);
-  const judulPoin = String(sub?.keyPointsTitle || '').trim() || 'Poin kunci';
+  // Judul dari sumber sering berakhiran titik dua ("Ciri-ciri:"); tampilannya sudah menambah ":".
+  const judulPoin = String(sub?.keyPointsTitle || '').trim().replace(/[:：\s]+$/, '') || 'Poin kunci';
   return { jawaban, judulPoin, poin, kosong: !jawaban.length && !poin.length };
 }
 
@@ -78,6 +79,16 @@ export function esaiSudahDitulis(q, ans) {
   const obj = typeof ans === 'object' && ans !== null && !Array.isArray(ans) ? ans : {};
   return (q?.subQuestions || []).some((sub) => teksEsaiSiswa(obj[sub.label]).trim() !== '');
 }
+
+// Batas panjang satu jawaban esai. Tanpa batas, 115 soal x tulisan panjang bisa
+// melewati batas ukuran field jawaban di database dan gagal tersimpan.
+export const BATAS_JAWABAN_ESAI = 2000;
+
+// Nilai penanda "percobaan ini tidak punya nilai" (isinya esai semua). Field skor di
+// database hanya bisa angka dan tidak bisa kosong, jadi 0 tidak bisa dibedakan dari
+// nilai nol sungguhan. Skor sungguhan tidak pernah negatif.
+export const TANPA_NILAI = -1;
+export const adaNilai = (skor) => typeof skor === 'number' && skor >= 0;
 
 // Berapa soal yang benar-benar dinilai (bukan esai). Dipakai untuk skor dan
 // untuk memutuskan apakah angka nilai layak ditampilkan sama sekali.

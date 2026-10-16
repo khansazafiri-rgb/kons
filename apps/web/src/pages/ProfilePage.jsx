@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth, deviceLimitFor } from '@/context/AuthContext';
 import { roleLabel } from '@/lib/studentType';
+import { adaNilai } from '@/lib/esai';
 
 const WA_NUMBER_DISPLAY = '+62 822-5723-8650';
 const WA_LINK = 'https://wa.me/6282257238650';
@@ -42,7 +43,8 @@ export default function ProfilePage() {
        sort: 'created',
        fields: 'id,subject,year,score,created',
      })
-     .then(setAttempts)
+     // Percobaan tanpa nilai (isinya esai semua) tidak ikut grafik dan daftar nilai.
+     .then((daftar) => setAttempts(daftar.filter((a) => a.score == null || adaNilai(a.score))))
      .catch(() => setAttempts([]));
  }, [user, role]);
 

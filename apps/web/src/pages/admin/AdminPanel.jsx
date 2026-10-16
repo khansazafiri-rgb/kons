@@ -823,7 +823,9 @@ function payloadFromForm(form) {
       options: adaSub ? [] : form.options,
       subQuestions: adaSub
         ? form.subQuestions
-            .filter((sq) => sq.question.trim())
+            // Esai: sub-pertanyaan yang pertanyaannya kosong tapi kuncinya sudah diisi
+            // tetap disimpan (jangan membuang kunci diam-diam). Isian: aturan lama.
+            .filter((sq) => sq.question.trim() || (esai && [sq.validAnswers, sq.keyPoints, sq.explanation].some((v) => String(v || '').trim())))
             .map((sq) => (esai ? bersihkanSubEsai(sq) : bersihkanSub(sq)))
         : [],
     }),
@@ -861,6 +863,21 @@ function bersihkanSubEsai(sq) {
   if (String(sq.keyPointsTitle || '').trim()) out.keyPointsTitle = sq.keyPointsTitle.trim();
   if (String(sq.explanation || '').trim()) out.explanation = sq.explanation.trim();
   return out;
+}
+
+// Hal yang membuat sebuah soal tidak bisa disimpan, supaya adminnya diberi tahu
+// alih-alih tombol Simpan yang diam saja: esai tanpa sub-pertanyaan, atau field
+// options di database (batas 20000 byte) yang kepenuhan.
+function masalahSimpan(payload, qtype) {
+  const opt = payload.options || {};
+  if (isEsaiType(qtype) && !(opt.subQuestions || []).length) {
+    return 'Soal esai butuh minimal satu sub-pertanyaan dengan kunci. Isi pertanyaan atau kuncinya dulu.';
+  }
+  const ukuran = new TextEncoder().encode(JSON.stringify(opt)).length;
+  if (ukuran > 19500) {
+    return `Soal ini terlalu panjang untuk disimpan (${ukuran} dari batas 20000 byte). Kurangi isi kunci/pembahasan, atau pecah jadi dua soal.`;
+  }
+  return '';
 }
 
 // Kotak uji untuk penulis soal: ketik jawaban siswa apa adanya (salah ketik,
@@ -1155,11 +1172,13 @@ Contoh sub-pertanyaan:
 
 const ESAI_RULE = `SOAL ESAI TIDAK DINILAI:
 - Soal esai TIDAK dinilai komputer: siswa menulis jawabannya, lalu membuka KUNCI dan membandingkannya sendiri. Jadi tidak perlu menebak sinonim atau variasi jawaban; yang penting kuncinya lengkap dan terbaca rapi.
-- Tiap soal wajib punya "dinilai": false dan "subQuestions" (min 1). JANGAN pakai "options".
+- Tiap soal ESAI wajib punya "dinilai": false dan "subQuestions" (min 1). Soal esai JANGAN pakai "options" (soal pilihan ganda tetap memakainya).
 - "validAnswers" = JAWABAN UTAMA yang ditanyakan (mis. nama spesies dan stadiumnya). Satu string = satu baris tebal di kunci. Kalau ada beberapa jawaban yang sama-sama sah, tulis tiap jawaban sebagai string terpisah (tampil berpoin).
-- "keyPoints" = butir-butir pendukung kunci (ciri-ciri, mekanisme, langkah, komplikasi, dst), SATU BUTIR PER STRING. Butir yang di sumber ditulis dalam satu baris dan dipisah " / " (atau titik koma, bullet, nomor) HARUS DIPECAH jadi string-string terpisah. Satu string hanya satu gagasan.
+- "keyPoints" = butir-butir pendukung kunci (ciri-ciri, mekanisme, langkah, komplikasi, dst), SATU BUTIR PER STRING. Butir yang di sumber ditulis dalam satu baris dan dipisah " / " (atau ditulis sebagai bullet / nomor / baris terpisah) HARUS DIPECAH jadi string-string terpisah. Titik koma (;) di dalam satu butir adalah bagian dari butir itu, jangan dipecah. Satu string hanya satu gagasan.
 - "keyPointsTitle" = judul daftar butir itu persis seperti di sumber (mis. "Ciri-ciri", "Karakteristik", "Komplikasi"). Kalau sumber tidak punya judul, hilangkan field ini.
-- Salin isi tiap butir PERSIS seperti sumber (angka, satuan, nama latin, tanda baca, huruf besar). Jangan meringkas, menambah, atau memperbaiki isinya. Tanda "/" tanpa spasi di dalam sebuah butir (mis. "larva/L3") tetap bagian butir itu.
+- Salin isi tiap butir PERSIS seperti sumber (angka, satuan, nama latin, tanda baca). Jangan meringkas, menambah, atau memperbaiki isinya. Kalau butir di sumber diawali huruf kecil karena aslinya potongan kalimat, boleh dikapitalkan pada huruf pertamanya, kecuali satuan atau lambang (mm, µm, pH). Tanda "/" tanpa spasi di dalam sebuah butir (mis. "larva/L3") tetap bagian butir itu.
+- Judul daftar ("keyPointsTitle") ditulis tanpa tanda titik dua di akhir (tulis "Ciri-ciri", bukan "Ciri-ciri:").
+- Aturan "/" pada bagian ISIAN (bentuk lain dari jawaban yang sama) TIDAK berlaku untuk esai: pada esai, " / " memisahkan butir-butir kunci yang berbeda.
 - Kalau ada pembahasan tambahan (teks atau gambar), taruh di "explanation" milik sub-pertanyaan, atau di "explanation" tingkat soal kalau berlaku untuk seluruh soal.
 Contoh sub-pertanyaan esai:
 { "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Ukuran sekitar 45–75 × 35–50 µm", "Dinding tebal berlapis", "Berisi satu sel telur yang terpisah dari dinding"] }`;
@@ -1368,6 +1387,7 @@ ATURAN ISI (penting, karena tipe tiap soal ditebak dari bentuk datanya):
 
 ${ISIAN_LANJUTAN_RULE}
 
+ATURAN BERIKUT HANYA UNTUK SOAL ESAI (soal yang punya "dinilai": false). Soal pilihan ganda dan isian tetap mengikuti aturannya masing-masing di atas.
 ${ESAI_RULE}
 
 Konversi soal-soal campuran berikut (sertakan link gambar untuk soal yang bergambar, kunci jawaban & pembahasan untuk MCQ, semua jawaban yang diterima untuk isian):
@@ -1483,8 +1503,15 @@ function BulkImport({ onImport, status }) {
 // mana satu tempelan boleh berisi campuran keempat tipe soal sekaligus.
 // Aturannya: "options" = MCQ, "subQuestions" = Isian, dan "imageUrl" yang terisi
 // menaikkannya ke varian bergambar.
-// Tanda soal esai di data tempelan: "dinilai": false (atau "qtype": "esai...").
-const itemEsai = (item) => item.dinilai === false || String(item.qtype || '').startsWith('esai');
+// Tanda soal esai di data tempelan: "dinilai": false (juga "false"/0/"tidak" yang
+// kadang dikeluarkan Gemini), "qtype": "esai...", atau sub-pertanyaan yang memakai
+// keyPoints / keyPointsTitle (field itu hanya ada di esai).
+const itemEsai = (item) => {
+  const d = typeof item.dinilai === 'string' ? item.dinilai.trim().toLowerCase() : item.dinilai;
+  return d === false || d === 0 || d === 'false' || d === 'tidak'
+    || String(item.qtype || '').startsWith('esai')
+    || (Array.isArray(item.subQuestions) && item.subQuestions.some((sq) => sq && (sq.keyPoints != null || sq.keyPointsTitle != null)));
+};
 
 function detectItemType(item, no) {
   const hasSubs = Array.isArray(item.subQuestions) && item.subQuestions.length > 0;
@@ -1519,8 +1546,8 @@ function parseBulkItems(bulkText, qtype) {
       if (isian && !hasSubs) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "subQuestions". Pakai prompt ${esai ? 'Esai' : 'Isian'}, atau ganti tipe ke MCQ.`);
       if (!isian && !hasOpts) throw new Error(`Soal #${no}: tipe yang dipilih ${TYPE_LABEL[qtype]}, tapi datanya tidak punya "options". Pakai prompt MCQ, atau ganti tipe ke Isian.`);
       if (!isian && hasSubs) throw new Error(`Soal #${no}: berisi "subQuestions" (format Isian/Esai) padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Ganti tipe ke Isian atau Esai.`);
-      if (isian && hasOpts) throw new Error(`Soal #${no}: berisi "options" padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Satu soal hanya boleh punya salah satu.`);
       if (withImg && !item.imageUrl) throw new Error(`Soal #${no}: tipe bergambar tapi tidak ada "imageUrl". Tambahkan link gambarnya.`);
+      if (isian && !esai && itemEsai(item)) throw new Error(`Soal #${no}: datanya berformat Esai ("dinilai": false / "keyPoints"), padahal tipe yang dipilih ${TYPE_LABEL[qtype]}. Pilih tipe Esai supaya kuncinya tidak hilang dan soalnya tidak dinilai.`);
     }
     // Teks dibersihkan dari "kode aneh" SEBELUM disimpan (lihat lib/textRepair),
     // supaya yang masuk database sudah berupa lambang yang benar - bukan cuma
@@ -1542,11 +1569,17 @@ function parseBulkItems(bulkText, qtype) {
             // Esai: tidak ada hitungan jawaban. Yang ada kunci berpoin (jawaban
             // utama + butir pendukung); setidaknya salah satunya harus terisi.
             if (esai) {
-              const poin = (Array.isArray(sq.keyPoints) ? sq.keyPoints : (sq.keyPoints ? [String(sq.keyPoints)] : [])).map(fixText);
-              const adaKunci = out.validAnswers.some((v) => String(v).trim()) || poin.some((v) => String(v).trim());
-              if (!adaKunci) throw new Error(`Soal #${no} bagian ${out.label}: esai tidak punya kunci. Isi "validAnswers" (jawaban utama) dan/atau "keyPoints" (butir kunci).`);
+              // Isi yang bukan teks (angka, null) dirapikan dulu supaya tidak lolos
+              // sebagai kunci "kosong" dan tidak membuat galat yang membingungkan.
+              const teksSaja = (nilai) => (Array.isArray(nilai) ? nilai : nilai == null || nilai === '' ? [] : [nilai])
+                .map((v) => (v == null ? '' : fixText(String(v)).trim()))
+                .filter(Boolean);
+              out.validAnswers = teksSaja(sq.validAnswers);
+              const poin = teksSaja(sq.keyPoints);
+              if (!out.validAnswers.length && !poin.length) throw new Error(`Soal #${no} bagian ${out.label}: esai tidak punya kunci. Isi "validAnswers" (jawaban utama) dan/atau "keyPoints" (butir kunci).`);
               if (poin.length) out.keyPoints = poin;
-              if (String(sq.keyPointsTitle || '').trim()) out.keyPointsTitle = fixText(sq.keyPointsTitle).trim();
+              const judul = fixText(String(sq.keyPointsTitle ?? '')).trim();
+              if (judul) out.keyPointsTitle = judul;
               if (String(sq.explanation || '').trim()) out.explanation = fixText(sq.explanation);
               return out;
             }
@@ -1737,6 +1770,8 @@ export function EditSoal({ allowedSubjectIds = null }) {
       year: null,
       ...payloadFromForm(form),
     };
+    const masalah = masalahSimpan(payload, form.qtype);
+    if (masalah) { alert(masalah); return; }
 
     const where = `${subjectLabel()} · ${chapterLabel()}`;
     if (editingId) {
@@ -2461,6 +2496,8 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
       type: 'cbt',
       ...payloadFromForm(form),
     };
+    const masalah = masalahSimpan(payload, form.qtype);
+    if (masalah) { alert(masalah); return; }
 
     if (editingId) {
       const saved = await pb.collection('questions').update(editingId, payload);

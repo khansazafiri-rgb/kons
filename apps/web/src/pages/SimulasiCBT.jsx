@@ -4,6 +4,7 @@ import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner, { semuaEsai } from '@/components/QuestionRunner';
+import { TANPA_NILAI, adaNilai } from '@/lib/esai';
 import { touchActivity } from '@/lib/activityLog';
 import { susunSoal } from '@/lib/acakSoal';
 import { cocokUniversitas, filterCbtKind, filterTampilSoal, gabung } from '@/lib/chapterScope';
@@ -220,7 +221,8 @@ export default function SimulasiCBT() {
 
  const submit = async ({ answers, score, gradedTotal }) => {
    if (attemptId) {
-     await pb.collection('cbt_attempts').update(attemptId, { answers, score, status: 'completed' });
+     // Isinya esai semua: tidak ada nilai, jadi bukan "0" (yang akan tampil di grafik profil).
+     await pb.collection('cbt_attempts').update(attemptId, { answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed' });
    }
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
@@ -248,8 +250,8 @@ export default function SimulasiCBT() {
            </div>
            <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Soal Ini Sudah Kamu Kerjakan</h2>
            <p className="text-sm font-medium text-stone-600 mb-6 leading-relaxed">
-             {semuaEsai(questions)
-               ? 'Soal di sini berupa esai, jadi tidak ada nilai.'
+             {semuaEsai(questions) || !adaNilai(completedAttempt.score)
+               ? 'Percobaan ini tidak punya nilai (soalnya berupa esai).'
                : <>Nilai terakhirmu: <span className="font-bold text-maroon-600">{completedAttempt.score ?? 0}</span>.</>}
              {' '}Mau review jawaban yang lalu, atau kerjakan ulang soal ini?
            </p>

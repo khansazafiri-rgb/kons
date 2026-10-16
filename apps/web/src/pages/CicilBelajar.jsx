@@ -6,6 +6,7 @@ import pb from '@/lib/pocketbaseClient';
 import { filterLatihan, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner, { semuaEsai } from '@/components/QuestionRunner';
+import { TANPA_NILAI, adaNilai } from '@/lib/esai';
 import ChapterSelect from '@/components/ChapterSelect';
 import { touchActivity } from '@/lib/activityLog';
 import { idUrutan, susunSoal } from '@/lib/acakSoal';
@@ -228,9 +229,9 @@ export default function CicilBelajar() {
 
    const urutan = { urutan: babAcak ? urutanRef.current : null };
    if (existing[0]) {
-     await pb.collection('soal_progress').update(existing[0].id, { answers, score, status: 'completed', ...urutan });
+     await pb.collection('soal_progress').update(existing[0].id, { answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed', ...urutan });
    } else {
-     await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score, status: 'completed', ...urutan });
+     await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed', ...urutan });
    }
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
@@ -288,7 +289,7 @@ export default function CicilBelajar() {
            </div>
            <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">BAB Ini Sudah Kamu Selesaikan</h2>
            <p className="text-sm font-medium text-stone-600 mb-2 leading-relaxed">
-             {semuaEsai(questions)
+             {semuaEsai(questions) || !adaNilai(priorProgress.score)
                ? 'Soal di BAB ini berupa esai, jadi tidak ada nilai.'
                : <>Nilai terakhirmu: <span className="font-bold text-maroon-600">{priorProgress.score ?? 0}</span>.</>}
              {' '}Mau lihat kembali jawabanmu, atau kerjakan ulang dari awal?
