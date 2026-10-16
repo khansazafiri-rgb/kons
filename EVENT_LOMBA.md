@@ -251,6 +251,21 @@ Cara SEB membuktikan dirinya: tiap permintaan diberi header berisi
 `X-SafeExamBrowser-RequestHash` untuk BEK. Server menghitung ulang nilai yang
 sama dan membandingkannya.
 
+Dua syarat yang dulu terlewat dan membuat **semua** peserta tertolak begitu
+kuncinya diisi (diperbaiki Oktober 2026):
+
+- **Berkas `.seb` harus menyalakan `sendBrowserExamKey`.** Di SEB Windows
+  pengiriman kedua header itu *mati* secara bawaan (`DataValues.cs` di
+  seb-win-refactoring); tanpa kunci ini di berkas, SEB tidak mengirim bukti apa
+  pun dan server menjawab `SEB_REQUIRED`. Menambahkannya mengubah isi berkas,
+  jadi Config Key lama ikut berubah - salin ulang dari SEB Config Tool.
+- **"Alamat lengkap" adalah alamat https publik.** SEB menghitung dari
+  `https://pcvclassroom.com/api/...`, sedangkan PocketBase menerima permintaan
+  dari Caddy lewat HTTP biasa. Server sekarang menyusun alamat dari Application
+  URL PocketBase (dan `X-Forwarded-Proto`), bukan dari koneksinya sendiri -
+  lihat `alamatSebKandidat` di `pcv-shared.js`. Application URL di Settings
+  PocketBase karena itu **wajib** `https://pcvclassroom.com`.
+
 ---
 
 ## Kunci perangkat per pendaftaran

@@ -655,6 +655,52 @@ function buildStatusText(info) {
 // membuka Dashboard Admin (halaman webnya mengizinkan) tapi setiap tindakannya
 // ditolak server. Semua pemeriksaan peran kini lewat helper ini supaya
 // penambahan peran berikutnya cukup diubah di satu tempat.
+// ---------------------------------------------------------------------------
+// Bukti Safe Exam Browser
+// ---------------------------------------------------------------------------
+//
+// SEB mengirim header X-SafeExamBrowser-ConfigKeyHash (Config Key) dan/atau
+// X-SafeExamBrowser-RequestHash (Browser Exam Key), masing-masing berisi
+// SHA256(alamat lengkap permintaan, tanpa #fragmen + kunci) - lihat
+// KeyGenerator.cs di seb-win-refactoring.
+//
+// "Alamat lengkap" itu alamat yang dilihat PESERTA: https://pcvclassroom.com/
+// api/... . PocketBase sendiri duduk di belakang Caddy dan menerima permintaan
+// lewat HTTP biasa, jadi e.request.tls selalu kosong - menyusun alamat dari situ
+// menghasilkan http://... dan hash-nya TIDAK PERNAH cocok, sehingga semua
+// peserta ditolak SEB_MISMATCH. Karena itu alamatnya dicoba dari beberapa sumber,
+// diutamakan Application URL di pengaturan PocketBase.
+//
+// Menerima beberapa bentuk alamat tidak melemahkan apa pun: hash tetap hanya
+// bisa dibuat oleh yang memegang kuncinya.
+function alamatSebKandidat(app, e) {
+  const uri = e.request.url.requestURI();
+  const host = e.request.host;
+  const hasil = [];
+  const tambah = (u) => { if (u && hasil.indexOf(u) === -1) hasil.push(u); };
+
+  const appUrl = String(app.settings().meta.appURL || "").replace(/\/+$/, "");
+  if (appUrl) tambah(appUrl + uri);
+
+  const proto = String(e.request.header.get("X-Forwarded-Proto") || "").split(",")[0].trim();
+  const fHost = String(e.request.header.get("X-Forwarded-Host") || "").split(",")[0].trim();
+  if (proto) tambah(proto + "://" + (fHost || host) + uri);
+
+  tambah("https://" + host + uri);
+  tambah((e.request.tls ? "https" : "http") + "://" + host + uri);
+  return hasil;
+}
+
+// true kalau hash dari SEB cocok dengan kunci ini untuk salah satu bentuk alamat.
+function hashSebCocok(kandidat, kunci, hash) {
+  if (!kunci || !hash) return false;
+  const diminta = String(hash).toLowerCase();
+  for (let i = 0; i < kandidat.length; i += 1) {
+    if ($security.sha256(kandidat[i] + kunci).toLowerCase() === diminta) return true;
+  }
+  return false;
+}
+
 function isAdmin(auth) {
   if (!auth) return false;
   const peran = auth.get("role");
@@ -663,6 +709,8 @@ function isAdmin(auth) {
 
 module.exports = {
   isAdmin,
+  alamatSebKandidat,
+  hashSebCocok,
   SERVER_VERSION,
   normalizePhone,
   sendWA,

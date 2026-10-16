@@ -146,7 +146,18 @@ function eventPublik(ev, bolehLihatRahasia) {
     peringkatPublik: ev.getBool("leaderboardPublic"),
     tampilanPeringkat: ev.getString("leaderboardDisplay") || "FULL_NAME",
     wajibSeb: ev.getBool("sebRequired"),
-    sebSiap: ev.getString("sebBrowserExamKey") !== "",
+    // "Siap" = server punya pembanding untuk memverifikasi SEB: Config Key ATAU
+    // Browser Exam Key, milik lomba ini maupun turunan dari pengaturan global.
+    // Dulu cuma BEK lomba ini yang dilihat, jadi lomba yang memakai Config Key
+    // (cara yang dianjurkan) tetap memperingatkan peserta "belum aktif".
+    sebSiap: (() => {
+      try {
+        const s = sebSetelan($app, ev);
+        return !!s.configKey || s.beks.length > 0;
+      } catch (_) {
+        return false;
+      }
+    })(),
   };
 }
 
@@ -479,20 +490,17 @@ function periksaSeb(e, ev, setelan) {
     };
   }
 
-  const penuh =
-    (e.request.tls ? "https" : "http") + "://" + e.request.host + e.request.url.requestURI();
+  // Alamat yang dihitung SEB adalah alamat https publik, bukan yang dilihat
+  // PocketBase di belakang Caddy - lihat alamatSebKandidat di pcv-shared.js.
+  const pcv = require(`${__hooks}/pcv-shared.js`);
+  const kandidat = pcv.alamatSebKandidat(e.app, e);
 
   // Config Key diperiksa lebih dulu: satu nilai berlaku untuk semua platform,
   // jadi kalau admin sudah mengisinya, ini jalur yang paling mungkin cocok.
-  if (setelan.configKey && hashConfig) {
-    if ($security.sha256(penuh + setelan.configKey).toLowerCase() === hashConfig.toLowerCase()) return null;
-  }
+  if (pcv.hashSebCocok(kandidat, setelan.configKey, hashConfig)) return null;
   // Kalau tidak, cukup SALAH SATU Browser Exam Key yang terdaftar cocok.
-  if (hashBek) {
-    const diminta = hashBek.toLowerCase();
-    for (let i = 0; i < setelan.beks.length; i += 1) {
-      if ($security.sha256(penuh + setelan.beks[i]).toLowerCase() === diminta) return null;
-    }
+  for (let i = 0; i < setelan.beks.length; i += 1) {
+    if (pcv.hashSebCocok(kandidat, setelan.beks[i], hashBek)) return null;
   }
 
   return {
