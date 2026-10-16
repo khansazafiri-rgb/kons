@@ -71,7 +71,10 @@ export function OlimpAuthProvider({ children }) {
       throw new Error('Akun ini dinonaktifkan. Hubungi admin PCV.');
     }
     const status = rec?.status;
-    if (status !== 'active') {
+    // `lomba` = akun peserta lomba (dibuat dari halaman daftar lomba mode
+    // Google Form). Boleh masuk supaya bisa mendaftar & mengerjakan lomba;
+    // bank soal Web Olimp tetap tertutup oleh gerbang di lib/olimp.js.
+    if (status !== 'active' && status !== 'lomba') {
       pbo.authStore.clear();
       throw new Error(STATUS_PESAN[status] || 'Akun ini belum aktif. Hubungi admin PCV.');
     }

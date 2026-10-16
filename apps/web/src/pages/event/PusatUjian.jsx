@@ -206,7 +206,7 @@ function keadaanLomba(d, sisaMulai) {
     return {
       nada: 'kuning',
       judul: 'Menunggu ACC admin',
-      isi: 'Pembayaranmu belum dikonfirmasi. Kamu belum bisa masuk ujian sampai admin menyetujuinya.',
+      isi: 'Pendaftaranmu belum dikonfirmasi admin. Kamu belum bisa masuk ujian sampai admin menyetujuinya.',
     };
   }
   if (d.sudahKumpul) {

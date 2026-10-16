@@ -84,8 +84,10 @@ function ExplanationImage({ src }) {
 
 // Hasil konverter soal memakai <br> untuk pindah baris (teks pembahasan wajib
 // satu baris di dalam string), jadi tag itu diterjemahkan jadi ganti baris
-// betulan - bukan ditampilkan mentah sebagai tulisan "<br>".
-const BR_RE = /<br\s*\/?>/gi;
+// betulan - bukan ditampilkan mentah sebagai tulisan "<br>". Enter biasa yang
+// diketik admin di kotak pembahasan juga dihormati: tanpa ini, HTML
+// menganggapnya spasi dan seluruh pembahasan menempel jadi satu paragraf.
+const BR_RE = /<br\s*\/?>|\r?\n/gi;
 
 function TextSegment({ value }) {
   const baris = String(value).split(BR_RE);

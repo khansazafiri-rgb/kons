@@ -15,6 +15,7 @@ import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import { hapusLunak, konfirmasiHapus, saringAktif } from '@/lib/akun';
 import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
+import { teksKeHtml } from '@/lib/teksSoal';
 import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
 import { jumlahKotak, nilaiSub } from '@/lib/isian';
 import KunciEsai from '@/components/KunciEsai';
@@ -781,6 +782,10 @@ function packOptions(n) {
   };
 }
 
+// Tinggi kotak teks mengikuti isinya (1-10 baris), supaya teks yang ditempel
+// dengan beberapa Enter langsung terlihat utuh, bukan terpotong satu baris.
+const barisTeks = (v) => Math.min(10, Math.max(1, String(v || '').split('\n').length));
+
 function formFromQuestion(raw) {
   const q = normalizeQuestion(raw);
   return {
@@ -962,7 +967,7 @@ function QuestionForm({ form, setForm }) {
         </div>
       )}
 
-      <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan..." className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" rows={3} />
+      <textarea value={form.text} onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))} placeholder="Pertanyaan... (Enter = pindah baris, tampil sama di layar siswa)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50 resize-y" rows={Math.max(3, barisTeks(form.text))} />
       <input value={form.hint} onChange={(e) => setForm((f) => ({ ...f, hint: e.target.value }))} placeholder="Hint (opsional)" className="w-full rounded-lg border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
 
       {/* Pembahasan tunggal: satu penjelasan untuk seluruh soal, dipakai kalau
@@ -997,7 +1002,7 @@ function QuestionForm({ form, setForm }) {
             <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
               <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
               <div className="flex-1 min-w-0 space-y-2">
-                <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Pertanyaan ${sq.label}, mis. "Spesies dan stadium yang ditunjukkan pada gambar adalah:"`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                <textarea value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} rows={barisTeks(sq.question)} placeholder={`Pertanyaan ${sq.label}, mis. "Spesies dan stadium yang ditunjukkan pada gambar adalah:" (Enter = pindah baris)`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50 resize-y" />
                 <textarea
                   value={sq.validAnswers}
                   onChange={(e) => updateSub(i, 'validAnswers', e.target.value)}
@@ -1049,7 +1054,7 @@ function QuestionForm({ form, setForm }) {
               <div key={i} className="flex items-start gap-2 border border-alba-200 rounded-lg p-3 bg-alba-100">
                 <input value={sq.label} onChange={(e) => updateSub(i, 'label', e.target.value)} className="w-12 rounded-md border border-alba-300 px-2 py-2 text-sm text-center font-bold bg-alba-50" />
                 <div className="flex-1 min-w-0 space-y-2">
-                  <input value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50" />
+                  <textarea value={sq.question} onChange={(e) => updateSub(i, 'question', e.target.value)} rows={barisTeks(sq.question)} placeholder={`Sub-pertanyaan ${sq.label}`} className="w-full rounded-md border border-alba-300 px-3 py-2 text-sm bg-alba-50 resize-y" />
                   <label className="flex items-center gap-2 text-xs text-stone-600">
                     Jumlah kotak jawaban
                     <input
@@ -2324,7 +2329,7 @@ function PreviewModal({ previewData, onClose }) {
         </div>
 
         <div className="space-y-4">
-          <p className="text-base font-semibold leading-relaxed">{previewData.text}</p>
+          <div className="text-base font-semibold leading-relaxed" dangerouslySetInnerHTML={{ __html: teksKeHtml(previewData.text) }} />
 
           {previewData.imageUrl && (
             <img src={previewData.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" className="max-h-72 max-w-full rounded-xl border border-alba-200 mx-auto" />
@@ -2345,7 +2350,7 @@ function PreviewModal({ previewData, onClose }) {
                     {(previewData.subQuestions || []).length > 1 && (
                       <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sq.label}</span>
                     )}
-                    {sq.question}
+                    <span className="whitespace-pre-line">{sq.question}</span>
                   </p>
                   <KunciEsai sub={sq} />
                   {sq.explanation && (
@@ -2362,7 +2367,7 @@ function PreviewModal({ previewData, onClose }) {
                 <div key={i} className="p-4 rounded-xl border-2 border-alba-200 bg-alba-100/60">
                   <p className="font-semibold text-sm mb-1">
                     <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sq.label}</span>
-                    {sq.question}
+                    <span className="whitespace-pre-line">{sq.question}</span>
                   </p>
                   <p className="text-xs text-stone-500">
                     {jumlahKotak(sq) > 1 ? `Siswa mengisi ${jumlahKotak(sq)} jawaban dari: ` : 'Jawaban diterima: '}

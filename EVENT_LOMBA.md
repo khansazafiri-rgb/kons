@@ -784,6 +784,51 @@ menghalangi klik peserta, dan tidak ikut tersalin saat teks soal diblok.
 
 ---
 
+## Dua cara pendaftaran: web atau Google Form
+
+Admin memilihnya per lomba di Info Dasar → **Cara pendaftaran** (field
+`registrationMode`, migrasi `1787800000_event_mode_pendaftaran.js`).
+
+| | `WEB` (bawaan) | `GFORM` |
+|---|---|---|
+| Untuk | Pendaftaran & pembayaran sepenuhnya di web ini | Peserta sudah daftar & bayar lewat broadcast → Google Form → grup WA |
+| Halaman lomba | Harga + "Bayar lewat WhatsApp" | "Lewat Google Form", tanpa harga; tautan Form kalau `gformUrl` diisi |
+| Belum punya akun | Diminta masuk / daftar akun PCV | Bisa langsung **buat akun peserta lomba** di halaman daftar |
+| Setelah daftar | Transfer → kirim bukti → admin tandai lunas → ACC | **Chat admin untuk konfirmasi** (pesan WA sudah memuat email akun) → admin ACC |
+| Tab Peserta | Belum bayar → Sudah bayar → ACC | Menunggu konfirmasi → ACC (tidak ada "Tandai sudah bayar") |
+
+Status di basis data tetap sama (`PENDING_PAYMENT` → `APPROVED`); yang berubah
+cuma sebutannya (`gayaStatus()` di `lib/eventLomba.js`), jadi aturan waktu ujian,
+SEB, dan kuota tidak perlu tahu mode mana yang dipakai.
+
+**Akun peserta lomba** dibuat `POST /api/event/akun-baru` (hanya untuk lomba
+`GFORM` yang pendaftarannya sedang buka): satu transaksi membuat akun
+`olimp_users` berstatus `lomba` sekaligus pendaftarannya. Kenapa `olimp_users`
+dan bukan `users`: akun PCV Classroom harus di-ACC admin dan dipilihkan mata
+kuliah dulu sebelum bisa login - terlalu berat untuk peserta lomba. Status
+`lomba`:
+
+- bisa login (lewat halaman lomba, `/olimp/masuk`, atau Pusat Ujian di SEB);
+- tidak membuka bank soal Web Olimp - gerbangnya menuntut `active`;
+- tidak ikut antrean "Menunggu ACC" Dashboard Olimp. Ada saringan "Akun lomba"
+  dan tombol "Aktifkan Web Olimp" kalau orangnya kemudian ikut program Olimp;
+- disimpan lewat `e.app.save`, jadi email "pendaftar baru Web Olimp" ke admin
+  tidak terkirim untuk tiap peserta lomba.
+
+Email yang sudah punya akun Web Olimp ditolak (`EMAIL_TERPAKAI`) dan diminta
+masuk saja. Kuota diperiksa sebelum akunnya dibuat, jadi lomba yang penuh tidak
+meninggalkan akun yatim.
+
+## Deskripsi & aturan yang ditempel dari broadcast
+
+Deskripsi dan "Aturan & instruksi" ditampilkan lewat `teksInfoKeHtml()`
+(`lib/teksSoal.js`): Enter dan baris kosong dipertahankan, `*tebal*`,
+`_miring_`, `~coret~` ala WhatsApp ikut terformat, dan tautan telanjang bisa
+diklik. HTML yang ditulis admin tetap dihormati - format WA dan tautan hanya
+diterapkan pada teks di antara tag.
+
+---
+
 ## Menjalankan migrasinya
 
 **Tidak ada perintah migrasi terpisah.** PocketBase menerapkan semua migrasi

@@ -138,6 +138,10 @@ function eventPublik(ev, bolehLihatRahasia) {
     modelWaktu: bolehCara ? (ev.getString("timingModel") || "PERSONAL_DURATION") : "",
     durasiMenit: bolehCara ? ev.getInt("durationMinutes") : null,
     waPembayaran: ev.getString("paymentContactWa"),
+    // WEB = daftar & bayar lewat web ini; GFORM = sudah daftar & bayar lewat
+    // Google Form, web ini cuma untuk akun + konfirmasi admin. Kosong = WEB.
+    modeDaftar: ev.getString("registrationMode") === "GFORM" ? "GFORM" : "WEB",
+    gformUrl: ev.getString("gformUrl"),
     aturan: ev.getString("rulesText"),
     status: ev.getString("status"),
     hasilDirilis: iso(ev, "resultsReleasedAt") !== "",
@@ -338,9 +342,9 @@ function periksaKelayakan(reg, jalur) {
     return { tolak: {
       status: 403,
       kode: "BELUM_ACC",
-      message: status === "PENDING_PAYMENT"
-        ? "Pembayaranmu belum dikonfirmasi admin, jadi pendaftaranmu belum disetujui."
-        : "Pendaftaranmu untuk lomba ini belum disetujui admin.",
+      // Kalimatnya netral: di lomba mode Google Form tidak ada pembayaran
+      // yang ditunggu, cuma konfirmasi admin.
+      message: "Pendaftaranmu untuk lomba ini belum dikonfirmasi admin.",
     } };
   }
   return { reg, jalur };
@@ -378,6 +382,41 @@ function cariPendaftaran(app, eventId, peserta) {
   } catch (_) {
     return null;
   }
+}
+
+// Mengisi satu baris pendaftaran dari biodata yang dikirim. Dipakai dua pintu:
+// mendaftar dengan akun yang sudah ada, dan buat-akun-sekaligus-daftar (mode
+// Google Form). Status selalu mulai dari nol, apa pun yang dikirim browser.
+function isiPendaftaran(reg, ev, peserta, body) {
+  reg.set("event", ev.id);
+  reg.set(peserta.kind === "users" ? "user" : "olimpUser", peserta.id);
+  reg.set("pesertaNama", String(body.nama || peserta.nama || "").slice(0, 160));
+  reg.set("pesertaEmail", peserta.email);
+  reg.set("pesertaWa", String(body.whatsapp || peserta.wa || "").slice(0, 40));
+  reg.set("pesertaAsal", String(body.asal || peserta.asal || "").slice(0, 200));
+  reg.set("contactInfo", {
+    catatan: String(body.catatan || "").slice(0, 1000),
+    semester: String(body.semester || "").slice(0, 20),
+  });
+  // Selalu mulai dari nol, apa pun yang dikirim browser.
+  reg.set("paymentStatus", "PENDING_PAYMENT");
+  reg.set("rejectionReason", "");
+  reg.set("approvedBy", "");
+  reg.set("deviceId", "");
+  reg.set("deviceResetPending", false);
+  reg.set("score", null);
+  reg.set("rank", null);
+  // Token unduhan berkas .seb - personal, jadi berkas orang lain tidak bisa
+  // diambil dengan menebak alamat.
+  // Token dibuat SEKALI dan tidak pernah diganti selama pendaftarannya hidup
+  // (PRD Revisi 2 bagian 6.3). Kalau ia digenerate ulang tiap kali, berkas .seb
+  // yang sudah terlanjur diunduh peserta mendadak tidak berlaku tanpa sebab
+  // yang bisa mereka lihat.
+  if (!reg.getString("sebConfigToken")) {
+    reg.set("sebConfigToken", $security.randomString(40));
+    reg.set("configTokenGeneratedAt", new Date().toISOString());
+  }
+  reg.set("deletedAt", null);
 }
 
 function hitungTerdaftar(app, eventId) {
@@ -606,6 +645,7 @@ module.exports = {
   pendaftaranUntuk,
   catatTolakan,
   hitungTerdaftar,
+  isiPendaftaran,
   soalEvent,
   sebSetelan,
   kunciSetara,

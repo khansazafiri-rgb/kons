@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Flag, Lightbulb
 import pb from '@/lib/pocketbaseClient';
 import { buildCorpus, buildIndex, analyzeWeakness, loadCorpusFromPocketBase } from '@/lib/weaknessAnalyzer';
 import RichText from '@/lib/richText';
+import { teksKeHtml } from '@/lib/teksSoal';
 import { fixText, fixDeep } from '@/lib/textRepair';
 import { isianSiswa, jawabanDiterima, jumlahKotak, nilaiSub, subSudahDiisi } from '@/lib/isian';
 import { BATAS_JAWABAN_ESAI, adalahEsai, esaiSudahDitulis, jumlahDinilai, teksEsaiSiswa } from '@/lib/esai';
@@ -504,7 +505,7 @@ export default function QuestionRunner({
          </div>
        )}
 
-       <p className="font-medium text-lg mb-4 leading-relaxed text-stone-800 overflow-x-auto scrollbar-thin" dangerouslySetInnerHTML={{ __html: q.text || '' }} />
+       <div className="font-medium text-lg mb-4 leading-relaxed text-stone-800 overflow-x-auto scrollbar-thin" dangerouslySetInnerHTML={{ __html: teksKeHtml(q.text) }} />
 
        {/* SOAL BERGAMBAR: tampilkan gambar dari link (mis. googleusercontent) */}
        {showImage && q.imageUrl && (
@@ -530,7 +531,7 @@ export default function QuestionRunner({
                    {(q.subQuestions || []).length > 1 && (
                      <span className="inline-flex w-6 h-6 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sub.label}</span>
                    )}
-                   {sub.question}
+                   <span className="whitespace-pre-line">{sub.question}</span>
                  </p>
                  <textarea
                    value={teksEsaiSiswa(nilai)}
@@ -563,7 +564,7 @@ export default function QuestionRunner({
                <div key={sub.label} className="rounded-xl border border-alba-200 p-4 bg-alba-100/60">
                  <p className="text-sm font-bold text-stone-700 mb-2">
                    <span className="inline-flex w-6 h-6 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-xs font-bold mr-2">{sub.label}</span>
-                   {sub.question}
+                   <span className="whitespace-pre-line">{sub.question}</span>
                    {banyak && <span className="ml-2 text-[11px] font-semibold text-stone-400">({isian.length} jawaban)</span>}
                  </p>
                  <div className={banyak ? 'grid gap-2 sm:grid-cols-2' : ''}>
@@ -1151,7 +1152,7 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
        )}
      </div>
 
-     <p className="font-medium leading-relaxed text-stone-800 mb-3 overflow-x-auto scrollbar-thin" dangerouslySetInnerHTML={{ __html: qq.text || '' }} />
+     <div className="font-medium leading-relaxed text-stone-800 mb-3 overflow-x-auto scrollbar-thin" dangerouslySetInnerHTML={{ __html: teksKeHtml(qq.text) }} />
 
      {qq.imageUrl && (
        <img src={qq.imageUrl} alt="Gambar soal" referrerPolicy="no-referrer" loading="lazy" className="max-h-80 w-auto max-w-full rounded-xl border border-alba-200 shadow-sm mx-auto mb-4" />
@@ -1167,7 +1168,7 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
                  {(qq.subQuestions || []).length > 1 && (
                    <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-[11px] font-bold mr-2">{sub.label}</span>
                  )}
-                 {sub.question}
+                 <span className="whitespace-pre-line">{sub.question}</span>
                </p>
                {!pembahasanOnly && (
                  <div className="text-sm mb-2">
@@ -1191,7 +1192,7 @@ function QuestionReviewCard({ q, ans, index, pembahasanOnly = false }) {
              <div key={sub.label} className="rounded-xl border border-alba-200 p-3 bg-alba-100/60">
                <p className="text-sm font-bold text-stone-700 mb-1.5">
                  <span className="inline-flex w-5 h-5 rounded-full bg-maroon-600 text-alba-50 items-center justify-center text-[11px] font-bold mr-2">{sub.label}</span>
-                 {sub.question}
+                 <span className="whitespace-pre-line">{sub.question}</span>
                </p>
                {!pembahasanOnly && (
                  isian.length > 1 ? (

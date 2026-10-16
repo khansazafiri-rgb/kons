@@ -1,14 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarDays, CheckCircle2, Clock, Download, LogIn,
-  ShieldCheck, Timer, Trophy, Users, Wallet,
+  AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Clock, Download, LogIn,
+  MessageCircle, ShieldCheck, Timer, Trophy, Users, Wallet,
 } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import {
-  STATUS_BAYAR, TIPE_EVENT, identitasEvent, panggilEvent, rupiah, sisaWaktuKalimat,
-  tanggalPanjang, tautanWaPembayaran, unduhSebEvent,
+  TIPE_EVENT, gayaStatus, identitasEvent, panggilEvent, rupiah, sisaWaktuKalimat,
+  tanggalPanjang, tautanWaKonfirmasi, tautanWaPembayaran, unduhSebEvent,
 } from '@/lib/eventLomba';
+import { teksInfoKeHtml } from '@/lib/teksSoal';
+
+// Deskripsi & aturan sering ditempel dari broadcast WA: Enter, *tebal*, dan
+// tautan harus tetap tampil seperti aslinya (lihat teksInfoKeHtml).
+const GAYA_INFO = 'mt-2 text-sm leading-relaxed text-stone-600 break-words [&_a]:font-semibold '
+  + '[&_a]:text-maroon-600 [&_a]:underline [&_li]:ml-5 [&_li]:list-disc [&_ol>li]:list-decimal '
+  + '[&_p]:mb-3 [&_strong]:font-semibold [&_em]:italic';
 
 // DETAIL SATU LOMBA (halaman publik, /event/:slug)
 //
@@ -35,9 +42,11 @@ function Baris({ icon: Icon, label, isi, catatan }) {
 }
 
 // Kartu keadaan pendaftaran - yang dilihat orang yang SUDAH mendaftar.
-function KartuPendaftaran({ ev, saya, onUnduh, sibuk, pesanUnduh }) {
-  const gaya = STATUS_BAYAR[saya.status] || STATUS_BAYAR.PENDING_PAYMENT;
-  const waPembayaran = tautanWaPembayaran(ev.waPembayaran, '', ev.nama, ev.harga);
+function KartuPendaftaran({ ev, saya, identitas, onUnduh, sibuk, pesanUnduh }) {
+  const gform = ev.modeDaftar === 'GFORM';
+  const gaya = gayaStatus(saya.status, ev.modeDaftar);
+  const waPembayaran = tautanWaPembayaran(ev.waPembayaran, identitas?.nama || '', ev.nama, ev.harga);
+  const waKonfirmasi = tautanWaKonfirmasi(ev.waPembayaran, identitas?.nama || '', identitas?.email || '', ev.nama);
 
   return (
     <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
@@ -48,7 +57,27 @@ function KartuPendaftaran({ ev, saya, onUnduh, sibuk, pesanUnduh }) {
         </span>
       </div>
 
-      {saya.status === 'PENDING_PAYMENT' && (
+      {gform && (saya.status === 'PENDING_PAYMENT' || saya.status === 'PAID_PENDING_APPROVAL') && (
+        <div className="mt-3 space-y-3">
+          <p className="text-sm leading-relaxed text-stone-600">
+            Akunmu sudah tercatat di lomba ini. Langkah berikutnya:{' '}
+            <span className="font-semibold">chat admin untuk konfirmasi pendaftaran akunmu</span>.
+            Setelah dikonfirmasi, berkas Safe Exam Browser-mu bisa diunduh di halaman ini.
+          </p>
+          {waKonfirmasi && (
+            <a
+              href={waKonfirmasi}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl bg-maroon-600 px-5 py-2.5 text-sm font-semibold text-alba-50 transition-colors hover:bg-maroon-700"
+            >
+              <MessageCircle size={15} /> Chat admin untuk konfirmasi
+            </a>
+          )}
+        </div>
+      )}
+
+      {!gform && saya.status === 'PENDING_PAYMENT' && (
         <div className="mt-3 space-y-3">
           <p className="text-sm leading-relaxed text-stone-600">
             Pendaftaranmu sudah tercatat. Langkah berikutnya: transfer biaya lomba, lalu
@@ -68,7 +97,7 @@ function KartuPendaftaran({ ev, saya, onUnduh, sibuk, pesanUnduh }) {
         </div>
       )}
 
-      {saya.status === 'PAID_PENDING_APPROVAL' && (
+      {!gform && saya.status === 'PAID_PENDING_APPROVAL' && (
         <p className="mt-3 text-sm leading-relaxed text-stone-600">
           Admin sudah menandai pembayaranmu diterima. Tinggal menunggu pendaftaranmu
           disetujui — begitu disetujui, berkas konfigurasi Safe Exam Browser-mu bisa
@@ -212,7 +241,11 @@ function AjakanDaftar({ ev, identitas }) {
       to={`/event/${ev.slug}/daftar`}
       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-maroon-600 px-6 py-3 text-sm font-semibold text-alba-50 transition-colors hover:bg-maroon-700"
     >
-      {identitas ? <>Daftar Sekarang</> : <><LogIn size={16} /> Masuk &amp; Daftar</>}
+      {identitas
+        ? <>Daftar Sekarang</>
+        : ev.modeDaftar === 'GFORM'
+          ? <><LogIn size={16} /> Buat Akun / Masuk</>
+          : <><LogIn size={16} /> Masuk &amp; Daftar</>}
     </Link>
   );
 }
@@ -326,20 +359,14 @@ export default function EventDetail() {
             {ev.deskripsi && (
               <section>
                 <h2 className="font-display text-lg font-semibold text-stone-800">Tentang lomba ini</h2>
-                <div
-                  className="mt-2 text-sm leading-relaxed text-stone-600 [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-3 [&_strong]:font-semibold"
-                  dangerouslySetInnerHTML={{ __html: ev.deskripsi }}
-                />
+                <div className={GAYA_INFO} dangerouslySetInnerHTML={{ __html: teksInfoKeHtml(ev.deskripsi) }} />
               </section>
             )}
 
             {ev.aturan && (
               <section>
                 <h2 className="font-display text-lg font-semibold text-stone-800">Aturan &amp; instruksi</h2>
-                <div
-                  className="mt-2 text-sm leading-relaxed text-stone-600 [&_li]:ml-5 [&_li]:list-disc [&_p]:mb-3 [&_strong]:font-semibold"
-                  dangerouslySetInnerHTML={{ __html: ev.aturan }}
-                />
+                <div className={GAYA_INFO} dangerouslySetInnerHTML={{ __html: teksInfoKeHtml(ev.aturan) }} />
               </section>
             )}
 
@@ -379,15 +406,42 @@ export default function EventDetail() {
 
           <aside className="space-y-4 lg:sticky lg:top-24">
             <div className="rounded-2xl border border-maroon-200 bg-maroon-50/40 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
-                Biaya pendaftaran
-              </p>
-              <p className="mt-1 font-display text-3xl font-semibold text-maroon-600">
-                {rupiah(ev.harga)}
-              </p>
-              <p className="mt-1.5 text-[12px] leading-relaxed text-stone-600">
-                Pembayaran lewat transfer, dikonfirmasi manual ke admin lewat WhatsApp.
-              </p>
+              {ev.modeDaftar === 'GFORM' ? (
+                <>
+                  <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
+                    <ClipboardList size={13} /> Pendaftaran
+                  </p>
+                  <p className="mt-1 font-display text-xl font-semibold text-maroon-600">
+                    Lewat Google Form
+                  </p>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-stone-600">
+                    Sudah mengisi Google Form? Buat akun (atau masuk) di sini, lalu chat admin untuk
+                    konfirmasi. Tidak ada pembayaran di web ini.
+                  </p>
+                  {ev.gformUrl && !ev.saya && (
+                    <a
+                      href={ev.gformUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block text-[12px] font-semibold text-maroon-600 hover:underline"
+                    >
+                      Belum mengisi? Buka Google Form →
+                    </a>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
+                    Biaya pendaftaran
+                  </p>
+                  <p className="mt-1 font-display text-3xl font-semibold text-maroon-600">
+                    {rupiah(ev.harga)}
+                  </p>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-stone-600">
+                    Pembayaran lewat transfer, dikonfirmasi manual ke admin lewat WhatsApp.
+                  </p>
+                </>
+              )}
               <div className="mt-4">
                 {ev.saya
                   ? <p className="text-[13px] font-semibold text-stone-600">Keadaan pendaftaranmu ada di bawah ↓</p>
@@ -399,6 +453,7 @@ export default function EventDetail() {
               <KartuPendaftaran
                 ev={ev}
                 saya={ev.saya}
+                identitas={identitas}
                 onUnduh={unduh}
                 sibuk={sibuk}
                 pesanUnduh={pesanUnduh}

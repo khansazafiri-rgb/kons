@@ -56,3 +56,49 @@ export function teksKeHtml(teks) {
   }
   return out;
 }
+
+// TEKS INFO LOMBA (deskripsi, aturan & instruksi) -> HTML
+//
+// Isinya sering ditempel langsung dari broadcast WhatsApp: banyak Enter, tanda
+// *tebal* / _miring_ / ~coret~ ala WA, dan tautan telanjang (Google Form, grup
+// WA). Tanpa ini semuanya menempel jadi satu paragraf, bintangnya tampil
+// mentah, dan tautannya tidak bisa diklik.
+//
+// HTML yang memang ditulis admin (<p>, <strong>, <ul>…) tetap dihormati: format
+// WA dan tautan hanya diterapkan pada TEKS di antara tag, tidak pernah di dalam
+// tag (atribut href, dsb.) dan tidak di dalam <a> yang sudah ada.
+
+const AWAL = '(^|[\\s([{"\'“‘])';
+const AKHIR = '(?=$|[\\s.,!?:;)\\]}"\'”’-])';
+const FORMAT_WA = [
+  [new RegExp(`${AWAL}\\*(?=\\S)([^*\\n]*?\\S)\\*${AKHIR}`, 'g'), 'strong'],
+  [new RegExp(`${AWAL}_(?=\\S)([^_\\n]*?\\S)_${AKHIR}`, 'g'), 'em'],
+  [new RegExp(`${AWAL}~(?=\\S)([^~\\n]*?\\S)~${AKHIR}`, 'g'), 's'],
+];
+const TAUTAN = /(^|[\s(])(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)\]'])/g;
+
+function formatPotongan(teks) {
+  let s = teks;
+  FORMAT_WA.forEach(([re, tag]) => {
+    s = s.replace(re, (_, depan, isi) => `${depan}<${tag}>${isi}</${tag}>`);
+  });
+  return s.replace(
+    TAUTAN,
+    (_, depan, url) => `${depan}<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`,
+  );
+}
+
+export function teksInfoKeHtml(teks) {
+  if (teks === null || teks === undefined) return '';
+  const potongan = String(teks).replace(/\r\n?/g, '\n').split(/(<[^>]*>)/);
+  let dalamTautan = false;
+  const hasil = potongan.map((p) => {
+    if (p.startsWith('<')) {
+      if (/^<a[\s>]/i.test(p)) dalamTautan = true;
+      else if (/^<\/a\s*>/i.test(p)) dalamTautan = false;
+      return p;
+    }
+    return dalamTautan ? p : formatPotongan(p);
+  });
+  return teksKeHtml(hasil.join(''));
+}

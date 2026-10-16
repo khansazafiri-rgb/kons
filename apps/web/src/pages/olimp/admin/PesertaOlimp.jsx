@@ -24,10 +24,15 @@ const STATUS = {
   active: { teks: 'Aktif', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   expired: { teks: 'Kedaluwarsa', cls: 'bg-stone-100 text-stone-600 border-stone-200' },
   rejected: { teks: 'Ditolak', cls: 'bg-red-50 text-red-700 border-red-200' },
+  // Akun yang dibuat dari halaman daftar lomba (mode Google Form). Bisa login
+  // untuk ikut lomba, tapi tidak membuka bank soal Web Olimp. Pendaftaran
+  // lombanya dikonfirmasi di Event & Lomba -> Peserta, bukan di sini.
+  lomba: { teks: 'Akun lomba', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
 };
 const SARINGAN = [
   { key: 'pending', label: 'Menunggu ACC' },
   { key: 'active', label: 'Aktif' },
+  { key: 'lomba', label: 'Akun lomba' },
   { key: '', label: 'Semua' },
 ];
 
@@ -255,6 +260,16 @@ export default function PesertaOlimp() {
                     className="shrink-0 rounded-lg border border-alba-300 text-stone-600 text-xs font-semibold px-3.5 py-2 hover:border-red-300 hover:text-red-600 disabled:opacity-50 transition-colors"
                   >
                     Nonaktifkan
+                  </button>
+                )}
+                {u.status === 'lomba' && (
+                  <button
+                    onClick={() => acc(u)}
+                    disabled={sibuk === u.id}
+                    title="Buka akses bank soal Web Olimp untuk akun lomba ini"
+                    className="shrink-0 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-semibold px-3.5 py-2 hover:bg-emerald-50 disabled:opacity-50 transition-colors"
+                  >
+                    Aktifkan Web Olimp
                   </button>
                 )}
                 {(u.status === 'rejected' || u.status === 'expired') && (
