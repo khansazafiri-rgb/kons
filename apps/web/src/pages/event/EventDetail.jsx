@@ -1,14 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Clock, Download, LogIn,
-  MessageCircle, ShieldCheck, Timer, Trophy, Users, Wallet,
+  AlertTriangle, Apple, CalendarDays, CheckCircle2, ClipboardList, Clock, Download, Lock, LogIn,
+  MessageCircle, Monitor, ShieldCheck, Timer, Trophy, Users, Wallet,
 } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import {
-  TIPE_EVENT, gayaStatus, identitasEvent, panggilEvent, rupiah, sisaWaktuKalimat,
-  tanggalPanjang, tautanWaKonfirmasi, tautanWaPembayaran, unduhSebEvent,
+  PEMASANG_SEB, TIPE_EVENT, gayaStatus, identitasEvent, jamMundur, jamWib, panggilEvent, rupiah,
+  sisaWaktuKalimat, tanggalPanjang, tautanPemasangSeb, tautanWaKonfirmasi, tautanWaPembayaran, unduhSebEvent,
 } from '@/lib/eventLomba';
+import { ambilInfoSeb } from '@/lib/seb';
 import { teksInfoKeHtml } from '@/lib/teksSoal';
 
 // Deskripsi & aturan sering ditempel dari broadcast WA: Enter, *tebal*, dan
@@ -41,12 +42,87 @@ function Baris({ icon: Icon, label, isi, catatan }) {
   );
 }
 
+// Tombol unduh APLIKASI Safe Exam Browser. Tautannya menunjuk langsung ke
+// berkas pemasangnya, jadi sekali klik langsung terunduh.
+function UnduhAplikasiSeb() {
+  const [pemasang, setPemasang] = useState(() => tautanPemasangSeb(null));
+  useEffect(() => {
+    let hidup = true;
+    ambilInfoSeb().then((info) => { if (hidup) setPemasang(tautanPemasangSeb(info?.installer)); });
+    return () => { hidup = false; };
+  }, []);
+  const tombol = 'inline-flex items-center justify-center gap-2 rounded-xl border border-maroon-300 bg-alba-50 px-4 py-2.5 '
+    + 'text-sm font-semibold text-maroon-600 transition-colors hover:bg-maroon-50';
+  return (
+    <div>
+      <div className="mt-2 grid grid-cols-1 gap-2">
+        <a href={pemasang.windows} className={tombol} rel="noreferrer">
+          <Monitor size={15} /> SEB untuk Windows
+        </a>
+        <a href={pemasang.mac} className={tombol} rel="noreferrer">
+          <Apple size={15} /> SEB untuk Mac
+        </a>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-stone-500">
+        Pasang sekali saja per laptop. Tautan tidak jalan?{' '}
+        <a href={PEMASANG_SEB.halaman} target="_blank" rel="noreferrer" className="font-semibold text-maroon-600 hover:underline">
+          Buka halaman unduhan resmi SEB
+        </a>.
+      </p>
+    </div>
+  );
+}
+
+// Jam sekarang yang berdetak tiap detik - hanya selama `aktif`.
+function useDetik(aktif) {
+  const [sekarang, setSekarang] = useState(() => Date.now());
+  useEffect(() => {
+    if (!aktif) return undefined;
+    const t = setInterval(() => setSekarang(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [aktif]);
+  return sekarang;
+}
+
+// Ringkasan jam lomba serentak: "09.00 – 09.50 WIB · 50 menit".
+function JadwalSerentak({ ev }) {
+  if (ev.modelWaktu !== 'FIXED_WINDOW' || !ev.mulaiUjian || !ev.selesaiUjian) return null;
+  return (
+    <div className="grid grid-cols-3 gap-2 rounded-xl border border-alba-200 bg-alba-100/60 p-3 text-center">
+      {[
+        ['Mulai', jamWib(ev.mulaiUjian)],
+        ['Durasi', ev.durasiMenit ? `${ev.durasiMenit} menit` : '—'],
+        ['Selesai', jamWib(ev.selesaiUjian)],
+      ].map(([k, v]) => (
+        <div key={k}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-500">{k}</p>
+          <p className="text-sm font-semibold text-stone-800">{v}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Kartu keadaan pendaftaran - yang dilihat orang yang SUDAH mendaftar.
-function KartuPendaftaran({ ev, saya, identitas, onUnduh, sibuk, pesanUnduh }) {
+function KartuPendaftaran({ ev, saya, identitas, onUnduh, sibuk, pesanUnduh, onMuatUlang }) {
   const gform = ev.modeDaftar === 'GFORM';
   const gaya = gayaStatus(saya.status, ev.modeDaftar);
   const waPembayaran = tautanWaPembayaran(ev.waPembayaran, identitas?.nama || '', ev.nama, ev.harga);
   const waKonfirmasi = tautanWaKonfirmasi(ev.waPembayaran, identitas?.nama || '', identitas?.email || '', ev.nama);
+
+  // Sebelum jam mulai: tombol Masuk Ujian tampil tapi terkunci, dengan hitung
+  // mundur. Begitu jamnya lewat, keadaan diminta ulang ke server - yang
+  // memutuskan boleh-tidaknya tetap server, jam perangkat cuma pemicu.
+  const menunggu = saya.status === 'APPROVED' && saya.kodeJendela === 'BELUM_MULAI';
+  const sekarang = useDetik(menunggu);
+  const keMulai = menunggu && ev.mulaiUjian ? new Date(ev.mulaiUjian).getTime() - sekarang : 0;
+  const terakhirMinta = useRef(0);
+  useEffect(() => {
+    if (!menunggu || keMulai > 0) return;
+    if (Date.now() - terakhirMinta.current < 5000) return;
+    terakhirMinta.current = Date.now();
+    onMuatUlang();
+  }, [menunggu, keMulai, onMuatUlang]);
 
   return (
     <div className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
@@ -124,14 +200,21 @@ function KartuPendaftaran({ ev, saya, identitas, onUnduh, sibuk, pesanUnduh }) {
                 <ShieldCheck size={15} className="text-maroon-600" /> Siapkan Safe Exam Browser
               </h4>
               <p className="mt-1.5 text-[13px] leading-relaxed text-stone-600">
-                Lomba ini dikerjakan lewat Safe Exam Browser. Unduh berkas konfigurasi di bawah —
-                berkas ini <span className="font-semibold">khusus milikmu untuk lomba ini</span>,
-                jangan dibagikan ke siapa pun. Menjalankannya akan membuka layar ujian.
+                Lomba ini dikerjakan lewat Safe Exam Browser (SEB). Ada dua unduhan, urutannya jangan dibalik:
+              </p>
+
+              <p className="mt-3 text-[13px] font-semibold text-stone-800">1. Pasang aplikasi SEB</p>
+              <UnduhAplikasiSeb />
+
+              <p className="mt-4 text-[13px] font-semibold text-stone-800">2. Unduh berkas konfigurasi lomba</p>
+              <p className="mt-0.5 text-[12px] leading-relaxed text-stone-600">
+                Berkas ini <span className="font-semibold">khusus milikmu untuk lomba ini</span>, jangan
+                dibagikan ke siapa pun. Klik dua kali berkasnya untuk membuka layar ujian.
               </p>
               <button
                 onClick={onUnduh}
                 disabled={sibuk}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-maroon-300 px-4 py-2.5 text-sm font-semibold text-maroon-600 transition-colors hover:bg-maroon-50 disabled:opacity-50"
+                className="mt-2 inline-flex items-center gap-2 rounded-xl bg-maroon-600 px-4 py-2.5 text-sm font-semibold text-alba-50 transition-colors hover:bg-maroon-700 disabled:opacity-50"
               >
                 <Download size={15} /> {sibuk ? 'Menyiapkan…' : 'Unduh berkas .seb'}
               </button>
@@ -147,23 +230,37 @@ function KartuPendaftaran({ ev, saya, identitas, onUnduh, sibuk, pesanUnduh }) {
           )}
 
           {saya.bolehUjian ? (
+            <>
+            <JadwalSerentak ev={ev} />
             <Link
               to={`/event/${ev.slug}/ujian`}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-maroon-600 px-6 py-3 text-sm font-semibold text-alba-50 transition-colors hover:bg-maroon-700"
             >
               <Timer size={16} /> Masuk Ujian
             </Link>
+            </>
           ) : saya.sudahKumpul ? (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-relaxed text-emerald-800">
               Jawabanmu sudah dikumpulkan. Hasil akan diumumkan
               {ev.tanggalRilis ? ` pada ${tanggalPanjang(ev.tanggalRilis)}` : ' setelah semua peserta selesai'}.
             </p>
           ) : saya.kodeJendela === 'BELUM_MULAI' ? (
-            <p className="rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 text-sm leading-relaxed text-stone-600">
-              Ujian dimulai {tanggalPanjang(ev.mulaiUjian)}
-              {sisaWaktuKalimat(ev.mulaiUjian) && ` — ${sisaWaktuKalimat(ev.mulaiUjian)}`}.
-              Buka halaman ini lagi saat waktunya tiba.
-            </p>
+            <div className="space-y-2">
+              <JadwalSerentak ev={ev} />
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-maroon-600/45 px-6 py-3 text-sm font-semibold text-alba-50"
+              >
+                <Lock size={15} />
+                {keMulai > 0 ? `Dibuka ${jamMundur(Math.floor(keMulai / 1000))} lagi` : 'Membuka…'}
+              </button>
+              <p className="text-center text-[12px] leading-relaxed text-stone-500">
+                Tombolnya menyala sendiri pukul <span className="font-semibold text-stone-700">{jamWib(ev.mulaiUjian)}</span>,
+                tidak perlu memuat ulang halaman.
+              </p>
+            </div>
           ) : (
             <p className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm leading-relaxed text-stone-600">
               Jendela waktu ujian sudah ditutup.
@@ -308,7 +405,7 @@ export default function EventDetail() {
 
   const tipe = TIPE_EVENT[ev.tipe] || TIPE_EVENT.LOMBA;
   const modelWaktu = ev.modelWaktu === 'FIXED_WINDOW'
-    ? 'Serentak — semua peserta mengerjakan dalam jendela waktu yang sama'
+    ? `Serentak ${jamWib(ev.mulaiUjian)} – ${jamWib(ev.selesaiUjian)}${ev.durasiMenit ? ` (${ev.durasiMenit} menit)` : ''}, semua peserta mulai dan selesai bersamaan`
     : `Timer pribadi ${ev.durasiMenit || 0} menit, dimulai saat kamu menekan Mulai`;
 
   return (
@@ -454,6 +551,7 @@ export default function EventDetail() {
                 ev={ev}
                 saya={ev.saya}
                 identitas={identitas}
+                onMuatUlang={muat}
                 onUnduh={unduh}
                 sibuk={sibuk}
                 pesanUnduh={pesanUnduh}

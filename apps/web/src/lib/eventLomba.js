@@ -164,21 +164,73 @@ export const rupiah = (n) => {
   return 'Rp' + angka.toLocaleString('id-ID');
 };
 
+// SEMUA JAM LOMBA DITAMPILKAN DALAM WIB, apa pun zona waktu perangkat yang
+// membukanya. Lomba dikerjakan serentak; peserta di Makassar atau yang laptopnya
+// salah setel zona harus melihat jam yang sama persis dengan yang diumumkan
+// panitia ("mulai 09.00 WIB"), bukan jam lokal mereka yang berbeda sejam-dua jam.
+const ZONA = 'Asia/Jakarta';
+
 export function tanggalPanjang(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleString('id-ID', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+    hour: '2-digit', minute: '2-digit', timeZone: ZONA,
+  }) + ' WIB';
 }
 
 export function tanggalPendek(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: ZONA,
+  }) + ' WIB';
+}
+
+// "09.50 WIB" - jam saja, untuk kalimat seperti "selesai serentak pukul 09.50 WIB".
+export function jamWib(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: ZONA }) + ' WIB';
+}
+
+// <input type="datetime-local"> <-> ISO UTC, DIBACA SEBAGAI WIB (UTC+7, tanpa
+// musim panas). Admin di zona mana pun mengetik "09:00" dan yang tersimpan
+// selalu 09:00 WIB - bukan 09:00 menurut jam laptopnya.
+const WIB_MS = 7 * 3600 * 1000;
+export function isoKeInputWib(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Date(d.getTime() + WIB_MS).toISOString().slice(0, 16);
+}
+export function inputWibKeIso(nilai) {
+  if (!nilai) return '';
+  const d = new Date(`${nilai}:00+07:00`);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+// Pemasang aplikasi Safe Exam Browser - tautan LANGSUNG ke berkasnya (rilis
+// resmi di GitHub SafeExamBrowser), supaya peserta tidak tersesat di halaman
+// unduhan yang berisi banyak versi. Kalau admin mengisi tautan pemasang di
+// Dashboard Olimp -> SEB, yang itu yang dipakai (lihat tautanPemasangSeb).
+export const PEMASANG_SEB = {
+  windows: 'https://github.com/SafeExamBrowser/seb-win-refactoring/releases/download/v3.10.2/SEB_3.10.2.920_SetupBundle.exe',
+  mac: 'https://github.com/SafeExamBrowser/seb-mac/releases/download/3.7.1.1/SafeExamBrowser-3.7.1.1.dmg',
+  halaman: 'https://safeexambrowser.org/download_en.html',
+};
+
+// Tautan dari pengaturan admin hanya dipakai kalau memang menunjuk berkas
+// (bukan halaman unduhan umum, yang jadi isian bawaan pengaturan lama).
+export function tautanPemasangSeb(installer) {
+  const berkas = (u) => /\.(exe|msi|dmg|pkg|zip)(\?.*)?$/i.test(String(u || '').trim());
+  return {
+    windows: berkas(installer?.windows) ? installer.windows.trim() : PEMASANG_SEB.windows,
+    mac: berkas(installer?.mac) ? installer.mac.trim() : PEMASANG_SEB.mac,
+  };
 }
 
 // "01:23:45" - dipakai timer ujian & hitung mundur.

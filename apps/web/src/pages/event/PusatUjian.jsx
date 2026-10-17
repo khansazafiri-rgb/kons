@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, Clock, FileWarning,
-  KeyRound, ListChecks, Loader2, LogOut, ShieldCheck, Trophy, User,
+  KeyRound, ListChecks, Loader2, Lock, LogOut, ShieldCheck, Trophy, User,
 } from 'lucide-react';
 import {
   jamMundur, keluarPeserta, masukPeserta, panggilEvent,
@@ -302,7 +302,7 @@ function Baris({ d, sekarangMs }) {
             label="Cara pengerjaan"
             nilai={d.modelWaktu === 'PERSONAL_DURATION'
               ? 'Hitung mundur sejak kamu menekan Mulai'
-              : 'Serentak, mengikuti jendela waktu di atas'}
+              : 'Serentak: semua peserta mulai dan selesai di jam yang sama'}
           />
         ) : null}
       </div>
@@ -324,6 +324,20 @@ function Baris({ d, sekarangMs }) {
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
+        {/* Sebelum jam mulai tombolnya SUDAH tampil, tapi terkunci - peserta
+            tahu persis di mana harus menekan begitu waktunya tiba, dan tombol
+            ini menyala sendiri (halaman memuat ulang keadaannya). */}
+        {d.disetujui && !d.bolehUjian && d.kodeJendela === 'BELUM_MULAI' && (
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl bg-maroon-600/45 px-5 py-2.5 text-[13px] font-bold text-alba-50"
+          >
+            <Lock size={14} />
+            {sisaMulai ? `Mulai Ujian · dibuka ${sisaMulai} lagi` : 'Mulai Ujian · membuka…'}
+          </button>
+        )}
         {d.bolehUjian && (
           <Link
             to={`/event/${d.slug}/ujian`}

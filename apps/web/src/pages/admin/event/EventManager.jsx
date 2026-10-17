@@ -61,8 +61,10 @@ function eventBaru() {
     registrationOpenAt: '',
     registrationCloseAt: '',
     examStartAt: besok.toISOString(),
-    examEndAt: new Date(besok.getTime() + 3 * 3600000).toISOString(),
-    timingModel: 'PERSONAL_DURATION',
+    examEndAt: new Date(besok.getTime() + 90 * 60000).toISOString(),
+    // Lomba PCV dikerjakan serentak (diawasi kamera di jam yang sama), jadi
+    // itu bawaannya: mulai + durasi = selesai untuk semua peserta.
+    timingModel: 'FIXED_WINDOW',
     durationMinutes: 90,
     paymentContactWa: '',
     rulesText: '',

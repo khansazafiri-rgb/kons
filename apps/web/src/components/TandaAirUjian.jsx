@@ -63,9 +63,11 @@ export default function TandaAirUjian({ nama, email, kode, aktif = true, dalamKo
   }, [aktif]);
 
   const baris = useMemo(() => {
+    // Selalu WIB, sama dengan jadwal lomba - foto bocoran bisa dicocokkan
+    // langsung dengan jam ujian tanpa menebak zona waktu perangkatnya.
     const waktu = jam.toLocaleString('id-ID', {
-      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
+    }) + ' WIB';
     return [nama, email, kode ? `#${kode}` : '', waktu].filter(Boolean).join(' · ');
   }, [nama, email, kode, jam]);
 
