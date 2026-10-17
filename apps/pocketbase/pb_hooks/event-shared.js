@@ -136,7 +136,13 @@ function eventPublik(ev, bolehLihatRahasia) {
     mulaiUjian: iso(ev, "examStartAt"),
     selesaiUjian: iso(ev, "examEndAt"),
     modelWaktu: bolehCara ? (ev.getString("timingModel") || "PERSONAL_DURATION") : "",
-    durasiMenit: bolehCara ? ev.getInt("durationMinutes") : null,
+    // Serentak: durasinya PASTI selisih mulai-selesai (itu yang ditegakkan
+    // server), bukan angka durationMinutes yang bisa saja belum diisi.
+    durasiMenit: bolehCara
+      ? (ev.getString("timingModel") === "FIXED_WINDOW" && ms(ev, "examStartAt") && ms(ev, "examEndAt")
+        ? Math.round((ms(ev, "examEndAt") - ms(ev, "examStartAt")) / 60000)
+        : ev.getInt("durationMinutes"))
+      : null,
     waPembayaran: ev.getString("paymentContactWa"),
     // WEB = daftar & bayar lewat web ini; GFORM = sudah daftar & bayar lewat
     // Google Form, web ini cuma untuk akun + konfirmasi admin. Kosong = WEB.

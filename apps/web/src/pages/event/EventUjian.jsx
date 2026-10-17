@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, LayoutList, Loader2, ShieldCheck, Timer,
 } from 'lucide-react';
-import { identitasEvent, jamMundur, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
+import { identitasEvent, jamMundur, jamWib, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
 import { olimpDeviceName, olimpFingerprint } from '@/lib/olimp';
 import { isSeb } from '@/lib/seb';
 import TandaAirUjian from '@/components/TandaAirUjian';
@@ -195,6 +195,19 @@ export default function EventUjian() {
     return () => clearTimeout(t);
   }, [keadaan, sisa, kumpulkan]);
 
+  // Lomba SERENTAK: begitu tombol Mulai Ujian di Pusat Ujian ditekan (dan
+  // jamnya sudah tiba), peserta langsung masuk ke soal tanpa layar konfirmasi
+  // kedua - semua orang mulai di detik yang sama. Kalau memulainya gagal
+  // (mis. perangkat terkunci), layar konfirmasi tetap muncul beserta pesannya.
+  const sudahCobaMulai = useRef(false);
+  useEffect(() => {
+    if (keadaan !== 'siap' || ev?.modelWaktu !== 'FIXED_WINDOW' || sudahCobaMulai.current) return;
+    sudahCobaMulai.current = true;
+    mulai();
+    // mulai() sengaja tidak masuk daftar: cukup dicoba sekali per pemuatan.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keadaan, ev?.modelWaktu]);
+
   const mulai = async () => {
     setSibuk(true);
     setPesan('');
@@ -344,7 +357,7 @@ export default function EventUjian() {
         isi={
           ev?.modelWaktu === 'PERSONAL_DURATION'
             ? `Begitu kamu menekan Mulai, timer pribadimu berjalan ${menit} menit dan tidak bisa dijeda. Pastikan koneksimu siap sebelum menekannya.`
-            : 'Ujian ini dikerjakan serentak. Waktumu berakhir bersamaan dengan peserta lain, jadi mulailah sekarang.'
+            : `Ujian ini dikerjakan serentak dan selesai bersamaan untuk semua peserta pukul ${jamWib(ev?.selesaiUjian)}.${sibuk ? ' Membuka soal…' : ''}`
         }
         anak={
           <div className="mt-6 space-y-4">

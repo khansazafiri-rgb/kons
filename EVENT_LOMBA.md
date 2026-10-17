@@ -819,6 +819,34 @@ Email yang sudah punya akun Web Olimp ditolak (`EMAIL_TERPAKAI`) dan diminta
 masuk saja. Kuota diperiksa sebelum akunnya dibuat, jadi lomba yang penuh tidak
 meninggalkan akun yatim.
 
+## Lomba serentak & jam WIB
+
+Model waktu **Serentak** (`FIXED_WINDOW`, bawaan lomba baru) diisi admin sebagai
+*jam mulai + durasi*. Jam selesai tidak diketik terpisah, melainkan dihitung
+(`examEndAt = examStartAt + durasi`) saat disimpan. Dengan begitu semua peserta
+berhenti di jam yang sama dan angkanya tidak bisa saling bertentangan.
+
+- Sebelum jam mulai, tombol **Mulai Ujian** (Pusat Ujian) dan **Masuk Ujian**
+  (halaman lomba) sudah tampil tapi terkunci, dengan hitung mundur. Tombolnya
+  menyala sendiri: halaman meminta ulang keadaan ke server begitu jamnya tiba,
+  dan yang memutuskan tetap server (`jendelaUjian`).
+- Di lomba serentak, menekan tombol itu langsung membuka soal tanpa layar
+  konfirmasi kedua. Kalau memulai gagal (mis. perangkat terkunci), layar
+  konfirmasi muncul dengan pesannya.
+- **Semua jam lomba ditampilkan dan diketik dalam WIB** (`Asia/Jakarta`), apa
+  pun zona waktu perangkatnya: `tanggalPanjang`, `jamWib`, `isoKeInputWib` /
+  `inputWibKeIso` di `lib/eventLomba.js`, dan jam di tanda air.
+
+## Unduh aplikasi Safe Exam Browser
+
+Setelah di-ACC, kartu pendaftaran menampilkan dua langkah: tombol **SEB untuk
+Windows / Mac** (tautan langsung ke berkas pemasang rilis resmi di GitHub
+SafeExamBrowser, `PEMASANG_SEB`), lalu **Unduh berkas .seb**. Kalau admin
+mengisi tautan pemasang berupa berkas (`.exe/.msi/.dmg/.pkg`) di Dashboard Olimp
+→ SEB, tautan itu yang dipakai (`tautanPemasangSeb`). Tautan ke halaman unduhan
+umum diabaikan. Saat SEB merilis versi baru, cukup ganti `PEMASANG_SEB` atau isi
+tautannya di Dashboard Olimp.
+
 ## Deskripsi & aturan yang ditempel dari broadcast
 
 Deskripsi dan "Aturan & instruksi" ditampilkan lewat `teksInfoKeHtml()`

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Save, ShieldCheck } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
-import { buatSlug } from '@/lib/eventLomba';
+import { buatSlug, inputWibKeIso, isoKeInputWib, jamWib, tanggalPanjang } from '@/lib/eventLomba';
 
 // TAB 1 - INFO DASAR (PRD bagian 3.2 & 9.2)
 //
@@ -14,20 +14,22 @@ const inputCls =
   'w-full rounded-xl border border-alba-300 bg-alba-50 px-3.5 py-2.5 text-sm text-stone-800 focus:border-maroon-300 focus:outline-none';
 const labelCls = 'mb-1 block text-[13px] font-semibold text-stone-700';
 
-// <input type="datetime-local"> memakai waktu LOKAL tanpa zona, sedangkan
-// PocketBase menyimpan ISO UTC. Dua fungsi ini yang menjembatani - tanpa
-// keduanya, jadwal yang diketik admin melenceng sebanyak selisih zona waktunya.
-function keInput(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const p = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+// Jam di formulir ini selalu WIB (lihat isoKeInputWib di lib/eventLomba),
+// apa pun zona waktu laptop admin - lombanya diumumkan dalam WIB.
+const keInput = isoKeInputWib;
+const dariInput = inputWibKeIso;
+
+// Durasi lomba serentak = selisih mulai & selesai, dalam menit.
+function selisihMenit(mulai, selesai) {
+  const a = new Date(mulai).getTime();
+  const b = new Date(selesai).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 0;
+  return Math.round((b - a) / 60000);
 }
-function dariInput(nilai) {
-  if (!nilai) return '';
-  const d = new Date(nilai);
-  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+function tambahMenit(iso, menit) {
+  const a = new Date(iso).getTime();
+  if (!iso || !Number.isFinite(a) || !(menit > 0)) return '';
+  return new Date(a + menit * 60000).toISOString();
 }
 
 function Bagian({ judul, catatan, children }) {
@@ -65,6 +67,11 @@ function Saklar({ nyala, onUbah, judul, isi }) {
 export default function EventInfoTab({ ev, onSimpan }) {
   const [f, setF] = useState({
     ...ev,
+    // Lomba serentak lama yang durasinya belum pernah diisi: turunkan dari
+    // jendela mulai-selesainya, supaya kolom durasi tidak tampil 0.
+    durationMinutes: ev.timingModel === 'FIXED_WINDOW' && !(ev.durationMinutes > 0)
+      ? selisihMenit(ev.examStartAt, ev.examEndAt)
+      : ev.durationMinutes,
     sebAllowedUrls: Array.isArray(ev.sebAllowedUrls) ? ev.sebAllowedUrls.join('\n') : '',
   });
   const [sibuk, setSibuk] = useState(false);
@@ -97,7 +104,11 @@ export default function EventInfoTab({ ev, onSimpan }) {
         registrationOpenAt: f.registrationOpenAt || null,
         registrationCloseAt: f.registrationCloseAt || null,
         examStartAt: f.examStartAt || null,
-        examEndAt: f.examEndAt || null,
+        // Serentak: jam selesai SELALU mulai + durasi, supaya semua peserta
+        // berhenti di jam yang sama dan angkanya tidak bisa saling bertentangan.
+        examEndAt: (f.timingModel === 'FIXED_WINDOW'
+          ? tambahMenit(f.examStartAt, Number(f.durationMinutes) || 0)
+          : f.examEndAt) || null,
         timingModel: f.timingModel,
         durationMinutes: Number(f.durationMinutes) || 0,
         paymentContactWa: f.paymentContactWa,
@@ -323,14 +334,12 @@ export default function EventInfoTab({ ev, onSimpan }) {
 
       <Bagian
         judul="Jadwal"
-        catatan="Jam mengikuti waktu perangkatmu sekarang, lalu disimpan dalam UTC."
+        catatan="Semua jam dalam WIB (UTC+7), apa pun zona waktu perangkatmu."
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {[
-            ['registrationOpenAt', 'Pendaftaran dibuka'],
-            ['registrationCloseAt', 'Pendaftaran ditutup'],
-            ['examStartAt', 'Ujian mulai'],
-            ['examEndAt', 'Ujian selesai'],
+            ['registrationOpenAt', 'Pendaftaran dibuka (WIB)'],
+            ['registrationCloseAt', 'Pendaftaran ditutup (WIB)'],
           ].map(([k, label]) => (
             <div key={k}>
               <label htmlFor={`ev-${k}`} className={labelCls}>{label}</label>
@@ -349,13 +358,21 @@ export default function EventInfoTab({ ev, onSimpan }) {
           <p className={labelCls}>Model waktu pengerjaan</p>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {[
+              ['FIXED_WINDOW', 'Serentak', 'Semua peserta mulai dan selesai di jam yang sama. Sebelum jam mulai, tombol Mulai Ujian tampil tapi belum bisa ditekan.'],
               ['PERSONAL_DURATION', 'Timer pribadi', 'Peserta boleh mulai kapan saja dalam jendela ujian. Timernya berjalan sejak dia menekan Mulai.'],
-              ['FIXED_WINDOW', 'Serentak', 'Semua peserta berhenti di jam yang sama. Yang masuk terlambat kehilangan waktunya.'],
             ].map(([nilai, judul, isi]) => (
               <button
                 key={nilai}
                 type="button"
-                onClick={() => set('timingModel', nilai)}
+                onClick={() => setF((lama) => ({
+                  ...lama,
+                  timingModel: nilai,
+                  // Pindah ke serentak: durasi diturunkan dari jendela yang sudah
+                  // ada kalau belum diisi, supaya jam selesainya tidak meloncat.
+                  durationMinutes: nilai === 'FIXED_WINDOW' && !(Number(lama.durationMinutes) > 0)
+                    ? selisihMenit(lama.examStartAt, lama.examEndAt)
+                    : lama.durationMinutes,
+                }))}
                 className={`rounded-xl border p-4 text-left transition-colors ${
                   f.timingModel === nilai
                     ? 'border-maroon-300 bg-maroon-50 ring-1 ring-maroon-200'
@@ -369,22 +386,84 @@ export default function EventInfoTab({ ev, onSimpan }) {
           </div>
         </div>
 
-        {f.timingModel === 'PERSONAL_DURATION' && (
-          <div>
-            <label htmlFor="ev-durasi" className={labelCls}>Durasi pengerjaan (menit)</label>
-            <input
-              id="ev-durasi"
-              type="number"
-              min={1}
-              value={f.durationMinutes ?? 0}
-              onChange={ubah('durationMinutes')}
-              className={`${inputCls} sm:max-w-[200px]`}
-            />
-            <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-              Kalau timer pribadi ini melewati jam “Ujian selesai”, yang dipakai tetap jam
-              selesainya — mana yang lebih dulu.
-            </p>
-          </div>
+        {f.timingModel === 'FIXED_WINDOW' ? (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_180px]">
+              <div>
+                <label htmlFor="ev-examStartAt" className={labelCls}>Ujian mulai (WIB)</label>
+                <input
+                  id="ev-examStartAt"
+                  type="datetime-local"
+                  value={keInput(f.examStartAt)}
+                  onChange={(e) => set('examStartAt', dariInput(e.target.value))}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label htmlFor="ev-durasi" className={labelCls}>Durasi (menit)</label>
+                <input
+                  id="ev-durasi"
+                  type="number"
+                  min={1}
+                  value={f.durationMinutes ?? 0}
+                  onChange={ubah('durationMinutes')}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+            {(() => {
+              const selesai = tambahMenit(f.examStartAt, Number(f.durationMinutes) || 0);
+              return (
+                <div className="rounded-xl border border-maroon-200 bg-maroon-50/50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-maroon-500">Selesai serentak</p>
+                  <p className="mt-0.5 font-display text-lg font-semibold text-maroon-700">
+                    {selesai ? tanggalPanjang(selesai) : 'Isi jam mulai dan durasinya dulu'}
+                  </p>
+                  {selesai && (
+                    <p className="mt-1 text-[12px] leading-relaxed text-stone-600">
+                      Peserta mengerjakan {jamWib(f.examStartAt)} – {jamWib(selesai)}. Sebelum {jamWib(f.examStartAt)} tombol
+                      Mulai Ujian tampil tapi belum bisa ditekan; tepat {jamWib(selesai)} semua jawaban dikumpulkan
+                      otomatis. Yang masuk terlambat tetap berhenti di {jamWib(selesai)}.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {[
+                ['examStartAt', 'Jendela ujian dibuka (WIB)'],
+                ['examEndAt', 'Jendela ujian ditutup (WIB)'],
+              ].map(([k, label]) => (
+                <div key={k}>
+                  <label htmlFor={`ev-${k}`} className={labelCls}>{label}</label>
+                  <input
+                    id={`ev-${k}`}
+                    type="datetime-local"
+                    value={keInput(f[k])}
+                    onChange={(e) => set(k, dariInput(e.target.value))}
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+            </div>
+            <div>
+              <label htmlFor="ev-durasi" className={labelCls}>Durasi pengerjaan (menit)</label>
+              <input
+                id="ev-durasi"
+                type="number"
+                min={1}
+                value={f.durationMinutes ?? 0}
+                onChange={ubah('durationMinutes')}
+                className={`${inputCls} sm:max-w-[200px]`}
+              />
+              <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
+                Kalau timer pribadi ini melewati jam “ditutup”, yang dipakai tetap jam tutupnya — mana yang lebih dulu.
+              </p>
+            </div>
+          </>
         )}
       </Bagian>
 

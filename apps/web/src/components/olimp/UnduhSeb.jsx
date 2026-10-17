@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Apple, CheckCircle2, Download, Loader2, Monitor, ShieldCheck, Tablet } from 'lucide-react';
 import { ambilInfoSeb, unduhKonfigurasiSeb } from '@/lib/seb';
+import { tautanPemasangSeb } from '@/lib/eventLomba';
 
 // LANGKAH PERSIAPAN SEB - dipakai di dua tempat yang isinya harus sama:
 // layar akhir pendaftaran, dan halaman akun peserta.
@@ -77,7 +78,11 @@ export default function UnduhSeb({ bisaUnduhKonfigurasi = true, ringkas = false 
             </p>
             <div className="mt-2.5 flex flex-wrap gap-2">
               {SISTEM.map((s) => {
-                const url = info?.installer?.[s.key];
+                // Windows & Mac: tautan langsung ke berkas pemasang (kecuali
+                // admin mengisi tautan berkas sendiri). iPad lewat App Store.
+                const url = s.key === 'ipad'
+                  ? info?.installer?.ipad
+                  : info && tautanPemasangSeb(info.installer)[s.key];
                 if (!url) return null;
                 return (
                   <a
