@@ -109,31 +109,38 @@ export default function EventHasil() {
         )}
 
         {/* 1. Skor saya */}
-        {hasil && (
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Angka
-              label="Skor"
-              nilai={`${hasil.skor}`}
-              catatan={`dari ${hasil.totalPoin} poin`}
-              utama
-            />
-            <Angka
-              label="Peringkat"
-              nilai={hasil.peringkat ? `#${hasil.peringkat}` : '—'}
-              catatan={hasil.didiskualifikasi
-                ? 'didiskualifikasi'
-                : hasil.dariPeserta ? `dari ${hasil.dariPeserta} peserta` : 'tidak mengumpulkan'}
-            />
-            <Angka
-              label="Ketepatan"
-              nilai={hasil.totalPoin > 0 ? `${Math.round((hasil.skor / hasil.totalPoin) * 100)}%` : '—'}
-            />
-            <Angka
-              label="Status"
-              nilai={hasil.sudahKumpul ? 'Selesai' : 'Tidak ikut'}
-            />
-          </div>
-        )}
+        {hasil && (() => {
+          const lihatSkor = hasil.skor !== null && hasil.skor !== undefined;
+          const lihatRank = hasil.isiPengumuman !== 'SCORE_ONLY';
+          const kartu = [];
+          if (lihatSkor) {
+            kartu.push(<Angka key="skor" label="Skor" nilai={`${hasil.skor}`} catatan={`dari ${hasil.totalPoin} poin`} utama />);
+          }
+          if (lihatRank) {
+            kartu.push(
+              <Angka
+                key="rank"
+                label="Peringkat"
+                utama={!lihatSkor}
+                nilai={hasil.peringkat ? `#${hasil.peringkat}` : '—'}
+                catatan={hasil.didiskualifikasi
+                  ? 'didiskualifikasi'
+                  : hasil.dariPeserta ? `dari ${hasil.dariPeserta} peserta` : 'tidak mengumpulkan'}
+              />,
+            );
+          }
+          if (lihatSkor) {
+            kartu.push(
+              <Angka
+                key="tepat"
+                label="Ketepatan"
+                nilai={hasil.totalPoin > 0 ? `${Math.round((hasil.skor / hasil.totalPoin) * 100)}%` : '—'}
+              />,
+            );
+          }
+          kartu.push(<Angka key="status" label="Status" nilai={hasil.sudahKumpul ? 'Selesai' : 'Tidak ikut'} />);
+          return <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">{kartu}</div>;
+        })()}
 
         {/* Keputusan panitia di luar jawaban: diskualifikasi atau tambah/kurang poin. */}
         {hasil?.didiskualifikasi && (
@@ -255,7 +262,9 @@ export default function EventHasil() {
                   <tr className="border-b border-alba-200 text-left text-[11px] uppercase tracking-wider text-stone-500">
                     <th className="px-4 py-3 font-semibold">#</th>
                     <th className="px-4 py-3 font-semibold">Peserta</th>
-                    <th className="px-4 py-3 text-right font-semibold">Skor</th>
+                    {peringkat.isiPengumuman !== 'RANK_ONLY' && (
+                      <th className="px-4 py-3 text-right font-semibold">Skor</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -271,10 +280,12 @@ export default function EventHasil() {
                         </span>
                       </td>
                       <td className="px-4 py-2.5 font-medium text-stone-800">{p.nama}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-stone-800">
-                        {p.skor}
-                        <span className="text-[11px] font-normal text-stone-500">/{p.totalPoin}</span>
-                      </td>
+                      {peringkat.isiPengumuman !== 'RANK_ONLY' && (
+                        <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-stone-800">
+                          {p.skor}
+                          <span className="text-[11px] font-normal text-stone-500">/{p.totalPoin}</span>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

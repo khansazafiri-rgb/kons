@@ -558,7 +558,7 @@ export default function EventDetail() {
               />
             )}
 
-            {ev.peringkatPublik && ev.hasilDirilis && (
+            {ev.peringkatPublik && ev.hasilDirilis && ev.isiPengumuman !== 'SCORE_ONLY' && (
               <Link
                 to={`/event/${ev.slug}/hasil`}
                 className="flex items-center gap-2 rounded-2xl border border-alba-200 bg-alba-50 px-5 py-4 text-sm font-semibold text-maroon-600 shadow-card hover:border-maroon-300"

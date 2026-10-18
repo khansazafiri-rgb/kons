@@ -54,6 +54,7 @@ export default function EventHasilTab({ ev, onSimpan }) {
     showExplanationAfterRelease: !!ev.showExplanationAfterRelease,
     leaderboardPublic: !!ev.leaderboardPublic,
     leaderboardDisplay: ev.leaderboardDisplay || 'FULL_NAME',
+    resultsVisibility: ev.resultsVisibility || 'FULL',
   });
   const [sibuk, setSibuk] = useState('');
   const [pesan, setPesan] = useState('');
@@ -205,6 +206,36 @@ export default function EventHasilTab({ ev, onSimpan }) {
             </p>
           )}
 
+          <div>
+            <p className="mb-1 block text-[13px] font-semibold text-stone-700">Yang diumumkan ke peserta</p>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              {[
+                ['FULL', 'Nilai & peringkat', 'Peserta melihat skor dan posisinya.'],
+                ['RANK_ONLY', 'Peringkat saja', 'Skor disembunyikan; peserta hanya tahu posisinya.'],
+                ['SCORE_ONLY', 'Nilai saja', 'Tanpa peringkat; papan peringkat otomatis ditutup.'],
+              ].map(([nilai, judul, isi]) => (
+                <button
+                  key={nilai}
+                  type="button"
+                  onClick={() => set('resultsVisibility', nilai)}
+                  className={`rounded-xl border p-4 text-left transition-colors ${
+                    f.resultsVisibility === nilai
+                      ? 'border-maroon-300 bg-maroon-50 ring-1 ring-maroon-200'
+                      : 'border-alba-200 hover:border-maroon-200'
+                  }`}
+                >
+                  <span className="block text-[13px] font-semibold text-stone-800">{judul}</span>
+                  <span className="mt-0.5 block text-[12px] leading-relaxed text-stone-500">{isi}</span>
+                </button>
+              ))}
+            </div>
+            {f.resultsVisibility === 'RANK_ONLY' && (
+              <p className="mt-2 text-[12px] leading-relaxed text-stone-500">
+                Catatan: kalau kunci jawaban dibuka lewat tinjauan soal, peserta masih bisa menghitung skornya sendiri.
+              </p>
+            )}
+          </div>
+
           <Saklar
             nyala={f.showExplanationAfterRelease}
             onUbah={(v) => set('showExplanationAfterRelease', v)}
@@ -219,7 +250,7 @@ export default function EventHasilTab({ ev, onSimpan }) {
             isi="Papan peringkat tetap tidak pernah muncul selama ujian berlangsung."
           />
 
-          {f.leaderboardPublic && (
+          {f.leaderboardPublic && f.resultsVisibility !== 'SCORE_ONLY' && (
             <div>
               <p className="mb-1 block text-[13px] font-semibold text-stone-700">Nama di papan peringkat</p>
               <div className="flex flex-wrap gap-2">

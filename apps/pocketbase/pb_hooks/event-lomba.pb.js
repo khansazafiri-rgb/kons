@@ -815,16 +815,25 @@ routerAdd("GET", "/api/event/hasil", (e) => {
     ).length;
   } catch (_) { peringkatTotal = 0; }
 
+  // Isi pengumuman diatur admin: nilai saja, peringkat saja, atau keduanya.
+  // Yang tidak boleh dilihat peserta tidak dikirim sama sekali (null), bukan
+  // sekadar disembunyikan di layar.
+  const isi = ev.getString("resultsVisibility") || "FULL";
+  const lihatSkor = isi !== "RANK_ONLY";
+  const lihatRank = isi !== "SCORE_ONLY";
+
   return e.json(200, {
     event: { nama: ev.getString("name"), slug: ev.getString("slug") },
-    skor: reg.getInt("score"),
-    totalPoin: reg.getInt("totalPoints"),
-    peringkat: reg.getInt("rank"),
-    dariPeserta: peringkatTotal,
+    isiPengumuman: isi,
+    skor: lihatSkor ? reg.getInt("score") : null,
+    totalPoin: lihatSkor ? reg.getInt("totalPoints") : null,
+    peringkat: lihatRank ? reg.getInt("rank") : null,
+    dariPeserta: lihatRank ? peringkatTotal : null,
     // Keputusan panitia di luar jawaban - ditampilkan apa adanya supaya
-    // peserta tahu kenapa skornya berbeda dari hitungan jawabannya.
-    penyesuaian: Math.round(Number(reg.getFloat("pointAdjustment")) || 0),
-    catatanPoin: reg.getString("adjustmentNote"),
+    // peserta tahu kenapa skornya berbeda dari hitungan jawabannya. Angkanya
+    // ikut disembunyikan kalau nilai memang tidak diumumkan.
+    penyesuaian: lihatSkor ? Math.round(Number(reg.getFloat("pointAdjustment")) || 0) : 0,
+    catatanPoin: lihatSkor ? reg.getString("adjustmentNote") : "",
     didiskualifikasi: reg.getBool("disqualified"),
     alasanDiskualifikasi: reg.getString("disqualifiedReason"),
     tampilkanPembahasan: ev.getBool("showExplanationAfterRelease"),
@@ -847,6 +856,13 @@ routerAdd("GET", "/api/event/peringkat", (e) => {
   }
   if (!ev.getBool("leaderboardPublic") && !adminPcv) {
     return e.json(403, { kode: "TERTUTUP", message: "Papan peringkat lomba ini tidak dibuka untuk umum." });
+  }
+
+  // "Nilai saja" berarti tidak ada peringkat: urutan papan peringkat sendiri
+  // sudah membocorkannya, jadi papannya ditutup untuk peserta. Admin tetap bisa.
+  const isi = ev.getString("resultsVisibility") || "FULL";
+  if (isi === "SCORE_ONLY" && !adminPcv) {
+    return e.json(403, { kode: "TERTUTUP", message: "Lomba ini hanya mengumumkan nilai, tanpa peringkat." });
   }
 
   let baris = [];
@@ -878,11 +894,12 @@ routerAdd("GET", "/api/event/peringkat", (e) => {
   return e.json(200, {
     event: { nama: ev.getString("name"), slug: ev.getString("slug") },
     mode,
+    isiPengumuman: isi,
     peringkat: baris.map((r) => ({
       rank: r.getInt("rank"),
       nama: namaUntuk(r.getString("pesertaNama")),
-      skor: r.getInt("score"),
-      totalPoin: r.getInt("totalPoints"),
+      skor: isi === "RANK_ONLY" && !adminPcv ? null : r.getInt("score"),
+      totalPoin: isi === "RANK_ONLY" && !adminPcv ? null : r.getInt("totalPoints"),
     })),
   });
 });
