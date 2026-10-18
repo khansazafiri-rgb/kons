@@ -784,6 +784,37 @@ menghalangi klik peserta, dan tidak ikut tersalin saat teks soal diblok.
 
 ---
 
+## Skor, jawaban, dan keamanan jawaban peserta
+
+**Skor di basis data baru terisi saat admin menekan Rilis Hasil.** Sebelum itu
+kolom skor kosong, dan itu memang disengaja (peserta tidak boleh tahu lebih
+awal). Panitia tidak perlu menunggu rilis untuk melihat nilai: tab **Hasil &
+Rilis** punya panel **Skor & review jawaban peserta** yang menghitung dari
+jawaban tersimpan, hanya untuk admin:
+
+- tabel skor sementara (poin, benar, salah, kosong, peringkat sementara);
+- **Review** per peserta: tiap soal yang salah/kosong beserta pilihan peserta,
+  kunci, dan pembahasan;
+- **Unduh skor (CSV)** dan **Unduh semua jawaban (CSV)** - yang kedua sekaligus
+  salinan cadangan jawaban peserta di luar basis data;
+- diagnosis: kalau peserta mengumpulkan tapi tidak ada jawaban tersimpan, panel
+  bilang begitu (itu penyebab skor nol) dan apa yang harus dicek.
+
+Panel hanya MEMBACA. Menekan **Hitung ulang & rilis lagi** menghitung ulang skor
+dari jawaban yang ada, tanpa mengubah jawaban.
+
+Tiga pengaman supaya jawaban tidak hilang diam-diam:
+
+1. **Soal yang sudah dijawab tidak bisa dihapus** (`pb_hooks/event-jaga.pb.js`).
+   `event_answers.question` berelasi cascadeDelete: menghapus soal menghapus
+   jawabannya. Ubah isi soalnya saja (ID tetap, jawaban aman).
+2. **Penyimpanan jawaban dicoba ulang** otomatis tiap 4 detik, dan peserta
+   melihat peringatan merah "N jawabanmu belum tersimpan" selama masih tertunda.
+3. **Saat mengumpulkan, layar mengirim ulang semua jawabannya**; server
+   menulis yang belum tersimpan (`simpanJawabanSusulan`). Syaratnya sama ketat
+   dengan `/api/event/jawab`: SEB lolos, perangkat sama, sudah menekan Mulai,
+   dan dalam jendela waktu (toleransi 30 detik untuk kumpul otomatis).
+
 ## Dua cara pendaftaran: web atau Google Form
 
 Admin memilihnya per lomba di Info Dasar → **Cara pendaftaran** (field
