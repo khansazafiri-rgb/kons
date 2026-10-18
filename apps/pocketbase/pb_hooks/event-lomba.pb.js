@@ -743,6 +743,28 @@ routerAdd("POST", "/api/event/selesai", (e) => {
     return e.json(200, { ok: true, sudah: true });
   }
 
+  // Susulkan jawaban yang gagal tersimpan satu per satu (lihat
+  // simpanJawabanSusulan). Syaratnya sama ketatnya dengan /api/event/jawab:
+  // SEB lolos, perangkat sama, sudah menekan Mulai, dan masih dalam jendela
+  // waktu (dengan toleransi 30 detik karena kumpul otomatis tepat di batas).
+  let disusulkan = 0;
+  if (body.jawaban && typeof body.jawaban === "object" && H.iso(reg, "examStartedAt") !== "") {
+    const setelan = H.sebSetelan(e.app, ev);
+    const tolakSeb = H.periksaSeb(e, ev, setelan);
+    const sidik = String(body.deviceId || "").slice(0, 200);
+    const terkunci = reg.getString("deviceId");
+    const perangkatCocok = !terkunci || !sidik || terkunci === sidik;
+    const batas = H.batasWaktu(ev, reg);
+    const dalamJendela = !batas || Date.now() <= batas + 30000;
+    if (!tolakSeb && perangkatCocok && dalamJendela) {
+      try {
+        disusulkan = H.simpanJawabanSusulan(e.app, reg, H.soalEvent(e.app, ev.id), body.jawaban);
+      } catch (err) {
+        console.log("[event] gagal menyusulkan jawaban: " + err);
+      }
+    }
+  }
+
   reg.set("examSubmittedAt", new Date().toISOString());
   reg.set("submitMode", body.otomatis ? "otomatis" : "manual");
   e.app.save(reg);
@@ -751,6 +773,7 @@ routerAdd("POST", "/api/event/selesai", (e) => {
   // 11.1. Peserta cuma diberi tahu jawabannya tersimpan.
   return e.json(200, {
     ok: true,
+    disusulkan: disusulkan,
     tanggalRilis: H.iso(ev, "resultsReleaseAt"),
   });
 });

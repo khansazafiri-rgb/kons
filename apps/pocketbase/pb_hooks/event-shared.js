@@ -586,6 +586,47 @@ function nilaiSatu(app, reg, soal) {
   return { skor, total, benar, dijawab: Object.keys(pilihan).filter((k) => pilihan[k]).length };
 }
 
+// Menyusulkan jawaban yang belum sampai ke server.
+//
+// Jawaban disimpan satu per satu lewat /api/event/jawab selama ujian. Kalau
+// satu panggilan itu gagal (koneksi putus sesaat, server sibuk), jawabannya
+// cuma ada di layar peserta - dan tanpa jalan pulih, skornya terhitung nol.
+// Saat mengumpulkan, layar mengirim SELURUH jawaban yang ia pegang; di sini
+// yang belum ada atau berbeda ditulis.
+//
+// Yang boleh ditulis cuma pilihan A-E untuk soal milik lomba ini. Pemanggil
+// bertanggung jawab memeriksa SEB, perangkat, dan jendela waktunya.
+function simpanJawabanSusulan(app, reg, soalList, peta) {
+  const rid = amanId(reg.id);
+  if (!rid || !peta || typeof peta !== "object") return 0;
+
+  let ada = [];
+  try {
+    ada = app.findRecordsByFilter("event_answers", "registration = '" + rid + "'", "", 0, 0);
+  } catch (_) { ada = []; }
+  const sekarang = {};
+  ada.forEach((j) => { sekarang[j.getString("question")] = j; });
+
+  const col = app.findCollectionByNameOrId("event_answers");
+  let ditulis = 0;
+  soalList.forEach((q) => {
+    const pilih = String(peta[q.id] || "").toUpperCase();
+    if (["A", "B", "C", "D", "E"].indexOf(pilih) === -1) return;
+    const lama = sekarang[q.id];
+    if (lama && lama.getString("selectedAnswer") === pilih) return;
+    const baris = lama || new Record(col);
+    if (!lama) {
+      baris.set("registration", reg.id);
+      baris.set("question", q.id);
+    }
+    baris.set("selectedAnswer", pilih);
+    baris.set("answeredAt", new Date().toISOString());
+    app.save(baris);
+    ditulis += 1;
+  });
+  return ditulis;
+}
+
 // Apakah dua lomba bisa dibuka dengan berkas .seb yang sama?
 //
 // Dipakai Pusat Ujian untuk memperingatkan lebih awal. Peserta yang sedang
@@ -658,6 +699,7 @@ module.exports = {
   tandaAirDari,
   periksaSeb,
   nilaiSatu,
+  simpanJawabanSusulan,
   ms,
   iso,
 };

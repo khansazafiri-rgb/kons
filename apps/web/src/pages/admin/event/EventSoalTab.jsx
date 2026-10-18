@@ -221,7 +221,7 @@ export default function EventSoalTab({ ev }) {
   };
 
   const hapus = async (s) => {
-    if (!window.confirm('Hapus soal ini? Jawaban peserta untuk soal ini ikut terhapus.')) return;
+    if (!window.confirm('Hapus soal ini? Soal yang sudah dijawab peserta tidak bisa dihapus (jawabannya akan ikut hilang) — ubah isinya saja.')) return;
     setSibuk(true);
     try {
       await pb.collection('event_questions').delete(s.id);

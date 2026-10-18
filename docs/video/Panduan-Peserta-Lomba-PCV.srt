@@ -1,0 +1,203 @@
+1
+00:00:00,028 --> 00:00:07,370
+Panduan ini untuk peserta lomba yang sudah mengisi Google Form dan masuk grup WhatsApp.
+
+2
+00:00:07,386 --> 00:00:15,586
+Pendaftaran dan pembayaran sudah kamu urus lewat Google Form. Sekarang tinggal beberapa langkah di web PCV supaya kamu bisa mengikuti lomba.
+
+3
+00:00:15,586 --> 00:00:22,786
+Ada 6 langkah. Kita lakukan satu per satu, berurutan: dari membuat akun sampai tes masuk lewat Safe Exam Browser.
+
+4
+00:00:22,786 --> 00:00:29,540
+Semua tampilan di video ini memakai data contoh. Nama lomba dan datamu nanti tentu berbeda.
+
+5
+00:00:33,397 --> 00:00:41,226
+Buka halaman lomba lewat tautan yang dibagikan panitia di grup WhatsApp. Di sini ada penjelasan dan aturan lomba.
+
+6
+00:00:41,226 --> 00:00:46,426
+Perhatikan juga jadwalnya. Semua jam ditulis dalam WIB.
+
+7
+00:00:46,426 --> 00:00:55,543
+Di kanan tertulis pendaftaran lewat Google Form. Karena kamu sudah mengisinya, di web ini kamu cukup membuat akun. Tidak ada pembayaran.
+
+8
+00:00:55,543 --> 00:00:59,143
+Tekan tombol Buat Akun / Masuk.
+
+9
+00:00:59,143 --> 00:01:05,825
+Isi nama lengkap persis seperti di Google Form, lalu email yang aktif dan mudah kamu ingat.
+
+10
+00:01:05,825 --> 00:01:13,596
+Nomor WhatsApp juga sama dengan yang kamu tulis di Google Form. Ini kunci supaya admin mudah mencocokkan datamu.
+
+11
+00:01:13,597 --> 00:01:21,425
+Buat password minimal 8 karakter, lalu ketik ulang. Catat baik-baik: password ini dipakai setiap kali kamu masuk.
+
+12
+00:01:21,425 --> 00:01:29,926
+Sudah punya akun PCV Classroom atau Web Olimp? Tidak perlu membuat akun baru. Pakai tombol masuk di bagian bawah halaman ini.
+
+13
+00:01:29,926 --> 00:01:34,526
+Kalau semua sudah terisi, tekan Buat akun & daftar lomba.
+
+14
+00:01:34,527 --> 00:01:43,440
+Berhasil! Akunmu sudah dibuat dan kamu tercatat sebagai peserta. Tapi pendaftaranmu belum sah sebelum dikonfirmasi panitia.
+
+15
+00:01:47,342 --> 00:01:53,542
+Kembali ke halaman lomba. Di kotak Pendaftaranmu, statusnya masih Menunggu konfirmasi.
+
+16
+00:01:53,542 --> 00:02:01,940
+Tekan Chat admin untuk konfirmasi. WhatsApp terbuka dengan pesan yang sudah terisi. Jangan diubah, langsung kirim.
+
+17
+00:02:01,957 --> 00:02:07,757
+Pesannya sudah berisi namamu, nama lomba, dan email akunmu. Kamu cukup menekan kirim.
+
+18
+00:02:07,757 --> 00:02:15,570
+Lalu tunggu balasan admin. Kalau lama belum dibalas, hubungi panitia lewat grup WhatsApp peserta.
+
+19
+00:02:15,598 --> 00:02:22,399
+Sementara itu, admin mencocokkan datamu dengan isian Google Form: nama, nomor WhatsApp, dan email.
+
+20
+00:02:22,399 --> 00:02:29,640
+Kalau cocok, admin menekan ACC dan pendaftaranmu berubah menjadi Disetujui.
+
+21
+00:02:29,667 --> 00:02:36,667
+Setelah admin menyetujui, statusmu berubah menjadi Disetujui. Muat ulang halaman lomba kalau belum berubah.
+
+22
+00:02:36,667 --> 00:02:45,970
+Di bagian bawah kartu ada tombol Masuk Ujian yang masih terkunci, lengkap dengan hitung mundur. Tombolnya menyala pada jam mulai.
+
+23
+00:02:49,830 --> 00:02:58,778
+Lomba ini wajib dikerjakan lewat Safe Exam Browser, disingkat SEB: peramban khusus ujian yang mengunci layar selama kamu mengerjakan.
+
+24
+00:02:58,778 --> 00:03:09,279
+Langkah pertama: pasang aplikasi SEB. Pilih SEB untuk Windows atau SEB untuk Mac sesuai laptopmu. Sekali tekan, berkas pemasangnya langsung terunduh.
+
+25
+00:03:09,279 --> 00:03:16,330
+Kalau tautannya tidak jalan, ada link ke halaman unduhan resmi SEB tepat di bawah tombol.
+
+26
+00:03:16,340 --> 00:03:22,940
+Setelah terunduh, buka berkas pemasangnya lalu ikuti petunjuk di layar sampai selesai.
+
+27
+00:03:22,940 --> 00:03:30,500
+Cukup sekali per laptop. Kalau SEB sudah pernah terpasang, langkah ini boleh dilewati.
+
+28
+00:03:34,359 --> 00:03:42,859
+Langkah kedua: unduh berkas konfigurasi lomba. Berkas .seb ini khusus milikmu untuk lomba ini. Jangan dibagikan ke siapa pun.
+
+29
+00:03:42,859 --> 00:03:46,659
+Tekan Unduh berkas .seb.
+
+30
+00:03:46,659 --> 00:03:54,900
+Berkasnya tersimpan di laptopmu, biasanya di folder Downloads. Ingat letaknya: kamu akan membukanya lewat SEB.
+
+31
+00:03:58,785 --> 00:04:07,785
+Sebelum hari lomba, coba dulu. Klik dua kali berkas .seb tadi: SEB terbuka dalam layar penuh dan menampilkan Pusat Ujian PCV.
+
+32
+00:04:07,785 --> 00:04:14,585
+Selama SEB terbuka, aplikasi lain tidak bisa dipakai. Itu memang disengaja supaya ujian berjalan adil.
+
+33
+00:04:14,585 --> 00:04:22,840
+Untuk menutup SEB, pakai tombol keluar di bilah SEB. Kata sandi keluarnya akan diinformasikan panitia.
+
+34
+00:04:22,865 --> 00:04:31,866
+Inilah yang kamu lihat di dalam SEB: halaman Pusat Ujian. Masuk dengan email dan password yang tadi kamu buat.
+
+35
+00:04:31,866 --> 00:04:34,666
+Tekan Masuk.
+
+36
+00:04:34,666 --> 00:04:42,867
+Berhasil! Lombamu muncul lengkap dengan jadwalnya, semua dalam WIB. Kalau lombamu terlihat di sini, berarti akunmu sudah beres.
+
+37
+00:04:42,867 --> 00:04:51,410
+Tombol Mulai Ujian masih terkunci dan ada hitung mundur. Itu normal: tombolnya baru menyala tepat pada jam mulai.
+
+38
+00:04:51,425 --> 00:04:58,625
+Kalau ada yang tidak sesuai saat tes, ini yang paling sering terjadi dan jalan keluarnya.
+
+39
+00:04:58,625 --> 00:05:08,840
+Masalah lain? Jangan menunggu hari lomba. Hubungi admin lewat grup WhatsApp peserta.
+
+40
+00:05:12,744 --> 00:05:21,144
+Pada hari lomba, buka SEB 10 sampai 15 menit sebelum mulai: klik dua kali berkas .seb, lalu masuk dengan akunmu.
+
+41
+00:05:21,144 --> 00:05:27,944
+Tunggu di Pusat Ujian. Hitung mundurnya berjalan sendiri dan memakai jam server, bukan jam laptopmu.
+
+42
+00:05:27,944 --> 00:05:37,174
+Tepat di jam mulai, tombol Mulai Ujian menyala sendiri. Kamu tidak perlu memuat ulang halaman.
+
+43
+00:05:37,174 --> 00:05:41,374
+Tekan Mulai Ujian, dan kamu langsung masuk ke soal.
+
+44
+00:05:41,374 --> 00:05:47,874
+Waktu pengerjaan berjalan di pojok kanan atas. Semua peserta mulai dan berhenti di jam yang sama.
+
+45
+00:05:47,874 --> 00:05:55,675
+Pilih jawabanmu, dan jawaban langsung tersimpan otomatis. Tekan Simpan & Lanjut untuk ke soal berikutnya.
+
+46
+00:05:55,675 --> 00:06:01,475
+Namamu tercetak samar di seluruh layar sebagai tanda air. Itu normal dan berlaku untuk semua peserta.
+
+47
+00:06:01,475 --> 00:06:07,475
+Pakai nomor soal untuk berpindah. Di soal terakhir ada tombol Kumpulkan.
+
+48
+00:06:07,475 --> 00:06:14,840
+Tepat di jam selesai, jawabanmu dikumpulkan otomatis. Pastikan semua soal sudah kamu jawab sebelum waktu habis.
+
+49
+00:06:14,857 --> 00:06:19,857
+Sebelum hari lomba, pastikan semua ini sudah beres.
+
+50
+00:06:19,857 --> 00:06:30,010
+Kalau ada kendala, jangan menunggu hari lomba: hubungi admin lewat grup WhatsApp secepatnya.
+
+51
+00:06:30,025 --> 00:06:37,780
+Terima kasih sudah menonton. Sampai jumpa di hari lomba, semangat mengerjakan!

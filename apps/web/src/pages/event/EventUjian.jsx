@@ -89,6 +89,13 @@ export default function EventUjian() {
   const [ev, setEv] = useState(null);
   const [soal, setSoal] = useState([]);
   const [jawaban, setJawaban] = useState({});
+  // Jawaban yang gagal sampai ke server tidak boleh hilang diam-diam: ia
+  // dicoba lagi otomatis, dan peserta diberi tahu selama masih tertunda.
+  // `jawabanRef` memegang isi terbaru untuk dikirim ulang saat mengumpulkan.
+  const jawabanRef = useRef({});
+  const antre = useRef({});
+  const [jumlahAntre, setJumlahAntre] = useState(0);
+  useEffect(() => { jawabanRef.current = jawaban; }, [jawaban]);
   const [nomor, setNomor] = useState(0);
   const [sisa, setSisa] = useState(null);
   const [sibuk, setSibuk] = useState(false);
@@ -174,7 +181,9 @@ export default function EventUjian() {
     try {
       const hasil = await panggilEvent('/api/event/selesai', {
         method: 'POST',
-        body: { slug, t: token, otomatis: !!otomatis },
+        // Seluruh jawaban dikirim ulang: server menyusulkan yang belum
+        // tersimpan satu per satu (mis. koneksi sempat putus).
+        body: { slug, t: token, otomatis: !!otomatis, jawaban: jawabanRef.current, deviceId: olimpFingerprint() },
       });
       setTanggalRilis(hasil.tanggalRilis || '');
     } catch (_) {
@@ -234,24 +243,47 @@ export default function EventUjian() {
 
   // Menyimpan satu jawaban. Dipanggil saat peserta memilih opsi - jadi
   // "Simpan & Lanjut" cuma berpindah nomor, tidak menyimpan ulang.
+  const kirimJawaban = async (soalId, pilih) => {
+    const hasil = await panggilEvent('/api/event/jawab', {
+      method: 'POST',
+      body: { slug, t: token, soal: soalId, jawaban: pilih, deviceId: olimpFingerprint() },
+    });
+    // Sisa waktu diselaraskan dari server tiap kali menyimpan - inilah yang
+    // membuat jam peramban yang dimajukan tidak berguna.
+    if (typeof hasil.sisaDetik === 'number') setSisa(hasil.sisaDetik);
+  };
+
   const simpanJawaban = async (soalId, pilih) => {
     setJawaban((j) => ({ ...j, [soalId]: pilih }));
     try {
-      const hasil = await panggilEvent('/api/event/jawab', {
-        method: 'POST',
-        body: { slug, t: token, soal: soalId, jawaban: pilih, deviceId: olimpFingerprint() },
-      });
-      // Sisa waktu diselaraskan dari server tiap kali menyimpan - inilah yang
-      // membuat jam peramban yang dimajukan tidak berguna.
-      if (typeof hasil.sisaDetik === 'number') setSisa(hasil.sisaDetik);
+      await kirimJawaban(soalId, pilih);
+      delete antre.current[soalId];
+      setJumlahAntre(Object.keys(antre.current).length);
     } catch (err) {
       if (err.kode === 'WAKTU_HABIS' || err.kode === 'SUDAH_SELESAI') {
         kumpulkan(true);
         return;
       }
-      setPesan(err.message || 'Jawaban gagal tersimpan. Periksa koneksimu.');
+      antre.current[soalId] = pilih;
+      setJumlahAntre(Object.keys(antre.current).length);
     }
   };
+
+  // Coba lagi jawaban yang tertunda, tiap beberapa detik, sampai berhasil.
+  useEffect(() => {
+    if (keadaan !== 'mengerjakan' || jumlahAntre === 0) return undefined;
+    const id = setInterval(async () => {
+      for (const [sid, pilih] of Object.entries(antre.current)) {
+        try {
+          await kirimJawaban(sid, pilih);
+          delete antre.current[sid];
+        } catch (_) { /* dicoba lagi di putaran berikutnya */ }
+      }
+      setJumlahAntre(Object.keys(antre.current).length);
+    }, 4000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keadaan, jumlahAntre]);
 
   // -------------------------------------------------------------------------
   // Tampilan
@@ -432,6 +464,12 @@ export default function EventUjian() {
       </header>
 
       <main className="mx-auto w-full max-w-3xl px-6 py-8">
+        {jumlahAntre > 0 && (
+          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {jumlahAntre} jawabanmu belum tersimpan ke server. Aplikasi mencoba lagi otomatis —
+            jangan menutup halaman ini dan periksa koneksi internetmu.
+          </p>
+        )}
         {pesan && (
           <p className="mb-4 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-3 text-sm text-gold-600">
             {pesan}

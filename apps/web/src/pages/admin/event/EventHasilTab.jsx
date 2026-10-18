@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Award, Download, Megaphone, Save } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { panggilEvent, tanggalPanjang, tanggalPendek } from '@/lib/eventLomba';
+import EventJawabanPanel from './EventJawabanPanel';
 
 // TAB 4 - HASIL & RILIS (PRD bagian 9.2 & 11)
 //
@@ -283,6 +284,9 @@ export default function EventHasilTab({ ev, onSimpan }) {
         </div>
       </section>
 
+      {/* --- Skor & review jawaban: untuk panitia, bisa dilihat SEBELUM rilis --- */}
+      <EventJawabanPanel ev={ev} peserta={peserta} dirilis={dirilis} />
+
       {/* --- Tabel skor --- */}
       <section className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -300,7 +304,9 @@ export default function EventHasilTab({ ev, onSimpan }) {
 
         {!dirilis && (
           <p className="mt-3 rounded-xl bg-alba-100/60 px-4 py-2.5 text-[12px] leading-relaxed text-stone-600">
-            Skor baru terisi setelah kamu menekan Rilis Hasil — sebelum itu memang belum dihitung.
+            Kolom skor di tabel ini baru terisi setelah kamu menekan Rilis Hasil. Untuk melihat skor,
+            jawaban, dan review soal peserta SEKARANG (sebelum rilis), pakai panel &ldquo;Skor &amp; review
+            jawaban peserta&rdquo; di atas.
           </p>
         )}
 
