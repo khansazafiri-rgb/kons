@@ -803,6 +803,29 @@ jawaban tersimpan, hanya untuk admin:
 Panel hanya MEMBACA. Menekan **Hitung ulang & rilis lagi** menghitung ulang skor
 dari jawaban yang ada, tanpa mengubah jawaban.
 
+### Penyesuaian nilai oleh panitia
+
+Selain jawaban, panitia bisa mengatur nilai langsung di panel itu
+(migrasi `1787900000_event_penilaian_manual.js`):
+
+- **Tambah / kurang poin** satu peserta, dengan keterangan (mis. "Kamera tidak
+  terlihat", -5). Bilangan bulat; skor akhir tidak pernah di bawah 0.
+- **Diskualifikasi** (mis. tidak ikut Zoom pengawasan): tanpa peringkat dan
+  tidak masuk papan peringkat; alasannya ditampilkan ke peserta.
+- **Soal bonus**: soal yang dibonuskan memberi poinnya ke SEMUA peserta, apa pun
+  jawabannya (mis. soal bermasalah).
+- **Poin untuk semua**: tambah/kurang poin ke seluruh peserta sekaligus.
+
+Semuanya hanya mengubah cara skor dihitung; jawaban tidak disentuh. Rumusnya satu
+saja: `nilaiSatu()` di `pb_hooks/event-shared.js` (dipakai saat rilis), dan
+panel admin menirunya persis. Setelah hasil dirilis, perubahan baru sampai ke
+peserta saat admin menekan **Hitung ulang & rilis lagi**; panel memberi tahu
+kalau skor yang dilihat peserta berbeda dari hitungan terbaru.
+
+Keterangan dan alasan diskualifikasi **dibaca peserta** di halaman hasilnya,
+dan ikut di CSV (kolom Penyesuaian poin, Keterangan, Status, Alasan
+diskualifikasi, Soal bonus).
+
 Tiga pengaman supaya jawaban tidak hilang diam-diam:
 
 1. **Soal yang sudah dijawab tidak bisa dihapus** (`pb_hooks/event-jaga.pb.js`).

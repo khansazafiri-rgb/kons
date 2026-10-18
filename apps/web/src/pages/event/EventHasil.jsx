@@ -120,7 +120,9 @@ export default function EventHasil() {
             <Angka
               label="Peringkat"
               nilai={hasil.peringkat ? `#${hasil.peringkat}` : '—'}
-              catatan={hasil.dariPeserta ? `dari ${hasil.dariPeserta} peserta` : 'tidak mengumpulkan'}
+              catatan={hasil.didiskualifikasi
+                ? 'didiskualifikasi'
+                : hasil.dariPeserta ? `dari ${hasil.dariPeserta} peserta` : 'tidak mengumpulkan'}
             />
             <Angka
               label="Ketepatan"
@@ -130,6 +132,22 @@ export default function EventHasil() {
               label="Status"
               nilai={hasil.sudahKumpul ? 'Selesai' : 'Tidak ikut'}
             />
+          </div>
+        )}
+
+        {/* Keputusan panitia di luar jawaban: diskualifikasi atau tambah/kurang poin. */}
+        {hasil?.didiskualifikasi && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+            <p className="font-semibold">Kamu didiskualifikasi dari lomba ini, jadi tidak masuk peringkat.</p>
+            {hasil.alasanDiskualifikasi && <p className="mt-1">Alasan: {hasil.alasanDiskualifikasi}</p>}
+          </div>
+        )}
+        {hasil && !hasil.didiskualifikasi && hasil.penyesuaian !== 0 && (
+          <div className="mt-4 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-3 text-sm leading-relaxed text-gold-700">
+            <p className="font-semibold">
+              Skormu sudah termasuk penyesuaian dari panitia: {hasil.penyesuaian > 0 ? '+' : ''}{hasil.penyesuaian} poin.
+            </p>
+            {hasil.catatanPoin && <p className="mt-1">Keterangan: {hasil.catatanPoin}</p>}
           </div>
         )}
 

@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Award, Download, Megaphone, Save } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AlertTriangle, Megaphone, Save } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
-import { panggilEvent, tanggalPanjang, tanggalPendek } from '@/lib/eventLomba';
+import { panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
 import EventJawabanPanel from './EventJawabanPanel';
 
 // TAB 4 - HASIL & RILIS (PRD bagian 9.2 & 11)
@@ -112,35 +112,6 @@ export default function EventHasilTab({ ev, onSimpan }) {
       setSibuk('');
     }
   };
-
-  const unduhCsv = () => {
-    const kolom = ['Peringkat', 'Nama', 'Email', 'Skor', 'Total Poin', 'Mengumpulkan'];
-    const isi = (peserta || []).map((r) => [
-      r.rank || '', r.pesertaNama, r.pesertaEmail, r.score ?? '', r.totalPoints ?? '',
-      r.examSubmittedAt ? tanggalPendek(r.examSubmittedAt) : 'tidak',
-    ]);
-    const csv = [kolom, ...isi]
-      .map((b) => b.map((sel) => `"${String(sel ?? '').replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hasil-${ev.slug}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const papan = useMemo(
-    () => (peserta || []).slice().sort((a, b) => {
-      if (a.rank && b.rank) return a.rank - b.rank;
-      if (a.rank) return -1;
-      if (b.rank) return 1;
-      return 0;
-    }),
-    [peserta],
-  );
 
   return (
     <div className="space-y-5">
@@ -285,78 +256,12 @@ export default function EventHasilTab({ ev, onSimpan }) {
       </section>
 
       {/* --- Skor & review jawaban: untuk panitia, bisa dilihat SEBELUM rilis --- */}
-      <EventJawabanPanel ev={ev} peserta={peserta} dirilis={dirilis} />
-
-      {/* --- Tabel skor --- */}
-      <section className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-display text-base font-semibold text-stone-800">
-            Skor peserta {peserta && `(${peserta.length})`}
-          </h3>
-          <button
-            onClick={unduhCsv}
-            disabled={!peserta?.length}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-alba-300 px-4 py-2 text-[12px] font-semibold text-stone-600 hover:border-maroon-300 disabled:opacity-40"
-          >
-            <Download size={13} /> Ekspor CSV
-          </button>
-        </div>
-
-        {!dirilis && (
-          <p className="mt-3 rounded-xl bg-alba-100/60 px-4 py-2.5 text-[12px] leading-relaxed text-stone-600">
-            Kolom skor di tabel ini baru terisi setelah kamu menekan Rilis Hasil. Untuk melihat skor,
-            jawaban, dan review soal peserta SEKARANG (sebelum rilis), pakai panel &ldquo;Skor &amp; review
-            jawaban peserta&rdquo; di atas.
-          </p>
-        )}
-
-        {peserta && peserta.length === 0 && (
-          <p className="mt-3 text-[13px] text-stone-500">Belum ada peserta yang disetujui.</p>
-        )}
-
-        {papan.length > 0 && (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead>
-                <tr className="border-b border-alba-200 text-left text-[11px] uppercase tracking-wider text-stone-500">
-                  <th className="py-2.5 pr-3 font-semibold">#</th>
-                  <th className="py-2.5 pr-3 font-semibold">Peserta</th>
-                  <th className="py-2.5 pr-3 text-right font-semibold">Skor</th>
-                  <th className="py-2.5 pr-3 font-semibold">Mengumpulkan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {papan.map((r) => (
-                  <tr key={r.id} className="border-b border-alba-100 last:border-0">
-                    <td className="py-2.5 pr-3">
-                      {r.rank ? (
-                        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
-                          r.rank === 1 ? 'bg-gold-200 text-gold-600' : r.rank <= 3 ? 'bg-maroon-100 text-maroon-600' : 'bg-alba-200 text-stone-600'
-                        }`}>
-                          {r.rank <= 3 ? <Award size={12} /> : r.rank}
-                        </span>
-                      ) : <span className="text-[11px] text-stone-400">—</span>}
-                    </td>
-                    <td className="min-w-0 py-2.5 pr-3">
-                      <span className="block font-medium text-stone-800">{r.pesertaNama || '(tanpa nama)'}</span>
-                      <span className="block truncate text-[11px] text-stone-500">{r.pesertaEmail}</span>
-                    </td>
-                    <td className="py-2.5 pr-3 text-right font-semibold tabular-nums text-stone-800">
-                      {r.score ?? '—'}
-                      {r.totalPoints ? <span className="text-[11px] font-normal text-stone-500">/{r.totalPoints}</span> : null}
-                    </td>
-                    <td className="py-2.5 pr-3 text-[12px] text-stone-600">
-                      {r.examSubmittedAt
-                        ? <>{tanggalPendek(r.examSubmittedAt)}<span className="block text-[10px] text-stone-400">{r.submitMode}</span></>
-                        : <span className="text-stone-400">tidak mengumpulkan</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <EventJawabanPanel
+        ev={ev}
+        peserta={peserta}
+        dirilis={dirilis}
+        onUbahPeserta={(rec) => setPeserta((l) => (l || []).map((x) => (x.id === rec.id ? rec : x)))}
+      />
     </div>
   );
 }

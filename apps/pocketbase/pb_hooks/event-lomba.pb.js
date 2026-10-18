@@ -808,7 +808,7 @@ routerAdd("GET", "/api/event/hasil", (e) => {
     peringkatTotal = e.app.findRecordsByFilter(
       "event_registrations",
       "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''"
-      + " && deletedAt = ''",
+      + " && deletedAt = '' && disqualified = false",
       "",
       0,
       0,
@@ -821,6 +821,12 @@ routerAdd("GET", "/api/event/hasil", (e) => {
     totalPoin: reg.getInt("totalPoints"),
     peringkat: reg.getInt("rank"),
     dariPeserta: peringkatTotal,
+    // Keputusan panitia di luar jawaban - ditampilkan apa adanya supaya
+    // peserta tahu kenapa skornya berbeda dari hitungan jawabannya.
+    penyesuaian: Math.round(Number(reg.getFloat("pointAdjustment")) || 0),
+    catatanPoin: reg.getString("adjustmentNote"),
+    didiskualifikasi: reg.getBool("disqualified"),
+    alasanDiskualifikasi: reg.getString("disqualifiedReason"),
     tampilkanPembahasan: ev.getBool("showExplanationAfterRelease"),
     sudahKumpul: H.iso(reg, "examSubmittedAt") !== "",
   });
@@ -848,7 +854,7 @@ routerAdd("GET", "/api/event/peringkat", (e) => {
     baris = e.app.findRecordsByFilter(
       "event_registrations",
       "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''"
-      + " && deletedAt = ''",
+      + " && deletedAt = '' && disqualified = false",
       "rank",
       100,
       0,
@@ -922,12 +928,12 @@ routerAdd("POST", "/api/event/rilis", (e) => {
   // Peringkat: skor tertinggi menang; kalau seri, yang mengumpulkan lebih dulu
   // menang. Yang tidak mengumpulkan sama sekali tidak diberi peringkat.
   hasil
-    .filter((h) => h.kumpul > 0)
+    .filter((h) => h.kumpul > 0 && !h.reg.getBool("disqualified"))
     .sort((a, b) => (b.skor - a.skor) || (a.kumpul - b.kumpul))
     .forEach((h, i) => { h.reg.set("rank", i + 1); });
 
   hasil.forEach((h) => {
-    if (!h.kumpul) h.reg.set("rank", null);
+    if (!h.kumpul || h.reg.getBool("disqualified")) h.reg.set("rank", null);
     e.app.save(h.reg);
   });
 
