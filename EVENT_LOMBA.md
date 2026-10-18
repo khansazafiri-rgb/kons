@@ -838,6 +838,24 @@ Tiga pengaman supaya jawaban tidak hilang diam-diam:
    dengan `/api/event/jawab`: SEB lolos, perangkat sama, sudah menekan Mulai,
    dan dalam jendela waktu (toleransi 30 detik untuk kumpul otomatis).
 
+### Isi pengumuman: nilai, peringkat, atau keduanya
+
+Di tab Hasil → "Pengaturan hasil" → **Yang diumumkan ke peserta**:
+
+| Pilihan | Peserta melihat | Papan peringkat |
+|---|---|---|
+| Nilai & peringkat (bawaan) | skor + posisi | sesuai pengaturan |
+| Peringkat saja | posisi; skor `null` dari server | tampil tanpa kolom skor |
+| Nilai saja | skor; peringkat `null` dari server | **ditutup** untuk peserta (urutannya sendiri membocorkan peringkat) |
+
+Disaring di server (`/api/event/hasil` dan `/api/event/peringkat`), bukan hanya
+disembunyikan di layar. Admin tetap melihat semuanya. Nama di papan peringkat
+tetap bisa dibuat anonim lewat "Nama di papan peringkat" (Nama lengkap / Inisial
+/ Anonim). Di "Peringkat saja", angka penyesuaian poin ikut disembunyikan, tapi
+kunci jawaban di tinjauan soal tetap membuat peserta bisa menghitung sendiri —
+matikan pembahasan/tinjauan kalau itu tidak diinginkan. Butuh migrasi
+`1788000000_event_isi_pengumuman.js` (otomatis jalan lewat `update.sh`).
+
 ## Dua cara pendaftaran: web atau Google Form
 
 Admin memilihnya per lomba di Info Dasar → **Cara pendaftaran** (field

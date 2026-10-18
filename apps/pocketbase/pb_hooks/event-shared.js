@@ -155,6 +155,7 @@ function eventPublik(ev, bolehLihatRahasia) {
     tampilkanPembahasan: ev.getBool("showExplanationAfterRelease"),
     peringkatPublik: ev.getBool("leaderboardPublic"),
     tampilanPeringkat: ev.getString("leaderboardDisplay") || "FULL_NAME",
+    isiPengumuman: ev.getString("resultsVisibility") || "FULL",
     wajibSeb: ev.getBool("sebRequired"),
     // "Siap" = server punya pembanding untuk memverifikasi SEB: Config Key ATAU
     // Browser Exam Key, milik lomba ini maupun turunan dari pengaturan global.

@@ -74,6 +74,7 @@ function eventBaru() {
     showExplanationAfterRelease: true,
     leaderboardPublic: true,
     leaderboardDisplay: 'FULL_NAME',
+    resultsVisibility: 'FULL',
     sebRequired: true,
     sebQuitPassword: '',
     sebAdminPassword: '',
@@ -224,7 +225,7 @@ export default function EventManager() {
       [
         'subject', 'bannerUrl', 'description', 'price', 'quota', 'timingModel',
         'durationMinutes', 'paymentContactWa', 'rulesText', 'resultsReleaseMode',
-        'showExplanationAfterRelease', 'leaderboardPublic', 'leaderboardDisplay',
+        'showExplanationAfterRelease', 'leaderboardPublic', 'leaderboardDisplay', 'resultsVisibility',
         'sebRequired', 'sebQuitPassword', 'sebAdminPassword', 'sebAllowedUrls',
         'sebAllowCalculator', 'eventType',
         'showQuestionCountPublic', 'showMechanismPublic', 'showParticipantCountPublic',
