@@ -575,15 +575,25 @@ function nilaiSatu(app, reg, soal) {
   let skor = 0;
   let total = 0;
   let benar = 0;
+  let bonus = 0;
   soal.forEach((q) => {
     const poin = q.getInt("points") || 1;
     total += poin;
-    if (pilihan[q.id] && pilihan[q.id] === q.getString("correctAnswer")) {
+    const tepat = pilihan[q.id] && pilihan[q.id] === q.getString("correctAnswer");
+    if (tepat) {
       skor += poin;
       benar += 1;
+    } else if (q.getBool("bonus")) {
+      // Soal dibonuskan panitia: semua peserta mendapat poinnya.
+      skor += poin;
+      bonus += 1;
     }
   });
-  return { skor, total, benar, dijawab: Object.keys(pilihan).filter((k) => pilihan[k]).length };
+  // Tambah/kurang poin dari panitia (mis. kamera tidak terlihat). Skor akhir
+  // tidak pernah di bawah nol.
+  const penyesuaian = Math.round(Number(reg.getFloat("pointAdjustment")) || 0);
+  skor = Math.max(0, skor + penyesuaian);
+  return { skor, total, benar, bonus, penyesuaian, dijawab: Object.keys(pilihan).filter((k) => pilihan[k]).length };
 }
 
 // Menyusulkan jawaban yang belum sampai ke server.
