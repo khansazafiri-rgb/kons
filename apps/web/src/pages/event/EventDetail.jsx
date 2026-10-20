@@ -493,6 +493,14 @@ export default function EventDetail() {
                 {ev.tampilkan?.jumlahSoal && (
                   <Baris icon={Trophy} label="Jumlah soal" isi={`${ev.jumlahSoal} soal`} />
                 )}
+                {ev.penguranganSalah > 0 && (
+                  <Baris
+                    icon={AlertTriangle}
+                    label="Penilaian"
+                    isi={`Jawaban salah mengurangi ${ev.penguranganSalah} poin`}
+                    catatan="Soal yang tidak dijawab tidak dikurangi"
+                  />
+                )}
                 <Baris
                   icon={ShieldCheck}
                   label="Pengawasan"

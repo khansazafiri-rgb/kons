@@ -143,6 +143,9 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
 
   useEffect(() => { muat(); }, [muat]);
 
+  // Pengurangan per jawaban salah (poin bulat, 0 = tidak ada) - sama dengan server.
+  const penalti = Math.max(0, Math.round(Number(ev.wrongPenalty) || 0));
+
   // Per peserta: pilihan per soal, poin dari jawaban, penyesuaian, skor akhir.
   const baris = useMemo(() => {
     if (!soal || !jawaban || !peserta) return null;
@@ -152,18 +155,20 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
     });
     const hitung = peserta.map((r) => {
       const pilih = perReg[r.id] || {};
-      let dijawab = 0; let benar = 0; let bonus = 0; let poinJawab = 0; let total = 0;
+      let dijawab = 0; let benar = 0; let bonus = 0; let poinJawab = 0; let total = 0; let kena = 0;
       soal.forEach((q) => {
         const p = q.points || 1;
         total += p;
         if (pilih[q.id]) dijawab += 1;
         if (pilih[q.id] && pilih[q.id] === q.correctAnswer) { benar += 1; poinJawab += p; }
         else if (q.bonus) { bonus += 1; poinJawab += p; }
+        else if (pilih[q.id]) kena += 1;   // dijawab tapi salah (bukan soal bonus)
       });
       const tambah = Math.round(Number(r.pointAdjustment) || 0);
+      const pengurangan = kena * penalti;
       return {
-        r, pilih, dijawab, benar, bonus, poinJawab, total, tambah,
-        akhir: Math.max(0, poinJawab + tambah),
+        r, pilih, dijawab, benar, bonus, poinJawab, total, tambah, pengurangan,
+        akhir: Math.max(0, poinJawab - pengurangan + tambah),
         dq: !!r.disqualified,
         salah: dijawab - benar,
         kosong: soal.length - dijawab,
@@ -177,7 +182,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
       .sort((a, b) => (b.akhir - a.akhir) || (new Date(a.r.examSubmittedAt) - new Date(b.r.examSubmittedAt)))
       .forEach((b, i) => { b.peringkat = i + 1; });
     return hitung.sort((a, b) => (a.peringkat || 1e9) - (b.peringkat || 1e9) || (b.akhir - a.akhir));
-  }, [soal, jawaban, peserta]);
+  }, [soal, jawaban, peserta, penalti]);
 
   const ubahBonus = async (q) => {
     setPesan('');
@@ -226,11 +231,11 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
 
   const unduhSkor = () => {
     const kolom = [
-      'Peringkat (sementara)', 'Nama', 'Email', 'Poin dari jawaban', 'Penyesuaian poin', 'Keterangan penyesuaian',
+      'Peringkat (sementara)', 'Nama', 'Email', 'Poin dari jawaban', 'Pengurangan jawaban salah', 'Penyesuaian poin', 'Keterangan penyesuaian',
       'Poin akhir', 'Total poin soal', 'Benar', 'Salah', 'Tidak dijawab', 'Soal bonus', 'Status', 'Alasan diskualifikasi', 'Mengumpulkan',
     ];
     const isi = baris.map((b) => [
-      b.dq ? '' : (b.peringkat || ''), b.r.pesertaNama, b.r.pesertaEmail, b.poinJawab, b.tambah, b.r.adjustmentNote || '',
+      b.dq ? '' : (b.peringkat || ''), b.r.pesertaNama, b.r.pesertaEmail, b.poinJawab, b.pengurangan ? -b.pengurangan : 0, b.tambah, b.r.adjustmentNote || '',
       b.akhir, b.total, b.benar, b.salah, b.kosong, b.bonus, status(b), b.dq ? (b.r.disqualifiedReason || '') : '',
       b.r.examSubmittedAt ? tanggalPendek(b.r.examSubmittedAt) : 'tidak',
     ]);
@@ -240,12 +245,12 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
   const unduhSemua = () => {
     const kolom = [
       'Nama', 'Email', ...soal.map((q, i) => `Soal ${i + 1}`),
-      'Dijawab', 'Benar', 'Poin dari jawaban', 'Penyesuaian poin', 'Keterangan penyesuaian', 'Poin akhir', 'Status', 'Alasan diskualifikasi',
+      'Dijawab', 'Benar', 'Poin dari jawaban', 'Pengurangan jawaban salah', 'Penyesuaian poin', 'Keterangan penyesuaian', 'Poin akhir', 'Status', 'Alasan diskualifikasi',
     ];
-    const kunci = ['KUNCI', '', ...soal.map((q) => `${q.correctAnswer}${q.bonus ? ' (bonus)' : ''}`), '', '', '', '', '', '', '', ''];
+    const kunci = ['KUNCI', '', ...soal.map((q) => `${q.correctAnswer}${q.bonus ? ' (bonus)' : ''}`), '', '', '', '', '', '', '', '', ''];
     const isi = baris.map((b) => [
       b.r.pesertaNama, b.r.pesertaEmail, ...soal.map((q) => b.pilih[q.id] || ''),
-      b.dijawab, b.benar, b.poinJawab, b.tambah, b.r.adjustmentNote || '', b.akhir, status(b), b.dq ? (b.r.disqualifiedReason || '') : '',
+      b.dijawab, b.benar, b.poinJawab, b.pengurangan ? -b.pengurangan : 0, b.tambah, b.r.adjustmentNote || '', b.akhir, status(b), b.dq ? (b.r.disqualifiedReason || '') : '',
     ]);
     unduh(`jawaban-${ev.slug}.csv`, csv([kolom, kunci, ...isi]));
   };
@@ -417,7 +422,9 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
                       {b.akhir}<span className="text-[11px] font-normal text-stone-500">/{b.total}</span>
                     </td>
                     <td className="py-2 pr-3 text-right tabular-nums text-emerald-700">{b.benar}{b.bonus > 0 && <span className="text-[10px] text-gold-600"> +{b.bonus}b</span>}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-red-700">{b.salah}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-red-700">
+                      {b.salah}{b.pengurangan > 0 && <span className="text-[10px]"> −{b.pengurangan}</span>}
+                    </td>
                     <td className="py-2 pr-3 text-right tabular-nums text-stone-500">{b.kosong}</td>
                     <td className="py-2 pr-3 text-right tabular-nums">
                       {b.tambah !== 0

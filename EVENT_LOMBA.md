@@ -880,6 +880,23 @@ pendaftaran" ikut disembunyikan untuk peserta yang sudah punya hasil.
   dihitung dari poin tiap soal apa pun pilihan tampilannya. Poin selalu bilangan
   bulat minimal 1. Butuh migrasi `1788100000_event_tampilkan_poin.js`.
 
+### Pengurangan poin untuk jawaban salah
+
+Di panel **Poin soal** (tab Soal): **Pengurangan poin tiap jawaban salah**
+(`events.wrongPenalty`, bilangan bulat >= 0; 0 = tidak ada, bawaan).
+
+- Dikurangkan per soal yang **dijawab tapi salah**. Soal yang tidak dijawab dan
+  soal bonus tidak mengurangi.
+- Skor akhir = poin benar - (jumlah salah x pengurangan) + penyesuaian panitia,
+  dan tidak pernah di bawah 0.
+- Dihitung di `nilaiSatu` (server, saat rilis) dan dicerminkan di panel jawaban
+  admin, jadi skor sementara di panel sama dengan skor yang dirilis. Setelah
+  mengubah angkanya, tekan "Hitung ulang & rilis lagi" kalau hasil sudah dirilis.
+- Peserta diberi tahu: di halaman lomba (baris "Penilaian"), di layar ujian, dan
+  di tinjauan jawaban ("Salah - N poin"). CSV skor punya kolom "Pengurangan
+  jawaban salah". Pengurangannya bilangan bulat (pecahan seperti 0,25 belum
+  didukung). Butuh migrasi `1788200000_event_pengurangan_salah.js`.
+
 ## Dua cara pendaftaran: web atau Google Form
 
 Admin memilihnya per lomba di Info Dasar → **Cara pendaftaran** (field

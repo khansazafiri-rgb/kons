@@ -156,6 +156,7 @@ function eventPublik(ev, bolehLihatRahasia) {
     peringkatPublik: ev.getBool("leaderboardPublic"),
     tampilanPeringkat: ev.getString("leaderboardDisplay") || "FULL_NAME",
     isiPengumuman: ev.getString("resultsVisibility") || "FULL",
+    penguranganSalah: penguranganSalah(ev),
     wajibSeb: ev.getBool("sebRequired"),
     // "Siap" = server punya pembanding untuk memverifikasi SEB: Config Key ATAU
     // Browser Exam Key, milik lomba ini maupun turunan dari pengaturan global.
@@ -601,7 +602,12 @@ function periksaSeb(e, ev, setelan) {
 // dirilis, skor sengaja tidak pernah ada di mana pun yang bisa dibaca peserta -
 // itu inti PRD bagian 11.1 (mencegah peserta yang selesai duluan membocorkan
 // jawaban ke yang masih mengerjakan).
-function nilaiSatu(app, reg, soal) {
+// Pengurangan per jawaban salah (bilangan bulat >= 0) yang diatur admin.
+function penguranganSalah(ev) {
+  return Math.max(0, Math.round(Number(ev.getFloat("wrongPenalty")) || 0));
+}
+
+function nilaiSatu(app, reg, soal, penalti) {
   const rid = amanId(reg.id);
   let jawaban = [];
   try {
@@ -615,6 +621,7 @@ function nilaiSatu(app, reg, soal) {
   let total = 0;
   let benar = 0;
   let bonus = 0;
+  let salah = 0;
   soal.forEach((q) => {
     const poin = q.getInt("points") || 1;
     total += poin;
@@ -626,13 +633,18 @@ function nilaiSatu(app, reg, soal) {
       // Soal dibonuskan panitia: semua peserta mendapat poinnya.
       skor += poin;
       bonus += 1;
+    } else if (pilihan[q.id]) {
+      // Dijawab tapi salah. Tidak dijawab = tidak dikurangi.
+      salah += 1;
     }
   });
+  const pengurangan = salah * (penalti || 0);
+  skor -= pengurangan;
   // Tambah/kurang poin dari panitia (mis. kamera tidak terlihat). Skor akhir
   // tidak pernah di bawah nol.
   const penyesuaian = Math.round(Number(reg.getFloat("pointAdjustment")) || 0);
   skor = Math.max(0, skor + penyesuaian);
-  return { skor, total, benar, bonus, penyesuaian, dijawab: Object.keys(pilihan).filter((k) => pilihan[k]).length };
+  return { skor, total, benar, bonus, salah, pengurangan, penyesuaian, dijawab: Object.keys(pilihan).filter((k) => pilihan[k]).length };
 }
 
 // Menyusulkan jawaban yang belum sampai ke server.
@@ -727,6 +739,7 @@ function tandaAirDari(ev, reg) {
 
 module.exports = {
   amanId,
+  penguranganSalah,
   hasilPeserta,
   jsonArray,
   pesertaDari,
