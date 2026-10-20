@@ -52,6 +52,7 @@ export default function EventHasilTab({ ev, onSimpan }) {
     resultsReleaseMode: ev.resultsReleaseMode || 'MANUAL',
     resultsReleaseAt: ev.resultsReleaseAt || '',
     showExplanationAfterRelease: !!ev.showExplanationAfterRelease,
+    hideAnswerReview: !!ev.hideAnswerReview,
     leaderboardPublic: !!ev.leaderboardPublic,
     leaderboardDisplay: ev.leaderboardDisplay || 'FULL_NAME',
     resultsVisibility: ev.resultsVisibility || 'FULL',
@@ -123,9 +124,10 @@ export default function EventHasilTab({ ev, onSimpan }) {
         </h3>
         {dirilis ? (
           <p className="mt-1 text-[13px] leading-relaxed text-stone-600">
-            Dirilis pada {tanggalPanjang(ev.resultsReleasedAt)}. Peserta sudah bisa melihat skor,
-            peringkat, dan kunci jawabannya. Menekan tombol di bawah menghitung ulang semua skor —
-            berguna kalau kamu baru memperbaiki kunci jawaban sebuah soal.
+            Dirilis pada {tanggalPanjang(ev.resultsReleasedAt)}. Peserta sudah bisa melihat{' '}
+            {ev.hideAnswerReview ? 'skor dan/atau peringkatnya (tinjauan soal ditutup)' : 'skor, peringkat, dan kunci jawabannya'}.
+            Menekan tombol di bawah menghitung ulang semua skor — berguna kalau kamu baru memperbaiki
+            kunci jawaban sebuah soal.
           </p>
         ) : (
           <p className="mt-1 text-[13px] leading-relaxed text-stone-600">
@@ -229,7 +231,7 @@ export default function EventHasilTab({ ev, onSimpan }) {
                 </button>
               ))}
             </div>
-            {f.resultsVisibility === 'RANK_ONLY' && (
+            {f.resultsVisibility === 'RANK_ONLY' && !f.hideAnswerReview && (
               <p className="mt-2 text-[12px] leading-relaxed text-stone-500">
                 Catatan: kalau kunci jawaban dibuka lewat tinjauan soal, peserta masih bisa menghitung skornya sendiri.
               </p>
@@ -237,11 +239,20 @@ export default function EventHasilTab({ ev, onSimpan }) {
           </div>
 
           <Saklar
-            nyala={f.showExplanationAfterRelease}
-            onUbah={(v) => set('showExplanationAfterRelease', v)}
-            judul="Tampilkan pembahasan setelah hasil dirilis"
-            isi="Kalau mati, peserta cuma melihat kunci jawabannya — berguna kalau soalnya mau dipakai lagi di batch lain."
+            nyala={!f.hideAnswerReview}
+            onUbah={(v) => set('hideAnswerReview', !v)}
+            judul="Tampilkan tinjauan soal & kunci jawaban setelah hasil dirilis"
+            isi="Kalau mati, peserta hanya melihat skor dan/atau peringkat — tanpa soal, jawabannya sendiri, kunci, maupun pembahasan."
           />
+
+          {!f.hideAnswerReview && (
+            <Saklar
+              nyala={f.showExplanationAfterRelease}
+              onUbah={(v) => set('showExplanationAfterRelease', v)}
+              judul="Tampilkan pembahasan setelah hasil dirilis"
+              isi="Kalau mati, peserta cuma melihat kunci jawabannya — berguna kalau soalnya mau dipakai lagi di batch lain."
+            />
+          )}
 
           <Saklar
             nyala={f.leaderboardPublic}
