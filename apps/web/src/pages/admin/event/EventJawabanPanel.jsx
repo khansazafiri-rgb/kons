@@ -525,7 +525,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
                                 {q.explanation && (
                                   <div className="mt-2 rounded-lg bg-white px-3 py-2">
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                                      Pembahasan · {ev.showExplanationAfterRelease
+                                      Pembahasan · {ev.showExplanationAfterRelease && !ev.hideAnswerReview
                                         ? 'tampil ke peserta setelah rilis'
                                         : 'hanya terlihat admin, TIDAK tampil ke peserta'}
                                     </p>

@@ -573,6 +573,12 @@ routerAdd("GET", "/api/event/soal", (e) => {
   if (!jendela.boleh && !dirilis) {
     return e.json(403, { message: jendela.pesan, kode: jendela.kode });
   }
+  // Tinjauan ditutup admin: setelah rilis peserta hanya boleh melihat skor/
+  // peringkat. Soal, jawaban, dan kunci tidak dikirim sama sekali. Yang masih
+  // boleh mengerjakan (jendela masih terbuka) tidak terpengaruh.
+  if (dirilis && ev.getBool("hideAnswerReview") && !jendela.boleh) {
+    return e.json(403, { kode: "TINJAUAN_TERTUTUP", message: "Soal dan kunci jawaban tidak dibuka setelah hasil diumumkan." });
+  }
   // Belum menekan "Mulai" - jangan berikan soalnya dulu, supaya timer pribadi
   // tidak bisa dilewati dengan membaca soal lebih dulu.
   if (!dirilis && H.iso(reg, "examStartedAt") === "") {

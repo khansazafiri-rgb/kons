@@ -897,6 +897,17 @@ Di panel **Poin soal** (tab Soal): **Pengurangan poin tiap jawaban salah**
   jawaban salah". Pengurangannya bilangan bulat (pecahan seperti 0,25 belum
   didukung). Butuh migrasi `1788200000_event_pengurangan_salah.js`.
 
+### Sembunyikan tinjauan soal & kunci jawaban
+
+Di tab Hasil & Rilis: saklar **Tampilkan tinjauan soal & kunci jawaban setelah
+hasil dirilis** (`events.hideAnswerReview`, bawaan terbuka). Kalau dimatikan,
+peserta hanya melihat skor dan/atau peringkat (sesuai "yang diumumkan"): server
+menolak `/api/event/soal` setelah rilis (`TINJAUAN_TERTUTUP`), jadi soal, jawaban
+peserta, kunci, dan pembahasan tidak dikirim sama sekali. Saklar pembahasan ikut
+tersembunyi, dan tombol tinjauan hilang dari kartu "Hasilmu". Peserta yang
+jendela ujiannya masih terbuka tidak terpengaruh. Panel review untuk admin tetap
+lengkap. Butuh migrasi `1788300000_event_sembunyikan_tinjauan.js`.
+
 ## Dua cara pendaftaran: web atau Google Form
 
 Admin memilihnya per lomba di Info Dasar → **Cara pendaftaran** (field

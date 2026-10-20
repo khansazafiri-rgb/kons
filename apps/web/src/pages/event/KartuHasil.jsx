@@ -31,6 +31,7 @@ export default function KartuHasil({ ev, hasil }) {
   const punyaRank = hasil.peringkat !== null && hasil.peringkat !== undefined;
   const persen = punyaSkor && hasil.totalPoin > 0 ? Math.round((hasil.skor / hasil.totalPoin) * 100) : null;
   const papanTerbuka = ev.peringkatPublik && hasil.isiPengumuman !== 'SCORE_ONLY';
+  const tinjauanTerbuka = ev.tinjauanSoal !== false;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-maroon-200 bg-alba-50 shadow-card">
@@ -99,22 +100,28 @@ export default function KartuHasil({ ev, hasil }) {
           </>
         )}
 
-        <div className="flex flex-col gap-2">
-          <Link
-            to={`/event/${ev.slug}/hasil`}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-maroon-600 px-5 py-2.5 text-sm font-semibold text-alba-50 transition-colors hover:bg-maroon-700"
-          >
-            <BookOpenCheck size={15} /> Lihat tinjauan jawabanku
-          </Link>
-          {papanTerbuka && (
-            <Link
-              to={`/event/${ev.slug}/hasil#papan`}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-alba-300 px-5 py-2.5 text-sm font-semibold text-maroon-600 transition-colors hover:border-maroon-300"
-            >
-              <Trophy size={15} /> Papan peringkat
-            </Link>
-          )}
-        </div>
+        {(tinjauanTerbuka || papanTerbuka) && (
+          <div className="flex flex-col gap-2">
+            {tinjauanTerbuka && (
+              <Link
+                to={`/event/${ev.slug}/hasil`}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-maroon-600 px-5 py-2.5 text-sm font-semibold text-alba-50 transition-colors hover:bg-maroon-700"
+              >
+                <BookOpenCheck size={15} /> Lihat tinjauan jawabanku
+              </Link>
+            )}
+            {papanTerbuka && (
+              <Link
+                to={`/event/${ev.slug}/hasil#papan`}
+                className={tinjauanTerbuka
+                  ? 'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-alba-300 px-5 py-2.5 text-sm font-semibold text-maroon-600 transition-colors hover:border-maroon-300'
+                  : 'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-maroon-600 px-5 py-2.5 text-sm font-semibold text-alba-50 transition-colors hover:bg-maroon-700'}
+              >
+                <Trophy size={15} /> Papan peringkat
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

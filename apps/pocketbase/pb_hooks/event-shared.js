@@ -156,6 +156,7 @@ function eventPublik(ev, bolehLihatRahasia) {
     peringkatPublik: ev.getBool("leaderboardPublic"),
     tampilanPeringkat: ev.getString("leaderboardDisplay") || "FULL_NAME",
     isiPengumuman: ev.getString("resultsVisibility") || "FULL",
+    tinjauanSoal: !ev.getBool("hideAnswerReview"),
     penguranganSalah: penguranganSalah(ev),
     wajibSeb: ev.getBool("sebRequired"),
     // "Siap" = server punya pembanding untuk memverifikasi SEB: Config Key ATAU
