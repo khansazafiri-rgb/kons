@@ -72,6 +72,13 @@ export default function EventHasil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
+  // Tautan "Papan peringkat" dari kartu hasil: loncat ke bagiannya begitu ada.
+  useEffect(() => {
+    if (peringkat?.peringkat?.length && window.location.hash === '#papan') {
+      document.getElementById('papan')?.scrollIntoView({ block: 'start' });
+    }
+  }, [peringkat]);
+
   if (belumRilis !== null && !hasil) {
     return (
       <LandingLayout>
@@ -180,7 +187,10 @@ export default function EventHasil() {
                 return (
                   <article key={s.id} className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="font-display text-sm font-semibold text-stone-800">Soal {s.nomor}</p>
+                      <p className="font-display text-sm font-semibold text-stone-800">
+                        Soal {s.nomor}
+                        {s.poin != null && <span className="ml-2 font-sans text-[11px] font-normal text-stone-500">{s.poin} poin</span>}
+                      </p>
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
                           benar
@@ -247,7 +257,7 @@ export default function EventHasil() {
 
         {/* 3. Papan peringkat */}
         {peringkat?.peringkat?.length > 0 && (
-          <section className="mt-10">
+          <section id="papan" className="mt-10 scroll-mt-24">
             <h2 className="inline-flex items-center gap-2 font-display text-xl font-semibold text-stone-800">
               <Trophy size={18} className="text-gold-500" /> Papan peringkat
             </h2>

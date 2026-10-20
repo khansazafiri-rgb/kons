@@ -856,6 +856,30 @@ kunci jawaban di tinjauan soal tetap membuat peserta bisa menghitung sendiri —
 matikan pembahasan/tinjauan kalau itu tidak diinginkan. Butuh migrasi
 `1788000000_event_isi_pengumuman.js` (otomatis jalan lewat `update.sh`).
 
+### Hasil tampil di halaman lomba
+
+Setelah hasil dirilis, kartu "Pendaftaranmu" (unduhan SEB, tombol Masuk Ujian)
+diganti **kartu "Hasilmu"** di halaman `/event/:slug`: skor, ketepatan, peringkat,
+catatan penyesuaian/diskualifikasi, dan tombol ke tinjauan jawaban. Angkanya
+datang dari `/api/event/detail` (`saya.hasil`) lewat fungsi yang sama dengan
+`/api/event/hasil` (`hasilPeserta` di `event-shared.js`), jadi pilihan "yang
+diumumkan" (nilai / peringkat / keduanya) otomatis berlaku. Hanya untuk peserta
+yang sedang login: tautan token (`?t=`) tidak membuka nilai. Kotak "Biaya
+pendaftaran" ikut disembunyikan untuk peserta yang sudah punya hasil.
+
+### Poin soal
+
+- Tiap soal punya **poin sendiri** (bawaan 1): kolom "Poin" di setiap baris tab
+  Soal (simpan otomatis saat ditinggalkan), atau di editor soal. Impor kode
+  memakai `points`.
+- Panel **Poin soal** di atas daftar soal: saklar *Tampilkan poin tiap soal saat
+  pengerjaan* (`events.showPointsInExam`, mati = bawaan) dan *Samakan poin semua
+  soal*.
+- Saat ujian, server hanya mengirim `poin` kalau saklar menyala; setelah hasil
+  dirilis `poin` selalu ikut dan tampil di tinjauan jawaban. Skor tetap
+  dihitung dari poin tiap soal apa pun pilihan tampilannya. Poin selalu bilangan
+  bulat minimal 1. Butuh migrasi `1788100000_event_tampilkan_poin.js`.
+
 ## Dua cara pendaftaran: web atau Google Form
 
 Admin memilihnya per lomba di Info Dasar → **Cara pendaftaran** (field

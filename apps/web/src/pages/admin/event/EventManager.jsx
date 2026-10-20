@@ -75,6 +75,7 @@ function eventBaru() {
     leaderboardPublic: true,
     leaderboardDisplay: 'FULL_NAME',
     resultsVisibility: 'FULL',
+    showPointsInExam: false,
     sebRequired: true,
     sebQuitPassword: '',
     sebAdminPassword: '',
@@ -225,7 +226,7 @@ export default function EventManager() {
       [
         'subject', 'bannerUrl', 'description', 'price', 'quota', 'timingModel',
         'durationMinutes', 'paymentContactWa', 'rulesText', 'resultsReleaseMode',
-        'showExplanationAfterRelease', 'leaderboardPublic', 'leaderboardDisplay', 'resultsVisibility',
+        'showExplanationAfterRelease', 'leaderboardPublic', 'leaderboardDisplay', 'resultsVisibility', 'showPointsInExam',
         'sebRequired', 'sebQuitPassword', 'sebAdminPassword', 'sebAllowedUrls',
         'sebAllowCalculator', 'eventType',
         'showQuestionCountPublic', 'showMechanismPublic', 'showParticipantCountPublic',
@@ -334,7 +335,7 @@ export default function EventManager() {
 
         <div className="min-w-0">
           {tab === 'Info Dasar' && <EventInfoTab ev={buka} onSimpan={perbarui} />}
-          {tab === 'Soal' && <EventSoalTab ev={buka} />}
+          {tab === 'Soal' && <EventSoalTab ev={buka} onSimpan={perbarui} />}
           {tab === 'Peserta' && <EventPesertaTab ev={buka} />}
           {tab === 'Hasil & Rilis' && <EventHasilTab ev={buka} onSimpan={perbarui} />}
           {tab === 'Review & Publish' && (

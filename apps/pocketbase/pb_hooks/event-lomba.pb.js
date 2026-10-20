@@ -119,6 +119,11 @@ routerAdd("GET", "/api/event/detail", (e) => {
       bolehUjian: jendela.boleh,
       kodeJendela: jendela.kode,
     };
+    // Setelah dirilis, kartu pendaftaran berubah jadi kartu hasil. Hanya untuk
+    // peserta yang sedang login: tautan token (?t=) tidak membuka nilai.
+    if (H.iso(ev, "resultsReleasedAt") !== "" && peserta && !lewatToken && sudahAcc) {
+      saya.hasil = H.hasilPeserta(e.app, ev, regSaya);
+    }
   }
   isi.saya = saya;
   isi.login = peserta ? peserta.kind : null;
@@ -586,6 +591,7 @@ routerAdd("GET", "/api/event/soal", (e) => {
   // Pembahasan cuma ikut kalau hasil sudah dirilis DAN admin menyalakan
   // saklarnya (PRD bagian 9.2 tab Hasil).
   const bolehPembahasan = dirilis && ev.getBool("showExplanationAfterRelease");
+  const tampilkanPoin = ev.getBool("showPointsInExam");
 
   const isi = soal.map((q, i) => {
     const baris = {
@@ -593,7 +599,6 @@ routerAdd("GET", "/api/event/soal", (e) => {
       nomor: i + 1,
       teks: q.getString("questionText"),
       gambar: q.getString("imageUrl"),
-      poin: q.getInt("points") || 1,
       opsi: {
         A: q.getString("optionA"),
         B: q.getString("optionB"),
@@ -603,6 +608,9 @@ routerAdd("GET", "/api/event/soal", (e) => {
       },
       jawabanku: pilihan[q.id] || "",
     };
+    // Bobot poin: selama ujian hanya kalau admin menyalakan saklarnya;
+    // setelah dirilis selalu ikut (untuk tinjauan jawaban).
+    if (dirilis || tampilkanPoin) baris.poin = q.getInt("points") || 1;
     // INI baris terpenting di seluruh berkas: selama hasil belum dirilis,
     // kunci jawaban tidak pernah ikut keluar dari server.
     if (dirilis) {
@@ -803,41 +811,10 @@ routerAdd("GET", "/api/event/hasil", (e) => {
     return e.json(404, { kode: "BELUM_DAFTAR", message: "Akun ini tidak terdaftar di lomba tersebut." });
   }
 
-  let peringkatTotal = 0;
-  try {
-    peringkatTotal = e.app.findRecordsByFilter(
-      "event_registrations",
-      "event = '" + H.amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''"
-      + " && deletedAt = '' && disqualified = false",
-      "",
-      0,
-      0,
-    ).length;
-  } catch (_) { peringkatTotal = 0; }
-
-  // Isi pengumuman diatur admin: nilai saja, peringkat saja, atau keduanya.
-  // Yang tidak boleh dilihat peserta tidak dikirim sama sekali (null), bukan
-  // sekadar disembunyikan di layar.
-  const isi = ev.getString("resultsVisibility") || "FULL";
-  const lihatSkor = isi !== "RANK_ONLY";
-  const lihatRank = isi !== "SCORE_ONLY";
-
   return e.json(200, {
     event: { nama: ev.getString("name"), slug: ev.getString("slug") },
-    isiPengumuman: isi,
-    skor: lihatSkor ? reg.getInt("score") : null,
-    totalPoin: lihatSkor ? reg.getInt("totalPoints") : null,
-    peringkat: lihatRank ? reg.getInt("rank") : null,
-    dariPeserta: lihatRank ? peringkatTotal : null,
-    // Keputusan panitia di luar jawaban - ditampilkan apa adanya supaya
-    // peserta tahu kenapa skornya berbeda dari hitungan jawabannya. Angkanya
-    // ikut disembunyikan kalau nilai memang tidak diumumkan.
-    penyesuaian: lihatSkor ? Math.round(Number(reg.getFloat("pointAdjustment")) || 0) : 0,
-    catatanPoin: lihatSkor ? reg.getString("adjustmentNote") : "",
-    didiskualifikasi: reg.getBool("disqualified"),
-    alasanDiskualifikasi: reg.getString("disqualifiedReason"),
+    ...H.hasilPeserta(e.app, ev, reg),
     tampilkanPembahasan: ev.getBool("showExplanationAfterRelease"),
-    sudahKumpul: H.iso(reg, "examSubmittedAt") !== "",
   });
 });
 

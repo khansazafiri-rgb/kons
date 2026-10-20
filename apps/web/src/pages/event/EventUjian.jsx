@@ -479,6 +479,11 @@ export default function EventUjian() {
         {aktif && (
           <>
             <div className="rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
+              {aktif.poin != null && (
+                <p className="mb-3 inline-block rounded-full border border-gold-200 bg-gold-100/60 px-2.5 py-1 text-[11px] font-semibold text-gold-700">
+                  {aktif.poin} poin
+                </p>
+              )}
               {aktif.gambar && (
                 <img src={aktif.gambar} alt="" className="mb-4 max-h-80 w-full rounded-xl object-contain" />
               )}
