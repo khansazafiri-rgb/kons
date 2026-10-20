@@ -4,6 +4,7 @@ import { Award, CheckCircle2, Clock, Trophy, XCircle } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import { identitasEvent, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
 import { teksKeHtml } from '@/lib/teksSoal';
+import PilihanMasuk from './PilihanMasuk';
 
 // HASIL LOMBA (/event/:slug/hasil)
 //
@@ -41,6 +42,7 @@ export default function EventHasil() {
   const [soal, setSoal] = useState([]);
   const [penguranganSalah, setPenguranganSalah] = useState(0);
   const [peringkat, setPeringkat] = useState(null);
+  const [namaLomba, setNamaLomba] = useState('');
   const [belumRilis, setBelumRilis] = useState(null);
   const [error, setError] = useState('');
 
@@ -68,6 +70,10 @@ export default function EventHasil() {
         })
         .catch(() => { /* belum dirilis atau bukan peserta - abaikan */ });
     }
+
+    panggilEvent('/api/event/detail', { query: { slug } })
+      .then((d) => { if (hidup) setNamaLomba(d.nama || ''); })
+      .catch(() => { /* judul cadangan di bawah */ });
 
     panggilEvent('/api/event/peringkat', { query: { slug } })
       .then((d) => { if (hidup) setPeringkat(d); })
@@ -113,7 +119,7 @@ export default function EventHasil() {
         </Link>
 
         <h1 className="mt-3 font-display text-3xl font-semibold text-stone-800">
-          Hasil {hasil?.event?.nama || peringkat?.event?.nama || 'Lomba'}
+          Hasil {hasil?.event?.nama || peringkat?.event?.nama || namaLomba || 'Lomba'}
         </h1>
 
         {error && (
@@ -171,9 +177,16 @@ export default function EventHasil() {
         )}
 
         {!identitas && (
-          <p className="mt-6 rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 text-sm text-stone-600">
-            Masuk dengan akunmu untuk melihat skor dan tinjauan jawabanmu sendiri.
-          </p>
+          <div className="mt-6 rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
+            <h2 className="font-display text-lg font-semibold text-stone-800">Masuk untuk melihat hasilmu</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-stone-600">
+              Skor, peringkat, dan tinjauan jawabanmu hanya bisa dilihat dari akunmu sendiri. Pakai akun yang
+              kamu gunakan saat mendaftar lomba ini:
+            </p>
+            <div className="mt-4">
+              <PilihanMasuk kembali={`/event/${slug}/hasil`} gform />
+            </div>
+          </div>
         )}
 
         {/* 2. Tinjauan soal */}
