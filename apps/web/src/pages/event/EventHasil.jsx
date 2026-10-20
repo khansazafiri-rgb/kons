@@ -39,6 +39,7 @@ export default function EventHasil() {
 
   const [hasil, setHasil] = useState(null);
   const [soal, setSoal] = useState([]);
+  const [penguranganSalah, setPenguranganSalah] = useState(0);
   const [peringkat, setPeringkat] = useState(null);
   const [belumRilis, setBelumRilis] = useState(null);
   const [error, setError] = useState('');
@@ -60,7 +61,11 @@ export default function EventHasil() {
       // dirilis ia ikut mengirim kunci jawaban (dan pembahasan kalau
       // saklarnya menyala).
       panggilEvent('/api/event/soal', { query: { slug } })
-        .then((d) => { if (hidup && d.dirilis) setSoal(d.soal || []); })
+        .then((d) => {
+          if (!hidup || !d.dirilis) return;
+          setSoal(d.soal || []);
+          setPenguranganSalah(Number(d.penguranganSalah) || 0);
+        })
         .catch(() => { /* belum dirilis atau bukan peserta - abaikan */ });
     }
 
@@ -199,7 +204,7 @@ export default function EventHasil() {
                         }`}
                       >
                         {benar ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                        {benar ? 'Benar' : s.jawabanku ? 'Salah' : 'Tidak dijawab'}
+                        {benar ? 'Benar' : s.jawabanku ? `Salah${penguranganSalah > 0 ? ` · −${penguranganSalah} poin` : ''}` : 'Tidak dijawab'}
                       </span>
                     </div>
 

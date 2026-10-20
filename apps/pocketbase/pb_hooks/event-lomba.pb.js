@@ -625,6 +625,7 @@ routerAdd("GET", "/api/event/soal", (e) => {
     event: { nama: ev.getString("name"), slug: ev.getString("slug") },
     pendaftaranId: reg.id,
     dirilis,
+    penguranganSalah: H.penguranganSalah(ev),
     sudahKumpul: H.iso(reg, "examSubmittedAt") !== "",
     batas: batas ? new Date(batas).toISOString() : "",
     sisaDetik: batas ? Math.max(0, Math.floor((batas - now) / 1000)) : 0,
@@ -913,7 +914,7 @@ routerAdd("POST", "/api/event/rilis", (e) => {
 
   const hasil = [];
   baris.forEach((reg) => {
-    const n = H.nilaiSatu(e.app, reg, soal);
+    const n = H.nilaiSatu(e.app, reg, soal, H.penguranganSalah(ev));
     reg.set("score", n.skor);
     reg.set("totalPoints", n.total);
     hasil.push({ reg, skor: n.skor, kumpul: H.ms(reg, "examSubmittedAt") });

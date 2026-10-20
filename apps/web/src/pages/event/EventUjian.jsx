@@ -88,6 +88,7 @@ export default function EventUjian() {
   const [kode, setKode] = useState('');
   const [ev, setEv] = useState(null);
   const [soal, setSoal] = useState([]);
+  const [penguranganSalah, setPenguranganSalah] = useState(0);
   const [jawaban, setJawaban] = useState({});
   // Jawaban yang gagal sampai ke server tidak boleh hilang diam-diam: ia
   // dicoba lagi otomatis, dan peserta diberi tahu selama masih tertunda.
@@ -118,6 +119,7 @@ export default function EventUjian() {
   const muatSoal = useCallback(async () => {
     const d = await panggilEvent('/api/event/soal', { query: { slug, t: token } });
     setSoal(d.soal || []);
+    setPenguranganSalah(Number(d.penguranganSalah) || 0);
     setTandaAir(d.tandaAir || null);
     const awal = {};
     (d.soal || []).forEach((s) => { if (s.jawabanku) awal[s.id] = s.jawabanku; });
@@ -473,6 +475,13 @@ export default function EventUjian() {
         {pesan && (
           <p className="mb-4 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-3 text-sm text-gold-600">
             {pesan}
+          </p>
+        )}
+
+        {penguranganSalah > 0 && (
+          <p className="mb-4 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-2.5 text-[13px] leading-relaxed text-gold-700">
+            Tiap jawaban yang <span className="font-semibold">salah mengurangi {penguranganSalah} poin</span>.
+            Soal yang tidak dijawab tidak mengurangi.
           </p>
         )}
 

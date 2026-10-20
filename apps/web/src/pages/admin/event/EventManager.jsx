@@ -76,6 +76,7 @@ function eventBaru() {
     leaderboardDisplay: 'FULL_NAME',
     resultsVisibility: 'FULL',
     showPointsInExam: false,
+    wrongPenalty: 0,
     sebRequired: true,
     sebQuitPassword: '',
     sebAdminPassword: '',
@@ -226,7 +227,7 @@ export default function EventManager() {
       [
         'subject', 'bannerUrl', 'description', 'price', 'quota', 'timingModel',
         'durationMinutes', 'paymentContactWa', 'rulesText', 'resultsReleaseMode',
-        'showExplanationAfterRelease', 'leaderboardPublic', 'leaderboardDisplay', 'resultsVisibility', 'showPointsInExam',
+        'showExplanationAfterRelease', 'leaderboardPublic', 'leaderboardDisplay', 'resultsVisibility', 'showPointsInExam', 'wrongPenalty',
         'sebRequired', 'sebQuitPassword', 'sebAdminPassword', 'sebAllowedUrls',
         'sebAllowCalculator', 'eventType',
         'showQuestionCountPublic', 'showMechanismPublic', 'showParticipantCountPublic',

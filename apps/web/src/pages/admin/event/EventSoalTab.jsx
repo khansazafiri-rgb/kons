@@ -188,7 +188,25 @@ function TempelKode({ onImpor, onTutup, sibuk }) {
 // Saklar poin & poin massal - satu panel di atas daftar soal, bukan di tiap soal.
 function PanelPoin({ ev, soal, onSimpan, onSelesaiMassal, sibuk, setSibuk, setError }) {
   const [massal, setMassal] = useState('1');
+  const [penalti, setPenalti] = useState(String(Math.max(0, Math.round(Number(ev.wrongPenalty) || 0))));
   const nyala = !!ev.showPointsInExam;
+  const penaltiAsli = Math.max(0, Math.round(Number(ev.wrongPenalty) || 0));
+
+  const simpanPenalti = async () => {
+    const n = Math.max(0, Math.round(Number(penalti)) || 0);
+    setPenalti(String(n));
+    if (n === penaltiAsli) return;
+    setSibuk(true);
+    setError('');
+    try {
+      const rec = await pb.collection('events').update(ev.id, { wrongPenalty: n });
+      onSimpan?.(rec);
+    } catch (err) {
+      setError('Gagal menyimpan pengurangan poin: ' + (err?.message || ''));
+    } finally {
+      setSibuk(false);
+    }
+  };
 
   const ubahSaklar = async () => {
     setSibuk(true);
@@ -223,7 +241,7 @@ function PanelPoin({ ev, soal, onSimpan, onSelesaiMassal, sibuk, setSibuk, setEr
       <h4 className="font-display text-base font-semibold text-stone-800">Poin soal</h4>
       <p className="mt-0.5 text-[12px] leading-relaxed text-stone-500">
         Tiap soal punya poinnya sendiri (bawaan 1). Ubah lewat kolom poin di setiap soal di bawah, atau
-        atur sekaligus di sini. Skor peserta = jumlah poin soal yang dijawab benar.
+        atur sekaligus di sini. Skor peserta = jumlah poin soal yang dijawab benar, dikurangi pengurangan untuk jawaban salah (kalau diatur).
       </p>
 
       <button
@@ -246,6 +264,30 @@ function PanelPoin({ ev, soal, onSimpan, onSelesaiMassal, sibuk, setSibuk, setEr
         </span>
       </button>
 
+      <div className="mt-4 border-t border-alba-200 pt-4">
+        <label htmlFor="poin-salah" className={labelCls}>Pengurangan poin tiap jawaban salah</label>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            id="poin-salah"
+            type="number"
+            min={0}
+            step={1}
+            value={penalti}
+            disabled={sibuk}
+            onChange={(e) => setPenalti(e.target.value)}
+            onBlur={simpanPenalti}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+            className={`${inputCls} !w-28`}
+          />
+          <span className="text-[12px] text-stone-500">poin (0 = tidak ada pengurangan)</span>
+        </div>
+        <p className="mt-1 text-[12px] leading-relaxed text-stone-500">
+          Dikurangkan dari skor untuk setiap soal yang dijawab tapi salah. Soal yang tidak dijawab dan soal
+          bonus tidak mengurangi. Skor akhir tidak pernah di bawah 0. Setelah mengubahnya, tekan &ldquo;Hitung ulang
+          &amp; rilis lagi&rdquo; di tab Hasil kalau hasil sudah pernah dirilis.
+        </p>
+      </div>
+
       <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-alba-200 pt-4">
         <div>
           <label htmlFor="poin-massal" className={labelCls}>Samakan poin semua soal</label>
@@ -256,7 +298,7 @@ function PanelPoin({ ev, soal, onSimpan, onSelesaiMassal, sibuk, setSibuk, setEr
             step={1}
             value={massal}
             onChange={(e) => setMassal(e.target.value)}
-            className={`${inputCls} w-28`}
+            className={`${inputCls} !w-28`}
           />
         </div>
         <button
