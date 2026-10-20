@@ -477,7 +477,12 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
                         </p>
 
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-alba-200 pt-3">
-                          <p className="text-[13px] font-semibold text-stone-700">Review soal</p>
+                          <div>
+                            <p className="text-[13px] font-semibold text-stone-700">Review soal</p>
+                            <p className="text-[11px] text-stone-500">
+                              Tampilan khusus admin: kunci dan pembahasan selalu terlihat di sini, apa pun pengaturan untuk peserta.
+                            </p>
+                          </div>
                           <label className="inline-flex items-center gap-2 text-[12px] text-stone-600">
                             <input type="checkbox" checked={hanyaSalah} onChange={(e) => setHanyaSalah(e.target.checked)} />
                             Hanya yang salah / tidak dijawab
@@ -518,10 +523,17 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
                                   })}
                                 </ul>
                                 {q.explanation && (
-                                  <div
-                                    className="mt-2 rounded-lg bg-white px-3 py-2 text-[12px] leading-relaxed text-stone-600"
-                                    dangerouslySetInnerHTML={{ __html: teksKeHtml(q.explanation) }}
-                                  />
+                                  <div className="mt-2 rounded-lg bg-white px-3 py-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                                      Pembahasan · {ev.showExplanationAfterRelease
+                                        ? 'tampil ke peserta setelah rilis'
+                                        : 'hanya terlihat admin, TIDAK tampil ke peserta'}
+                                    </p>
+                                    <div
+                                      className="mt-1 text-[12px] leading-relaxed text-stone-600"
+                                      dangerouslySetInnerHTML={{ __html: teksKeHtml(q.explanation) }}
+                                    />
+                                  </div>
                                 )}
                               </div>
                             );
