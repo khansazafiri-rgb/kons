@@ -426,6 +426,44 @@ function isiPendaftaran(reg, ev, peserta, body) {
   reg.set("deletedAt", null);
 }
 
+// Hasil satu peserta, disaring menurut "yang diumumkan" (nilai & peringkat /
+// peringkat saja / nilai saja). Dipakai /api/event/hasil dan /api/event/detail
+// supaya keduanya tidak bisa berbeda. Yang tidak boleh dilihat peserta TIDAK
+// dikirim sama sekali (null), bukan sekadar disembunyikan di layar.
+function hasilPeserta(app, ev, reg) {
+  let peringkatTotal = 0;
+  try {
+    peringkatTotal = app.findRecordsByFilter(
+      "event_registrations",
+      "event = '" + amanId(ev.id) + "' && paymentStatus = 'APPROVED' && examSubmittedAt != ''"
+      + " && deletedAt = '' && disqualified = false",
+      "",
+      0,
+      0,
+    ).length;
+  } catch (_) { peringkatTotal = 0; }
+
+  const isi = ev.getString("resultsVisibility") || "FULL";
+  const lihatSkor = isi !== "RANK_ONLY";
+  const lihatRank = isi !== "SCORE_ONLY";
+
+  return {
+    isiPengumuman: isi,
+    skor: lihatSkor ? reg.getInt("score") : null,
+    totalPoin: lihatSkor ? reg.getInt("totalPoints") : null,
+    peringkat: lihatRank ? reg.getInt("rank") : null,
+    dariPeserta: lihatRank ? peringkatTotal : null,
+    // Keputusan panitia di luar jawaban - ditampilkan apa adanya supaya
+    // peserta tahu kenapa skornya berbeda dari hitungan jawabannya. Angkanya
+    // ikut disembunyikan kalau nilai memang tidak diumumkan.
+    penyesuaian: lihatSkor ? Math.round(Number(reg.getFloat("pointAdjustment")) || 0) : 0,
+    catatanPoin: lihatSkor ? reg.getString("adjustmentNote") : "",
+    didiskualifikasi: reg.getBool("disqualified"),
+    alasanDiskualifikasi: reg.getString("disqualifiedReason"),
+    sudahKumpul: iso(reg, "examSubmittedAt") !== "",
+  };
+}
+
 function hitungTerdaftar(app, eventId) {
   const ev = amanId(eventId);
   if (!ev) return 0;
@@ -689,6 +727,7 @@ function tandaAirDari(ev, reg) {
 
 module.exports = {
   amanId,
+  hasilPeserta,
   jsonArray,
   pesertaDari,
   isAdminPcv,

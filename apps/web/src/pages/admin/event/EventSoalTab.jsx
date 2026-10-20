@@ -82,8 +82,8 @@ function Penyunting({ awal, onSimpan, onBatal, sibuk }) {
           <textarea id="sl-bahas" rows={3} value={f.explanation || ''} onChange={ubah('explanation')} className={inputCls} />
         </div>
         <div>
-          <label htmlFor="sl-poin" className={labelCls}>Bobot poin</label>
-          <input id="sl-poin" type="number" min={0} value={f.points ?? 1} onChange={(e) => setF((l) => ({ ...l, points: Number(e.target.value) }))} className={inputCls} />
+          <label htmlFor="sl-poin" className={labelCls}>Poin soal ini</label>
+          <input id="sl-poin" type="number" min={1} step={1} value={f.points ?? 1} onChange={(e) => setF((l) => ({ ...l, points: Math.max(1, Math.round(Number(e.target.value)) || 1) }))} className={inputCls} />
         </div>
       </div>
 
@@ -185,7 +185,125 @@ function TempelKode({ onImpor, onTutup, sibuk }) {
   );
 }
 
-export default function EventSoalTab({ ev }) {
+// Saklar poin & poin massal - satu panel di atas daftar soal, bukan di tiap soal.
+function PanelPoin({ ev, soal, onSimpan, onSelesaiMassal, sibuk, setSibuk, setError }) {
+  const [massal, setMassal] = useState('1');
+  const nyala = !!ev.showPointsInExam;
+
+  const ubahSaklar = async () => {
+    setSibuk(true);
+    setError('');
+    try {
+      const rec = await pb.collection('events').update(ev.id, { showPointsInExam: !nyala });
+      onSimpan?.(rec);
+    } catch (err) {
+      setError('Gagal menyimpan pengaturan: ' + (err?.message || ''));
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  const terapkan = async () => {
+    const n = Math.max(1, Math.round(Number(massal)) || 1);
+    if (!window.confirm(`Ubah poin SEMUA ${soal.length} soal menjadi ${n}? Poin yang sudah kamu atur satu per satu akan tertimpa.`)) return;
+    setSibuk(true);
+    setError('');
+    try {
+      await Promise.all(soal.map((s) => pb.collection('event_questions').update(s.id, { points: n })));
+      onSelesaiMassal();
+    } catch (err) {
+      setError('Gagal mengubah poin: ' + (err?.message || ''));
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
+      <h4 className="font-display text-base font-semibold text-stone-800">Poin soal</h4>
+      <p className="mt-0.5 text-[12px] leading-relaxed text-stone-500">
+        Tiap soal punya poinnya sendiri (bawaan 1). Ubah lewat kolom poin di setiap soal di bawah, atau
+        atur sekaligus di sini. Skor peserta = jumlah poin soal yang dijawab benar.
+      </p>
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={nyala}
+        onClick={ubahSaklar}
+        disabled={sibuk}
+        className="mt-4 flex w-full items-start gap-3 text-left disabled:opacity-60"
+      >
+        <span className={`mt-0.5 flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${nyala ? 'bg-maroon-600' : 'bg-stone-300'}`}>
+          <span className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${nyala ? 'translate-x-5' : ''}`} />
+        </span>
+        <span>
+          <span className="block text-[13px] font-semibold text-stone-800">Tampilkan poin tiap soal saat pengerjaan</span>
+          <span className="mt-0.5 block text-[12px] leading-relaxed text-stone-500">
+            Kalau mati, peserta tidak melihat poin selama ujian. Setelah hasil dirilis, poin tiap soal tetap
+            tampil di tinjauan jawaban.
+          </span>
+        </span>
+      </button>
+
+      <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-alba-200 pt-4">
+        <div>
+          <label htmlFor="poin-massal" className={labelCls}>Samakan poin semua soal</label>
+          <input
+            id="poin-massal"
+            type="number"
+            min={1}
+            step={1}
+            value={massal}
+            onChange={(e) => setMassal(e.target.value)}
+            className={`${inputCls} w-28`}
+          />
+        </div>
+        <button
+          onClick={terapkan}
+          disabled={sibuk || !soal || soal.length === 0}
+          className="rounded-xl border border-alba-300 px-4 py-2.5 text-[13px] font-semibold text-stone-600 hover:border-maroon-300 disabled:opacity-50"
+        >
+          Terapkan ke semua soal
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// Poin satu soal yang bisa diubah langsung dari daftar; tersimpan saat kolomnya
+// ditinggalkan atau Enter ditekan.
+function PoinBaris({ soal, onSimpan, sibuk }) {
+  const asli = Number(soal.points) || 1;
+  const [nilai, setNilai] = useState(String(asli));
+  useEffect(() => { setNilai(String(asli)); }, [asli]);
+
+  const simpan = () => {
+    const n = Math.max(1, Math.round(Number(nilai)) || 1);
+    setNilai(String(n));
+    if (n !== asli) onSimpan(soal.id, n);
+  };
+
+  return (
+    <label className="inline-flex items-center gap-1.5 text-[11px] text-stone-500">
+      Poin
+      <input
+        type="number"
+        min={1}
+        step={1}
+        value={nilai}
+        disabled={sibuk}
+        onChange={(e) => setNilai(e.target.value)}
+        onBlur={simpan}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+        className="w-14 rounded-lg border border-alba-300 bg-alba-50 px-2 py-1 text-[12px] font-semibold text-stone-800 focus:border-maroon-300 focus:outline-none"
+        aria-label="Poin soal"
+      />
+    </label>
+  );
+}
+
+export default function EventSoalTab({ ev, onSimpan }) {
   const [soal, setSoal] = useState(null);
   const [sunting, setSunting] = useState(null); // 'baru' | id
   const [tempel, setTempel] = useState(false);
@@ -215,6 +333,19 @@ export default function EventSoalTab({ ev }) {
       muat();
     } catch (err) {
       setError('Gagal menyimpan soal: ' + (err?.message || ''));
+    } finally {
+      setSibuk(false);
+    }
+  };
+
+  const simpanPoin = async (id, n) => {
+    setSibuk(true);
+    setError('');
+    try {
+      await pb.collection('event_questions').update(id, { points: n });
+      muat();
+    } catch (err) {
+      setError('Gagal menyimpan poin: ' + (err?.message || ''));
     } finally {
       setSibuk(false);
     }
@@ -299,6 +430,16 @@ export default function EventSoalTab({ ev }) {
 
       {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
+      <PanelPoin
+        ev={ev}
+        soal={soal}
+        onSimpan={onSimpan}
+        onSelesaiMassal={muat}
+        sibuk={sibuk}
+        setSibuk={setSibuk}
+        setError={setError}
+      />
+
       {tempel && <TempelKode onImpor={impor} onTutup={() => setTempel(false)} sibuk={sibuk} />}
 
       {sunting === 'baru' && (
@@ -337,9 +478,11 @@ export default function EventSoalTab({ ev }) {
                     />
                     <p className="mt-1 text-[11px] text-stone-500">
                       Kunci <span className="font-semibold text-emerald-700">{s.correctAnswer}</span>
-                      {' · '}{Number(s.points) || 1} poin
                       {s.explanation ? ' · ada pembahasan' : ' · tanpa pembahasan'}
                     </p>
+                    <div className="mt-1.5">
+                      <PoinBaris soal={s} onSimpan={simpanPoin} sibuk={sibuk} />
+                    </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <button onClick={() => geser(i, -1)} disabled={i === 0 || sibuk} className="rounded-lg p-1.5 text-stone-400 hover:bg-alba-200 hover:text-stone-700 disabled:opacity-30" aria-label="Naikkan"><ChevronUp size={15} /></button>

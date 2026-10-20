@@ -11,6 +11,7 @@ import {
 } from '@/lib/eventLomba';
 import { ambilInfoSeb } from '@/lib/seb';
 import { teksInfoKeHtml } from '@/lib/teksSoal';
+import KartuHasil from './KartuHasil';
 
 // Deskripsi & aturan sering ditempel dari broadcast WA: Enter, *tebal*, dan
 // tautan harus tetap tampil seperti aslinya (lihat teksInfoKeHtml).
@@ -502,51 +503,59 @@ export default function EventDetail() {
           </div>
 
           <aside className="space-y-4 lg:sticky lg:top-24">
-            <div className="rounded-2xl border border-maroon-200 bg-maroon-50/40 p-5">
-              {ev.modeDaftar === 'GFORM' ? (
-                <>
-                  <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
-                    <ClipboardList size={13} /> Pendaftaran
-                  </p>
-                  <p className="mt-1 font-display text-xl font-semibold text-maroon-600">
-                    Lewat Google Form
-                  </p>
-                  <p className="mt-1.5 text-[12px] leading-relaxed text-stone-600">
-                    Sudah mengisi Google Form? Buat akun (atau masuk) di sini, lalu chat admin untuk
-                    konfirmasi. Tidak ada pembayaran di web ini.
-                  </p>
-                  {ev.gformUrl && !ev.saya && (
-                    <a
-                      href={ev.gformUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 inline-block text-[12px] font-semibold text-maroon-600 hover:underline"
-                    >
-                      Belum mengisi? Buka Google Form →
-                    </a>
-                  )}
-                </>
-              ) : (
-                <>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
-                    Biaya pendaftaran
-                  </p>
-                  <p className="mt-1 font-display text-3xl font-semibold text-maroon-600">
-                    {rupiah(ev.harga)}
-                  </p>
-                  <p className="mt-1.5 text-[12px] leading-relaxed text-stone-600">
-                    Pembayaran lewat transfer, dikonfirmasi manual ke admin lewat WhatsApp.
-                  </p>
-                </>
-              )}
-              <div className="mt-4">
-                {ev.saya
-                  ? <p className="text-[13px] font-semibold text-stone-600">Keadaan pendaftaranmu ada di bawah ↓</p>
-                  : <AjakanDaftar ev={ev} identitas={identitas} />}
+            {!ev.saya?.hasil && (
+              <div className="rounded-2xl border border-maroon-200 bg-maroon-50/40 p-5">
+                {ev.modeDaftar === 'GFORM' ? (
+                  <>
+                    <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
+                      <ClipboardList size={13} /> Pendaftaran
+                    </p>
+                    <p className="mt-1 font-display text-xl font-semibold text-maroon-600">
+                      Lewat Google Form
+                    </p>
+                    <p className="mt-1.5 text-[12px] leading-relaxed text-stone-600">
+                      Sudah mengisi Google Form? Buat akun (atau masuk) di sini, lalu chat admin untuk
+                      konfirmasi. Tidak ada pembayaran di web ini.
+                    </p>
+                    {ev.gformUrl && !ev.saya && (
+                      <a
+                        href={ev.gformUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-block text-[12px] font-semibold text-maroon-600 hover:underline"
+                      >
+                        Belum mengisi? Buka Google Form →
+                      </a>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-maroon-500">
+                      Biaya pendaftaran
+                    </p>
+                    <p className="mt-1 font-display text-3xl font-semibold text-maroon-600">
+                      {rupiah(ev.harga)}
+                    </p>
+                    <p className="mt-1.5 text-[12px] leading-relaxed text-stone-600">
+                      Pembayaran lewat transfer, dikonfirmasi manual ke admin lewat WhatsApp.
+                    </p>
+                  </>
+                )}
+                <div className="mt-4">
+                  {ev.saya
+                    ? (
+                      <p className="text-[13px] font-semibold text-stone-600">
+                        Keadaan pendaftaranmu ada di bawah ↓
+                      </p>
+                    )
+                    : <AjakanDaftar ev={ev} identitas={identitas} />}
+                </div>
               </div>
-            </div>
+            )}
 
-            {ev.saya && (
+            {ev.saya?.hasil && <KartuHasil ev={ev} hasil={ev.saya.hasil} />}
+
+            {ev.saya && !ev.saya.hasil && (
               <KartuPendaftaran
                 ev={ev}
                 saya={ev.saya}
@@ -558,7 +567,7 @@ export default function EventDetail() {
               />
             )}
 
-            {ev.peringkatPublik && ev.hasilDirilis && ev.isiPengumuman !== 'SCORE_ONLY' && (
+            {ev.peringkatPublik && ev.hasilDirilis && ev.isiPengumuman !== 'SCORE_ONLY' && !ev.saya?.hasil && (
               <Link
                 to={`/event/${ev.slug}/hasil`}
                 className="flex items-center gap-2 rounded-2xl border border-alba-200 bg-alba-50 px-5 py-4 text-sm font-semibold text-maroon-600 shadow-card hover:border-maroon-300"
