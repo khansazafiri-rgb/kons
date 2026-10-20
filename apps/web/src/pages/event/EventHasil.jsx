@@ -4,7 +4,7 @@ import { Award, CheckCircle2, Clock, Trophy, XCircle } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import { identitasEvent, panggilEvent, tanggalPanjang } from '@/lib/eventLomba';
 import { teksKeHtml } from '@/lib/teksSoal';
-import PilihanMasuk from './PilihanMasuk';
+import FormMasukPeserta from './FormMasukPeserta';
 
 // HASIL LOMBA (/event/:slug/hasil)
 //
@@ -43,6 +43,8 @@ export default function EventHasil() {
   const [penguranganSalah, setPenguranganSalah] = useState(0);
   const [peringkat, setPeringkat] = useState(null);
   const [namaLomba, setNamaLomba] = useState('');
+  // Dinaikkan setelah masuk di halaman ini, supaya skor dimuat ulang tanpa memuat ulang halaman.
+  const [versi, setVersi] = useState(0);
   const [belumRilis, setBelumRilis] = useState(null);
   const [error, setError] = useState('');
 
@@ -81,7 +83,7 @@ export default function EventHasil() {
 
     return () => { hidup = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, versi]);
 
   // Tautan "Papan peringkat" dari kartu hasil: loncat ke bagiannya begitu ada.
   useEffect(() => {
@@ -177,15 +179,14 @@ export default function EventHasil() {
         )}
 
         {!identitas && (
-          <div className="mt-6 rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
-            <h2 className="font-display text-lg font-semibold text-stone-800">Masuk untuk melihat hasilmu</h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-stone-600">
-              Skor, peringkat, dan tinjauan jawabanmu hanya bisa dilihat dari akunmu sendiri. Pakai akun yang
-              kamu gunakan saat mendaftar lomba ini:
+          <div className="mt-6">
+            <p className="mb-4 text-sm leading-relaxed text-stone-600">
+              Skor, peringkat, dan tinjauan jawabanmu hanya bisa dilihat dari akunmu sendiri. Masuk dulu:
             </p>
-            <div className="mt-4">
-              <PilihanMasuk kembali={`/event/${slug}/hasil`} gform />
-            </div>
+            <FormMasukPeserta
+              onMasuk={async () => setVersi((v) => v + 1)}
+              catatanBawah="Lupa password, atau akunmu belum bisa dipakai? Hubungi admin lomba."
+            />
           </div>
         )}
 
