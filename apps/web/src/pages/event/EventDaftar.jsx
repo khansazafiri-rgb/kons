@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, LogIn, MessageCircle, UserPlus, Wallet } from 'lucide-react';
+import { LogIn, MessageCircle, UserPlus, Wallet } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import pbo from '@/lib/olimpClient';
 import {
   identitasEvent, panggilEvent, rupiah, tautanWaKonfirmasi, tautanWaPembayaran,
 } from '@/lib/eventLomba';
 import { tautanMasuk } from '@/lib/returnTo';
+import PilihanMasuk from './PilihanMasuk';
 
 // FORMULIR PENDAFTARAN LOMBA (/event/:slug/daftar)
 //
@@ -42,29 +43,8 @@ function PerluMasuk({ slug, gform }) {
           ? 'Kalau kamu sudah punya akun PCV Classroom atau Web Olimp, pakai akun itu — tidak perlu membuat akun baru.'
           : 'Pendaftaran lomba memakai akun yang sudah kamu punya — tidak perlu membuat akun baru khusus lomba. Pilih yang sesuai:'}
       </p>
-      <div className="mt-4 space-y-2.5">
-        <Link
-          to={tautanMasuk('/login', kembali)}
-          className="flex items-center justify-between rounded-xl border border-maroon-200 bg-maroon-50/50 px-4 py-3 transition-colors hover:border-maroon-300"
-        >
-          <span>
-            <span className="block text-sm font-semibold text-stone-800">Akun PCV Classroom</span>
-            <span className="block text-[12px] text-stone-500">Akun siswa yang kamu pakai belajar sehari-hari</span>
-          </span>
-          <ArrowRight size={16} className="shrink-0 text-maroon-600" />
-        </Link>
-        <Link
-          to={tautanMasuk('/olimp/masuk', kembali)}
-          className="flex items-center justify-between rounded-xl border border-alba-300 px-4 py-3 transition-colors hover:border-maroon-300"
-        >
-          <span>
-            <span className="block text-sm font-semibold text-stone-800">Akun Web Olimp</span>
-            <span className="block text-[12px] text-stone-500">
-              {gform ? 'Termasuk akun yang dibuat di halaman lomba ini' : 'Kalau kamu peserta bank soal olimpiade'}
-            </span>
-          </span>
-          <ArrowRight size={16} className="shrink-0 text-maroon-600" />
-        </Link>
+      <div className="mt-4">
+        <PilihanMasuk kembali={kembali} gform={gform} />
       </div>
       {!gform && (
         <p className="mt-4 text-[12px] leading-relaxed text-stone-500">
