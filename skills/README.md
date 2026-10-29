@@ -31,6 +31,7 @@ sini.
 | `konverter-soal-multi-tipe/` | PCV Classroom | Mengubah kiriman soal campuran (isian/MCQ, bergambar/non-gambar) jadi satu array JavaScript siap tempel ke Import Massal. Termasuk aturan pembahasan tunggal per soal & konversi link Drive ke lh3. |
 | `olimp-blueprint/` | Web Olimp | **Menulis** draf pembahasan 8 bagian dari kasus klinis + soal + pilihan yang diberikan guru, sekaligus mengusulkan di mana gambar sebaiknya dipasang. |
 | `olimp-konverter-soal/` | Web Olimp | **Membaca & memeriksa** isi template Google Docs Olimp lalu mengubahnya jadi satu array JSON siap tempel ke Dashboard Olimp → Edit Soal → "Tempel Kode JSON". Tidak pernah mengarang isi soal. |
+| `medcoel-qc-json-soal/` | MEDCOEL | **Memeriksa dan memperbaiki** soal kiriman siswa (kunci, struktur, cueing, kesesuaian BAB), menulis pembahasan lucu tapi akurat, lalu menghasilkan JSON schemaVersion 1 (tipe A, K, isian) siap kirim ke Hermes (`/put`) atau Dashboard → Edit Soal → Tempel JSON. Divalidasi dengan parser asli MEDCOEL (`format.js`). |
 
 ## Urutan pakai untuk soal Olimp
 
@@ -44,3 +45,12 @@ guru menulis soal di Google Docs
 
 Template Google Docs-nya sendiri perlu diperbarui supaya punya baris gambar —
 perintah siap tempelnya ada di [`../OLIMP_TEMPLATE_GDOC_PROMPT.md`](../OLIMP_TEMPLATE_GDOC_PROMPT.md).
+
+## Urutan pakai untuk soal kiriman siswa MEDCOEL
+
+```
+siswa mengirim soal (form Pengajuan soal / PDF / chat)
+   → MEDCOEL - QC + JSON Soal  ........... QC, perbaikan, pembahasan lucu, file <KODE>.json
+   → tinjau bagian "butuh keputusanmu"
+   → kirim <KODE>.json ke bot Hermes dengan caption /put KODE  (atau tempel di Edit Soal)
+```
