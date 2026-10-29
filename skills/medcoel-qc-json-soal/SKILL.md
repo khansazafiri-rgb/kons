@@ -119,7 +119,13 @@ Teks boleh pakai `**tebal**`, `*miring*`, `~subskrip~` (H~2~O), `^superskrip^` (
 ]
 ```
 
-Blok yang berguna: `paragraph`, `list` (`items`, `ordered`), `table` (`rows`, `header`), `note` (`variant`: `highyield`, `warning`, `info`, `tip`), `formula`. Hindari `image` kecuali ada tautan nyata.
+Blok yang berguna: `paragraph`, `list` (`items`, `ordered`), `table` (`rows`, `header`), `note` (`variant`: `highyield`, `warning`, `info`, `tip`), `formula`, dan `image`.
+
+**Gambar di pembahasan.** Hanya pakai gambar bila tautannya benar-benar ada di kiriman; jangan mengarang tautan. Cara menulis yang tampil benar di web:
+- Terbaik: blok `{ "type": "image", "url": "<link lh3 atau Drive>", "caption": "keterangan" }`.
+- Juga tampil: tautan lh3/Drive yang ditulis polos di dalam teks (paragraf, penjelasan opsi, butir daftar); web mengubahnya jadi gambar di tempat tautan itu berada.
+- **Jangan** pakai sintaks Markdown `![ket](link)` atau `[teks](link-lh3)`: tidak dikenali dan tampil berantakan.
+- Link Drive biasa (`drive.google.com/file/d/ID/view`) otomatis diubah ke `https://lh3.googleusercontent.com/d/ID`. Gambar hanya muncul bila file di Drive dibagikan "Siapa saja yang memiliki link"; ingatkan user memeriksanya bila gambarnya tidak muncul.
 
 ### Pola pembahasan per tipe
 
