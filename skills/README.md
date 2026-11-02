@@ -32,6 +32,7 @@ sini.
 | `olimp-blueprint/` | Web Olimp | **Menulis** draf pembahasan 8 bagian dari kasus klinis + soal + pilihan yang diberikan guru, sekaligus mengusulkan di mana gambar sebaiknya dipasang. |
 | `olimp-konverter-soal/` | Web Olimp | **Membaca & memeriksa** isi template Google Docs Olimp lalu mengubahnya jadi satu array JSON siap tempel ke Dashboard Olimp → Edit Soal → "Tempel Kode JSON". Tidak pernah mengarang isi soal. |
 | `medcoel-qc-json-soal/` | MEDCOEL | **Memeriksa dan memperbaiki** soal kiriman siswa (kunci, struktur, cueing, kesesuaian BAB), menulis pembahasan lucu tapi akurat, lalu menghasilkan JSON schemaVersion 1 (tipe A, K, isian) siap kirim ke Hermes (`/put`) atau Dashboard → Edit Soal → Tempel JSON. Divalidasi dengan parser asli MEDCOEL (`format.js`). |
+| `medcoel-materi-slide-json/` | MEDCOEL | **Mengubah PPT/PDF materi + daftar link gambar slide (lh3/Drive) menjadi JSON materi**: tiap slide = satu gambar lh3 + penjelasan rapi (paragraf, daftar bernomor dan bersarang dengan tab, kotak klinis/high-yield, tabel, emoji). Diimpor ke Drilling lewat Hermes (`/put` untuk pengajuan "PPT materi") atau Dashboard → Drilling → Materi → Impor. Format dan batas ada di `docs/MATERI_SLIDE.md` repo mpruy; divalidasi dengan parser asli (`slides.js`). |
 
 ## Urutan pakai untuk soal Olimp
 
