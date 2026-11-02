@@ -15,6 +15,8 @@ Kenapa satu paket: link tanpa penjelasan hanya galeri gambar, dan penjelasan han
 2. **Daftar link per slide, berurutan:** `https://lh3.googleusercontent.com/d/FILE_ID` (link berbagi `drive.google.com/file/d/FILE_ID/...` atau FILE_ID mentah juga boleh; ubah ke lh3). Slide ke-N di PDF = link ke-N.
 3. Opsional: **judul materi**, mata kuliah, dan kode pengajuan (mis. `MC261102-PPTX`, dipakai untuk nama file).
 
+**Soal judul:** judul yang dilihat siswa di web diambil otomatis dari **nama PDF** yang dikirim pengaju (mis. `Histologi_Epitel Kuliah1.pptx.pdf` menjadi "Histologi Epitel Kuliah1") saat JSON diimpor. Kamu tetap mengisi `title` dengan judul yang sama (atau judul dari slide pertama bila nama PDF tidak diketahui) sebagai cadangan. Kalau satu pengajuan punya beberapa PDF dan kamu membuat JSON per PDF, tanyakan **nomor PDF** tiap JSON dan sebutkan di cara pakai (`/put KODE 2`).
+
 Kalau jumlah link tidak sama dengan jumlah slide, **berhenti dan tanya**, jangan mencocokkan dengan menebak. Kalau ada slide yang tidak punya gambar (mis. link hilang), tanyakan; slide tanpa gambar boleh hanya berisi penjelasan, tapi itu keputusan user.
 
 ## Alur kerja
@@ -140,7 +142,7 @@ Selalu serahkan, dalam urutan ini:
 2. **Butuh keputusanmu** (hanya bila ada): mis. "Slide 14 tidak terbaca jelas, apakah ini tabel dosis? Kamu bisa kirim ulang gambarnya?" atau "Jumlah link 31, slide 32."
 3. **File JSON.** Simpan sebagai `<KODE-PENGAJUAN>.materi.json` (atau `materi-<judul-singkat>.json`) dan tampilkan juga di blok kode bila ringkas (di atas sekitar 15 slide, cukup file dan tampilkan 2 slide contoh).
 4. **Cara memakai**, satu baris:
-   - Hermes (Telegram): kirim file `.json` sebagai *document* dengan caption `/put KODE-PENGAJUAN`, tinjau rencana, lalu `/confirm` (untuk PPT materi tujuannya otomatis Drilling > materi).
+   - Hermes (Telegram): kirim file `.json` sebagai *document* dengan caption `/put KODE-PENGAJUAN` (pengajuan beberapa PDF: `/put KODE-PENGAJUAN 2`, nomornya sama dengan `/files KODE 2`), tinjau rencana (judul di web dari judul PDF tampil di situ), lalu `/confirm` (untuk PPT materi tujuannya otomatis Drilling > materi).
    - Dashboard: Admin → Drilling → pilih mata kuliah → Materi → Impor materi (JSON).
 
 Jangan mengklaim "sudah divalidasi" kecuali kamu benar-benar menjalankan validasi di atas dan hasilnya OK.
