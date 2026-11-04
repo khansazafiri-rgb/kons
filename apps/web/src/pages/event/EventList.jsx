@@ -86,7 +86,7 @@ function KartuEvent({ ev }) {
 
         {/* Jumlah pendaftar & kuota sengaja TIDAK ditampilkan ke umum
             (PRD Revisi 2 bagian 3.1) - server pun tidak mengirimkannya. */}
-        <dl className="mt-3 space-y-1.5 text-[13px] text-stone-600">
+        <div className="mt-3 space-y-1.5 text-[13px] text-stone-600">
           <div className="flex items-center gap-2">
             <CalendarDays size={14} aria-hidden className="shrink-0 text-maroon-500" />
             <span>Ujian {tanggalPendek(ev.mulaiUjian)}</span>
@@ -100,7 +100,7 @@ function KartuEvent({ ev }) {
               </span>
             </div>
           )}
-        </dl>
+        </div>
 
         <div className="mt-4 flex items-center justify-between border-t border-alba-200 pt-3">
           <span className="font-display text-base font-semibold text-maroon-600">
@@ -142,7 +142,7 @@ export default function EventList() {
     <LandingLayout>
       <section className="mx-auto w-full max-w-6xl px-6 py-14">
         <header className="max-w-2xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-200 bg-gold-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gold-600">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gold-200 bg-gold-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#6f5814]">
             Lomba berkala
           </span>
           <h1 className="mt-3 font-display text-3xl font-semibold text-stone-800 sm:text-4xl">

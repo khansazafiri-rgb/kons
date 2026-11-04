@@ -134,7 +134,7 @@ export const STATUS_EVENT = {
 // cuma label, supaya peserta tahu ini lomba biasa atau olimpiade.
 export const TIPE_EVENT = {
   LOMBA: { teks: 'Lomba', cls: 'border-maroon-200 bg-maroon-50 text-maroon-600' },
-  OLIMPIADE: { teks: 'Olimpiade', cls: 'border-gold-200 bg-gold-100 text-gold-600' },
+  OLIMPIADE: { teks: 'Olimpiade', cls: 'border-gold-200 bg-gold-100 text-[#6f5814]' },
 };
 
 export const STATUS_BAYAR = {

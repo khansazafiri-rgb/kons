@@ -8,25 +8,35 @@
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <meta name="theme-color" content="#8E0100" />
    <meta name="description" content="Bimbingan belajar mahasiswa Fakultas Kedokteran dari berbagai kampus. Baca PPT, kerjakan soal tiap BAB dan soal tahun sebelumnya, serta kelas reguler, privat, dan olimpiade." />
-   <title>PCV Classroom — Bimbel FK Ter Worth-It</title>
+   <title>PCV Classroom - Bimbel FK Ter Worth-It</title>
 
    <!-- Preview saat link dibagikan di WhatsApp, Instagram, dsb.
         scraper WhatsApp butuh URL lengkap, bukan path relatif. -->
    <meta property="og:type" content="website" />
    <meta property="og:site_name" content="PCV Classroom" />
-   <meta property="og:title" content="PCV Classroom — Bimbel FK Ter Worth-It" />
+   <meta property="og:title" content="PCV Classroom - Bimbel FK Ter Worth-It" />
    <meta property="og:description" content="Bimbingan belajar mahasiswa Fakultas Kedokteran dari berbagai kampus. Baca PPT, kerjakan soal tiap BAB dan soal tahun sebelumnya, serta kelas reguler, privat, dan olimpiade." />
    <meta property="og:url" content="https://pcvclassroom.com/" />
    <meta property="og:image" content="https://pcvclassroom.com/logo-pcv.png" />
    <meta name="twitter:card" content="summary" />
-   <meta name="twitter:title" content="PCV Classroom — Bimbel FK Ter Worth-It" />
+   <meta name="twitter:title" content="PCV Classroom - Bimbel FK Ter Worth-It" />
    <meta name="twitter:description" content="Bimbingan belajar mahasiswa Fakultas Kedokteran dari berbagai kampus. Baca PPT, kerjakan soal tiap BAB dan soal tahun sebelumnya, serta kelas reguler, privat, dan olimpiade." />
    <link rel="preconnect" href="https://fonts.googleapis.com" />
    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
  </head>
  <body>
-   <div id="root"></div>
+   <!-- Isi sementara selama berkas aplikasi diunduh. Di koneksi lambat ini
+        yang terlihat beberapa detik pertama, bukan layar putih kosong.
+        React menggantinya begitu aplikasi siap. -->
+   <div id="root">
+     <div role="status" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#FDFBF7;font-family:system-ui,sans-serif;color:#740100;font-size:15px;font-weight:600">
+       Memuat PCV Classroom&hellip;
+     </div>
+   </div>
+   <noscript>
+     <p style="padding:24px;font-family:system-ui,sans-serif">PCV Classroom membutuhkan JavaScript. Aktifkan JavaScript di browsermu lalu muat ulang halaman.</p>
+   </noscript>
    <script type="module" src="/src/main.jsx"></script>
  </body>
 </html>

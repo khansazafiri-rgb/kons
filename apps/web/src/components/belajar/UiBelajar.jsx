@@ -6,7 +6,7 @@ import { LABEL_STATUS, STATUS } from '@/lib/belajar';
 // Penanda status kegiatan belajar. Selalu ikon + teks: status tidak pernah
 // dibedakan lewat warna saja (WCAG 1.4.1).
 const GAYA = {
-  [STATUS.TIDAK_ADA]: { ikon: Minus, cls: 'border-alba-300 bg-alba-100 text-stone-500' },
+  [STATUS.TIDAK_ADA]: { ikon: Minus, cls: 'border-alba-300 bg-alba-100 text-stone-700' },
   [STATUS.BELUM]: { ikon: CircleDashed, cls: 'border-alba-300 bg-white text-stone-700' },
   [STATUS.PROSES]: { ikon: Clock3, cls: 'border-gold-200 bg-gold-100 text-[#6f5814]' },
   [STATUS.SELESAI]: { ikon: Check, cls: 'border-green-200 bg-green-50 text-green-800' },
