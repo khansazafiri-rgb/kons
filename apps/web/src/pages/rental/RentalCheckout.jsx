@@ -207,7 +207,7 @@ export default function RentalCheckout() {
                       <p className="font-bold text-stone-900">{b.nama}{b.tipe === 'ALAT' && b.jumlah > 1 ? ` ×${b.jumlah}` : ''}</p>
                       <p className="text-stone-500">{jadwalKalimat(b.mulai, b.selesai)}</p>
                     </div>
-                    <p className="shrink-0 text-[13px] font-bold text-stone-800">{hasil?.baris?.[i] ? rupiah(hasil.baris[i].total) : '—'}</p>
+                    <p className="shrink-0 text-[13px] font-bold text-stone-800">{hasil?.baris?.[i] ? rupiah(hasil.baris[i].total) : '-'}</p>
                   </li>
                 ))}
               </ul>

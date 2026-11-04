@@ -145,8 +145,8 @@ function OlimpBlueprintInner() {
           {[
             { label: 'Jumlah soal', value: totalSoal },
             { label: 'Estimasi waktu', value: `${Math.round(totalDetik / 60)} menit` },
-            { label: 'Bahasa soal', value: pkg.language || '—' },
-            { label: 'Bahasa jawaban', value: pkg.answerLanguage || '—' },
+            { label: 'Bahasa soal', value: pkg.language || '-' },
+            { label: 'Bahasa jawaban', value: pkg.answerLanguage || '-' },
           ].map((s) => (
             <div key={s.label} className="rounded-xl bg-maroon-900/40 border border-maroon-400/30 px-4 py-3">
               <dt className="text-[10px] uppercase tracking-wider text-gold-200 font-semibold">{s.label}</dt>
@@ -223,7 +223,7 @@ function OlimpBlueprintInner() {
                       {q.secondaryTopic || q.primaryDomain || 'Soal'}
                     </span>
                     <span className="block text-[11px] text-stone-500">
-                      {q.primaryDomain || '—'} · Level {q.difficulty || '?'}/5 · {cognitiveLabel(q.cognitiveLevel)}
+                      {q.primaryDomain || '-'} · Level {q.difficulty || '?'}/5 · {cognitiveLabel(q.cognitiveLevel)}
                     </span>
                   </span>
                   <span className="shrink-0 text-[11px] text-stone-500 tabular-nums">

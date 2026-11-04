@@ -537,7 +537,7 @@ function daftarItemTeks(baris) {
   return (baris || [])
     .map((b) => {
       const qty = b.jumlah > 1 ? " (" + b.jumlah + "x)" : "";
-      return "- " + b.nama + qty + " — " + A.jadwalKalimat(b.mulai, b.selesai) + " — " + A.rupiah(b.total);
+      return "- " + b.nama + qty + " - " + A.jadwalKalimat(b.mulai, b.selesai) + " - " + A.rupiah(b.total);
     })
     .join("\n");
 }

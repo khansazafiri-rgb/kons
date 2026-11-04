@@ -81,7 +81,7 @@ export default function PanelGizi({ onSimpan, onSalin, onPesan }) {
           <div className="space-y-5">
             <Kelompok judul="Identitas">
               <Baris>
-                <Isian label="Nama / inisial" petunjuk="opsional" tipe="text" nilai={f.nama} onChange={ubah('nama')} placeholder="—" />
+                <Isian label="Nama / inisial" petunjuk="opsional" tipe="text" nilai={f.nama} onChange={ubah('nama')} placeholder="-" />
                 <Segmen label="Jenis kelamin" pilihan={SEX} nilai={f.sex} onChange={ubah('sex')} />
               </Baris>
             </Kelompok>
@@ -105,7 +105,7 @@ export default function PanelGizi({ onSimpan, onSalin, onPesan }) {
               {usia && (
                 <p className="mt-2.5 text-[11.5px] text-stone-600 bg-alba-100 border border-alba-200 rounded-lg px-3 py-2">
                   <b>Usia:</b> {usiaTeks(usia)}
-                  {usia.bulan > 228 && <span className="text-red-600"> — di luar rentang standar WHO (maks 19 tahun)</span>}
+                  {usia.bulan > 228 && <span className="text-red-600"> - di luar rentang standar WHO (maks 19 tahun)</span>}
                 </p>
               )}
             </Kelompok>
@@ -123,7 +123,7 @@ export default function PanelGizi({ onSimpan, onSalin, onPesan }) {
               </div>
               <p className="text-[11px] text-stone-400 mt-2">
                 Cara ukur penting: standar WHO memakai panjang telentang di bawah 24 bulan dan tinggi berdiri di atasnya.
-                Beda keduanya 0,7 cm — cukup untuk menggeser z-score sekitar 0,3 SD, dan dikoreksi otomatis di sini.
+                Beda keduanya 0,7 cm - cukup untuk menggeser z-score sekitar 0,3 SD, dan dikoreksi otomatis di sini.
               </p>
             </Kelompok>
 
@@ -277,7 +277,7 @@ export default function PanelGizi({ onSimpan, onSalin, onPesan }) {
             <DaftarNilai baris={hasil.kebutuhan.baris} />
             <div className="mt-3 space-y-2.5">
               <Catatan tone="info">
-                Kebutuhan dihitung dari <b>RDA menurut height-age</b> dikalikan <b>berat badan ideal</b>, bukan berat aktual —
+                Kebutuhan dihitung dari <b>RDA menurut height-age</b> dikalikan <b>berat badan ideal</b>, bukan berat aktual -
                 cara yang dipakai untuk terapi gizi anak agar target catch-up growth tercapai tanpa memberi beban berlebih.
               </Catatan>
               {hasil.kebutuhan.catatan.map((c, i) => <Catatan key={i} tone={c.tone}>{c.isi}</Catatan>)}

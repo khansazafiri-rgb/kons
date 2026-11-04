@@ -96,7 +96,7 @@ export function hitungOsmolalitas(inp) {
   } else if (gap !== null) {
     catatan.push({
       tone: 'accent',
-      isi: 'Osmolal gap dalam rentang normal (< 10 mOsm/kg). Gap normal tidak menyingkirkan keracunan alkohol toksik pada presentasi lambat, saat alkohol induknya sudah dimetabolisme jadi asam organik — periksa anion gap.',
+      isi: 'Osmolal gap dalam rentang normal (< 10 mOsm/kg). Gap normal tidak menyingkirkan keracunan alkohol toksik pada presentasi lambat, saat alkohol induknya sudah dimetabolisme jadi asam organik - periksa anion gap.',
     });
   } else {
     catatan.push({ tone: 'info', isi: 'Isi osmolalitas terukur dari osmometer untuk mendapatkan osmolal gap.' });
@@ -105,7 +105,7 @@ export function hitungOsmolalitas(inp) {
   if (efektif > 320) {
     catatan.push({
       tone: 'bad',
-      isi: 'Osmolalitas efektif > 320 mOsm/kg — memenuhi kriteria hiperglikemia hiperosmolar (HHS) bila disertai hiperglikemia berat dan penurunan kesadaran.',
+      isi: 'Osmolalitas efektif > 320 mOsm/kg - memenuhi kriteria hiperglikemia hiperosmolar (HHS) bila disertai hiperglikemia berat dan penurunan kesadaran.',
     });
   }
 
@@ -146,8 +146,8 @@ export function hitungOsmolalitas(inp) {
       satuan: '',
       tone: berat[0],
       rinci: [
-        `Langkah baku: (1) tentukan osmolalitas serum → ${ang(terhitung, 1)} mOsm/kg (${terhitung < 275 ? 'hipotonik — hiponatremia sejati' : 'tidak hipotonik — curigai pseudohiponatremia atau translokasional'}), (2) nilai status volume, (3) periksa natrium & osmolalitas urin.`,
-        ada(protein) && protein > 9 ? `Protein total ${ang(protein, 1)} g/dL tinggi — pseudohiponatremia mungkin.` : '',
+        `Langkah baku: (1) tentukan osmolalitas serum → ${ang(terhitung, 1)} mOsm/kg (${terhitung < 275 ? 'hipotonik - hiponatremia sejati' : 'tidak hipotonik - curigai pseudohiponatremia atau translokasional'}), (2) nilai status volume, (3) periksa natrium & osmolalitas urin.`,
+        ada(protein) && protein > 9 ? `Protein total ${ang(protein, 1)} g/dL tinggi - pseudohiponatremia mungkin.` : '',
       ].filter(Boolean),
     });
   }

@@ -78,7 +78,7 @@ export default function OlimpLogin() {
 
           <h2 className="font-display text-3xl font-semibold text-stone-800">Masuk ke Web Olimp</h2>
           <p className="mt-2 text-sm text-stone-600 leading-relaxed">
-            Pakai akun <span className="font-semibold text-stone-800">Web Olimp</span> — bukan akun web siswa PCV.
+            Pakai akun <span className="font-semibold text-stone-800">Web Olimp</span> - bukan akun web siswa PCV.
           </p>
 
           <form onSubmit={submit} className="mt-7 space-y-4">
@@ -126,7 +126,7 @@ export default function OlimpLogin() {
           </form>
 
           <p className="mt-6 rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 text-[12px] text-stone-600 leading-relaxed">
-            <span className="font-semibold text-stone-800">Admin PCV</span> tidak perlu akun Olimp terpisah —
+            <span className="font-semibold text-stone-800">Admin PCV</span> tidak perlu akun Olimp terpisah -
             masuk seperti biasa lewat <Link to="/login" className="font-semibold text-maroon-600 hover:underline">login web PCV</Link>,
             lalu buka Dashboard Admin → tab Web Olimp.
           </p>

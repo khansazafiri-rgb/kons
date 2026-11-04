@@ -67,7 +67,7 @@ function PackageCard({ pkg, subject, attempts }) {
         <div className="rounded-lg bg-alba-100/60 py-2">
           <dt className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">Nilai terbaik</dt>
           <dd className="text-sm font-bold tabular-nums">
-            {terbaik >= 0 ? <span className={terbaik >= 70 ? 'text-emerald-600' : 'text-maroon-600'}>{terbaik}%</span> : <span className="text-stone-400">—</span>}
+            {terbaik >= 0 ? <span className={terbaik >= 70 ? 'text-emerald-600' : 'text-maroon-600'}>{terbaik}%</span> : <span className="text-stone-400">-</span>}
           </dd>
         </div>
       </dl>

@@ -58,7 +58,7 @@ function GambarInput({ label, hint, value, onChange }) {
           className={inputCls}
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Tempel link Google Drive atau lh3 — kosongkan kalau tanpa gambar"
+          placeholder="Tempel link Google Drive atau lh3 - kosongkan kalau tanpa gambar"
         />
         {src && (
           <span className="shrink-0 w-16 h-16 rounded-lg border border-alba-300 bg-alba-100 overflow-hidden flex items-center justify-center">
@@ -290,7 +290,7 @@ export default function EditSoalOlimp() {
 
       {!subjectId && (
         <p className="rounded-2xl border border-dashed border-alba-300 bg-alba-100/40 px-5 py-10 text-center text-sm text-stone-500">
-          Pilih mata kuliah dulu di atas. Kalau belum ada, tambahkan satu — kodenya nanti dipakai sebagai awalan nomor soal (mis. <span className="font-mono">ID-06</span>).
+          Pilih mata kuliah dulu di atas. Kalau belum ada, tambahkan satu - kodenya nanti dipakai sebagai awalan nomor soal (mis. <span className="font-mono">ID-06</span>).
         </p>
       )}
 
@@ -316,7 +316,7 @@ export default function EditSoalOlimp() {
           {!topicId && (
             <p className="rounded-xl border border-gold-200 bg-gold-100/40 px-4 py-2.5 text-[12px] text-stone-600 leading-relaxed">
               Belum ada topik yang dipilih, jadi yang tampil adalah seluruh soal mata kuliah ini.
-              Soal baru yang kamu simpan sekarang akan masuk <span className="font-semibold">tanpa topik</span> —
+              Soal baru yang kamu simpan sekarang akan masuk <span className="font-semibold">tanpa topik</span> -
               pilih satu topik dulu di atas kalau mau soalnya langsung terkelompok.
             </p>
           )}
@@ -337,7 +337,7 @@ export default function EditSoalOlimp() {
                         {q.code ? `${q.code} · ` : ''}{q.secondaryTopic || q.primaryDomain || 'Soal tanpa judul'}
                       </span>
                       <span className="block text-[11px] text-stone-500 truncate">
-                        {q.primaryDomain || '—'} · Lv {q.difficulty || '?'} · kunci {q.correctAnswer}
+                        {q.primaryDomain || '-'} · Lv {q.difficulty || '?'} · kunci {q.correctAnswer}
                       </span>
                     </button>
                     <span
@@ -370,7 +370,7 @@ export default function EditSoalOlimp() {
                 <section className="rounded-2xl border border-dashed border-alba-300 bg-alba-100/40 p-10 text-center">
                   <p className="text-sm font-semibold text-stone-700">Pilih soal di kiri, tulis soal baru, atau tempel kode di bawah.</p>
                   <p className="mt-1 text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-                    Editor menampilkan seluruh isi soal sekaligus — metadata, gambar, lima opsi, alasan per opsi,
+                    Editor menampilkan seluruh isi soal sekaligus - metadata, gambar, lima opsi, alasan per opsi,
                     dan pembahasan 8 bagian beserta gambarnya.
                   </p>
                 </section>
@@ -648,12 +648,12 @@ function ImporKode({ subjectId, topicId, onSelesai }) {
         </h3>
         <p className="mt-1 text-[12px] text-stone-600 leading-relaxed">
           Untuk memasukkan banyak soal sekaligus. Salin format di bawah, tempel ke Claude/Gemini bersama soal-soalmu,
-          lalu tempel hasilnya di kotak ini. Soal bergambar dan yang tidak boleh dicampur dalam satu tempelan —
+          lalu tempel hasilnya di kotak ini. Soal bergambar dan yang tidak boleh dicampur dalam satu tempelan -
           yang menentukan hanya ada tidaknya <span className="font-mono text-[11px]">imageUrl</span>.
         </p>
         <p className="mt-1.5 rounded-lg bg-alba-100/60 px-3 py-2 text-[12px] leading-relaxed text-stone-600">
           Kode bentuk <span className="font-semibold">Edit Soal web biasa</span> juga diterima di sini
-          (<span className="font-mono text-[11px]">text</span> + <span className="font-mono text-[11px]">options: [{'{'} text, correct, explanation {'}'}]</span>) —
+          (<span className="font-mono text-[11px]">text</span> + <span className="font-mono text-[11px]">options: [{'{'} text, correct, explanation {'}'}]</span>) -
           tidak perlu diubah dulu. Penjelasan opsi benar masuk ke <span className="font-semibold">Alasan</span> pembahasan,
           penjelasan opsi salah ke <span className="font-semibold">Analisis distraktor</span>. Bagian pembahasan
           lain yang khas Olimp tetap kosong dan bisa diisi belakangan.
@@ -710,7 +710,7 @@ function ImporKode({ subjectId, topicId, onSelesai }) {
         <span className="text-[11px] text-stone-500">
           {topicId && topicId !== '__tanpa__'
             ? 'Soal masuk ke topik yang sedang dipilih.'
-            : 'Belum ada topik dipilih — soal masuk tanpa topik.'}
+            : 'Belum ada topik dipilih - soal masuk tanpa topik.'}
         </span>
       </div>
 

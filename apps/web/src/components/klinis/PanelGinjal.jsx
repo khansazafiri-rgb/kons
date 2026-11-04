@@ -134,7 +134,7 @@ export default function PanelGinjal({ onSimpan, onSalin, onPesan }) {
                     {PILIHAN_BERAT.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                   </select>
                   <span className="text-[11px] text-stone-400">
-                    Pilihan ini sering luput padahal pengaruhnya besar — pada pasien obesitas selisihnya bisa lebih dari 50 mL/menit.
+                    Pilihan ini sering luput padahal pengaruhnya besar - pada pasien obesitas selisihnya bisa lebih dari 50 mL/menit.
                   </span>
                 </label>
               </Kelompok>
@@ -179,10 +179,10 @@ export default function PanelGinjal({ onSimpan, onSalin, onPesan }) {
         <div className="space-y-2.5">
           <Lipat judul="Panduan singkat penyesuaian dosis">
             <ul className="list-disc pl-4 space-y-1.5">
-              <li><b>&gt; 50 mL/menit</b> — umumnya dosis penuh.</li>
-              <li><b>30–50</b> — banyak antibiotik (sefalosporin, karbapenem) perlu perpanjangan interval.</li>
-              <li><b>10–30</b> — kurangi dosis dan/atau perpanjang interval; hindari NSAID, metformin, nitrofurantoin.</li>
-              <li><b>&lt; 10 atau dialisis</b> — dosis khusus, sesuaikan waktu pemberian dengan sesi dialisis.</li>
+              <li><b>&gt; 50 mL/menit</b> - umumnya dosis penuh.</li>
+              <li><b>30–50</b> - banyak antibiotik (sefalosporin, karbapenem) perlu perpanjangan interval.</li>
+              <li><b>10–30</b> - kurangi dosis dan/atau perpanjang interval; hindari NSAID, metformin, nitrofurantoin.</li>
+              <li><b>&lt; 10 atau dialisis</b> - dosis khusus, sesuaikan waktu pemberian dengan sesi dialisis.</li>
             </ul>
             <p>Ini hanya rambu kasar. Selalu cek referensi dosis spesifik obatnya.</p>
           </Lipat>
@@ -191,7 +191,7 @@ export default function PanelGinjal({ onSimpan, onSalin, onPesan }) {
               <li>Massa otot ekstrem (binaragawan, amputasi, tetraplegia, sarkopenia lansia)</li>
               <li>Kehamilan, sirosis, asites masif</li>
               <li>Diet vegetarian ketat atau konsumsi daging berlebih sesaat sebelum pemeriksaan</li>
-              <li>Obat yang menghambat sekresi tubular kreatinin (trimetoprim, simetidin, cobicistat) — kreatinin naik tanpa GFR turun</li>
+              <li>Obat yang menghambat sekresi tubular kreatinin (trimetoprim, simetidin, cobicistat) - kreatinin naik tanpa GFR turun</li>
               <li>AKI aktif, karena kreatinin tertinggal beberapa jam di belakang GFR sesungguhnya</li>
             </ul>
           </Lipat>

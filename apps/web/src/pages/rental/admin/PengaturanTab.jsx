@@ -192,7 +192,7 @@ export default function RentalPengaturanTab({ lapor }) {
                   if (!window.confirm('Buat alamat baru? Semua kalender yang sudah berlangganan alamat lama akan berhenti diperbarui dan harus ditambahkan ulang.')) return;
                   const acak = Array.from(crypto.getRandomValues(new Uint8Array(24)), (x) => x.toString(16).padStart(2, '0')).join('');
                   setF((x) => ({ ...x, icsFeedToken: acak }));
-                  lapor('Alamat baru dibuat — tekan Simpan pengaturan supaya berlaku.', 'ok');
+                  lapor('Alamat baru dibuat - tekan Simpan pengaturan supaya berlaku.', 'ok');
                 }}
                 className="rounded-xl border border-alba-300 px-4 py-2.5 text-[12px] font-semibold text-stone-600 hover:border-rose-300 hover:text-rose-600"
               >
@@ -205,7 +205,7 @@ export default function RentalPengaturanTab({ lapor }) {
 
       <Bagian
         judul="Pembayaran manual"
-        catatan="Nomor rekening & QRIS TIDAK pernah ditampilkan di halaman publik — keduanya cuma masuk ke teks balasan WhatsApp yang disalin admin."
+        catatan="Nomor rekening & QRIS TIDAK pernah ditampilkan di halaman publik - keduanya cuma masuk ke teks balasan WhatsApp yang disalin admin."
         anak={
           <div className="grid gap-4 sm:grid-cols-2">
             <Kolom label="Nomor WhatsApp admin" bantuan="Format bebas; otomatis diubah ke 62…">
@@ -319,7 +319,7 @@ export default function RentalPengaturanTab({ lapor }) {
             <Kolom label="Refresh Token" lebar="sm:col-span-2">
               <input type="password" autoComplete="off" value={f.googleRefreshToken || ''} onChange={ubah('googleRefreshToken')} className={inputCls} />
             </Kolom>
-            <Kolom label="Calendar ID Peminjaman" bantuan="Kalender BARU khusus booking ruang — jangan pakai kalender kelas.">
+            <Kolom label="Calendar ID Peminjaman" bantuan="Kalender BARU khusus booking ruang - jangan pakai kalender kelas.">
               <input value={f.googleRentalCalendarId || ''} onChange={ubah('googleRentalCalendarId')} className={inputCls} />
             </Kolom>
             <Kolom label="Spreadsheet ID"><input value={f.googleSheetId || ''} onChange={ubah('googleSheetId')} className={inputCls} /></Kolom>
@@ -373,7 +373,7 @@ export default function RentalPengaturanTab({ lapor }) {
                 </p>
                 <ul className="mt-2 space-y-1.5 text-[12px] text-red-800">
                   {sync.konflik.map((k) => (
-                    <li key={k.id}><b>{k.kode}</b> — {k.pesan}</li>
+                    <li key={k.id}><b>{k.kode}</b> - {k.pesan}</li>
                   ))}
                 </ul>
               </div>

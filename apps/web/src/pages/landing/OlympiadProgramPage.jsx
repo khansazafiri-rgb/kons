@@ -89,7 +89,7 @@ export default function OlympiadProgramPage() {
               </h2>
               <p className="text-alba-200 leading-relaxed mb-7 max-w-lg">
                 Selain kelas bersama tentor, peserta program olimpiade dapat akses ke <b className="text-alba-50">Web
-                Olimp</b> — bank soal bergaya kompetisi internasional yang bisa dikerjakan kapan saja, lengkap
+                Olimp</b> - bank soal bergaya kompetisi internasional yang bisa dikerjakan kapan saja, lengkap
                 dengan pembahasannya.
               </p>
 
@@ -98,7 +98,7 @@ export default function OlympiadProgramPage() {
                   { icon: LayoutList, t: 'Blueprint dibuka dulu', d: 'Sebelum mulai, kamu lihat peta domain, level kognitif, dan tingkat kesulitan soal di dalam paketnya.' },
                   { icon: BookOpenCheck, t: 'Cek jawaban seketika', d: 'Tidak menunggu submit. Satu klik, langsung tahu benar atau salah beserta alasannya.' },
                   { icon: Award, t: 'Pembahasan 8 bagian', d: 'Alasan, analisis tiap distraktor, jembatan basic ke klinis, sampai high-yield pearl dan referensinya.' },
-                  { icon: Target, t: 'Peta kelemahanmu', d: 'Sesudah selesai, akurasimu dipecah per domain — jadi jelas mana yang harus diulang.' },
+                  { icon: Target, t: 'Peta kelemahanmu', d: 'Sesudah selesai, akurasimu dipecah per domain - jadi jelas mana yang harus diulang.' },
                 ].map((f) => (
                   <div key={f.t} className="flex gap-3">
                     <f.icon size={17} className="text-gold-200 shrink-0 mt-0.5" />
@@ -120,10 +120,10 @@ export default function OlympiadProgramPage() {
                 </Link>
               </div>
               <p className="mt-4 text-[12px] text-alba-200/70 leading-relaxed max-w-lg">
-                Web Olimp punya akun sendiri, terpisah dari web siswa PCV — kamu tidak perlu ikut kelas reguler
+                Web Olimp punya akun sendiri, terpisah dari web siswa PCV - kamu tidak perlu ikut kelas reguler
                 dulu. Urutannya: <b className="text-alba-50">hubungi admin dulu</b> lewat WhatsApp untuk memilih
                 paket, baru isi formulir pendaftaran di sini. Setelah disetujui, kamu mengunduh Secure Exam
-                Browser beserta berkas konfigurasinya — dari situlah Web Olimp dibuka.
+                Browser beserta berkas konfigurasinya - dari situlah Web Olimp dibuka.
               </p>
             </div>
 

@@ -92,7 +92,7 @@ export default function PesertaOlimp() {
     try {
       const hasil = await pb.collection('olimp_users').update(u.id, patch);
       setPeserta((lama) => lama.map((x) => (x.id === u.id ? hasil : x)));
-      olimpLog('peserta_update', `${catatan} — ${u.name || u.email}`);
+      olimpLog('peserta_update', `${catatan} - ${u.name || u.email}`);
     } catch (err) {
       setError('Gagal menyimpan: ' + (err?.message || ''));
     } finally {
@@ -304,8 +304,8 @@ export default function PesertaOlimp() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-3">
                       <div className="text-sm text-stone-600 space-y-1">
-                        <p><span className="font-semibold text-stone-800">WhatsApp:</span> {u.whatsapp || '—'}</p>
-                        <p><span className="font-semibold text-stone-800">Angkatan:</span> {u.angkatan || '—'}</p>
+                        <p><span className="font-semibold text-stone-800">WhatsApp:</span> {u.whatsapp || '-'}</p>
+                        <p><span className="font-semibold text-stone-800">Angkatan:</span> {u.angkatan || '-'}</p>
                         <p><span className="font-semibold text-stone-800">Mendaftar:</span> {new Date(u.created).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</p>
                         {u.approvedBy && (
                           <p><span className="font-semibold text-stone-800">Di-ACC oleh:</span> {u.approvedBy}</p>
@@ -322,7 +322,7 @@ export default function PesertaOlimp() {
                           value={u.plan || ''}
                           onChange={(e) => simpan(u, { plan: e.target.value || null }, 'Ubah paket langganan')}
                         >
-                          <option value="">— tanpa paket —</option>
+                          <option value="">- tanpa paket -</option>
                           {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </label>
@@ -366,7 +366,7 @@ export default function PesertaOlimp() {
                                 <Laptop size={13} className="shrink-0 text-stone-400" />
                                 <span className="min-w-0 flex-1 truncate">{d.deviceName || d.fingerprint}</span>
                                 <span className="shrink-0 text-[11px] text-stone-400">
-                                  {d.lastLoginAt ? new Date(d.lastLoginAt).toLocaleDateString('id-ID') : '—'}
+                                  {d.lastLoginAt ? new Date(d.lastLoginAt).toLocaleDateString('id-ID') : '-'}
                                 </span>
                               </li>
                             ))}
@@ -386,7 +386,7 @@ export default function PesertaOlimp() {
                   <div>
                     <span className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1.5">Paket soal yang boleh dibuka</span>
                     <p className="text-[11px] text-stone-500 mb-2">
-                      Kalau tidak ada yang dicentang, hak bukanya mengikuti paket langganannya —
+                      Kalau tidak ada yang dicentang, hak bukanya mengikuti paket langganannya -
                       dan kalau di sana juga kosong, ia boleh membuka <span className="font-semibold">semua</span> paket yang terbit.
                     </p>
                     <div className="flex flex-wrap gap-1.5">
@@ -430,7 +430,7 @@ export default function PesertaOlimp() {
 
       <p className="flex items-start gap-2 text-[11px] text-stone-500 leading-relaxed max-w-3xl">
         <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-        Akun peserta Olimp benar-benar terpisah dari akun siswa web PCV — satu orang yang ikut dua-duanya
+        Akun peserta Olimp benar-benar terpisah dari akun siswa web PCV - satu orang yang ikut dua-duanya
         punya dua akun berbeda. Kunci device Olimp saat ini memakai sidik jari browser, jadi ikut berubah kalau
         peserta ganti browser; tombol Reset Device di atas jalan keluarnya sampai SEB terpasang.
       </p>

@@ -145,7 +145,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {[
               ['LOMBA', 'Lomba', 'Label bawaan untuk kompetisi biasa.'],
-              ['OLIMPIADE', 'Olimpiade', 'Label untuk olimpiade. Cara kerjanya sama persis — yang beda cuma sebutannya di halaman publik.'],
+              ['OLIMPIADE', 'Olimpiade', 'Label untuk olimpiade. Cara kerjanya sama persis - yang beda cuma sebutannya di halaman publik.'],
             ].map(([nilai, judul, isi]) => (
               <button
                 key={nilai}
@@ -274,7 +274,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
             </div>
             <p className="rounded-xl bg-alba-100/60 px-4 py-2.5 text-[12px] leading-relaxed text-stone-600">
               Peserta yang belum punya akun bisa langsung membuat <span className="font-semibold">akun peserta lomba</span> di
-              halaman daftar — akunnya langsung bisa dipakai masuk, tanpa ACC akun terpisah. Yang kamu konfirmasi cukup
+              halaman daftar - akunnya langsung bisa dipakai masuk, tanpa ACC akun terpisah. Yang kamu konfirmasi cukup
               pendaftaran lombanya: tab <span className="font-semibold">Peserta</span> → <span className="font-semibold">ACC</span>.
               Akun ini tidak membuka bank soal Web Olimp.
             </p>
@@ -303,14 +303,14 @@ export default function EventInfoTab({ ev, onSimpan }) {
           </div>
         </div>
         <p className="rounded-xl bg-alba-100/60 px-4 py-2.5 text-[12px] leading-relaxed text-stone-600">
-          Begitu kuota tercapai, tombol daftar di halaman publik menutup sendiri — tidak ada
+          Begitu kuota tercapai, tombol daftar di halaman publik menutup sendiri - tidak ada
           daftar tunggu. Pendaftar yang kamu tolak mengembalikan kursinya.
         </p>
       </Bagian>
 
       <Bagian
         judul="Apa yang boleh dilihat umum"
-        catatan="Tiga keterangan ini disembunyikan dari halaman publik. Peserta yang pendaftarannya sudah kamu ACC tetap melihatnya — mereka memang perlu tahu sebelum mengerjakan."
+        catatan="Tiga keterangan ini disembunyikan dari halaman publik. Peserta yang pendaftarannya sudah kamu ACC tetap melihatnya - mereka memang perlu tahu sebelum mengerjakan."
       >
         <Saklar
           nyala={!!f.showQuestionCountPublic}
@@ -460,7 +460,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
                 className={`${inputCls} sm:max-w-[200px]`}
               />
               <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-                Kalau timer pribadi ini melewati jam “ditutup”, yang dipakai tetap jam tutupnya — mana yang lebih dulu.
+                Kalau timer pribadi ini melewati jam “ditutup”, yang dipakai tetap jam tutupnya - mana yang lebih dulu.
               </p>
             </div>
           </>
@@ -485,7 +485,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
           nyala={!f.watermarkOff}
           onUbah={(v) => set('watermarkOff', !v)}
           judul="Tanda air identitas di layar soal"
-          isi="Nama, email, dan kode peserta tercetak samar menyilang di seluruh layar selama ia mengerjakan. SEB memblokir tangkapan layar bawaan sistem, tapi tidak bisa mencegah soal difoto pakai HP — tanda air membuat foto yang beredar menunjuk balik ke orang yang memotretnya."
+          isi="Nama, email, dan kode peserta tercetak samar menyilang di seluruh layar selama ia mengerjakan. SEB memblokir tangkapan layar bawaan sistem, tapi tidak bisa mencegah soal difoto pakai HP - tanda air membuat foto yang beredar menunjuk balik ke orang yang memotretnya."
         />
 
         {f.sebRequired && !f.sebBrowserExamKey && !f.sebConfigKey && (
@@ -493,7 +493,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             <span>
               Saklarnya menyala tapi Config Key dan Browser Exam Key dua-duanya masih kosong, jadi
-              penjagaannya <span className="font-semibold">membiarkan semua permintaan lewat</span> —
+              penjagaannya <span className="font-semibold">membiarkan semua permintaan lewat</span> -
               server belum punya pembanding untuk memverifikasi. Isi kuncinya lewat langkah di bawah.
             </span>
           </p>
@@ -527,7 +527,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
         </div>
 
         <div>
-          <label htmlFor="ev-bek" className={labelCls}>Browser Exam Key — boleh lebih dari satu</label>
+          <label htmlFor="ev-bek" className={labelCls}>Browser Exam Key - boleh lebih dari satu</label>
           <textarea
             id="ev-bek"
             rows={3}
@@ -538,7 +538,7 @@ export default function EventInfoTab({ ev, onSimpan }) {
           />
           <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
             Satu kunci per baris. BEK <span className="font-semibold">ikut menghitung versi SEB</span>,
-            jadi Windows, Mac, dan iPad menghasilkan nilai yang berbeda untuk berkas yang sama —
+            jadi Windows, Mac, dan iPad menghasilkan nilai yang berbeda untuk berkas yang sama -
             daftarkan semua versi yang dipakai pesertamu, atau cukup isi Config Key di atas.
           </p>
 
@@ -553,8 +553,8 @@ export default function EventInfoTab({ ev, onSimpan }) {
               <li>4. Buka tab <span className="font-semibold">Exam</span>, salin Config Key (dan/atau Browser Exam Key), tempel ke kolom di atas, simpan.</li>
             </ol>
             <p className="mt-2 text-[11px] leading-relaxed text-stone-500">
-              Kunci ini tidak bisa dihitung server — ia dihasilkan dari isi berkas .seb yang sudah jadi.
-              <span className="font-semibold"> Tiap kali kamu mengubah pengaturan SEB di atas, kuncinya berubah</span> —
+              Kunci ini tidak bisa dihitung server - ia dihasilkan dari isi berkas .seb yang sudah jadi.
+              <span className="font-semibold"> Tiap kali kamu mengubah pengaturan SEB di atas, kuncinya berubah</span> -
               unduh ulang berkasnya dan salin kuncinya lagi. Lomba lain dengan pengaturan SEB yang sama
               memakai kunci yang sama, karena berkas .seb-nya identik.
             </p>

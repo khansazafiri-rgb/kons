@@ -78,7 +78,7 @@ export default function PanelOsmolalitas({ onSimpan, onSalin, onPesan }) {
             <Kelompok judul="Pelengkap">
               <Baris>
                 <Isian label="Osmolalitas terukur" petunjuk="osmometer" satuan="mOsm/kg" nilai={f.terukur} onChange={ubah('terukur')} placeholder="290" />
-                <Isian label="Etanol" satuan="mg/dL" nilai={f.etanol} onChange={ubah('etanol')} placeholder="—" />
+                <Isian label="Etanol" satuan="mg/dL" nilai={f.etanol} onChange={ubah('etanol')} placeholder="-" />
                 <Isian label="Protein total" satuan="g/dL" nilai={f.protein} onChange={ubah('protein')} placeholder="7,0" />
               </Baris>
               <label className="mt-3 inline-flex items-center gap-2 text-xs text-stone-600 cursor-pointer">
@@ -126,9 +126,9 @@ export default function PanelOsmolalitas({ onSimpan, onSalin, onPesan }) {
         <div className="space-y-2.5">
           <Lipat judul="Kenapa ada beberapa rumus?">
             <ul className="list-disc pl-4 space-y-1.5">
-              <li><b>2Na + Glu/18 + BUN/2,8</b> — paling banyak dipakai, sederhana, cocok untuk hitung cepat di bangsal.</li>
-              <li><b>2(Na+K) + …</b> — menambahkan kalium; sedikit menaikkan hasil, dipakai sebagian ICU.</li>
-              <li><b>1,86Na + Glu/18 + BUN/2,8 + 9</b> (Bhagat/Dorwart) — koefisien hasil regresi, sering paling dekat dengan osmometer sehingga gap-nya lebih dapat dipercaya.</li>
+              <li><b>2Na + Glu/18 + BUN/2,8</b> - paling banyak dipakai, sederhana, cocok untuk hitung cepat di bangsal.</li>
+              <li><b>2(Na+K) + …</b> - menambahkan kalium; sedikit menaikkan hasil, dipakai sebagian ICU.</li>
+              <li><b>1,86Na + Glu/18 + BUN/2,8 + 9</b> (Bhagat/Dorwart) - koefisien hasil regresi, sering paling dekat dengan osmometer sehingga gap-nya lebih dapat dipercaya.</li>
             </ul>
             <p>Yang penting: <b>pakai rumus yang sama</b> setiap kali menilai gap, karena batas normal gap bergantung pada rumusnya.</p>
           </Lipat>

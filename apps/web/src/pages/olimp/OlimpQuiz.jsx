@@ -294,7 +294,7 @@ function OlimpQuizInner() {
 
   return (
     <OlimpShell>
-      {/* Tanda air identitas — lihat components/TandaAirUjian.jsx.
+      {/* Tanda air identitas - lihat components/TandaAirUjian.jsx.
           Identitasnya diambil dari sesi yang sedang berjalan: berbeda dari
           layar ujian lomba, Web Olimp memang selalu menuntut login, jadi di
           sini sesi itu pasti ada. */}
@@ -317,7 +317,7 @@ function OlimpQuizInner() {
           <div className="flex items-center gap-2 text-xs">
             {!online && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 font-semibold px-3 py-1.5">
-                <CloudOff size={12} /> Offline — jawaban disimpan di device
+                <CloudOff size={12} /> Offline - jawaban disimpan di device
               </span>
             )}
             {online && !tersimpan && (
@@ -339,7 +339,7 @@ function OlimpQuizInner() {
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-stone-500">
           <span>{dijawab}/{questions.length} dijawab</span>
           <span>{benar} benar</span>
-          <span>{soal.primaryDomain || '—'}</span>
+          <span>{soal.primaryDomain || '-'}</span>
           <span>Level {soal.difficulty || '?'}/5</span>
           <span>{cognitiveLabel(soal.cognitiveLevel)}</span>
           <span className="ml-auto">Target {formatClock(questionSeconds(soal, pkg))}</span>
@@ -359,7 +359,7 @@ function OlimpQuizInner() {
             <button
               key={q.id}
               onClick={() => { if (kotor.current) simpan(); setIdx(i); }}
-              title={`Soal ${i + 1}${a?.picked ? ` — jawabanmu ${a.picked}` : ''}`}
+              title={`Soal ${i + 1}${a?.picked ? ` - jawabanmu ${a.picked}` : ''}`}
               className={`w-8 h-8 rounded-lg text-xs font-bold tabular-nums transition-colors ${warna} ${i === idx ? 'ring-2 ring-offset-2 ring-maroon-400 ring-offset-alba-50' : ''}`}
             >
               {i + 1}

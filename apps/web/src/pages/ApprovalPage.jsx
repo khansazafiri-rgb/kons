@@ -131,7 +131,7 @@ export default function ApprovalPage() {
             <p className="text-sm text-stone-600 mt-1">
               <b>{doneName}</b> sekarang bisa mengakses web siswa. Email pemberitahuan sudah dikirim otomatis ke pendaftar.
             </p>
-            <p className="text-xs text-stone-400 mt-4">Link ini sudah tidak aktif lagi — aman untuk ditutup.</p>
+            <p className="text-xs text-stone-400 mt-4">Link ini sudah tidak aktif lagi - aman untuk ditutup.</p>
           </div>
         )}
 
@@ -221,7 +221,7 @@ export default function ApprovalPage() {
                 <p className="text-[11px] text-stone-400 mt-1.5">
                   {kelas
                     ? 'Klik kelas yang sedang aktif untuk melepaskannya.'
-                    : 'Boleh dikosongkan — tapi selama kosong, siswa ini tidak akan dapat reminder jadwal.'}
+                    : 'Boleh dikosongkan - tapi selama kosong, siswa ini tidak akan dapat reminder jadwal.'}
                 </p>
               </div>
             )}

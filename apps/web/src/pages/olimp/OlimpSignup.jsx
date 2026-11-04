@@ -182,7 +182,7 @@ export default function OlimpSignup() {
             <h1 className="font-display text-2xl font-semibold text-stone-800">Pendaftaran terkirim</h1>
             <p className="mt-3 text-sm text-stone-600 leading-relaxed">
               Paket <b>{hasil.namaPaket}</b> menunggu konfirmasi admin. Kami hubungi lewat WhatsApp begitu
-              akunmu dibuka — biasanya setelah pembayaranmu diperiksa.
+              akunmu dibuka - biasanya setelah pembayaranmu diperiksa.
             </p>
           </div>
 
@@ -223,7 +223,7 @@ export default function OlimpSignup() {
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-maroon-500">Pendaftaran</p>
           <h1 className="mt-1.5 font-display text-3xl font-semibold text-stone-800">Daftar Program Olimp</h1>
           <p className="mt-2 text-sm text-stone-600 leading-relaxed max-w-xl">
-            Web Olimp punya basis data peserta sendiri, jadi ini akun baru — terpisah dari akun web siswa PCV.
+            Web Olimp punya basis data peserta sendiri, jadi ini akun baru - terpisah dari akun web siswa PCV.
             Isi formulirnya <b>setelah</b> kamu menyepakati paket dengan admin.
           </p>
         </header>
@@ -245,7 +245,7 @@ export default function OlimpSignup() {
                 Sudah menghubungi admin PCV?
               </h2>
               <p className="mt-2 text-sm text-stone-600 leading-relaxed">
-                Pendaftaran Web Olimp dimulai dari percakapan dengan admin — di situ kamu dan admin menyepakati
+                Pendaftaran Web Olimp dimulai dari percakapan dengan admin - di situ kamu dan admin menyepakati
                 paket mana yang cocok dan bagaimana pembayarannya. Formulir di halaman ini gunanya merapikan
                 hasil kesepakatan itu, jadi diisi <b>sesudah</b> kamu bicara dengan admin.
               </p>
@@ -352,7 +352,7 @@ export default function OlimpSignup() {
                       {p.description && <p className="mt-2 text-sm text-stone-600 leading-relaxed">{p.description}</p>}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="font-display text-xl font-semibold text-stone-800">{p.priceLabel || '—'}</p>
+                      <p className="font-display text-xl font-semibold text-stone-800">{p.priceLabel || '-'}</p>
                       {p.durationDays > 0 && <p className="text-[11px] text-stone-500">{p.durationDays} hari</p>}
                     </div>
                   </div>

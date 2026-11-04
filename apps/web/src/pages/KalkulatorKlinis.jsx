@@ -55,7 +55,7 @@ export default function KalkulatorKlinis() {
     const teks = [judul, ...ringkas.map(([k, v]) => `${k}: ${v}`)].join('\n');
     navigator.clipboard?.writeText(teks).then(
       () => setPesan('Disalin ke clipboard.'),
-      () => setPesan('Gagal menyalin — browser menolak akses clipboard.'),
+      () => setPesan('Gagal menyalin - browser menolak akses clipboard.'),
     );
   };
 
@@ -73,7 +73,7 @@ export default function KalkulatorKlinis() {
         <h1 className="font-display text-3xl font-semibold mb-2">Ruang Hitung</h1>
         <p className="text-sm text-stone-500 max-w-2xl leading-relaxed">
           Masukkan angka, lihat hasilnya, lalu buka <b>Cara hitung</b> untuk menelusuri asal setiap angka.
-          Tidak ada nilai atau progres yang dicatat di sini — bebas dicoba-coba sampai paham.
+          Tidak ada nilai atau progres yang dicatat di sini - bebas dicoba-coba sampai paham.
         </p>
       </div>
 
@@ -124,7 +124,7 @@ export default function KalkulatorKlinis() {
         )}
 
         <p className="mt-10 pt-5 border-t border-alba-200 text-[11.5px] text-stone-400 leading-relaxed">
-          <b className="text-stone-500">Kalkulator Klinis PCV</b> — alat bantu hitung untuk belajar dan memeriksa ulang,
+          <b className="text-stone-500">Kalkulator Klinis PCV</b> - alat bantu hitung untuk belajar dan memeriksa ulang,
           bukan pengganti penilaian klinis. Selalu verifikasi angka penting secara manual dan sesuaikan dengan protokol
           institusi tempat kamu bertugas.
           <br />
@@ -142,7 +142,7 @@ function TabRiwayat({ riwayat, setRiwayat, onPesan }) {
     const teks = riwayat.map(entriKeTeks).join('\n\n');
     navigator.clipboard?.writeText(teks).then(
       () => onPesan('Seluruh riwayat disalin.'),
-      () => onPesan('Gagal menyalin — browser menolak akses clipboard.'),
+      () => onPesan('Gagal menyalin - browser menolak akses clipboard.'),
     );
   };
 

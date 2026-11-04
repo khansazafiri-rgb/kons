@@ -78,7 +78,7 @@ export default function RentalAdminMasuk() {
             <ul className="mt-8 space-y-4 text-[15px] text-white/85">
               <li className="flex items-center gap-3"><ClipboardCheck size={20} className="shrink-0" /> Verifikasi bukti bayar & kelola pesanan</li>
               <li className="flex items-center gap-3"><CalendarRange size={20} className="shrink-0" /> Kalender terpadu: semua kelas, blok, dan booking</li>
-              <li className="flex items-center gap-3"><ShieldCheck size={20} className="shrink-0" /> Akses sesuai peran — tiap admin cuma melihat tugasnya</li>
+              <li className="flex items-center gap-3"><ShieldCheck size={20} className="shrink-0" /> Akses sesuai peran - tiap admin cuma melihat tugasnya</li>
             </ul>
           </div>
           <p className="text-[12px] text-white/50">Halaman ini bukan halaman masuk PCV Classroom.</p>

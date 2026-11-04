@@ -97,7 +97,7 @@ function Bukti({ bukti, onVerifikasi, sibuk }) {
                   </a>
                 )}
                 {!b.driveUrl && b.syncStatus === 'GAGAL' && (
-                  <span className="text-[11px] text-red-600">Gagal naik ke Drive — dicoba ulang otomatis</span>
+                  <span className="text-[11px] text-red-600">Gagal naik ke Drive - dicoba ulang otomatis</span>
                 )}
               </div>
             </div>
@@ -182,7 +182,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
       fd.append('uploadedAt', new Date().toISOString());
       fd.append('verifyStatus', 'MENUNGGU');
       await pb.collection('rental_proofs').create(fd);
-      lapor('Bukti terunggah. Statusnya jadi BUKTI_DIUNGGAH — verifikasi manual tetap perlu.', 'ok');
+      lapor('Bukti terunggah. Statusnya jadi BUKTI_DIUNGGAH - verifikasi manual tetap perlu.', 'ok');
       await onSegarkan();
     } catch (err) {
       lapor(err?.response?.message || err.message || 'Gagal mengunggah bukti.', 'galat');
@@ -203,7 +203,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
             <span className="ml-2 text-[13px] font-normal text-stone-600">{p.nama}</span>
           </p>
           <p className="mt-0.5 truncate text-[12px] text-stone-500">
-            {p.item.length} item · {p.institusi || '—'} · {p.wa}
+            {p.item.length} item · {p.institusi || '-'} · {p.wa}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -333,7 +333,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
                   const catatan = terima ? '' : (window.prompt('Alasan menolak bukti (boleh dikosongkan):') ?? '');
                   jalankan(
                     () => adminVerifikasi({ buktiId, terima, catatan }),
-                    terima ? 'Pembayaran diverifikasi.' : 'Bukti ditolak. Slot TIDAK dilepas — batalkan pesanan kalau memang tidak jadi.',
+                    terima ? 'Pembayaran diverifikasi.' : 'Bukti ditolak. Slot TIDAK dilepas - batalkan pesanan kalau memang tidak jadi.',
                   );
                 }}
               />

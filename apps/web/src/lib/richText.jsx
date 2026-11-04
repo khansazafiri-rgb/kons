@@ -64,7 +64,7 @@ function ExplanationImage({ src }) {
   if (gagal) {
     return (
       <a href={src} target="_blank" rel="noopener noreferrer" className="block my-1 text-xs underline break-all text-stone-500">
-        Gambar tidak bisa dimuat — buka langsung: {src}
+        Gambar tidak bisa dimuat - buka langsung: {src}
       </a>
     );
   }

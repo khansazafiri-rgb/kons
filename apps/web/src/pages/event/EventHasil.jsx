@@ -142,7 +142,7 @@ export default function EventHasil() {
                 key="rank"
                 label="Peringkat"
                 utama={!lihatSkor}
-                nilai={hasil.peringkat ? `#${hasil.peringkat}` : '—'}
+                nilai={hasil.peringkat ? `#${hasil.peringkat}` : '-'}
                 catatan={hasil.didiskualifikasi
                   ? 'didiskualifikasi'
                   : hasil.dariPeserta ? `dari ${hasil.dariPeserta} peserta` : 'tidak mengumpulkan'}
@@ -154,7 +154,7 @@ export default function EventHasil() {
               <Angka
                 key="tepat"
                 label="Ketepatan"
-                nilai={hasil.totalPoin > 0 ? `${Math.round((hasil.skor / hasil.totalPoin) * 100)}%` : '—'}
+                nilai={hasil.totalPoin > 0 ? `${Math.round((hasil.skor / hasil.totalPoin) * 100)}%` : '-'}
               />,
             );
           }

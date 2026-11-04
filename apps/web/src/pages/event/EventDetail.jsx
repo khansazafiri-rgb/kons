@@ -92,7 +92,7 @@ function JadwalSerentak({ ev }) {
     <div className="grid grid-cols-3 gap-2 rounded-xl border border-alba-200 bg-alba-100/60 p-3 text-center">
       {[
         ['Mulai', jamWib(ev.mulaiUjian)],
-        ['Durasi', ev.durasiMenit ? `${ev.durasiMenit} menit` : '—'],
+        ['Durasi', ev.durasiMenit ? `${ev.durasiMenit} menit` : '-'],
         ['Selesai', jamWib(ev.selesaiUjian)],
       ].map(([k, v]) => (
         <div key={k}>
@@ -177,7 +177,7 @@ function KartuPendaftaran({ ev, saya, identitas, onUnduh, sibuk, pesanUnduh, onM
       {!gform && saya.status === 'PAID_PENDING_APPROVAL' && (
         <p className="mt-3 text-sm leading-relaxed text-stone-600">
           Admin sudah menandai pembayaranmu diterima. Tinggal menunggu pendaftaranmu
-          disetujui — begitu disetujui, berkas konfigurasi Safe Exam Browser-mu bisa
+          disetujui - begitu disetujui, berkas konfigurasi Safe Exam Browser-mu bisa
           diunduh di halaman ini.
         </p>
       )}
@@ -300,7 +300,7 @@ function AjakanDaftar({ ev, identitas }) {
         <p className="text-sm font-semibold text-stone-700">Pendaftaran belum dibuka</p>
         <p className="mt-1 text-[13px] text-stone-500">
           Dibuka {tanggalPanjang(ev.bukaPendaftaran)}
-          {sisaWaktuKalimat(ev.bukaPendaftaran) && ` — ${sisaWaktuKalimat(ev.bukaPendaftaran)}`}
+          {sisaWaktuKalimat(ev.bukaPendaftaran) && ` - ${sisaWaktuKalimat(ev.bukaPendaftaran)}`}
         </p>
       </div>
     );
@@ -330,7 +330,7 @@ function AjakanDaftar({ ev, identitas }) {
   if (identitas?.isAdmin) {
     return (
       <p className="rounded-xl border border-alba-200 bg-alba-100/60 px-5 py-4 text-center text-[13px] text-stone-600">
-        Kamu masuk sebagai admin — akun admin tidak ikut lomba sebagai peserta.
+        Kamu masuk sebagai admin - akun admin tidak ikut lomba sebagai peserta.
       </p>
     );
   }

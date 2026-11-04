@@ -28,7 +28,7 @@ function sandiAcak() {
 function waktu(iso) {
   if (!iso) return 'belum pernah';
   const d = new Date(iso.replace(' ', 'T'));
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function AkunAdminTab({ lapor, saya }) {
@@ -63,7 +63,7 @@ export default function AkunAdminTab({ lapor, saya }) {
       });
       const pesan = `Akun admin peminjaman\nAlamat: ${window.location.origin}/peminjaman/admin/masuk\nEmail: ${baru.email.trim()}\nKata sandi: ${baru.password}\n\nGanti kata sandinya setelah masuk pertama kali.`;
       const tersalin = await salinTeks(pesan);
-      lapor(tersalin ? 'Akun dibuat. Info masuknya sudah tersalin — kirim lewat chat pribadi.' : 'Akun dibuat.', 'ok');
+      lapor(tersalin ? 'Akun dibuat. Info masuknya sudah tersalin - kirim lewat chat pribadi.' : 'Akun dibuat.', 'ok');
       setBaru(null);
       await muat();
     } catch (err) {
@@ -183,7 +183,7 @@ export default function AkunAdminTab({ lapor, saya }) {
                           const s = sandiAcak();
                           if (!window.confirm(`Buat kata sandi baru untuk ${a.name}? Kata sandi lama langsung tidak berlaku.`)) return;
                           await ubah(a, { password: s, passwordConfirm: s }, 'Kata sandi baru dibuat.');
-                          if (await salinTeks(`Kata sandi baru admin peminjaman (${a.email}): ${s}`)) lapor('Kata sandi baru dibuat dan tersalin — kirim lewat chat pribadi.', 'ok');
+                          if (await salinTeks(`Kata sandi baru admin peminjaman (${a.email}): ${s}`)) lapor('Kata sandi baru dibuat dan tersalin - kirim lewat chat pribadi.', 'ok');
                         }}
                         className="grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:bg-alba-100 hover:text-sewa"
                       >
@@ -192,7 +192,7 @@ export default function AkunAdminTab({ lapor, saya }) {
                       {!diriSendiri && (
                         <button
                           title={a.active ? 'Nonaktifkan' : 'Aktifkan'}
-                          onClick={() => ubah(a, { active: !a.active }, a.active ? `${a.name} dinonaktifkan — langsung tidak bisa masuk.` : `${a.name} diaktifkan lagi.`)}
+                          onClick={() => ubah(a, { active: !a.active }, a.active ? `${a.name} dinonaktifkan - langsung tidak bisa masuk.` : `${a.name} diaktifkan lagi.`)}
                           className="grid h-8 w-8 place-items-center rounded-lg text-stone-500 hover:bg-alba-100 hover:text-sewa"
                         >
                           <Power size={14} />

@@ -404,7 +404,7 @@ export default function PaketManager() {
             />
             <span className="text-sm text-stone-600 leading-relaxed">
               <span className="font-semibold text-stone-800 block">Hanya boleh dibuka lewat SEB</span>
-              Saklarnya sudah ada dan tersimpan, tapi <span className="font-semibold">belum berpengaruh</span> —
+              Saklarnya sudah ada dan tersimpan, tapi <span className="font-semibold">belum berpengaruh</span> -
               pemeriksaan Secure Exam Browser dipasang menyusul. Sampai saat itu paket ini tetap bisa dibuka dari browser biasa.
             </span>
           </label>
@@ -501,7 +501,7 @@ export default function PaketManager() {
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-stone-800 truncate">{q.code || q.secondaryTopic || 'Soal'}</span>
                       <span className="block text-[11px] text-stone-500 truncate">
-                        {q.primaryDomain || '—'} · Lv {q.difficulty || '?'} · kunci {q.correctAnswer}
+                        {q.primaryDomain || '-'} · Lv {q.difficulty || '?'} · kunci {q.correctAnswer}
                       </span>
                     </span>
                     <button onClick={() => geserSoal(i, -1)} disabled={i === 0} className="w-7 h-7 shrink-0 rounded-lg border border-alba-300 text-stone-500 flex items-center justify-center disabled:opacity-30 hover:border-maroon-300"><ArrowUp size={12} /></button>
@@ -524,7 +524,7 @@ export default function PaketManager() {
             <select value={saringTopik} onChange={(e) => setSaringTopik(e.target.value)} className={`${inputCls} mb-3`}>
               <option value="">Semua topik</option>
               {topikMataKuliah.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
-              <option value="__tanpa__">— belum bertopik —</option>
+              <option value="__tanpa__">- belum bertopik -</option>
             </select>
             <ul className="max-h-[520px] overflow-y-auto divide-y divide-alba-100">
               {kandidat.map((q) => {
@@ -580,7 +580,7 @@ export default function PaketManager() {
               </ul>
             )}
             <p className="mt-3 text-[11px] text-stone-500 leading-relaxed">
-              Daftar periksa ini sengaja tidak memblokir tombol Terbitkan — kadang paket memang perlu terbit
+              Daftar periksa ini sengaja tidak memblokir tombol Terbitkan - kadang paket memang perlu terbit
               lebih dulu sambil soalnya menyusul. Yang penting admin tahu apa yang belum beres.
             </p>
           </section>
@@ -618,7 +618,7 @@ export default function PaketManager() {
             </button>
             <span className="text-xs text-stone-500">
               Status sekarang: <span className="font-bold text-stone-700">{draft.status === 'PUBLISHED' ? 'TERBIT' : 'DRAF'}</span>
-              {draft.status !== 'PUBLISHED' && ' — paket draf tidak terlihat oleh siswa.'}
+              {draft.status !== 'PUBLISHED' && ' - paket draf tidak terlihat oleh siswa.'}
             </span>
           </div>
         </div>

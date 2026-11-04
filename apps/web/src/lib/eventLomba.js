@@ -204,9 +204,9 @@ export const rupiah = (n) => {
 const ZONA = 'Asia/Jakarta';
 
 export function tanggalPanjang(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('id-ID', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZone: ZONA,
@@ -214,9 +214,9 @@ export function tanggalPanjang(iso) {
 }
 
 export function tanggalPendek(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('id-ID', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: ZONA,
   }) + ' WIB';
@@ -224,9 +224,9 @@ export function tanggalPendek(iso) {
 
 // "09.50 WIB" - jam saja, untuk kalimat seperti "selesai serentak pukul 09.50 WIB".
 export function jamWib(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: ZONA }) + ' WIB';
 }
 

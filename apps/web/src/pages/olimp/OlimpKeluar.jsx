@@ -18,7 +18,7 @@ export default function OlimpKeluar() {
         <h1 className="font-display text-2xl font-semibold text-stone-800">Sesi Web Olimp selesai</h1>
         <p className="mt-3 text-sm text-stone-600 leading-relaxed">
           Progresmu sudah tersimpan. Untuk melanjutkan nanti, jalankan lagi berkas konfigurasi
-          <span className="font-mono text-[13px]"> .seb</span> yang sama — bukan alamat webnya.
+          <span className="font-mono text-[13px]"> .seb</span> yang sama - bukan alamat webnya.
         </p>
       </div>
     </div>

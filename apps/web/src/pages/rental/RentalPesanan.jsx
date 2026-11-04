@@ -90,7 +90,7 @@ export default function RentalPesanan() {
             </div>
             <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-stone-900">Jadwalmu sudah terkunci!</h1>
             <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-stone-500">
-              Tinggal satu langkah: chat admin untuk pembayaran. <b className="text-stone-700">Simpan halaman ini</b> —
+              Tinggal satu langkah: chat admin untuk pembayaran. <b className="text-stone-700">Simpan halaman ini</b> -
               tautannya satu-satunya cara membuka status pesanan lagi.
             </p>
           </div>
