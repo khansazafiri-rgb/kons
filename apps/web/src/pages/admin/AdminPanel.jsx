@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
+import KirimanPoster from './KirimanPoster';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -3581,7 +3582,7 @@ function JadwalUjian() {
 // ==========================================
 function LandingPageManager() {
   const [sub, setSub] = useState('Tim');
-  const SUBS = ['Tim', 'Poster & Info', 'Tabel Lomba', 'Prestasi', 'Teks & Fitur'];
+  const SUBS = ['Tim', 'Poster & Info', 'Kiriman Poster', 'Tabel Lomba', 'Prestasi', 'Teks & Fitur'];
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
@@ -3599,6 +3600,7 @@ function LandingPageManager() {
       </div>
       {sub === 'Tim' && <TeamManager />}
       {sub === 'Poster & Info' && <PosterManager />}
+      {sub === 'Kiriman Poster' && <KirimanPoster />}
       {sub === 'Tabel Lomba' && <OlympiadManager />}
       {sub === 'Prestasi' && <AchievementManager />}
       {sub === 'Teks & Fitur' && <LandingTextEditor />}

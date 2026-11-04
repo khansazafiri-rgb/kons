@@ -236,7 +236,7 @@ function kerjaDrive(app, SH, IN, s, proofId) {
   try {
     const kunci = proof.baseFilesPath() + "/" + namaBerkas;
     const berkas = fs.getReader(kunci);
-    isi = toBytes(berkas);
+    isi = bacaSemua(berkas);
   } catch (err) {
     try { fs.close(); } catch (_) {}
     return { ok: false, error: "Berkas tidak terbaca: " + err };
@@ -298,17 +298,18 @@ function kerjaTelegram(app, SH, IN, s, orderId, appUrl) {
   return { ok: true };
 }
 
-// Membaca io.Reader PocketBase jadi byte. Dipisah karena dipakai kerjaDrive dan
-// gampang tertukar dengan toString(), yang akan menafsirkan JPEG sebagai UTF-8.
-function toBytes(reader) {
-  const buf = [];
-  const potong = new Uint8Array(65536);
-  for (;;) {
-    const n = reader.read(potong);
-    if (n === null || n <= 0) break;
-    for (let i = 0; i < n; i++) buf.push(potong[i]);
-  }
-  return buf;
+// Membaca io.Reader PocketBase jadi array byte biasa.
+//
+// Dulu dibaca manual per potongan, dan itu GAGAL: reader Go melempar galat
+// "EOF" di akhir berkas alih-alih mengembalikan 0, jadi setiap unggahan bukti
+// ke Drive berakhir "GoError: EOF". Sekarang memakai toBytes() bawaan
+// PocketBase yang membaca seluruh isi dengan benar, lalu disalin ke array JS
+// supaya pemakai lama (driveUnggah) tetap menerima bentuk yang sama.
+function bacaSemua(reader) {
+  const b = toBytes(reader);
+  const hasil = new Array(b.length);
+  for (let i = 0; i < b.length; i++) hasil[i] = b[i];
+  return hasil;
 }
 
 
