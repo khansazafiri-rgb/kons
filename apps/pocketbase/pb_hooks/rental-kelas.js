@@ -34,6 +34,15 @@ const PCV = require(`${__hooks}/pcv-shared.js`);
 
 const HARI = 24 * 3600 * 1000;
 
+// Rentang impor kalender kelas. Satu semester kuliah sekitar 5-6 bulan, dan
+// kalender semester biasanya dimasukkan beberapa minggu sebelum kuliah mulai,
+// jadi 210 hari ke depan mencakup satu semester penuh plus cadangan. Pelanggan
+// hanya boleh memesan sampai HORIZON_PESAN_HARI (rental-shared.js), yang
+// sengaja lebih pendek: slot yang bisa dipesan selalu berada di dalam rentang
+// yang jadwal kelasnya sudah diimpor.
+const IMPOR_KEBELAKANG_HARI = 30;
+const IMPOR_KEDEPAN_HARI = 210;
+
 // ---------------------------------------------------------------------------
 // Membaca satu kalender
 // ---------------------------------------------------------------------------
@@ -48,7 +57,7 @@ function ambilEvent(s, cal) {
       return { ok: false, error: "Sumber GOOGLE butuh sambungan Google di Pengaturan. Pakai link iCal kalau tidak mau repot OAuth." };
     }
     const sekarang = Date.now();
-    const res = IN.calendarKelas(s, id, sekarang - 30 * HARI, sekarang + 180 * HARI);
+    const res = IN.calendarKelas(s, id, sekarang - IMPOR_KEBELAKANG_HARI * HARI, sekarang + IMPOR_KEDEPAN_HARI * HARI);
     if (!res.ok) return res;
     return {
       ok: true,
@@ -58,7 +67,7 @@ function ambilEvent(s, cal) {
 
   const url = cal.getString("icalUrl");
   if (!url) return { ok: false, error: "Link iCal kosong." };
-  const r = PCV.fetchIcalDiagnostic(url);
+  const r = PCV.fetchIcalDiagnostic(url, { hariKebelakang: IMPOR_KEBELAKANG_HARI, hariKedepan: IMPOR_KEDEPAN_HARI });
   if (!r.info.ok) return { ok: false, error: r.info.error || "Link iCal tidak bisa dibaca." };
 
   const event = [];
@@ -149,7 +158,7 @@ function sinkronSatu(app, cal, s, ruangAktif) {
     const ruang = petakan(cal, ev, ruangAktif);
     if (!ruang.length) { perluPemetaan++; return; }
     const kunci = kunciEvent(cal, ev);
-    const judul = namaKal + " — " + ev.judul;
+    const judul = namaKal + ": " + ev.judul;
 
     ruang.forEach((roomId) => {
       const k = kunci + "|" + roomId;
@@ -210,7 +219,7 @@ function sinkronSatu(app, cal, s, ruangAktif) {
   let pesan = jumlah + " jadwal terbaca";
   if (baru) pesan += ", " + baru + " blok baru";
   if (dilepas) pesan += ", " + dilepas + " dilepas";
-  if (perluPemetaan) pesan += ". " + perluPemetaan + " jadwal belum dipetakan ke ruang mana pun — pilih ruangnya atau nyalakan pemetaan lewat lokasi.";
+  if (perluPemetaan) pesan += ". " + perluPemetaan + " jadwal belum dipetakan ke ruang mana pun. Pilih ruangnya atau nyalakan pemetaan lewat lokasi.";
 
   cal.set("lastSyncAt", sekarangIso);
   cal.set("lastSyncStatus", "OK");
@@ -248,7 +257,18 @@ function sinkronSemua(app, hanyaId) {
 
   daftar.forEach((cal) => {
     try { hasil.push(sinkronSatu(app, cal, s, ruang)); }
-    catch (err) { hasil.push({ ok: false, nama: cal.getString("name"), error: String(err) }); }
+    catch (err) {
+      // Berhenti di tengah = BUKAN berhasil. Tanpa ini status kalender tetap
+      // menunjukkan hasil sinkron sebelumnya ("OK"), padahal sinkron yang
+      // barusan tidak selesai. Blok yang sudah ada tidak dilepas.
+      try {
+        cal.set("lastSyncAt", new Date().toISOString());
+        cal.set("lastSyncStatus", "GAGAL");
+        cal.set("lastSyncMessage", ("Sinkron terhenti di tengah: " + String(err)).slice(0, 1000));
+        app.save(cal);
+      } catch (_) { /* yang penting hasilnya dilaporkan di bawah */ }
+      hasil.push({ ok: false, nama: cal.getString("name"), error: String(err) });
+    }
   });
 
   // Kalender yang dimatikan atau dihapus: bloknya dilepas. Ini keputusan
@@ -359,7 +379,7 @@ function bookingTanpaPenjaga(app, room, sebelum, sesudah) {
 // (dan berisi jadwal apa) SEBELUM menyimpan, bukan dua jam kemudian waktu
 // cron pertama gagal.
 function ujiLink(url) {
-  const r = PCV.fetchIcalDiagnostic(url);
+  const r = PCV.fetchIcalDiagnostic(url, { hariKebelakang: IMPOR_KEBELAKANG_HARI, hariKedepan: IMPOR_KEDEPAN_HARI });
   const sekarang = Date.now();
   const contoh = (r.events || [])
     .filter((ev) => Date.parse(ev.end) > sekarang)

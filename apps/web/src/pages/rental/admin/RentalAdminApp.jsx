@@ -79,6 +79,10 @@ export default function RentalAdminApp() {
 
   const menuku = MENU.filter((m) => boleh(m, saya.peran));
   const aktif = menuku.find((m) => m.id === sp.get('menu')) || menuku[0];
+  // Menu yang diminta lewat alamat (mis. tautan dari Dashboard Admin PCV)
+  // tapi tidak boleh dibuka peran ini: jelaskan, jangan diam-diam pindah.
+  const diminta = MENU.find((m) => m.id === sp.get('menu'));
+  const terlarang = diminta && !boleh(diminta, saya.peran) ? diminta : null;
   const Isi = aktif.Isi;
 
   const pilih = (id) => {
@@ -166,6 +170,13 @@ export default function RentalAdminApp() {
                 {kabar.pesan}
               </span>
               <button onClick={() => setKabar(null)} className="shrink-0 opacity-60 hover:opacity-100" aria-label="Tutup pesan"><X size={15} /></button>
+            </div>
+          )}
+          {terlarang && (
+            <div role="status" className="mb-5 rounded-2xl bg-amber-50 px-4 py-3 text-[13px] font-semibold text-amber-900 ring-1 ring-amber-200">
+              Menu <b>{terlarang.label}</b> hanya untuk {terlarang.peran.length ? terlarang.peran.map((p) => PERAN_ADMIN[p]?.teks || p).join(' dan ') : 'admin tertentu'}
+              {terlarang.peran.includes('SUPER_ADMIN') ? '' : ' dan Super Admin'}. Kamu masuk sebagai {PERAN_ADMIN[saya.peran]?.teks || saya.peran},
+              jadi yang dibuka adalah menu {aktif.label}. Minta Super Admin kalau perlu mengubah {terlarang.label.toLowerCase()}.
             </div>
           )}
           <Isi lapor={lapor} saya={saya} />

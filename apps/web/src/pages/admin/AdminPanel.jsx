@@ -26,10 +26,11 @@ import PilihFakultas from '@/components/PilihFakultas';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 import PetaKonten from '@/pages/admin/PetaKonten';
 import WebOlimpHub from '@/pages/admin/WebOlimpHub';
+import RentalHub from '@/pages/admin/RentalHub';
 import EventManager from '@/pages/admin/event/EventManager';
 import KabarSiswa from '@/pages/admin/KabarSiswa';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'Event/Lomba'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'PCV Rental', 'Event/Lomba'];
 // Nilai TABS juga dipakai sebagai ?tab= di URL dan dibandingkan dengan ===, jadi
 // nilainya tidak boleh diganti. Tulisan di tombol tab saja yang dipetakan di sini.
 const TAB_LABEL = { 'Perdalam Materi': 'Baca PPT' };
@@ -92,6 +93,8 @@ export default function AdminPanel() {
               Web Olimp berada, siapa yang bisa masuk, dan tombol langsung ke
               tiap bagiannya. */}
           {tab === 'Web Olimp' && <WebOlimpHub />}
+          {/* Pintu masuk saja. Dashboard rental tetap aplikasi & sesi terpisah. */}
+          {tab === 'PCV Rental' && <RentalHub />}
           {/* Event/Lomba sengaja di SINI, bukan di Dashboard Olimp: PRD bagian
               13 memberi hak kelola event ke Admin maupun Super Admin, sedangkan
               Dashboard Olimp khusus super_admin. Menaruhnya di sini memenuhi

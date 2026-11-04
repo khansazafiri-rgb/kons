@@ -467,10 +467,15 @@ function normalizeIcalUrl(raw) {
 // Mengembalikan { info, events } - info berisi diagnosa lengkap (status HTTP,
 // jumlah byte, cuplikan isi, jumlah jadwal di berkas vs yang masuk rentang),
 // dipakai oleh sinkronisasi maupun tombol "Tes Link" di dashboard admin.
-function fetchIcalDiagnostic(rawUrl) {
+//
+// `opsi.hariKedepan` / `opsi.hariKebelakang` mengganti rentang bawaan. Dipakai
+// modul peminjaman, yang butuh SATU SEMESTER penuh ke depan (jadwal siswa cukup
+// 180 hari dan tidak diubah).
+function fetchIcalDiagnostic(rawUrl, opsi) {
+  const o = opsi || {};
   const now = Date.now();
-  const fromMs = now - SYNC_BACK_DAYS * DAY_MS;
-  const toMs = now + SYNC_AHEAD_DAYS * DAY_MS;
+  const fromMs = now - (Number(o.hariKebelakang) || SYNC_BACK_DAYS) * DAY_MS;
+  const toMs = now + (Number(o.hariKedepan) || SYNC_AHEAD_DAYS) * DAY_MS;
   const info = { ok: false, events: 0 };
   let events = [];
   try {
