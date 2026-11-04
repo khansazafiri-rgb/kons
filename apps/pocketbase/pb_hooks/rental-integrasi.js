@@ -122,7 +122,7 @@ function google(s, opts) {
 // calendar id selain googleRentalCalendarId.
 
 function judulEvent(status, namaRuang, kode) {
-  return "[" + status + "] " + namaRuang + " — " + kode;
+  return "[" + status + "] " + namaRuang + " - " + kode;
 }
 
 function deskripsiEvent(appUrl, order, baris) {
@@ -554,8 +554,8 @@ function pesanPesananBaru(s, order, baris, teksWa, appUrl) {
   garis.push("");
   garis.push("<b>Item:</b>");
   baris.forEach((b) => {
-    garis.push("• " + esc(b.nama) + (b.jumlah > 1 ? " x" + b.jumlah : "") + " — " + esc(b.jadwal) +
-      " — " + esc(SH.A.rupiah(b.total)));
+    garis.push("• " + esc(b.nama) + (b.jumlah > 1 ? " x" + b.jumlah : "") + " - " + esc(b.jadwal) +
+      " - " + esc(SH.A.rupiah(b.total)));
   });
   garis.push("");
   garis.push("Total: <b>" + esc(SH.A.rupiah(order.getFloat("total"))) + "</b>");

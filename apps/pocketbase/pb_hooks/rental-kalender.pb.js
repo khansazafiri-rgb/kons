@@ -288,7 +288,7 @@ routerAdd("GET", "/api/rental/kalender.ics", (e) => {
     "PRODID:-//PCV Classroom//Peminjaman//ID",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    "X-WR-CALNAME:" + esc(nama + " — Kalender Terpadu"),
+    "X-WR-CALNAME:" + esc(nama + " - Kalender Terpadu"),
     "X-WR-TIMEZONE:Asia/Jakarta",
     // Saran ke klien kalender: segarkan tiap jam. Google mengabaikannya,
     // Apple & Outlook menghormatinya.

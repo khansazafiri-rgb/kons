@@ -36,7 +36,7 @@ const inputCls = 'w-full rounded-xl border border-alba-300 bg-white px-3 py-2.5 
 function waktuRelatif(iso) {
   if (!iso) return 'belum pernah';
   const menit = Math.round((Date.now() - new Date(iso.replace(' ', 'T')).getTime()) / 60000);
-  if (!Number.isFinite(menit)) return '—';
+  if (!Number.isFinite(menit)) return '-';
   if (menit < 1) return 'barusan';
   if (menit < 60) return `${menit} menit lalu`;
   if (menit < 60 * 24) return `${Math.round(menit / 60)} jam lalu`;
@@ -147,7 +147,7 @@ function Formulir({ awal, ruang, onSimpan, onBatal, sibuk }) {
                 {uji.contoh?.length > 0 && (
                   <ul className="mt-2 space-y-1 text-[12px]">
                     {uji.contoh.map((c, i) => (
-                      <li key={i}>• <b>{c.judul}</b> — {c.jadwal}{c.lokasi ? <span className="text-sewa"> · {c.lokasi}</span> : null}</li>
+                      <li key={i}>• <b>{c.judul}</b> - {c.jadwal}{c.lokasi ? <span className="text-sewa"> · {c.lokasi}</span> : null}</li>
                     ))}
                   </ul>
                 )}
@@ -288,7 +288,7 @@ export default function KalenderKelasTab({ lapor }) {
       const { hasil } = await kalenderKelasSinkron(id);
       const gagal = hasil.filter((h) => !h.ok);
       if (gagal.length) lapor(`${gagal.length} kalender gagal dibaca: ${gagal.map((g) => `${g.nama} (${g.error})`).join('; ')}`, 'galat');
-      else lapor(`Tersinkron: ${hasil.map((h) => `${h.nama} — ${h.jadwal} jadwal`).join(', ') || 'tidak ada kalender aktif'}.`, 'ok');
+      else lapor(`Tersinkron: ${hasil.map((h) => `${h.nama} - ${h.jadwal} jadwal`).join(', ') || 'tidak ada kalender aktif'}.`, 'ok');
       await muat();
     } catch (err) {
       lapor(err.message || 'Sinkron gagal.', 'galat');
@@ -354,7 +354,7 @@ export default function KalenderKelasTab({ lapor }) {
         <div>
           <h3 className="text-xl font-extrabold text-stone-900">Kalender kelas</h3>
           <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-stone-500">
-            Jadwal di kalender-kalender ini otomatis memblok ruangnya, disinkron tiap 2 jam. Hanya dibaca — aplikasi tidak pernah
+            Jadwal di kalender-kalender ini otomatis memblok ruangnya, disinkron tiap 2 jam. Hanya dibaca - aplikasi tidak pernah
             mengubah kalender kelas.
           </p>
         </div>
@@ -382,7 +382,7 @@ export default function KalenderKelasTab({ lapor }) {
         <ol className="list-decimal space-y-1.5 rounded-2xl bg-sewa/5 py-4 pl-9 pr-5 text-[13px] leading-relaxed text-stone-700">
           <li>Buka <b>Google Calendar</b> di komputer, arahkan ke nama kalender kelas di kolom kiri → titik tiga → <b>Setelan dan berbagi</b>.</li>
           <li>Gulir ke bagian <b>Integrasikan kalender</b>.</li>
-          <li>Salin <b>Alamat rahasia dalam format iCal</b> (berakhiran <code>basic.ics</code>) — bukan “alamat publik”, supaya kalendernya tidak perlu dibuat publik.</li>
+          <li>Salin <b>Alamat rahasia dalam format iCal</b> (berakhiran <code>basic.ics</code>) - bukan “alamat publik”, supaya kalendernya tidak perlu dibuat publik.</li>
           <li>Tempel di sini, tekan <b>Uji link</b>. Kalau linknya pernah bocor, tekan “Setel ulang” di Google lalu perbarui di sini.</li>
         </ol>
       )}

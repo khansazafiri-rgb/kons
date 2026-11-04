@@ -80,7 +80,7 @@ export default function KartuHasil({ ev, hasil }) {
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Peringkat</p>
                   <p className="font-display text-2xl font-semibold leading-tight text-stone-800">
-                    {hasil.peringkat ? `#${hasil.peringkat}` : '—'}
+                    {hasil.peringkat ? `#${hasil.peringkat}` : '-'}
                     {hasil.dariPeserta ? (
                       <span className="ml-1.5 font-sans text-sm font-normal text-stone-500">dari {hasil.dariPeserta} peserta</span>
                     ) : null}

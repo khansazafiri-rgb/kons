@@ -188,10 +188,11 @@ export default function PostersSection() {
               key={p.id}
               onClick={() => setIndex(i)}
               aria-label={`Lihat event ${i + 1}`}
-              className={`h-2 rounded-full transition-all ${
-                i === index ? 'w-8 bg-maroon-600' : 'w-2 bg-alba-300 hover:bg-alba-400'
-              }`}
-            />
+              aria-current={i === index ? 'true' : undefined}
+              className="flex h-6 min-w-6 items-center justify-center"
+            >
+              <span aria-hidden className={`block h-2 rounded-full transition-all ${i === index ? 'w-8 bg-maroon-600' : 'w-2 bg-alba-300 hover:bg-alba-400'}`} />
+            </button>
           ))}
         </div>
       )}

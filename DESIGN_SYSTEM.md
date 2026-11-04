@@ -171,6 +171,9 @@ Folder: `apps/web/src/pages/`
 | `PerdalamMateri.jsx` | Halaman Baca PPT (pilih mata kuliah dan BAB), auto-scroll serupa |
 | `SimulasiCBT.jsx` | Halaman Kerjakan Soal Tahun Sebelumnya, auto-scroll saat pilih mata kuliah → BAB → mode → mulai |
 | `PembelajaranPPT.jsx` | Pembaca PPT/PDF, dibuka dari halaman Baca PPT |
+| `belajar/MataKuliah.jsx` | `/belajar`: daftar mata kuliah dengan progres PPT dan latihan |
+| `belajar/DetailMataKuliah.jsx` | `/belajar/:subjectId`: BAB dengan status Baca PPT / Latihan / Pembahasan, tab Soal Tahun Sebelumnya |
+| `KirimPoster.jsx` | `/kirim-poster/:token`: formulir kontribusi poster untuk pemegang tautan undangan |
 | `admin/AdminPanel.jsx` | Panel admin (kelola soal, siswa, import massal) |
 | `teacher/TeacherPanel.jsx` | Panel pengajar (profil, siswa, edit soal, upload PPT/PDF) |
 
@@ -204,6 +207,10 @@ Teks yang tersimpan atau terkirim (ringkasan log aktivitas, aktivitas terakhir, 
 ---
 
 ## Pola UX Khusus
+
+- **Alur Mata Kuliah > BAB > kegiatan** (`lib/belajar.js`, `components/belajar/UiBelajar.jsx`): status kegiatan selalu ikon + teks (Belum tersedia, Belum mulai, Sedang dikerjakan, Selesai), dihitung dari `ppt_files`, `questions`, `materi_progress`, `soal_progress`, `cbt_attempts`. Tidak ada progres tebakan. Tautan kegiatan memakai rute lama dengan parameter tambahan `dari=belajar` (tombol kembali ke BAB yang sama) dan `buka=1` (langsung membuka latihan).
+- **Navigasi siswa di HP**: bilah bawah (Beranda, Mata Kuliah, Jadwal, Lainnya) di `Header.jsx`; baris menu geser tetap untuk pengajar/admin.
+- **Aksesibilitas dasar**: tautan "Lewati ke isi", `:focus-visible` global di `index.css`, target sentuh minimal 44px untuk tombol utama, label `htmlFor` di formulir.
 
 - **Carousel looping** (`LandingPage.jsx`): saat scroll mentok kanan, otomatis lompat ke awal; mentok kiri, lompat ke akhir. Ada hint teks "← geser →" di mobile.
 - **Auto-scroll** (`CicilBelajar.jsx`, `PerdalamMateri.jsx`, `SimulasiCBT.jsx`): setelah user memilih mata kuliah/BAB/mode, halaman otomatis `scrollIntoView({ behavior: 'smooth' })` ke section berikutnya.

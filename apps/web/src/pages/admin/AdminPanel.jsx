@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
+import KirimanPoster from './KirimanPoster';
 import Header from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -25,10 +26,11 @@ import PilihFakultas from '@/components/PilihFakultas';
 import DashboardActivity from '@/pages/admin/DashboardActivity';
 import PetaKonten from '@/pages/admin/PetaKonten';
 import WebOlimpHub from '@/pages/admin/WebOlimpHub';
+import RentalHub from '@/pages/admin/RentalHub';
 import EventManager from '@/pages/admin/event/EventManager';
 import KabarSiswa from '@/pages/admin/KabarSiswa';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'Event/Lomba'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'PCV Rental', 'Event/Lomba'];
 // Nilai TABS juga dipakai sebagai ?tab= di URL dan dibandingkan dengan ===, jadi
 // nilainya tidak boleh diganti. Tulisan di tombol tab saja yang dipetakan di sini.
 const TAB_LABEL = { 'Perdalam Materi': 'Baca PPT' };
@@ -91,6 +93,8 @@ export default function AdminPanel() {
               Web Olimp berada, siapa yang bisa masuk, dan tombol langsung ke
               tiap bagiannya. */}
           {tab === 'Web Olimp' && <WebOlimpHub />}
+          {/* Pintu masuk saja. Dashboard rental tetap aplikasi & sesi terpisah. */}
+          {tab === 'PCV Rental' && <RentalHub />}
           {/* Event/Lomba sengaja di SINI, bukan di Dashboard Olimp: PRD bagian
               13 memberi hak kelola event ke Admin maupun Super Admin, sedangkan
               Dashboard Olimp khusus super_admin. Menaruhnya di sini memenuhi
@@ -668,7 +672,7 @@ function BiodataEditor({ user, onSaved, siswa = false }) {
         {status && <span className="text-xs text-green-700">{status}</span>}
       </div>
       <p className="text-[11px] text-stone-400">
-        Login ID dan Gmail dua-duanya bisa dipakai login, jadi mengubahnya ikut mengubah cara akun ini masuk — kabari pemiliknya. Ganti Gmail tidak mengirim email konfirmasi apa pun.
+        Login ID dan Gmail dua-duanya bisa dipakai login, jadi mengubahnya ikut mengubah cara akun ini masuk - kabari pemiliknya. Ganti Gmail tidak mengirim email konfirmasi apa pun.
       </p>
       {error && <p className="text-xs whitespace-pre-wrap bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">{error}</p>}
     </div>
@@ -1007,7 +1011,7 @@ function QuestionForm({ form, setForm }) {
                   value={sq.validAnswers}
                   onChange={(e) => updateSub(i, 'validAnswers', e.target.value)}
                   rows={2}
-                  placeholder={'Jawaban utama (tebal di kunci). Satu baris per jawaban.\nMis. Ascaris lumbricoides — telur dibuahi (fertilized egg)'}
+                  placeholder={'Jawaban utama (tebal di kunci). Satu baris per jawaban.\nMis. Ascaris lumbricoides - telur dibuahi (fertilized egg)'}
                   className="w-full rounded-md border border-alba-200 px-3 py-2 text-xs bg-alba-50"
                 />
                 <input
@@ -1186,7 +1190,7 @@ const ESAI_RULE = `SOAL ESAI TIDAK DINILAI:
 - Aturan "/" pada bagian ISIAN (bentuk lain dari jawaban yang sama) TIDAK berlaku untuk esai: pada esai, " / " memisahkan butir-butir kunci yang berbeda.
 - Kalau ada pembahasan tambahan (teks atau gambar), taruh di "explanation" milik sub-pertanyaan, atau di "explanation" tingkat soal kalau berlaku untuk seluruh soal.
 Contoh sub-pertanyaan esai:
-{ "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Ukuran sekitar 45–75 × 35–50 µm", "Dinding tebal berlapis", "Berisi satu sel telur yang terpisah dari dinding"] }`;
+{ "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides - telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Ukuran sekitar 45–75 × 35–50 µm", "Dinding tebal berlapis", "Berisi satu sel telur yang terpisah dari dinding"] }`;
 
 const GEMINI_PROMPTS = {
   'MCQ Biasa': `Kamu konverter soal untuk web CBT PCV Classroom. Ubah soal pilihan ganda berikut menjadi SATU array JavaScript.
@@ -1313,7 +1317,7 @@ FORMAT TIAP SOAL:
   "hint": "boleh \\"\\"",
   "dinilai": false,
   "subQuestions": [
-    { "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Dinding tebal berlapis"] }
+    { "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides - telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Dinding tebal berlapis"] }
   ]
 }
 ATURAN ISI: setiap soal wajib "dinilai": false dan "subQuestions" (min 1); JANGAN pakai "options"; pasangkan tiap soal dengan link gambarnya masing-masing.
@@ -1379,7 +1383,7 @@ TIPE 5 - ESAI (TIDAK DINILAI, dengan atau tanpa gambar): tambahkan "dinilai": fa
   "hint": "boleh \\"\\"",
   "dinilai": false,
   "subQuestions": [
-    { "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides — telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Dinding tebal berlapis"] }
+    { "label": "A", "question": "Spesies dan stadium yang ditunjukkan pada gambar adalah:", "validAnswers": ["Ascaris lumbricoides - telur dibuahi (fertilized egg)"], "keyPointsTitle": "Ciri-ciri", "keyPoints": ["Bentuk bulat sampai oval", "Dinding tebal berlapis"] }
   ]
 }
 
@@ -1471,7 +1475,7 @@ function BulkImport({ onImport, status }) {
       {qtype === MIXED_TYPE && (
         <p className="text-[11px] text-stone-500 bg-gold-100/40 border border-gold-200 rounded-lg px-3 py-2">
           Mode <b>Acak</b>: satu tempelan boleh berisi campuran MCQ, Isian, dan Esai (masing-masing biasa atau bergambar).
-          Tipe tiap soal dibaca otomatis dari bentuk datanya — ada <code>options</code> = MCQ, ada <code>subQuestions</code> = Isian,
+          Tipe tiap soal dibaca otomatis dari bentuk datanya - ada <code>options</code> = MCQ, ada <code>subQuestions</code> = Isian,
           ada <code>subQuestions</code> dengan <code>&quot;dinilai&quot;: false</code> = Esai (tidak dinilai),
           dan yang punya <code>imageUrl</code> jadi versi bergambar.
         </p>
@@ -2599,7 +2603,7 @@ export function EditSimulasi({ allowedSubjectIds = null }) {
 
         {subjectId && (
           <div className="space-y-1">
-            <label className="text-xs font-bold text-stone-500">3. Section &amp; BAB soal tahun sebelumnya — namanya bebas</label>
+            <label className="text-xs font-bold text-stone-500">3. Section &amp; BAB soal tahun sebelumnya - namanya bebas</label>
             <ChapterManager
               subjectId={subjectId}
               selectedChapterId={chapterId}
@@ -2802,7 +2806,7 @@ function PendingSignups() {
                   </p>
                   {calonAdmin && (
                     <p className="text-xs font-semibold text-maroon-700 mt-2">
-                      Pendaftar ini minta akses ADMIN — bisa mengelola semua akun & soal. Pastikan kamu memang mengundangnya.
+                      Pendaftar ini minta akses ADMIN - bisa mengelola semua akun & soal. Pastikan kamu memang mengundangnya.
                     </p>
                   )}
                   {siswa && (
@@ -3242,7 +3246,7 @@ function LinkUndangan() {
       <div>
         <h2 className="font-display text-lg font-semibold">Link Undangan Pengajar &amp; Admin</h2>
         <p className="text-sm text-stone-500 mt-1 leading-relaxed max-w-xl">
-          Halaman pendaftaran pengajar dan admin sengaja tidak bisa dibuka sembarangan — satu-satunya jalan masuk
+          Halaman pendaftaran pengajar dan admin sengaja tidak bisa dibuka sembarangan - satu-satunya jalan masuk
           adalah link dari sini. Kirim linknya ke orang yang bersangkutan; akun yang mereka buat masih mati
           sampai kamu meng-ACC di <b>Pendaftaran Masuk</b> di atas.
         </p>
@@ -3581,7 +3585,7 @@ function JadwalUjian() {
 // ==========================================
 function LandingPageManager() {
   const [sub, setSub] = useState('Tim');
-  const SUBS = ['Tim', 'Poster & Info', 'Tabel Lomba', 'Prestasi', 'Teks & Fitur'];
+  const SUBS = ['Tim', 'Poster & Info', 'Kiriman Poster', 'Tabel Lomba', 'Prestasi', 'Teks & Fitur'];
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
@@ -3599,6 +3603,7 @@ function LandingPageManager() {
       </div>
       {sub === 'Tim' && <TeamManager />}
       {sub === 'Poster & Info' && <PosterManager />}
+      {sub === 'Kiriman Poster' && <KirimanPoster />}
       {sub === 'Tabel Lomba' && <OlympiadManager />}
       {sub === 'Prestasi' && <AchievementManager />}
       {sub === 'Teks & Fitur' && <LandingTextEditor />}
@@ -4079,7 +4084,7 @@ function KelasReminder() {
           }
           return `${nama}: ${v}`;
         });
-        setOkMsg('Hasil refresh — ' + parts.join(' | '));
+        setOkMsg('Hasil refresh - ' + parts.join(' | '));
       }
       await load();
     } catch (e) {

@@ -126,12 +126,12 @@ export default function EventHasilTab({ ev, onSimpan }) {
           <p className="mt-1 text-[13px] leading-relaxed text-stone-600">
             Dirilis pada {tanggalPanjang(ev.resultsReleasedAt)}. Peserta sudah bisa melihat{' '}
             {ev.hideAnswerReview ? 'skor dan/atau peringkatnya (tinjauan soal ditutup)' : 'skor, peringkat, dan kunci jawabannya'}.
-            Menekan tombol di bawah menghitung ulang semua skor — berguna kalau kamu baru memperbaiki
+            Menekan tombol di bawah menghitung ulang semua skor - berguna kalau kamu baru memperbaiki
             kunci jawaban sebuah soal.
           </p>
         ) : (
           <p className="mt-1 text-[13px] leading-relaxed text-stone-600">
-            Selama belum dirilis, peserta tidak bisa melihat skor maupun kunci jawaban —
+            Selama belum dirilis, peserta tidak bisa melihat skor maupun kunci jawaban -
             termasuk mereka yang sudah selesai mengerjakan. Tekan tombol ini setelah
             jendela waktu ujian ditutup untuk semua peserta.
           </p>
@@ -201,7 +201,7 @@ export default function EventHasilTab({ ev, onSimpan }) {
             <p className="flex items-start gap-2 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-3 text-[12px] leading-relaxed text-gold-600">
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
               <span>
-                Rilis otomatis pada tanggal tersebut <span className="font-semibold">belum berjalan sendiri</span> —
+                Rilis otomatis pada tanggal tersebut <span className="font-semibold">belum berjalan sendiri</span> -
                 tanggalnya dipakai sebagai pengumuman ke peserta, tapi hasilnya tetap baru keluar
                 setelah kamu menekan tombol Rilis Hasil.
               </span>
@@ -242,7 +242,7 @@ export default function EventHasilTab({ ev, onSimpan }) {
             nyala={!f.hideAnswerReview}
             onUbah={(v) => set('hideAnswerReview', !v)}
             judul="Tampilkan tinjauan soal & kunci jawaban setelah hasil dirilis"
-            isi="Kalau mati, peserta hanya melihat skor dan/atau peringkat — tanpa soal, jawabannya sendiri, kunci, maupun pembahasan."
+            isi="Kalau mati, peserta hanya melihat skor dan/atau peringkat - tanpa soal, jawabannya sendiri, kunci, maupun pembahasan."
           />
 
           {!f.hideAnswerReview && (
@@ -250,7 +250,7 @@ export default function EventHasilTab({ ev, onSimpan }) {
               nyala={f.showExplanationAfterRelease}
               onUbah={(v) => set('showExplanationAfterRelease', v)}
               judul="Tampilkan pembahasan setelah hasil dirilis"
-              isi="Kalau mati, peserta cuma melihat kunci jawabannya — berguna kalau soalnya mau dipakai lagi di batch lain."
+              isi="Kalau mati, peserta cuma melihat kunci jawabannya - berguna kalau soalnya mau dipakai lagi di batch lain."
             />
           )}
 

@@ -35,7 +35,7 @@ function Pita({ children }) {
   return (
     <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-gold-200 bg-gold-100 px-4 py-2">
       <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold-600">
-        <Eye size={13} /> Mode pratinjau — tidak ada yang tersimpan
+        <Eye size={13} /> Mode pratinjau - tidak ada yang tersimpan
       </span>
       {children}
     </div>
@@ -183,7 +183,7 @@ function PreviewUjian({ ev, soal }) {
             <p className="truncate text-[11px] text-stone-500">{ev.name}</p>
           </div>
           <span className="inline-flex items-center gap-2 rounded-xl border border-alba-300 bg-alba-100 px-3.5 py-2 font-display text-lg font-semibold tabular-nums text-stone-800">
-            <Clock size={15} /> {durasi > 0 ? jamMundur(durasi * 60) : '—'}
+            <Clock size={15} /> {durasi > 0 ? jamMundur(durasi * 60) : '-'}
           </span>
         </div>
       </header>
@@ -266,7 +266,7 @@ function PreviewUjian({ ev, soal }) {
           {ev.watermarkOff ? (
             <>
               {' '}Tanda air identitas <span className="font-semibold">sedang dimatikan</span> untuk
-              lomba ini — nyalakan di tab Info Dasar kalau kamu ingin foto yang bocor bisa dilacak.
+              lomba ini - nyalakan di tab Info Dasar kalau kamu ingin foto yang bocor bisa dilacak.
             </>
           ) : (
             <>

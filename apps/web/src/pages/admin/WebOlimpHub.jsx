@@ -123,7 +123,7 @@ export default function WebOlimpHub() {
         <h2 className="mt-2 font-display text-2xl font-semibold text-stone-800">Web Olimp</h2>
         <p className="mt-2 text-sm text-stone-600 leading-relaxed max-w-2xl">
           Bank soal olimpiade FK. Ia berjalan di aplikasi yang sama dengan PCV Classroom, tapi punya alamat,
-          tampilan, dan database sendiri — jadi soal olimpiade tidak tercampur dengan soal kuliah.
+          tampilan, dan database sendiri - jadi soal olimpiade tidak tercampur dengan soal kuliah.
         </p>
         {!superAdmin && (
           <p className="mt-3 rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-2.5 text-[12px] text-stone-600 leading-relaxed max-w-2xl">
@@ -142,7 +142,7 @@ export default function WebOlimpHub() {
           {[
             ['/olimp/daftar', 'Pendaftaran peserta baru (akun Olimp, bukan akun PCV)'],
             ['/olimp/masuk', 'Halaman masuk peserta Olimp'],
-            ['/olimp', 'Beranda Web Olimp — daftar paket soal untuk peserta'],
+            ['/olimp', 'Beranda Web Olimp - daftar paket soal untuk peserta'],
             ['/olimp/paket/:id', 'Halaman blueprint sebelum kuis dimulai'],
             ['/olimp/kuis/:id', 'Layar kuis dengan tombol Cek Jawaban'],
             ['/olimp/hasil/:id', 'Hasil pengerjaan + tinjauan soal & pembahasan'],
@@ -159,14 +159,14 @@ export default function WebOlimpHub() {
         <p className="mt-3 text-[11px] text-stone-500 leading-relaxed">
           Alamatnya menempel pada domain yang sama dengan PCV Classroom. Jadi kalau web PCV ada di
           <span className="font-mono font-semibold"> pcvclassroom.com</span>, Web Olimp ada di
-          <span className="font-mono font-semibold"> pcvclassroom.com/olimp</span> — tidak perlu domain atau server baru.
+          <span className="font-mono font-semibold"> pcvclassroom.com/olimp</span> - tidak perlu domain atau server baru.
         </p>
       </section>
 
       {belumTerpasang ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm px-4 py-3 leading-relaxed">
           Database Web Olimp belum terpasang di server ini. Jalankan
-          {' '}<code className="text-[12px]">bash /opt/pcv/kons/deploy/update.sh</code> di server —
+          {' '}<code className="text-[12px]">bash /opt/pcv/kons/deploy/update.sh</code> di server -
           PocketBase menerapkan migrasinya sendiri saat di-restart. Setelah itu muat ulang halaman ini.
         </p>
       ) : !stat ? (
@@ -223,10 +223,10 @@ export default function WebOlimpHub() {
           <ShieldCheck size={16} className="text-maroon-600" /> Siapa yang bisa masuk
         </h3>
         <ul className="mt-3 space-y-2 text-sm text-stone-600 leading-relaxed">
-          <li>· <span className="font-semibold text-stone-800">Peserta Olimp</span> — akun sendiri di basis data terpisah (<code className="text-[11px]">olimp_users</code>), mendaftar lewat /olimp/daftar. Terkunci ke satu device. <span className="font-semibold">Akun web siswa PCV tidak berlaku di sini</span>, dan sebaliknya.</li>
-          <li>· <span className="font-semibold text-stone-800">Admin PCV</span> — masuk pakai akun PCV yang sudah ada, bisa memakai Web Olimp persis seperti peserta (menu "Tampilan Siswa" di atas), <span className="font-semibold">tapi tidak bisa membuka Dashboard Olimp</span>. Tanpa kunci device.</li>
-          <li>· <span className="font-semibold text-stone-800">Super Admin PCV</span> — satu-satunya yang bisa membuka Dashboard Olimp: kelola paket, soal, peserta, jadwal, dan pengaturan SEB. Tanpa kunci device.</li>
-          <li>· <span className="font-semibold text-stone-800">Pengajar PCV</span> — bisa membaca soal &amp; pembahasan untuk meninjau, tanpa dashboard.</li>
+          <li>· <span className="font-semibold text-stone-800">Peserta Olimp</span> - akun sendiri di basis data terpisah (<code className="text-[11px]">olimp_users</code>), mendaftar lewat /olimp/daftar. Terkunci ke satu device. <span className="font-semibold">Akun web siswa PCV tidak berlaku di sini</span>, dan sebaliknya.</li>
+          <li>· <span className="font-semibold text-stone-800">Admin PCV</span> - masuk pakai akun PCV yang sudah ada, bisa memakai Web Olimp persis seperti peserta (menu "Tampilan Siswa" di atas), <span className="font-semibold">tapi tidak bisa membuka Dashboard Olimp</span>. Tanpa kunci device.</li>
+          <li>· <span className="font-semibold text-stone-800">Super Admin PCV</span> - satu-satunya yang bisa membuka Dashboard Olimp: kelola paket, soal, peserta, jadwal, dan pengaturan SEB. Tanpa kunci device.</li>
+          <li>· <span className="font-semibold text-stone-800">Pengajar PCV</span> - bisa membaca soal &amp; pembahasan untuk meninjau, tanpa dashboard.</li>
           <li>· Akun <span className="font-semibold text-stone-800">Super Admin</span> tetap <span className="font-semibold">hanya bisa dibuat langsung lewat PocketBase</span>, bukan dari web ini (sesuai PRD bagian 4.2).</li>
         </ul>
         {role === 'super_admin' && (
@@ -239,10 +239,10 @@ export default function WebOlimpHub() {
       <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
         <h3 className="font-display text-base font-semibold text-stone-800">Yang belum terpasang</h3>
         <ul className="mt-2.5 space-y-1.5 text-sm text-amber-900 leading-relaxed">
-          <li>· <span className="font-semibold">Secure Exam Browser (SEB)</span> — unduh config, pemeriksaan header, dan penguncian layar. Saklar “hanya lewat SEB” per paket sudah ada dan tersimpan, tapi belum berpengaruh.</li>
-          <li>· <span className="font-semibold">Kunci device berbasis hardware</span> — sekarang masih sidik jari browser. Hardware ID datang bersama SEB.</li>
-          <li>· <span className="font-semibold">Pembayaran otomatis</span> — pendaftar paket berbayar masuk sebagai “menunggu ACC”, lalu diaktifkan manual oleh admin di tab Peserta. Paket Percobaan sudah bisa aktif sendiri.</li>
-          <li>· <span className="font-semibold">Email pengingat jadwal</span> — penandanya sudah ada di tiap agenda, pengirimannya menyusul.</li>
+          <li>· <span className="font-semibold">Secure Exam Browser (SEB)</span> - unduh config, pemeriksaan header, dan penguncian layar. Saklar “hanya lewat SEB” per paket sudah ada dan tersimpan, tapi belum berpengaruh.</li>
+          <li>· <span className="font-semibold">Kunci device berbasis hardware</span> - sekarang masih sidik jari browser. Hardware ID datang bersama SEB.</li>
+          <li>· <span className="font-semibold">Pembayaran otomatis</span> - pendaftar paket berbayar masuk sebagai “menunggu ACC”, lalu diaktifkan manual oleh admin di tab Peserta. Paket Percobaan sudah bisa aktif sendiri.</li>
+          <li>· <span className="font-semibold">Email pengingat jadwal</span> - penandanya sudah ada di tiap agenda, pengirimannya menyusul.</li>
         </ul>
       </section>
     </div>

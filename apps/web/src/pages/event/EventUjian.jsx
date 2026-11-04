@@ -400,7 +400,7 @@ export default function EventUjian() {
                 <AlertTriangle size={14} /> Sebelum menekan Mulai
               </p>
               <ul className="mt-1.5 space-y-1 text-[12px] leading-relaxed text-stone-600">
-                <li>· Perangkat ini akan dikunci untuk lomba ini — pindah perangkat perlu izin admin.</li>
+                <li>· Perangkat ini akan dikunci untuk lomba ini - pindah perangkat perlu izin admin.</li>
                 <li>· Tidak ada tanda benar/salah selama mengerjakan. Hasil diumumkan belakangan.</li>
                 <li>· Jawaban tersimpan otomatis tiap kali kamu memilih opsi.</li>
               </ul>
@@ -460,7 +460,7 @@ export default function EventUjian() {
             }`}
           >
             <Clock size={15} />
-            {sisa === null ? '—' : jamMundur(sisa)}
+            {sisa === null ? '-' : jamMundur(sisa)}
           </div>
         </div>
       </header>
@@ -468,7 +468,7 @@ export default function EventUjian() {
       <main className="mx-auto w-full max-w-3xl px-6 py-8">
         {jumlahAntre > 0 && (
           <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {jumlahAntre} jawabanmu belum tersimpan ke server. Aplikasi mencoba lagi otomatis —
+            {jumlahAntre} jawabanmu belum tersimpan ke server. Aplikasi mencoba lagi otomatis -
             jangan menutup halaman ini dan periksa koneksi internetmu.
           </p>
         )}

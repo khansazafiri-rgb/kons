@@ -129,7 +129,7 @@ export default function RentalKeranjang() {
                         <span>{jadwalKalimat(b.mulai, b.selesai)} <span className="text-stone-400">· {durasiKalimat(b.mulai, b.selesai)}</span></span>
                       </p>
                       <p className="mt-2 text-[16px] font-extrabold text-stone-900">
-                        {server ? rupiah(server.total) : g ? <span className="text-stone-300">—</span> : <span className="text-stone-300">…</span>}
+                        {server ? rupiah(server.total) : g ? <span className="text-stone-300">-</span> : <span className="text-stone-300">…</span>}
                       </p>
                     </div>
                   </div>

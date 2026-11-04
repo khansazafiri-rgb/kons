@@ -27,7 +27,7 @@ import { SATUAN, ambilKatalog, rupiah, tanggalWibHariIni, tautanWa } from '@/lib
 const LANGKAH = [
   { ikon: CalendarDays, judul: 'Pilih jadwal', isi: 'Tiap ruang dan alat punya jadwalnya sendiri. Ketuk tanggal, lalu jam mulai dan jam selesai.' },
   { ikon: ShoppingBag, judul: 'Checkout tanpa akun', isi: 'Isi nama, WhatsApp, email, institusi, dan keperluan. Tidak perlu daftar atau login.' },
-  { ikon: CalendarCheck, judul: 'Jadwal langsung aman', isi: 'Begitu checkout berhasil, jadwal itu terkunci untukmu — walau pembayarannya belum masuk.' },
+  { ikon: CalendarCheck, judul: 'Jadwal langsung aman', isi: 'Begitu checkout berhasil, jadwal itu terkunci untukmu - walau pembayarannya belum masuk.' },
   { ikon: CreditCard, judul: 'Bayar lewat WhatsApp', isi: 'Admin mengirim rincian transfer lewat WhatsApp. Kirim bukti transfer di chat yang sama.' },
 ];
 
@@ -229,7 +229,7 @@ export default function RentalHome() {
             Sewa ruang & alat medis, tinggal pilih jamnya.
           </h1>
           <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-white/80 sm:text-base">
-            {konfigurasi.tagline || 'Untuk praktik, pelatihan, dan tindakan — jadwal per 30 menit, langsung terkunci begitu kamu checkout.'}
+            {konfigurasi.tagline || 'Untuk praktik, pelatihan, dan tindakan - jadwal per 30 menit, langsung terkunci begitu kamu checkout.'}
           </p>
         </div>
       </section>
@@ -301,7 +301,7 @@ export default function RentalHome() {
           <div className="mt-10 flex flex-col items-start justify-between gap-4 rounded-2xl bg-sewa p-6 text-white sm:flex-row sm:items-center">
             <div>
               <p className="text-[16px] font-extrabold">Masih ragu ruang mana yang cocok?</p>
-              <p className="mt-1 text-[13px] text-white/70">Ceritakan kebutuhanmu ke admin — biasanya dibalas di jam kerja.</p>
+              <p className="mt-1 text-[13px] text-white/70">Ceritakan kebutuhanmu ke admin - biasanya dibalas di jam kerja.</p>
             </div>
             {wa ? (
               <a href={wa} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-stone-900 hover:bg-alba-100">

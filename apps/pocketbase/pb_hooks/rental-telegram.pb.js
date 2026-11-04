@@ -96,46 +96,25 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
         return jawab("Tekan sekali lagi untuk memastikan.");
       }
 
-      // Membatalkan baris satu per satu, sama persis seperti endpoint
-      // dashboard - termasuk menghapus event Calendar dan mengarsipkan ke
-      // Sheet. Jalur Telegram tidak boleh meninggalkan sisa yang tidak
-      // ditinggalkan jalur dashboard.
-      SH.barisOrder(e.app, order.id).forEach((b) => {
-        try {
-          const oi = e.app.findRecordById("rental_order_items", b.id);
-          oi.set("status", "DIBATALKAN");
-          SH.tandaiBerubah(oi, "TELEGRAM", "MENUNGGU", "");
-          e.app.save(oi);
-          if (b.calendarEventId) {
-            SH.antrekan(e.app, "CALENDAR_DELETE", "rental_order_items", oi.id, { eventId: b.calendarEventId });
-          }
-        } catch (err) { console.log("rental batal-telegram item gagal:", err); }
+      // Fungsi yang sama dengan tombol Batalkan di dashboard (rental-tindakan.js):
+      // semua baris dibatalkan dalam satu transaksi, event Calendar dihapus,
+      // baris Sheet diarsipkan, audit dicatat, grup dikabari.
+      const T = require(`${__hooks}/rental-tindakan.js`);
+      // Dari perintah /batal, alasannya tertulis di pesan konfirmasi.
+      const dariPesan = String((cq.message || {}).text || "").match(/^Alasan: (.+)$/m);
+      const alasanBatal = (dariPesan ? dariPesan[1] + ". " : "") + "Dibatalkan dari Telegram oleh " + namaPenekan.trim();
+      T.batalkanPesanan(e.app, order.id, alasanBatal, {
+        tipe: "TELEGRAM", id: userId, nama: namaPenekan.trim() || userId, perintah: "tombol Batalkan",
       });
-
-      order.set("status", "DIBATALKAN");
-      order.set("cancelledAt", new Date().toISOString());
-      order.set("cancelReason", "Dibatalkan dari Telegram oleh " + namaPenekan.trim());
-      SH.tandaiBerubah(order, "TELEGRAM", "MENUNGGU", "");
-      e.app.save(order);
-      SH.antrekan(e.app, "SHEET_ARSIP", "rental_orders", order.id, {});
-
-      SH.catat(e.app, {
-        aksi: "BATAL_PESANAN",
-        entitas: "rental_orders",
-        entitasId: order.id,
-        kode: kode,
-        pelakuTipe: "TELEGRAM",
-        pelakuId: userId,
-        pelakuNama: namaPenekan.trim(),
-        detail: { chatId: chatId },
-      });
-
       IN.telegram(s, "editMessageReplyMarkup", {
         chat_id: chatId, message_id: cq.message.message_id, reply_markup: { inline_keyboard: [] },
       });
-      IN.siarkan(s, "❌ <code>" + IN.esc(kode) + "</code> dibatalkan dari Telegram oleh " +
-        IN.esc(namaPenekan.trim() || userId) + ". Slot & stoknya terbuka lagi.");
       return jawab("Pesanan " + kode + " dibatalkan.");
+    }
+
+    if (aksi === "abaikan") {
+      IN.telegram(s, "editMessageReplyMarkup", { chat_id: chatId, message_id: cq.message.message_id, reply_markup: { inline_keyboard: [] } });
+      return jawab("Tidak jadi dibatalkan.");
     }
 
     if (aksi === "urung") {
@@ -154,43 +133,12 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
     }
 
     if (aksi === "verif") {
-      if (order.getString("status") === "DIBATALKAN") return jawab("Pesanan ini sudah dibatalkan.", true);
-      const sebelum = order.getString("status");
-      order.set("status", "TERKONFIRMASI");
-      if (!SH.iso(order, "confirmedAt")) order.set("confirmedAt", new Date().toISOString());
-      SH.tandaiBerubah(order, "TELEGRAM", "MENUNGGU", "");
-      e.app.save(order);
-
-      // Bukti yang masih menggantung ikut ditandai diterima - kalau tidak,
-      // dashboard akan terus menagih verifikasi untuk pesanan yang sudah lunas.
-      SH.buktiOrder(e.app, order.id).forEach((p) => {
-        if (p.verifikasi !== "MENUNGGU") return;
-        try {
-          const rec = e.app.findRecordById("rental_proofs", p.id);
-          rec.set("verifyStatus", "DITERIMA");
-          rec.set("verifyNote", "Diverifikasi dari Telegram oleh " + namaPenekan.trim());
-          e.app.save(rec);
-        } catch (err) { console.log("rental verif-telegram bukti gagal:", err); }
-      });
-
-      SH.barisOrder(e.app, order.id)
-        .filter((b) => b.tipe === "RUANG")
-        .forEach((b) => SH.antrekan(e.app, "CALENDAR_UPSERT", "rental_order_items", b.id, { orderId: order.id }));
-      SH.antrekan(e.app, "SHEET_UPSERT", "rental_orders", order.id, {});
-
-      SH.catat(e.app, {
-        aksi: "VERIFIKASI_BUKTI",
-        entitas: "rental_orders",
-        entitasId: order.id,
-        kode: kode,
-        pelakuTipe: "TELEGRAM",
-        pelakuId: userId,
-        pelakuNama: namaPenekan.trim(),
-        detail: { dari: sebelum },
-      });
-
-      IN.siarkan(s, "✅ <code>" + IN.esc(kode) + "</code> ditandai TERKONFIRMASI oleh " +
-        IN.esc(namaPenekan.trim() || userId) + ".");
+      // Aturan status sama dengan /confirm dan dashboard: hanya pesanan yang
+      // belum lunas, belum batal, dan belum selesai yang bisa dikonfirmasi.
+      const T = require(`${__hooks}/rental-tindakan.js`);
+      const h = T.konfirmasiPembayaran(e.app, order.id, { tipe: "TELEGRAM", id: userId, nama: namaPenekan.trim() || userId, perintah: "tombol Tandai Terverifikasi" });
+      if (!h.ok) return jawab(h.pesan, true);
+      if (h.sudah) return jawab("Pesanan " + kode + " sudah terkonfirmasi sebelumnya.");
       return jawab("Pesanan " + kode + " ditandai terkonfirmasi.");
     }
 
@@ -211,15 +159,106 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
   const adaFoto = Array.isArray(msg.photo) && msg.photo.length > 0;
   const adaDokumen = !!msg.document;
   if (!adaFoto && !adaDokumen) {
-    // Perintah /id sangat menolong saat pemasangan: admin perlu tahu chat id
-    // grupnya untuk mengisi daftar yang diizinkan, dan tanpa ini satu-satunya
-    // cara adalah membuka API Telegram manual.
-    if (String(msg.text || "").trim().split("@")[0] === "/id") {
+    const teks = String(msg.text || "").trim();
+    // Perintah: "/confirm@NamaBot KODE" -> ["/confirm", "KODE", ...]
+    const potongan = teks.split(/\s+/);
+    const perintah = (potongan[0] || "").split("@")[0].toLowerCase();
+
+    // /id sangat menolong saat pemasangan: admin perlu tahu chat id grupnya.
+    if (perintah === "/id") {
       IN.telegram(s, "sendMessage", {
         chat_id: chatId,
         text: "Chat ID: <code>" + IN.esc(chatId) + "</code>\nUser ID: <code>" + IN.esc(userId) + "</code>",
         parse_mode: "HTML",
       });
+      return e.json(200, { ok: true });
+    }
+    if (perintah.indexOf("/") !== 0) return e.json(200, { ok: true });
+
+    const balas = (isi) => {
+      IN.telegram(s, "sendMessage", { chat_id: chatId, text: isi, parse_mode: "HTML", reply_to_message_id: Number(msg.message_id) });
+      return e.json(200, { ok: true });
+    };
+    // Perintah yang mengubah data: chat (sudah dicek di atas) DAN user harus
+    // diizinkan, sama seperti tombol.
+    if (!IN.userDiizinkan(s, userId)) return balas("Kamu tidak terdaftar sebagai admin peminjaman.");
+
+    const T = require(`${__hooks}/rental-tindakan.js`);
+    const nama = (String((msg.from || {}).first_name || "") + " " + String((msg.from || {}).last_name || "")).trim() || userId;
+    const pelaku = { tipe: "TELEGRAM", id: userId, nama: nama, perintah: teks.slice(0, 200) };
+    const PANDUAN =
+      "<b>Perintah admin peminjaman</b>\n" +
+      "/status KODE - lihat status pesanan\n" +
+      "/confirm KODE - tandai pembayaran lunas\n" +
+      "/tolakbukti KODE alasan - bukti salah, slot TETAP terblok\n" +
+      "/batal KODE alasan - batalkan pesanan, slot DILEPAS (minta konfirmasi)\n" +
+      "/pindah KODE YYYY-MM-DD HH:MM HH:MM [nama item] - pindah jadwal (jam WIB, kelipatan 30 menit)\n" +
+      "Balas pesan notifikasi dengan foto untuk melampirkan bukti transfer.";
+    if (perintah === "/bantuan" || perintah === "/help" || perintah === "/start") return balas(PANDUAN);
+
+    const KENAL = ["/status", "/confirm", "/konfirmasi", "/tolakbukti", "/batal", "/pindah"];
+    if (KENAL.indexOf(perintah) === -1) return e.json(200, { ok: true });
+
+    const order = T.cariKode(e.app, potongan[1]);
+    if (!order) return balas("Kode booking tidak dikenal. Contoh: <code>" + IN.esc(perintah) + " PMJ-0101-0001</code>\n\n" + PANDUAN);
+    const kode = order.getString("bookingCode");
+
+    if (perintah === "/status") {
+      const baris = SH.barisOrder(e.app, order.id);
+      return balas("<code>" + IN.esc(kode) + "</code> · <b>" + IN.esc(order.getString("status")) + "</b>\n" +
+        IN.esc(order.getString("customerName")) + "\n" +
+        baris.map((b) => "• " + IN.esc(b.nama) + ": " + IN.esc(b.jadwal)).join("\n") +
+        "\nTotal " + IN.esc(SH.A.rupiah(order.getFloat("total"))));
+    }
+    if (perintah === "/confirm" || perintah === "/konfirmasi") {
+      const h = T.konfirmasiPembayaran(e.app, order.id, pelaku, potongan.slice(2).join(" "));
+      if (!h.ok) return balas("❗ " + IN.esc(h.pesan));
+      if (h.sudah) return balas("<code>" + IN.esc(kode) + "</code> sudah terkonfirmasi sebelumnya. Tidak ada yang diubah.");
+      return e.json(200, { ok: true }); // pengumuman dikirim oleh konfirmasiPembayaran
+    }
+    if (perintah === "/tolakbukti") {
+      const h = T.tolakBukti(e.app, order.id, potongan.slice(2).join(" "), pelaku);
+      if (!h.ok) return balas("❗ " + IN.esc(h.pesan) + "\nContoh: <code>/tolakbukti " + IN.esc(kode) + " nominal kurang</code>");
+      return e.json(200, { ok: true });
+    }
+    if (perintah === "/batal") {
+      const alasan = potongan.slice(2).join(" ").trim();
+      if (alasan.length < 3) return balas("Tulis alasannya. Contoh: <code>/batal " + IN.esc(kode) + " pelanggan membatalkan</code>");
+      if (order.getString("status") === "DIBATALKAN") return balas("<code>" + IN.esc(kode) + "</code> sudah dibatalkan.");
+      // Pembatalan melepas slot, jadi tetap butuh tekan kedua (sama dengan tombol).
+      IN.telegram(s, "sendMessage", {
+        chat_id: chatId,
+        reply_to_message_id: Number(msg.message_id),
+        parse_mode: "HTML",
+        text: "Batalkan <code>" + IN.esc(kode) + "</code>? Slot & stoknya akan dilepas.\nAlasan: " + IN.esc(alasan),
+        reply_markup: { inline_keyboard: [[{ text: "⚠️ Ya, batalkan " + kode, callback_data: "batal:" + order.id + ":ya" }], [{ text: "Tidak jadi", callback_data: "abaikan:" + order.id }]] },
+      });
+      return e.json(200, { ok: true });
+    }
+    if (perintah === "/pindah") {
+      // /pindah KODE 2026-11-20 09:00 11:00 [nama item]
+      const tgl = potongan[2] || "";
+      const jm = potongan[3] || "";
+      const js = potongan[4] || "";
+      const item = potongan.slice(5).join(" ").trim().toLowerCase();
+      const pola = /^\d{4}-\d{2}-\d{2}$/;
+      const polaJam = /^([01]\d|2[0-4]):(00|30)$/;
+      if (!pola.test(tgl) || !polaJam.test(jm) || !polaJam.test(js)) {
+        return balas("Format: <code>/pindah " + IN.esc(kode) + " 2026-11-20 09:00 11:00</code> (jam WIB, kelipatan 30 menit). Tambahkan nama item kalau pesanan punya lebih dari satu item.");
+      }
+      const keMs = (j) => Date.parse(tgl + "T" + (j === "24:00" ? "23:59" : j) + ":00+07:00") + (j === "24:00" ? 60000 : 0);
+      const baris = SH.barisOrder(e.app, order.id);
+      let target = null;
+      if (item) target = baris.filter((b) => b.nama.toLowerCase().indexOf(item) !== -1)[0] || null;
+      else if (baris.length === 1) target = baris[0];
+      if (!target) {
+        return balas(baris.length > 1 && !item
+          ? "Pesanan ini punya " + baris.length + " item: " + baris.map((b) => IN.esc(b.nama)).join(", ") + ". Tulis nama itemnya di akhir perintah."
+          : "Item tidak ditemukan di pesanan " + IN.esc(kode) + ".");
+      }
+      const h = T.pindahJadwal(e.app, { orderItemId: target.id, mulai: keMs(jm), selesai: keMs(js), jumlah: target.jumlah, alasan: "dari Telegram", pelaku: pelaku });
+      if (!h.ok) return balas("❗ Ditolak: " + IN.esc(h.pesan));
+      return e.json(200, { ok: true }); // pengumuman dikirim oleh pindahJadwal
     }
     return e.json(200, { ok: true });
   }

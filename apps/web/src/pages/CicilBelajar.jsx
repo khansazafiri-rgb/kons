@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { BookOpen, ClipboardList, History, Lock, PencilLine } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, BookOpen, ClipboardList, History, Lock, PencilLine } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { filterLatihan, filterTampilSoal, gabung } from '@/lib/chapterScope';
@@ -11,9 +11,16 @@ import ChapterSelect from '@/components/ChapterSelect';
 import { touchActivity } from '@/lib/activityLog';
 import { idUrutan, susunSoal } from '@/lib/acakSoal';
 import useUrlState from '@/lib/useUrlState';
+import { tautan } from '@/lib/belajar';
 
 export default function CicilBelajar() {
  const { user, role } = useAuth();
+ const navigate = useNavigate();
+ const [params] = useSearchParams();
+ // Dibuka dari halaman Mata Kuliah (/belajar/:id): tombol keluar kembali ke
+ // BAB yang sama, dan buka=1 langsung membuka pengerjaan tanpa klik "Mulai".
+ const dariBelajar = params.get('dari') === 'belajar';
+ const bukaLangsung = params.get('buka') === '1';
  const [subjects, setSubjects] = useState([]);
  // Pilihan disimpan di URL supaya refresh tidak melempar balik ke daftar awal.
  const [subjectId, setSubjectId] = useUrlState('subject', '');
@@ -190,10 +197,15 @@ export default function CicilBelajar() {
  // mulai seperti biasa - alurnya tidak diubah.
  const awal = useRef({ mode, chapterId });
  const sudahAutoBuka = useRef(false);
+ // Pengecualian: alamat dari halaman Mata Kuliah membawa buka=1 untuk mode
+ // "kerjakan". Membuka di sini juga tidak menulis apa pun: catatan pengerjaan
+ // baru dibuat saat siswa menjawab soal pertama (savePartial), dan BAB yang
+ // tertunda/selesai tetap menampilkan layar pilihan lebih dulu.
  useEffect(() => {
    if (sudahAutoBuka.current) return;
-   if (awal.current.mode !== 'review' || awal.current.chapterId !== chapterId) return;
-   if (mode !== 'review' || !chapterId || !chapters.length) return;
+   const bolehAuto = awal.current.mode === 'review' || (awal.current.mode === 'kerjakan' && bukaLangsung);
+   if (!bolehAuto || awal.current.chapterId !== chapterId) return;
+   if (mode !== awal.current.mode || !chapterId || !chapters.length) return;
    if (!chapters.some((c) => c.id === chapterId)) return; // BAB belum termuat / tidak boleh dilihat
    sudahAutoBuka.current = true;
    openChapter();
@@ -218,6 +230,7 @@ export default function CicilBelajar() {
      }
    } catch (error) {
      console.error('Gagal mengamankan progress:', error);
+     return false;
    }
  };
 
@@ -246,13 +259,18 @@ export default function CicilBelajar() {
      <div className="min-h-screen bg-grid-soft">
        <Header />
        <div className="max-w-md mx-auto px-6 py-24">
+         {dariBelajar && (
+           <Link to={tautan.mataKuliah(subjectId, chapterId)} className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-stone-600 hover:text-maroon-600">
+             <ArrowLeft size={15} aria-hidden /> Kembali ke daftar BAB
+           </Link>
+         )}
          <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
            <div className="w-16 h-16 bg-gold-100 text-gold-600 rounded-full flex items-center justify-center mx-auto mb-5">
              <History size={26} />
            </div>
-           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Terdeteksi Progress Sebelumnya</h2>
+           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Latihan ini belum selesai</h2>
            <p className="text-sm font-medium text-stone-600 mb-8 leading-relaxed">
-             Sistem mencatat kamu belum menyelesaikan latihan soal di BAB ini secara penuh. Ingin melanjutkan dari soal terakhir?
+             Jawabanmu yang terakhir sudah tersimpan. Lanjutkan dari situ, atau mulai lagi dari soal pertama (jawaban lama akan dihapus).
            </p>
            <div className="flex flex-col gap-3">
              <button
@@ -283,6 +301,11 @@ export default function CicilBelajar() {
      <div className="min-h-screen bg-grid-soft">
        <Header />
        <div className="max-w-md mx-auto px-6 py-24">
+         {dariBelajar && (
+           <Link to={tautan.mataKuliah(subjectId, chapterId)} className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-stone-600 hover:text-maroon-600">
+             <ArrowLeft size={15} aria-hidden /> Kembali ke daftar BAB
+           </Link>
+         )}
          <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
            <div className="w-16 h-16 bg-green-50 text-green-700 rounded-full flex items-center justify-center mx-auto mb-5">
              <ClipboardList size={26} />
@@ -299,7 +322,7 @@ export default function CicilBelajar() {
                onClick={() => mulai('review')}
                className="w-full rounded-xl bg-maroon-600 text-alba-50 px-5 py-3.5 text-sm font-bold shadow-card hover:bg-maroon-700 transition-colors"
              >
-               Review Jawaban Saya (semua jawaban sudah terisi, review di sini!)
+               Lihat jawaban dan pembahasan saya
              </button>
              <button
                onClick={() => mulai('restart')}
@@ -327,6 +350,10 @@ export default function CicilBelajar() {
            initialAnswers={(resume === 'resume' || isReview) ? priorProgress?.answers || {} : {}}
            onAnswerChange={savePartial}
            onExit={() => {
+             if (dariBelajar) {
+               navigate(tautan.mataKuliah(subjectId, chapterId));
+               return;
+             }
              setQuestions(null);
              setSoalJalan(null);
              setPriorProgress(null);
@@ -345,6 +372,11 @@ export default function CicilBelajar() {
    <div className="min-h-screen bg-grid-soft">
      <Header />
      <div className="max-w-3xl mx-auto px-6 py-14">
+       {dariBelajar && subjectId && (
+         <Link to={tautan.mataKuliah(subjectId, chapterId)} className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-stone-600 hover:text-maroon-600">
+           <ArrowLeft size={15} aria-hidden /> Kembali ke daftar BAB
+         </Link>
+       )}
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
          <ClipboardList size={14} />
          KERJAKAN SOAL TIAP BAB

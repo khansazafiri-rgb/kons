@@ -154,11 +154,11 @@ function TempelKode({ onImpor, onTutup, sibuk }) {
       <ul className="mt-1.5 space-y-1 text-[12px] leading-relaxed text-stone-600">
         <li>
           · <code className="text-[11px]">text</code> + <code className="text-[11px]">options: [{'{'} text, correct, explanation {'}'}]</code>
-          {' '}— bentuk Edit Soal PCV
+          {' '}- bentuk Edit Soal PCV
         </li>
         <li>
           · <code className="text-[11px]">questionText</code> + <code className="text-[11px]">optionA</code>–<code className="text-[11px]">optionE</code> + <code className="text-[11px]">correctAnswer</code>
-          {' '}— bentuk Web Olimp
+          {' '}- bentuk Web Olimp
         </li>
       </ul>
       <p className="mt-1.5 text-[12px] leading-relaxed text-stone-500">
@@ -394,7 +394,7 @@ export default function EventSoalTab({ ev, onSimpan }) {
   };
 
   const hapus = async (s) => {
-    if (!window.confirm('Hapus soal ini? Soal yang sudah dijawab peserta tidak bisa dihapus (jawabannya akan ikut hilang) — ubah isinya saja.')) return;
+    if (!window.confirm('Hapus soal ini? Soal yang sudah dijawab peserta tidak bisa dihapus (jawabannya akan ikut hilang) - ubah isinya saja.')) return;
     setSibuk(true);
     try {
       await pb.collection('event_questions').delete(s.id);
@@ -560,7 +560,7 @@ export default function EventSoalTab({ ev, onSimpan }) {
               ))}
             </div>
             <p className="mt-4 rounded-xl bg-alba-100/60 px-4 py-2.5 text-[11px] leading-relaxed text-stone-500">
-              Peserta tidak melihat kunci jawaban maupun pembahasan selama ujian berlangsung —
+              Peserta tidak melihat kunci jawaban maupun pembahasan selama ujian berlangsung -
               keduanya baru muncul setelah kamu merilis hasil.
             </p>
           </div>

@@ -130,7 +130,7 @@ export default function JadwalOlimp() {
             <label className="block md:col-span-2">
               <span className="block text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1.5">Paket soal terkait</span>
               <select className={inputCls} value={draft.package || ''} onChange={(e) => setDraft({ ...draft, package: e.target.value })}>
-                <option value="">— tidak ditautkan ke paket —</option>
+                <option value="">- tidak ditautkan ke paket -</option>
                 {packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <span className="block mt-1 text-[11px] text-stone-500">Kalau ditautkan, siswa dapat tombol langsung ke paket ini dari kalendernya.</span>
@@ -145,7 +145,7 @@ export default function JadwalOlimp() {
             <span className="text-sm text-stone-600 leading-relaxed">
               <span className="font-semibold text-stone-800 block">Kirim pengingat email</span>
               Tandanya tersimpan dan sudah terbaca sistem, tapi pengiriman emailnya dipasang menyusul bersama
-              pemasangan SEB — sekarang ini baru penanda niat, bukan email yang benar-benar terkirim.
+              pemasangan SEB - sekarang ini baru penanda niat, bukan email yang benar-benar terkirim.
             </span>
           </label>
           <div className="flex items-center gap-2">

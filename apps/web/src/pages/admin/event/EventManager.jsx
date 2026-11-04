@@ -279,7 +279,7 @@ export default function EventManager() {
     return (
       <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-800">
         Database modul Event/Lomba belum terpasang di server ini. Jalankan
-        {' '}<code className="text-[12px]">bash /opt/pcv/kons/deploy/update.sh</code> di server —
+        {' '}<code className="text-[12px]">bash /opt/pcv/kons/deploy/update.sh</code> di server -
         PocketBase menerapkan migrasinya sendiri saat di-restart. Setelah itu muat ulang halaman ini.
       </p>
     );

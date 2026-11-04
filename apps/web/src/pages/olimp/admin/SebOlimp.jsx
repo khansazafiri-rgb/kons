@@ -123,7 +123,7 @@ export default function SebOlimp() {
         </p>
         <p className="mt-1.5 text-sm text-stone-700 leading-relaxed">
           {menyalaTapiKosong
-            ? 'Config Key dan Browser Exam Key dua-duanya masih kosong, jadi server tidak punya pembanding untuk memeriksa permintaan yang masuk — semua permintaan tetap dibiarkan lewat. Isi SALAH SATUNYA di bawah supaya penjagaannya benar-benar hidup; Config Key saja sudah cukup, dan itu yang paling lapang karena satu nilai berlaku untuk semua platform.'
+            ? 'Config Key dan Browser Exam Key dua-duanya masih kosong, jadi server tidak punya pembanding untuk memeriksa permintaan yang masuk - semua permintaan tetap dibiarkan lewat. Isi SALAH SATUNYA di bawah supaya penjagaannya benar-benar hidup; Config Key saja sudah cukup, dan itu yang paling lapang karena satu nilai berlaku untuk semua platform.'
             : draft.enforce
               ? 'Soal Olimp menolak dibaca dari peramban biasa. Admin & pengajar PCV tetap bisa meninjau soal seperti biasa.'
               : 'Untuk sekarang Web Olimp masih bisa dibuka dari peramban biasa. Nyalakan setelah berkas konfigurasi disebarkan ke peserta dan BEK-nya sudah dipasang.'}
@@ -163,19 +163,19 @@ export default function SebOlimp() {
           <input className={inputCls} value={draft.startUrl || ''} onChange={(e) => setDraft({ ...draft, startUrl: e.target.value })} placeholder="https://pcvclassroom.com/olimp/masuk" />
         </Field>
 
-        <Field label="Kata sandi keluar" hint="Diminta SEB saat peserta menekan tombol keluar. Wajib diisi — tanpa ini siapa pun bisa menutup SEB kapan saja.">
+        <Field label="Kata sandi keluar" hint="Diminta SEB saat peserta menekan tombol keluar. Wajib diisi - tanpa ini siapa pun bisa menutup SEB kapan saja.">
           <input className={inputCls} value={draft.quitPassword || ''} onChange={(e) => setDraft({ ...draft, quitPassword: e.target.value })} placeholder="mis. olimp2026" />
         </Field>
         <Field label="Kata sandi pengaturan" hint="Untuk membuka pengaturan SEB dari dalam aplikasi. Boleh dikosongkan.">
           <input className={inputCls} value={draft.adminPassword || ''} onChange={(e) => setDraft({ ...draft, adminPassword: e.target.value })} />
         </Field>
 
-        <Field label="Tautan pemasang — Windows"><input className={inputCls} value={draft.installerWindows || ''} onChange={(e) => setDraft({ ...draft, installerWindows: e.target.value })} /></Field>
-        <Field label="Tautan pemasang — macOS"><input className={inputCls} value={draft.installerMac || ''} onChange={(e) => setDraft({ ...draft, installerMac: e.target.value })} /></Field>
-        <Field label="Tautan pemasang — iPad"><input className={inputCls} value={draft.installerIpad || ''} onChange={(e) => setDraft({ ...draft, installerIpad: e.target.value })} /></Field>
+        <Field label="Tautan pemasang - Windows"><input className={inputCls} value={draft.installerWindows || ''} onChange={(e) => setDraft({ ...draft, installerWindows: e.target.value })} /></Field>
+        <Field label="Tautan pemasang - macOS"><input className={inputCls} value={draft.installerMac || ''} onChange={(e) => setDraft({ ...draft, installerMac: e.target.value })} /></Field>
+        <Field label="Tautan pemasang - iPad"><input className={inputCls} value={draft.installerIpad || ''} onChange={(e) => setDraft({ ...draft, installerIpad: e.target.value })} /></Field>
         <Field label="Versi SEB" hint="Ditampilkan ke peserta di halaman persiapan."><input className={inputCls} value={draft.sebVersion || ''} onChange={(e) => setDraft({ ...draft, sebVersion: e.target.value })} /></Field>
 
-        <Field label="Alamat lain yang boleh dibuka" hint="Satu baris satu pola (regex). Alamat aplikasi sendiri sudah otomatis diizinkan — daftar ini untuk hal seperti penyimpan gambar soal." className="md:col-span-2">
+        <Field label="Alamat lain yang boleh dibuka" hint="Satu baris satu pola (regex). Alamat aplikasi sendiri sudah otomatis diizinkan - daftar ini untuk hal seperti penyimpan gambar soal." className="md:col-span-2">
           <textarea
             rows={4}
             className={`${inputCls} font-mono text-[12px]`}
@@ -192,7 +192,7 @@ export default function SebOlimp() {
             <KeyRound size={16} className="text-maroon-600" /> Kunci dari SEB Config Tool
           </h3>
           <p className="mt-1 text-[13px] text-stone-600 leading-relaxed">
-            Dua nilai ini <b>tidak bisa dibuat server</b> — keduanya dihasilkan aplikasi SEB Config Tool dari
+            Dua nilai ini <b>tidak bisa dibuat server</b> - keduanya dihasilkan aplikasi SEB Config Tool dari
             berkas .seb yang sudah jadi. Isi <b>salah satu saja sudah cukup</b>; kalau ragu, isi Config Key.
           </p>
         </div>
@@ -205,8 +205,8 @@ export default function SebOlimp() {
         </Field>
 
         <Field
-          label="Browser Exam Key (BEK) — boleh lebih dari satu"
-          hint="Satu kunci per baris. BEK ikut menghitung versi SEB, jadi Windows, Mac, dan iPad menghasilkan nilai yang BERBEDA untuk berkas yang sama — daftarkan semua versi yang dipakai pesertamu."
+          label="Browser Exam Key (BEK) - boleh lebih dari satu"
+          hint="Satu kunci per baris. BEK ikut menghitung versi SEB, jadi Windows, Mac, dan iPad menghasilkan nilai yang BERBEDA untuk berkas yang sama - daftarkan semua versi yang dipakai pesertamu."
         >
           <textarea
             rows={3}
@@ -221,7 +221,7 @@ export default function SebOlimp() {
           <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800 leading-relaxed">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
             Selama Config Key dan BEK dua-duanya kosong, penjagaan tidak bisa memverifikasi apa pun dan akan
-            membiarkan semua permintaan lewat — meskipun saklar di bawah dinyalakan.
+            membiarkan semua permintaan lewat - meskipun saklar di bawah dinyalakan.
           </p>
         )}
       </section>
@@ -233,7 +233,7 @@ export default function SebOlimp() {
         <input type="checkbox" checked={!!draft.enforce} onChange={(e) => setDraft({ ...draft, enforce: e.target.checked })} className="mt-1" />
         <span className="text-sm text-stone-600 leading-relaxed">
           <span className="font-semibold text-stone-800 block">Wajib lewat SEB</span>
-          Kalau menyala, soal Olimp menolak dibaca dari peramban biasa — peserta yang belum menyiapkan SEB akan
+          Kalau menyala, soal Olimp menolak dibaca dari peramban biasa - peserta yang belum menyiapkan SEB akan
           terkunci di luar. Nyalakan hanya setelah berkas konfigurasinya sudah sampai ke semua peserta.
         </span>
       </label>
@@ -256,7 +256,7 @@ export default function SebOlimp() {
           <span className="font-semibold text-stone-800 block">Tanda air identitas di layar soal</span>
           Nama, email, dan kode peserta tercetak samar menyilang di seluruh layar selama ia
           mengerjakan. SEB memblokir tangkapan layar bawaan sistem, tapi tidak bisa mencegah
-          soal difoto pakai HP — tanda air membuat foto yang beredar menunjuk balik ke orang
+          soal difoto pakai HP - tanda air membuat foto yang beredar menunjuk balik ke orang
           yang memotretnya. Biarkan menyala kecuali ada alasan khusus.
         </span>
       </label>

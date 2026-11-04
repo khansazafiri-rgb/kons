@@ -23,6 +23,9 @@ export const NAV_ITEMS = [
   { to: '/student-web', label: 'Student Web' },
 ];
 
+// Yang tampil langsung di bar atas layar lebar. Sisanya tetap di panel menu.
+const NAV_UTAMA = NAV_ITEMS.filter((n) => ['/student-program', '/olympiad-program', '/event', '/peminjaman'].includes(n.to));
+
 // PRESET GERAK untuk semua halaman landing.
 //
 // Satu kurva perlambatan (cepat di awal, mendarat pelan) dipakai di mana-mana
@@ -75,8 +78,22 @@ export default function LandingLayout({ children }) {
     window.addEventListener('scroll', cek, { passive: true });
     return () => window.removeEventListener('scroll', cek);
   }, []);
+  // Menu bisa ditutup dengan Escape (WCAG 2.1.2).
+  useEffect(() => {
+    if (!menu) return undefined;
+    const tutup = (e) => { if (e.key === 'Escape') setMenu(false); };
+    document.addEventListener('keydown', tutup);
+    return () => document.removeEventListener('keydown', tutup);
+  }, [menu]);
 
-  // Menu dibuka lewat tombol strip di SEMUA ukuran layar, bukan cuma di HP.
+  // Di layar lebar (>= 1024px) empat tujuan utama tampil langsung di bar atas,
+  // plus tombol "Masuk" yang selalu terlihat di semua ukuran: siswa yang sudah
+  // punya akun tidak perlu membuka menu untuk masuk. Tombol strip tetap ada
+  // untuk daftar lengkapnya. Catatan lama di bawah menjelaskan kenapa bar atas
+  // dulu dikosongkan; yang dikembalikan sekarang hanya empat tautan, bukan
+  // deretan penuh.
+  //
+  // (Catatan lama) Menu dibuka lewat tombol strip di SEMUA ukuran layar.
   //
   // Sebelumnya bar atas memuat lima tautan teks plus dua tombol sekaligus -
   // di layar lebar itu jadi deretan tulisan yang ramai dan menyita perhatian
@@ -94,6 +111,9 @@ export default function LandingLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-alba-50 text-stone-800 flex flex-col">
+      <a href="#isi" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-maroon-700">
+        Lewati ke isi
+      </a>
       <div className="h-1 bg-maroon-600" />
 
       <header className={`sticky top-0 z-30 bg-alba-50/90 backdrop-blur border-b border-alba-200 transition-shadow duration-300 ${tergulir || menu ? 'shadow-card' : ''}`}>
@@ -102,15 +122,37 @@ export default function LandingLayout({ children }) {
             <Logo size="md" />
           </Link>
 
-          <button
-            onClick={() => setMenu((m) => !m)}
-            aria-label={menu ? 'Tutup menu' : 'Buka menu'}
-            aria-expanded={menu}
-            className="inline-flex items-center gap-2 rounded-xl border border-alba-300 px-4 py-2.5 text-sm font-semibold text-stone-600 hover:text-maroon-600 hover:border-maroon-300 active:scale-95 transition-all duration-200"
-          >
-            {menu ? <X size={18} /> : <Menu size={18} />}
-            <span className="hidden sm:inline">{menu ? 'Tutup' : 'Menu'}</span>
-          </button>
+          <nav aria-label="Navigasi utama" className="hidden lg:flex items-center gap-1 text-sm font-semibold">
+            {NAV_UTAMA.map((n) => (
+              <NavLink
+                key={n.to}
+                to={n.to}
+                className={({ isActive }) => `rounded-full px-3.5 py-2 transition-colors ${isActive ? 'bg-maroon-50 text-maroon-700' : 'text-stone-700 hover:text-maroon-700'}`}
+              >
+                {n.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="inline-flex min-h-[44px] items-center rounded-xl bg-maroon-600 px-4 text-sm font-bold text-alba-50 hover:bg-maroon-700"
+            >
+              Masuk<span className="hidden sm:inline">&nbsp;Web Siswa</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMenu((m) => !m)}
+              aria-label={menu ? 'Tutup menu' : 'Buka menu lengkap'}
+              aria-expanded={menu}
+              aria-controls="panel-menu-landing"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-alba-300 px-3.5 text-sm font-semibold text-stone-700 hover:text-maroon-600 hover:border-maroon-300 active:scale-95 transition-all duration-200"
+            >
+              {menu ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
+              <span className="hidden sm:inline">{menu ? 'Tutup' : 'Menu'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Panel menu - turun dari bar atas, lebarnya mengikuti bar. Tingginya
@@ -120,6 +162,7 @@ export default function LandingLayout({ children }) {
           {menu && (
             <motion.div
               key="panel-menu"
+              id="panel-menu-landing"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -163,7 +206,7 @@ export default function LandingLayout({ children }) {
         </AnimatePresence>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main id="isi" tabIndex={-1} className="flex-1 outline-none">{children}</main>
 
       <footer className="border-t border-alba-200 bg-alba-50">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-sm text-stone-500">

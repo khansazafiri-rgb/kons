@@ -200,7 +200,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
     const n = Math.round(Number(teks));
     if (!Number.isFinite(n) || n === 0) { setError('Angka poinnya tidak valid.'); return; }
     const ket = window.prompt('Keterangan (dibaca peserta di halaman hasilnya):', '') || '';
-    if (!window.confirm(`${tanda(n)} poin untuk ${peserta.length} peserta${ket ? ` — "${ket}"` : ''}. Lanjutkan?`)) return;
+    if (!window.confirm(`${tanda(n)} poin untuk ${peserta.length} peserta${ket ? ` - "${ket}"` : ''}. Lanjutkan?`)) return;
     setError(''); setPesan('');
     try {
       for (const r of peserta) {
@@ -261,7 +261,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
         <div>
           <h3 className="font-display text-base font-semibold text-stone-800">Skor, penyesuaian &amp; review jawaban</h3>
           <p className="mt-0.5 max-w-xl text-[12px] leading-relaxed text-stone-500">
-            Khusus panitia, bisa dilihat kapan saja — {dirilis ? 'hasil sudah dirilis.' : 'peserta belum bisa melihat apa pun sampai kamu menekan Rilis Hasil.'}
+            Khusus panitia, bisa dilihat kapan saja - {dirilis ? 'hasil sudah dirilis.' : 'peserta belum bisa melihat apa pun sampai kamu menekan Rilis Hasil.'}
             {' '}Jawaban peserta tidak pernah diubah atau dihapus dari sini.
           </p>
         </div>
@@ -326,7 +326,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
           </p>
           <p className="mt-1.5">
             Ini penyebab skor nol: yang dihitung adalah jawaban di basis data, dan di sana kosong. Penyebab yang
-            paling mungkin: (1) soal dihapus/diimpor ulang setelah peserta menjawab — menghapus soal ikut menghapus
+            paling mungkin: (1) soal dihapus/diimpor ulang setelah peserta menjawab - menghapus soal ikut menghapus
             jawabannya; atau (2) penyimpanan jawaban selama ujian ditolak server.
           </p>
           <p className="mt-1.5">
@@ -351,7 +351,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
           Skor yang dilihat peserta berbeda dari hitungan di sini untuk {beda} peserta (mis. karena kamu baru mengubah poin,
           bonus, atau diskualifikasi). Tekan &ldquo;Hitung ulang &amp; rilis lagi&rdquo; di atas supaya skor peserta ikut
-          diperbarui — jawaban tidak berubah.
+          diperbarui - jawaban tidak berubah.
         </p>
       )}
       {dirilis && beda === 0 && adaJawaban > 0 && (
@@ -408,7 +408,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
               return (
                 <React.Fragment key={b.r.id}>
                   <tr className={`border-b border-alba-100 ${b.dq ? 'bg-red-50/70' : merah ? 'bg-red-50/60' : ''}`}>
-                    <td className="py-2 pr-3 text-[12px] text-stone-500">{b.dq ? '—' : (b.peringkat || '—')}</td>
+                    <td className="py-2 pr-3 text-[12px] text-stone-500">{b.dq ? '-' : (b.peringkat || '-')}</td>
                     <td className="min-w-0 py-2 pr-3">
                       <span className="block font-medium text-stone-800">{b.r.pesertaNama || '(tanpa nama)'}</span>
                       <span className="block truncate text-[11px] text-stone-500">{b.r.pesertaEmail}</span>
@@ -429,14 +429,14 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
                     <td className="py-2 pr-3 text-right tabular-nums">
                       {b.tambah !== 0
                         ? <span className={`font-semibold ${b.tambah > 0 ? 'text-emerald-700' : 'text-red-700'}`}>{tanda(b.tambah)}</span>
-                        : <span className="text-stone-300">—</span>}
+                        : <span className="text-stone-300">-</span>}
                     </td>
                     <td className="py-2 pr-3 text-[12px] text-stone-600">
                       {b.r.examSubmittedAt
                         ? <>{tanggalPendek(b.r.examSubmittedAt)}<span className="block text-[10px] text-stone-400">{b.r.submitMode}</span></>
                         : <span className="text-stone-400">tidak mengumpulkan</span>}
                     </td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-stone-500">{dirilis ? (b.r.score ?? '—') : '—'}</td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-stone-500">{dirilis ? (b.r.score ?? '-') : '-'}</td>
                     <td className="py-2 text-right">
                       <button
                         onClick={() => setBuka(terbuka ? null : b.r.id)}
@@ -465,7 +465,7 @@ export default function EventJawabanPanel({ ev, peserta, dirilis, onUbahPeserta 
                             return (
                               <span key={q.id} title={`Kunci: ${q.correctAnswer}${q.bonus ? ' (soal bonus)' : ''}`} className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[12px] font-semibold ${cls}`}>
                                 <span className="text-[10px] font-normal opacity-70">{i + 1}</span>
-                                {p || '—'}
+                                {p || '-'}
                                 {p && !benar && <span className="text-[10px] font-normal opacity-70">(kunci {q.correctAnswer})</span>}
                                 {q.bonus && <span className="text-[10px] font-bold uppercase">bonus</span>}
                               </span>

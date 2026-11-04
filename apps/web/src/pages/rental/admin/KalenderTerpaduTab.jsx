@@ -137,7 +137,7 @@ export default function KalenderTerpaduTab({ lapor }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className="text-xl font-extrabold text-stone-900">Kalender terpadu</h3>
-          <p className="mt-1 text-[13px] text-stone-500">Semua kelas, blok, booking, dan penjaga — satu minggu, satu ruang.</p>
+          <p className="mt-1 text-[13px] text-stone-500">Semua kelas, blok, booking, dan penjaga - satu minggu, satu ruang.</p>
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => geser(-7)} className="grid h-9 w-9 place-items-center rounded-lg border border-alba-300 bg-white hover:border-alba-400" aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></button>

@@ -56,7 +56,24 @@ routerAdd("GET", "/api/rental/admin/ringkasan", (e) => {
     buktiBelumVerif = e.app.findRecordsByFilter("rental_proofs", "verifyStatus = 'MENUNGGU'", "", 500, 0).length;
   } catch (_) {}
 
+  // Kalender kelas yang bermasalah. Blok lamanya TIDAK dilepas saat gagal
+  // (lihat rental-kelas.js), tapi admin harus tahu datanya bisa usang.
+  let kalenderGagal = [];
+  let kalenderBasi = [];
+  try {
+    const batasBasi = Date.now() - 6 * 3600 * 1000;
+    e.app.findRecordsByFilter("rental_class_calendars", "active = true", "name", 200, 0).forEach((c) => {
+      const st = c.getString("lastSyncStatus");
+      const waktu = Date.parse(String(c.getString("lastSyncAt")).replace(" ", "T"));
+      const ringkas = { id: c.id, nama: c.getString("name"), pesan: c.getString("lastSyncMessage").slice(0, 200), terakhir: c.getString("lastSyncAt") };
+      if (st === "GAGAL") kalenderGagal.push(ringkas);
+      else if (!Number.isFinite(waktu) || waktu < batasBasi) kalenderBasi.push(ringkas);
+    });
+  } catch (_) {}
+
   return e.json(200, {
+    kalenderGagal: kalenderGagal,
+    kalenderBasi: kalenderBasi,
     jadwalHariIni: hariIni,
     menungguPembayaran: hitung("status = 'MENUNGGU_PEMBAYARAN'"),
     buktiDiunggah: hitung("status = 'BUKTI_DIUNGGAH'"),
@@ -266,67 +283,19 @@ routerAdd("POST", "/api/rental/admin/batal", (e) => {
     return e.json(200, { ok: true });
   }
 
-  // Membatalkan seluruh pesanan.
+  // Membatalkan seluruh pesanan: fungsi yang sama dengan Telegram.
   let order = null;
   try { order = e.app.findRecordById("rental_orders", SH.amanId(body.orderId)); } catch (_) {}
   if (!order) return e.json(404, { message: "Pesanan tidak ditemukan." });
-  if (order.getString("status") === "DIBATALKAN") return e.json(200, { ok: true, sudah: true });
-
-  const baris = SH.barisOrder(e.app, order.id);
-  const sebelum = order.getString("status");
-
-  baris.forEach((b) => {
-    try {
-      const oi = e.app.findRecordById("rental_order_items", b.id);
-      oi.set("status", "DIBATALKAN");
-      SH.tandaiBerubah(oi, "DASHBOARD", "MENUNGGU", "");
-      e.app.save(oi);
-      if (b.calendarEventId) {
-        SH.antrekan(e.app, "CALENDAR_DELETE", "rental_order_items", oi.id, { eventId: b.calendarEventId });
-      }
-    } catch (err) {
-      console.log("rental batal item gagal:", err);
-    }
+  const T = require(`${__hooks}/rental-tindakan.js`);
+  const hasil = T.batalkanPesanan(e.app, order.id, alasan, {
+    tipe: "ADMIN", id: (e.auth && e.auth.id) || "", nama: SH.namaAdmin(e),
   });
-
-  order.set("status", "DIBATALKAN");
-  order.set("cancelledAt", new Date().toISOString());
-  order.set("cancelReason", alasan);
-  SH.tandaiBerubah(order, "DASHBOARD", "MENUNGGU", "");
-  e.app.save(order);
-
-  // PRD bagian 5 poin 5 & 13.3: pesanan batal TIDAK muncul lagi di daftar
-  // booking aktif, tapi riwayatnya dipindahkan ke arsip - laporan tetap utuh
-  // sementara availability kembali terbuka.
-  SH.antrekan(e.app, "SHEET_ARSIP", "rental_orders", order.id, {});
-
-  SH.catat(e.app, {
-    aksi: "BATAL_PESANAN",
-    entitas: "rental_orders",
-    entitasId: order.id,
-    kode: order.getString("bookingCode"),
-    pelakuTipe: "ADMIN",
-    pelakuId: (e.auth && e.auth.id) || "",
-    pelakuNama: SH.namaAdmin(e),
-    detail: { dari: sebelum, alasan: alasan },
-  });
-
-  // Kabari grup admin - yang membatalkan belum tentu yang sedang memegang
-  // chat WhatsApp pelanggannya.
-  try {
-    const IN = require(`${__hooks}/rental-integrasi.js`);
-    const s = SH.setelan(e.app);
-    if (IN.telegramSiap(s)) {
-      IN.siarkan(s, "❌ Pesanan <code>" + IN.esc(order.getString("bookingCode")) + "</code> dibatalkan oleh " +
-        IN.esc(SH.namaAdmin(e) || "admin") + "." +
-        (alasan ? "\nAlasan: " + IN.esc(alasan) : "") +
-        "\nSlot & stoknya sudah terbuka lagi.");
-    }
-  } catch (err) {
-    console.log("rental telegram batal gagal:", err);
-  }
-
-  return e.json(200, { ok: true, pesanan: SH.orderPublik(e.app, order, { untukAdmin: true }) });
+  if (!hasil.ok) return e.json(hasil.status || 409, { message: hasil.pesan });
+  if (hasil.sudah) return e.json(200, { ok: true, sudah: true });
+  SH.bersihkanCache();
+  const segar = e.app.findRecordById("rental_orders", order.id);
+  return e.json(200, { ok: true, pesanan: SH.orderPublik(e.app, segar, { untukAdmin: true }) });
 });
 
 // ===========================================================================
@@ -334,87 +303,26 @@ routerAdd("POST", "/api/rental/admin/batal", (e) => {
 // ===========================================================================
 routerAdd("POST", "/api/rental/admin/reschedule", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
-  const A = SH.A;
+  const T = require(`${__hooks}/rental-tindakan.js`);
   if (!SH.bolehRental(e, ["OPERASIONAL", "JADWAL"])) return SH.tolakAkses(e, ["OPERASIONAL", "JADWAL"]);
 
+  // Logikanya di rental-tindakan.js, dipakai bersama Sheet dan Telegram:
+  // periksa slot baru + tulis dalam satu transaksi, slot lama tidak dilepas
+  // kalau slot baru ditolak, selisih harga dicatat, alasan masuk audit.
   const body = e.requestInfo().body || {};
-  let oi = null;
-  try { oi = e.app.findRecordById("rental_order_items", SH.amanId(body.orderItemId)); } catch (_) {}
-  if (!oi) return e.json(404, { message: "Item pesanan tidak ditemukan." });
-  if (oi.getString("status") !== "AKTIF") return e.json(409, { message: "Item ini sudah tidak aktif." });
-
-  const mulai = Date.parse(String(body.mulai || ""));
-  const selesai = Date.parse(String(body.selesai || ""));
-  if (!A.rentangSah(mulai, selesai)) return e.json(400, { message: A.ALASAN.RENTANG });
-  if (!A.diGrid(mulai) || !A.diGrid(selesai)) return e.json(400, { message: A.ALASAN.GRID });
-
-  const jumlah = Math.max(1, Math.floor(Number(body.jumlah || oi.getInt("quantity") || 1)));
-  const tipe = oi.getString("resourceType");
-
-  SH.bersihkanCache();
-
-  // Validasi memakai jalur yang sama persis dengan checkout pelanggan -
-  // termasuk `abaikanOrderItem`, supaya baris ini tidak dianggap bentrok
-  // dengan dirinya sendiri waktu jamnya cuma digeser sedikit.
-  const cek = SH.periksaKeranjang(
-    e.app,
-    [{
-      tipe: tipe,
-      id: tipe === "RUANG" ? oi.getString("room") : oi.getString("item"),
-      jumlah: jumlah,
-      mulai: new Date(mulai).toISOString(),
-      selesai: new Date(selesai).toISOString(),
-    }],
-    { abaikanOrderItem: oi.id },
-  );
-
-  if (!cek.bisa) {
-    const g = cek.galat[0] || {};
-    return e.json(409, { message: g.pesan || "Slot barunya tidak tersedia.", kode: g.kode || "" });
-  }
-
-  const b = cek._baris[0];
-  const lama = { mulai: SH.iso(oi, "startAt"), selesai: SH.iso(oi, "endAt") };
-
-  oi.set("startAt", new Date(mulai).toISOString());
-  oi.set("endAt", new Date(selesai).toISOString());
-  oi.set("quantity", jumlah);
-  oi.set("lineTotal", b.total);
-  SH.tandaiBerubah(oi, "DASHBOARD", "MENUNGGU", "");
-  e.app.save(oi);
-
-  // Total pesanan ikut berubah: durasi baru berarti harga baru.
-  const order = SH.ambilOrder(e.app, oi.getString("order"));
-  if (order) {
-    const sisa = SH.barisOrder(e.app, order.id);
-    const subtotal = sisa.reduce((t, x) => t + x.total, 0);
-    const biaya = SH.hitungBiaya(subtotal, SH.jsonArray(order, "extraFees").map((x) => ({
-      nama: x.nama, jenis: x.jenis, nilai: x.nilai,
-    })));
-    order.set("subtotal", subtotal);
-    order.set("extraFees", biaya.rincian);
-    order.set("total", subtotal + biaya.tambahan);
-    SH.tandaiBerubah(order, "DASHBOARD", "MENUNGGU", "");
-    e.app.save(order);
-    SH.antrekan(e.app, "SHEET_UPSERT", "rental_orders", order.id, {});
-  }
-
-  if (tipe === "RUANG") {
-    SH.antrekan(e.app, "CALENDAR_UPSERT", "rental_order_items", oi.id, { orderId: oi.getString("order") });
-  }
-
-  SH.catat(e.app, {
-    aksi: "RESCHEDULE",
-    entitas: "rental_order_items",
-    entitasId: oi.id,
-    kode: order ? order.getString("bookingCode") : "",
-    pelakuTipe: "ADMIN",
-    pelakuId: (e.auth && e.auth.id) || "",
-    pelakuNama: SH.namaAdmin(e),
-    detail: { dari: lama, ke: { mulai: new Date(mulai).toISOString(), selesai: new Date(selesai).toISOString() } },
+  const hasil = T.pindahJadwal(e.app, {
+    orderItemId: body.orderItemId,
+    mulai: Date.parse(String(body.mulai || "")),
+    selesai: Date.parse(String(body.selesai || "")),
+    jumlah: body.jumlah,
+    alasan: body.alasan,
+    pelaku: { tipe: "ADMIN", id: (e.auth && e.auth.id) || "", nama: SH.namaAdmin(e) },
   });
-
-  return e.json(200, { ok: true, total: b.total });
+  if (!hasil.ok) return e.json(hasil.status || 409, { message: hasil.pesan, kode: hasil.kodeGalat || "" });
+  return e.json(200, {
+    ok: true, total: hasil.barisTotal, totalPesanan: hasil.total, selisih: hasil.selisih,
+    sudahBayar: hasil.sudahBayar, jadwalLama: hasil.jadwalLama, jadwalBaru: hasil.jadwalBaru,
+  });
 });
 
 // ===========================================================================

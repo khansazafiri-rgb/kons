@@ -217,6 +217,46 @@ export default function HomeLanding() {
       </section>
 
       {/* INFO & EVENT - poster promo/event, dikelola dari dashboard admin */}
+      {/* MULAI DARI MANA - dua jalur yang jelas: calon siswa dan siswa yang
+          sudah punya akun. Isinya hanya fitur yang memang ada di web siswa. */}
+      <section aria-labelledby="judul-jalur" className="max-w-6xl mx-auto px-6 py-14">
+        <h2 id="judul-jalur" className="sr-only">Mulai dari mana</h2>
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="rounded-3xl border border-alba-200 bg-white p-7 shadow-card">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-maroon-600">Calon siswa</p>
+            <h3 className="mt-2 font-display text-2xl font-semibold">Cari kelas yang cocok</h3>
+            <p className="mt-2 text-sm leading-relaxed text-stone-600">
+              Lihat pilihan kelas akademik, olimpiade, penelitian, dan privat, lalu tanya jadwal dan biayanya langsung ke admin.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link to="/student-program" className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-maroon-600 px-5 text-sm font-bold text-alba-50 hover:bg-maroon-700">
+                Lihat program <ArrowRight size={15} aria-hidden />
+              </Link>
+              <a href={WA_CP} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-alba-300 px-5 text-sm font-semibold text-stone-700 hover:border-maroon-300">
+                <MessageCircle size={15} aria-hidden /> Tanya admin<span className="sr-only"> lewat WhatsApp (tab baru)</span>
+              </a>
+            </div>
+          </div>
+          <div className="rounded-3xl border border-maroon-100 bg-maroon-50/50 p-7">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-maroon-600">Sudah jadi siswa PCV</p>
+            <h3 className="mt-2 font-display text-2xl font-semibold">Belajar di Web Siswa</h3>
+            <ul className="mt-3 space-y-1.5 text-sm text-stone-700">
+              {['PPT ringkas per mata kuliah dan BAB', 'Latihan soal tiap BAB dengan pembahasan tiap opsi', 'Soal tahun sebelumnya dengan timer', 'Jadwal kelas dan pengingat ujian'].map((t) => (
+                <li key={t} className="flex gap-2"><span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-maroon-600" />{t}</li>
+              ))}
+            </ul>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link to="/login" className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-maroon-600 px-5 text-sm font-bold text-alba-50 hover:bg-maroon-700">
+                Masuk Web Siswa <ArrowRight size={15} aria-hidden />
+              </Link>
+              <Link to="/student-web" className="inline-flex min-h-[44px] items-center rounded-full border border-maroon-200 px-5 text-sm font-semibold text-maroon-700 hover:bg-white">
+                Lihat isi Web Siswa
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <PostersSection />
 
       {/* OUR PROGRAM - kelas & program dalam satu tempat */}

@@ -220,7 +220,7 @@ function Baris({ d, sekarangMs }) {
           <span>
             Lomba ini memakai berkas Safe Exam Browser sendiri, berbeda dari yang
             sedang kamu jalankan. Keluar dari SEB, lalu buka berkas .seb milik
-            lomba ini — kalau dipaksa dari sini, servernya akan menolak.
+            lomba ini - kalau dipaksa dari sini, servernya akan menolak.
           </span>
         </p>
       )}
@@ -366,7 +366,7 @@ export default function PusatUjian() {
         <Kepala peserta={null} />
         <FormMasukPeserta
           onMasuk={muat}
-          catatanBawah="Lupa password, atau akunmu belum bisa dipakai? Hubungi admin — di dalam Safe Exam Browser kamu tidak bisa membuka halaman lain untuk mengurusnya sendiri."
+          catatanBawah="Lupa password, atau akunmu belum bisa dipakai? Hubungi admin - di dalam Safe Exam Browser kamu tidak bisa membuka halaman lain untuk mengurusnya sendiri."
           catatanBerkas={punyaBerkas
             ? `Berkas yang kamu jalankan ini untuk ${punyaBerkas.nama}. Masuk dengan akun yang kamu pakai mendaftar lomba itu.`
             : ''}
@@ -406,7 +406,7 @@ export default function PusatUjian() {
             Belum ada lomba yang kamu ikuti
           </h2>
           <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-stone-600">
-            Akun ini belum terdaftar di lomba mana pun — atau pendaftarannya
+            Akun ini belum terdaftar di lomba mana pun - atau pendaftarannya
             dipakai akun lain. Kalau kamu yakin sudah mendaftar, coba keluar lalu
             masuk lagi dengan akun yang kamu pakai saat mendaftar.
           </p>
@@ -432,7 +432,7 @@ export default function PusatUjian() {
           <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-stone-400" />
           <span>
             Halaman ini menyegarkan hitungannya sendiri dan membuka tombol ujian
-            begitu waktunya tiba — kamu tidak perlu menutup lalu membuka SEB
+            begitu waktunya tiba - kamu tidak perlu menutup lalu membuka SEB
             lagi. Jamnya mengikuti jam server, bukan jam komputermu.
           </span>
         </p>

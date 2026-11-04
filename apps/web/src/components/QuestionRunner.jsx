@@ -164,6 +164,23 @@ export default function QuestionRunner({
  // selalu memanggil `finish` terbaru, berisi jawaban yang sudah dipilih siswa.
  const finishRef = useRef(null);
 
+ // Status penyimpanan jawaban sementara, supaya siswa tahu jawabannya aman
+ // kalau ia keluar di tengah jalan. onAnswerChange boleh mengembalikan
+ // Promise; nilai `false` (atau Promise yang ditolak) berarti gagal simpan.
+ const [simpan, setSimpan] = useState('idle'); // idle | menyimpan | tersimpan | gagal
+ const nomorSimpan = useRef(0);
+ const laporSimpan = useCallback((jawaban) => {
+   if (!onAnswerChange) return;
+   const n = ++nomorSimpan.current;
+   queueMicrotask(() => {
+     setSimpan('menyimpan');
+     Promise.resolve()
+       .then(() => onAnswerChange(jawaban))
+       .then((hasil) => { if (n === nomorSimpan.current) setSimpan(hasil === false ? 'gagal' : 'tersimpan'); })
+       .catch(() => { if (n === nomorSimpan.current) setSimpan('gagal'); });
+   });
+ }, [onAnswerChange]);
+
  const [finalScore, setFinalScore] = useState(null);
  const [weakChapters, setWeakChapters] = useState([]);
  const [weakTopics, setWeakTopics] = useState([]);
@@ -208,10 +225,10 @@ export default function QuestionRunner({
    if (optIdx >= (q.options || []).length) return;
    setAnswers((a) => {
      const newAnswers = { ...a, [q.id]: optIdx };
-     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
+     if (onAnswerChange && !retryRound) laporSimpan(newAnswers);
      return newAnswers;
    });
- }, [submitted, mode, checked, q, onAnswerChange, retryRound]);
+ }, [submitted, mode, checked, q, onAnswerChange, retryRound, laporSimpan]);
 
  // Sub-pertanyaan satu kotak disimpan sebagai string (seperti sebelumnya),
  // yang banyak kotak sebagai array string sepanjang jumlah kotaknya.
@@ -226,7 +243,7 @@ export default function QuestionRunner({
        isi[kotak] = value;
      }
      const newAnswers = { ...a, [q.id]: { ...cur, [sub.label]: isi } };
-     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
+     if (onAnswerChange && !retryRound) laporSimpan(newAnswers);
      return newAnswers;
    });
  };
@@ -240,7 +257,7 @@ export default function QuestionRunner({
    setAnswers((a) => {
      const cur = typeof a[q.id] === 'object' && a[q.id] !== null && !Array.isArray(a[q.id]) ? a[q.id] : {};
      const newAnswers = { ...a, [q.id]: { ...cur, [sub.label]: value } };
-     if (onAnswerChange && !retryRound) onAnswerChange(newAnswers);
+     if (onAnswerChange && !retryRound) laporSimpan(newAnswers);
      return newAnswers;
    });
  };
@@ -486,8 +503,10 @@ export default function QuestionRunner({
              </span>
            )}
            <button
+             type="button"
              onClick={onExit}
-             className="inline-flex items-center gap-1.5 text-sm font-bold text-stone-500 hover:text-maroon-600 hover:bg-maroon-50 px-3.5 py-1.5 rounded-full transition-colors"
+             aria-label="Keluar dari pengerjaan"
+             className="inline-flex min-h-[40px] items-center gap-1.5 text-sm font-bold text-stone-500 hover:text-maroon-600 hover:bg-maroon-50 px-3.5 py-1.5 rounded-full transition-colors"
            >
              <X size={14} />
              Keluar
@@ -498,10 +517,20 @@ export default function QuestionRunner({
        {/* Progress bar jawaban */}
        {!submitted && (
          <div className="mb-6">
-           <div className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
+           <div role="progressbar" aria-label="Soal terjawab" aria-valuemin={0} aria-valuemax={qs.length} aria-valuenow={answeredCount} className="h-1.5 rounded-full bg-alba-200 overflow-hidden">
              <div className="h-full bg-maroon-600 rounded-full transition-all" style={{ width: `${(answeredCount / qs.length) * 100}%` }} />
            </div>
-           <p className="text-[11px] font-semibold text-stone-400 mt-1.5">{answeredCount} dari {qs.length} soal terjawab</p>
+           <p className="mt-1.5 flex flex-wrap justify-between gap-2 text-[12px] font-semibold text-stone-500">
+             <span>{answeredCount} dari {qs.length} soal terjawab</span>
+             {onAnswerChange && !retryRound && (
+               <span aria-live="polite" className={simpan === 'gagal' ? 'text-maroon-700' : ''}>
+                 {simpan === 'menyimpan' ? 'Menyimpan jawaban…'
+                   : simpan === 'tersimpan' ? 'Jawaban tersimpan'
+                     : simpan === 'gagal' ? 'Jawaban terakhir belum tersimpan. Periksa koneksi.'
+                       : 'Jawaban disimpan otomatis'}
+               </span>
+             )}
+           </p>
          </div>
        )}
 

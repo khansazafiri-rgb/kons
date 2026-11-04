@@ -218,7 +218,7 @@ function OlimpAkunInner() {
                   <li key={d.id} className="text-sm text-stone-700">
                     <span className="block font-semibold">{d.deviceName || d.fingerprint}</span>
                     <span className="block text-[11px] text-stone-500">
-                      Terdaftar {d.registeredAt ? new Date(d.registeredAt).toLocaleDateString('id-ID') : '—'}
+                      Terdaftar {d.registeredAt ? new Date(d.registeredAt).toLocaleDateString('id-ID') : '-'}
                     </span>
                   </li>
                 ))}

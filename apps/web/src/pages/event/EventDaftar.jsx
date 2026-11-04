@@ -40,8 +40,8 @@ function PerluMasuk({ slug, gform }) {
       </h2>
       <p className="mt-2 text-sm leading-relaxed text-stone-600">
         {gform
-          ? 'Kalau kamu sudah punya akun PCV Classroom atau Web Olimp, pakai akun itu — tidak perlu membuat akun baru.'
-          : 'Pendaftaran lomba memakai akun yang sudah kamu punya — tidak perlu membuat akun baru khusus lomba. Pilih yang sesuai:'}
+          ? 'Kalau kamu sudah punya akun PCV Classroom atau Web Olimp, pakai akun itu - tidak perlu membuat akun baru.'
+          : 'Pendaftaran lomba memakai akun yang sudah kamu punya - tidak perlu membuat akun baru khusus lomba. Pilih yang sesuai:'}
       </p>
       <div className="mt-4">
         <PilihanMasuk kembali={kembali} gform={gform} />
@@ -240,14 +240,14 @@ export default function EventDaftar() {
       : tautanWaPembayaran(selesai.waPembayaran || nomorAdmin, dataWa?.nama, ev.nama, ev.harga);
     const langkah = gform
       ? [
-        ['Chat admin untuk konfirmasi', 'Lewat tombol WhatsApp di bawah — pesannya sudah terisi otomatis, lengkap dengan email akunmu.'],
+        ['Chat admin untuk konfirmasi', 'Lewat tombol WhatsApp di bawah - pesannya sudah terisi otomatis, lengkap dengan email akunmu.'],
         ['Tunggu pendaftaranmu dikonfirmasi', 'Admin mencocokkan akunmu dengan isian Google Form-mu, lalu menyetujuinya.'],
         ['Unduh berkas Safe Exam Browser', 'Setelah dikonfirmasi, tombol unduhnya muncul di halaman lomba.'],
         ['Kerjakan lomba sesuai jadwal', 'Buka halaman lomba saat jadwal ujian dimulai.'],
       ]
       : [
         ['Transfer biaya pendaftaran', `Nominalnya ${rupiah(ev.harga)}. Nomor rekening diberikan admin lewat WhatsApp.`],
-        ['Kirim bukti transfer ke admin', 'Lewat tombol WhatsApp di bawah — pesannya sudah terisi otomatis.'],
+        ['Kirim bukti transfer ke admin', 'Lewat tombol WhatsApp di bawah - pesannya sudah terisi otomatis.'],
         ['Tunggu pendaftaranmu disetujui', 'Setelah disetujui, berkas Safe Exam Browser-mu bisa diunduh di halaman lomba.'],
         ['Kerjakan lomba sesuai jadwal', 'Buka halaman lomba saat jadwal ujian dimulai.'],
       ];
@@ -327,7 +327,7 @@ export default function EventDaftar() {
             <p>
               Lomba ini didaftarkan lewat <span className="font-semibold">Google Form</span>. Kalau
               kamu sudah mengisinya, di sini kamu cukup membuat akun (atau masuk), lalu chat admin
-              untuk konfirmasi — <span className="font-semibold">tidak ada pembayaran di web ini</span>.
+              untuk konfirmasi - <span className="font-semibold">tidak ada pembayaran di web ini</span>.
             </p>
             {ev.gformUrl && (
               <p className="text-[13px]">
@@ -362,7 +362,7 @@ export default function EventDaftar() {
           </div>
         ) : identitas.isAdmin ? (
           <p className="mt-6 rounded-xl border border-alba-200 bg-alba-100/60 px-4 py-3 text-sm text-stone-600">
-            Kamu masuk sebagai admin. Akun admin tidak bisa ikut lomba sebagai peserta —
+            Kamu masuk sebagai admin. Akun admin tidak bisa ikut lomba sebagai peserta -
             keluar dulu, lalu masuk dengan akun siswa.
           </p>
         ) : (

@@ -223,7 +223,7 @@ export function OlimpGate({ children }) {
       <Tertutup
         icon={LockKeyhole}
         judul="Buka lewat Safe Exam Browser"
-        pesan="Soal Web Olimp sudah dikunci dan hanya bisa dibuka lewat Safe Exam Browser. Jalankan berkas konfigurasi (.seb) yang kamu unduh — kalau belum punya, ambil dari halaman akunmu."
+        pesan="Soal Web Olimp sudah dikunci dan hanya bisa dibuka lewat Safe Exam Browser. Jalankan berkas konfigurasi (.seb) yang kamu unduh - kalau belum punya, ambil dari halaman akunmu."
         aksi={
           <>
             <Link to="/olimp/akun" className={tombolUtama}>Halaman akun &amp; unduhan</Link>

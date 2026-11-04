@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Flame, LogOut, Medal, Moon, Sun, UserRound } from 'lucide-react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { BookOpen, CalendarDays, Flame, Home, LogOut, Medal, Menu, Moon, Sun, UserRound, X } from 'lucide-react';
 import { useAuth, isAdminRole } from '@/context/AuthContext';
 import pb from '@/lib/pocketbaseClient';
 
@@ -118,6 +118,7 @@ export async function heartbeat(pb, user) {
 
 const navItems = [
  { to: '/beranda', label: 'Beranda' },
+ { to: '/belajar', label: 'Mata Kuliah' },
  { to: '/jadwal-kelas', label: 'Jadwal Kelas' },
  { to: '/perdalam-materi', label: 'Baca PPT' },
  { to: '/cicil-belajar', label: 'Soal Tiap BAB' },
@@ -205,7 +206,20 @@ export default function Header() {
  // Ambang menu sebaris juga dinaikkan dari `md` (768px) ke `lg` (1024px):
  // di 768-1023px menu itu tidak pernah benar-benar muat, jadi lebih baik
  // memakai baris menu khusus di bawah yang memang sudah bisa digeser.
+ const siswa = role === 'student';
  return (
+   <>
+   {/* Lewati navigasi: pengguna keyboard/pembaca layar langsung ke isi. */}
+   <a
+     href="#isi"
+     onClick={(e) => {
+       const target = document.getElementById('isi') || document.querySelector('main') || document.querySelector('h1');
+       if (target) { e.preventDefault(); target.setAttribute('tabindex', '-1'); target.focus(); }
+     }}
+     className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-maroon-700 focus:shadow-card"
+   >
+     Lewati ke isi
+   </a>
    <header className="sticky top-0 z-20 bg-alba-50/90 backdrop-blur border-b border-alba-200">
      <div className="max-w-6xl mx-auto flex items-center gap-3 px-4 sm:px-6 py-3">
        <div className="flex min-w-0 items-center gap-4 xl:gap-8">
@@ -242,14 +256,18 @@ export default function Header() {
            </span>
          )}
          <button
+           type="button"
            onClick={() => setDark((d) => !d)}
            title={dark ? 'Mode terang' : 'Mode gelap'}
-           className="w-8 h-8 rounded-full border border-alba-300 text-stone-500 flex items-center justify-center hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
+           aria-label={dark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'}
+           className="w-10 h-10 sm:w-8 sm:h-8 rounded-full border border-alba-300 text-stone-500 flex items-center justify-center hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
          >
            {dark ? <Sun size={14} /> : <Moon size={14} />}
          </button>
          <button
+           type="button"
            onClick={() => navigate('/profile')}
+           aria-label="Profil saya"
            className="flex items-center gap-2.5 rounded-full border border-alba-200 bg-alba-100/60 pl-1.5 pr-4 py-1.5 hover:border-maroon-200 hover:bg-maroon-50 transition-colors"
          >
            <span className="w-7 h-7 rounded-full bg-maroon-600 text-alba-50 flex items-center justify-center">
@@ -268,9 +286,11 @@ export default function Header() {
            </span>
          </button>
          <button
+           type="button"
            onClick={doLogout}
            title="Keluar"
-           className="flex items-center gap-1.5 text-xs font-semibold rounded-full border border-alba-300 text-stone-600 px-3.5 py-2 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
+           aria-label="Keluar"
+           className="flex min-h-[40px] items-center gap-1.5 text-xs font-semibold rounded-full border border-alba-300 text-stone-600 px-3.5 py-2 hover:border-maroon-300 hover:text-maroon-600 hover:bg-maroon-50 transition-colors"
          >
            <LogOut size={13} />
            <span className="hidden sm:inline">Keluar</span>
@@ -279,7 +299,9 @@ export default function Header() {
      </div>
      {/* Navigasi layar sempit - sampai 1023px, karena di bawah itu menu sebaris
          di atas tidak pernah muat. Barisnya memang digeser ke samping. */}
-     <nav className="lg:hidden flex items-center gap-1 overflow-x-auto scrollbar-thin px-4 pb-2.5 text-xs font-semibold">
+     {/* Siswa di HP memakai bilah bawah (NavBawahSiswa) untuk tindakan yang
+         paling sering; baris geser ini tetap untuk pengajar/admin. */}
+     <nav aria-label="Menu utama" className={`${siswa ? 'hidden' : 'flex'} lg:hidden items-center gap-1 overflow-x-auto scrollbar-thin px-4 pb-2.5 text-xs font-semibold`}>
        {navItems.map((item) => (
          <NavLink key={item.to} to={item.to} className={linkCls}>
            {item.label}
@@ -290,5 +312,82 @@ export default function Header() {
        {role === 'teacher' && <NavLink to="/teacher" className={linkCls}>Teacher</NavLink>}
      </nav>
    </header>
+   {siswa && <NavBawahSiswa />}
+   </>
+ );
+}
+
+// Bilah navigasi bawah untuk siswa di layar HP: empat tujuan paling sering,
+// sisanya di "Lainnya". Pola yang sudah akrab dari aplikasi belajar/bank.
+function NavBawahSiswa() {
+ const [buka, setBuka] = useState(false);
+ const lokasi = useLocation();
+ const tombolRef = useRef(null);
+ const panelRef = useRef(null);
+
+ useEffect(() => { setBuka(false); }, [lokasi.pathname]);
+ // Ruang kosong di bawah halaman supaya isi terakhir tidak tertutup bilah ini.
+ useEffect(() => {
+   document.body.classList.add('ada-nav-bawah');
+   return () => document.body.classList.remove('ada-nav-bawah');
+ }, []);
+ useEffect(() => {
+   if (!buka) return undefined;
+   panelRef.current?.querySelector('a,button')?.focus();
+   const tutup = (e) => {
+     if (e.key === 'Escape') { setBuka(false); tombolRef.current?.focus(); }
+   };
+   const luar = (e) => {
+     if (!panelRef.current?.contains(e.target) && !tombolRef.current?.contains(e.target)) setBuka(false);
+   };
+   document.addEventListener('keydown', tutup);
+   document.addEventListener('mousedown', luar);
+   return () => { document.removeEventListener('keydown', tutup); document.removeEventListener('mousedown', luar); };
+ }, [buka]);
+
+ const utama = [
+   { to: '/beranda', label: 'Beranda', ikon: Home },
+   { to: '/belajar', label: 'Mata Kuliah', ikon: BookOpen },
+   { to: '/jadwal-kelas', label: 'Jadwal', ikon: CalendarDays },
+ ];
+ const lainnya = [...navItems.filter((n) => !utama.some((u) => u.to === n.to)), { to: '/profile', label: 'Profil' }];
+ const cls = ({ isActive }) =>
+   `flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold ${isActive ? 'text-maroon-700' : 'text-stone-500'}`;
+
+ return (
+   <nav aria-label="Navigasi siswa" className="fixed inset-x-0 bottom-0 z-30 border-t border-alba-200 bg-alba-50/95 backdrop-blur lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+     {buka && (
+       <div ref={panelRef} id="menu-lainnya" className="absolute bottom-full right-2 mb-2 w-64 rounded-2xl border border-alba-200 bg-white p-2 shadow-card-hover">
+         <ul>
+           {lainnya.map((n) => (
+             <li key={n.to}>
+               <NavLink to={n.to} className={({ isActive }) => `flex min-h-[44px] items-center rounded-xl px-3 text-sm font-semibold ${isActive ? 'bg-maroon-50 text-maroon-700' : 'text-stone-700 hover:bg-alba-100'}`}>
+                 {n.label}
+               </NavLink>
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
+     <div className="mx-auto flex max-w-md">
+       {utama.map((n) => (
+         <NavLink key={n.to} to={n.to} className={cls}>
+           <n.ikon size={20} aria-hidden />
+           {n.label}
+         </NavLink>
+       ))}
+       <button
+         ref={tombolRef}
+         type="button"
+         aria-expanded={buka}
+         aria-controls="menu-lainnya"
+         onClick={() => setBuka((v) => !v)}
+         className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold ${buka ? 'text-maroon-700' : 'text-stone-500'}`}
+       >
+         {buka ? <X size={20} aria-hidden /> : <Menu size={20} aria-hidden />}
+         Lainnya
+       </button>
+     </div>
+   </nav>
  );
 }

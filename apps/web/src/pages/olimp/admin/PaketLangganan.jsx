@@ -156,7 +156,7 @@ export default function PaketLangganan() {
               <textarea
                 rows={4}
                 className={inputCls}
-                placeholder="Satu baris satu poin — tampil sebagai daftar centang di halaman pendaftaran."
+                placeholder="Satu baris satu poin - tampil sebagai daftar centang di halaman pendaftaran."
                 value={draft.features.join('\n')}
                 onChange={(e) => setDraft({ ...draft, features: e.target.value.split('\n').map((x) => x.trim()).filter(Boolean) })}
               />
@@ -188,7 +188,7 @@ export default function PaketLangganan() {
               <span className="text-sm text-stone-600 leading-relaxed">
                 <span className="font-semibold text-stone-800 block">Pendaftar langsung aktif tanpa ACC</span>
                 Nyalakan HANYA untuk paket percobaan/gratis. Kalau menyala, siapa pun yang mendaftar dengan paket
-                ini bisa langsung masuk — tidak ada kesempatan memeriksa pembayarannya dulu.
+                ini bisa langsung masuk - tidak ada kesempatan memeriksa pembayarannya dulu.
               </span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -224,7 +224,7 @@ export default function PaketLangganan() {
                 {!p.active && <span className="rounded-full bg-stone-100 border border-stone-200 text-stone-500 text-[10px] font-bold uppercase px-2 py-0.5">Ditutup</span>}
               </span>
               <span className="block text-[11px] text-stone-500">
-                {p.priceLabel || '—'}
+                {p.priceLabel || '-'}
                 {p.durationDays > 0 ? ` · ${p.durationDays} hari` : ' · tanpa batas waktu'}
                 {` · ${jumlahPeserta[p.id] || 0} peserta`}
                 {(p.packageIds || []).length ? ` · ${p.packageIds.length} paket soal` : ' · semua paket soal'}

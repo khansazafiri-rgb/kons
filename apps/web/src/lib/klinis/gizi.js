@@ -40,13 +40,13 @@ export function usiaTeks(u) {
   const sisa = u.hari - th * 365.25;
   const bl = Math.floor(sisa / HARI_PER_BULAN);
   const hr = Math.round(sisa - bl * HARI_PER_BULAN);
-  return `${th ? `${th} tahun ` : ''}${bl} bulan${hr ? ` ${hr} hari` : ''} — total ${u.hari} hari ≈ ${ang(u.bulan, 1)} bulan`;
+  return `${th ? `${th} tahun ` : ''}${bl} bulan${hr ? ` ${hr} hari` : ''} - total ${u.hari} hari ≈ ${ang(u.bulan, 1)} bulan`;
 }
 
 /* ---------- kategori Permenkes RI No. 2 Tahun 2020 ---------- */
 
 function katBBU(z, bulan) {
-  if (bulan > 60) return { teks: 'Di luar rentang klasifikasi Permenkes (BB/U hanya 0–60 bulan)', tone: 'info', tag: '—' };
+  if (bulan > 60) return { teks: 'Di luar rentang klasifikasi Permenkes (BB/U hanya 0–60 bulan)', tone: 'info', tag: '-' };
   if (z < -3) return { teks: 'Berat badan sangat kurang', tone: 'bad', tag: 'severely underweight' };
   if (z < -2) return { teks: 'Berat badan kurang', tone: 'warn', tag: 'underweight' };
   if (z <= 1) return { teks: 'Berat badan normal', tone: 'ok', tag: 'normal' };
@@ -159,7 +159,7 @@ export function hitungGizi(inp) {
   const { sex, usia, berat, tinggi: tinggiInput, posisiUkur, lingkarKepala, lila, edema } = inp;
   if (!usia) return { error: 'Isi tanggal lahir atau usia manual dulu.' };
   const bulan = usia.bulan;
-  if (bulan > 228) return { error: 'Usia di atas 19 tahun — di luar rentang standar WHO.' };
+  if (bulan > 228) return { error: 'Usia di atas 19 tahun - di luar rentang standar WHO.' };
   if (!ada(berat) && !ada(tinggiInput)) return { error: 'Isi minimal berat atau tinggi badan.' };
 
   // Panjang (telentang) rata-rata 0,7 cm lebih besar daripada tinggi (berdiri)
@@ -187,7 +187,7 @@ export function hitungGizi(inp) {
   const meragukan = [];
   const tambah = (kunci, nama, z, kat, rinci) => {
     const batas = BATAS_WAJAR[kunci];
-    if (batas && (z < batas[0] || z > batas[1])) meragukan.push(`${nama.split(' —')[0]} (${angZ(z)} SD)`);
+    if (batas && (z < batas[0] || z > batas[1])) meragukan.push(`${nama.split(' -')[0]} (${angZ(z)} SD)`);
     indikator.push({ kunci, nama, z, kat, rinci });
   };
 
@@ -205,12 +205,12 @@ export function hitungGizi(inp) {
     }
     if (lms) {
       const z = hitungZ(berat, lms, true);
-      tambah('bbu', 'BB/U — berat menurut umur', z, katBBU(z, bulan), `Median ${ang(lms.M, 2)} kg · persentil ${persentilTeks(z)} · ${sumber}`);
+      tambah('bbu', 'BB/U - berat menurut umur', z, katBBU(z, bulan), `Median ${ang(lms.M, 2)} kg · persentil ${persentilTeks(z)} · ${sumber}`);
       langkah.push(`BB/U  : L=${ang(lms.L, 4)} M=${ang(lms.M, 3)} S=${ang(lms.S, 5)} → z = ${angZ(z)}`);
     } else if (bulan > 120.5) {
       indikator.push({
         kunci: 'bbu',
-        nama: 'BB/U — berat menurut umur',
+        nama: 'BB/U - berat menurut umur',
         lewat: 'Standar WHO tidak menyediakan BB/U di atas 10 tahun. Gunakan IMT/U dan TB/U.',
       });
     }
@@ -224,7 +224,7 @@ export function hitungGizi(inp) {
       const z = hitungZ(tinggi, lms, false);
       tambah(
         'tbu',
-        bulan < 24 ? 'PB/U — panjang menurut umur' : 'TB/U — tinggi menurut umur',
+        bulan < 24 ? 'PB/U - panjang menurut umur' : 'TB/U - tinggi menurut umur',
         z,
         katTBU(z),
         `Median ${ang(lms.M, 1)} cm · persentil ${persentilTeks(z)} · ${sumber}`,
@@ -241,7 +241,7 @@ export function hitungGizi(inp) {
       const z = hitungZ(berat, lms, true);
       tambah(
         'bbtb',
-        pakaiPanjang ? 'BB/PB — berat menurut panjang' : 'BB/TB — berat menurut tinggi',
+        pakaiPanjang ? 'BB/PB - berat menurut panjang' : 'BB/TB - berat menurut tinggi',
         z,
         katBBTB(z),
         `Median ${ang(lms.M, 2)} kg pada ${ang(tinggi, 1)} cm · persentil ${persentilTeks(z)}`,
@@ -264,7 +264,7 @@ export function hitungGizi(inp) {
     const sumber = bulan <= 60.5 ? 'WHO 2006' : 'WHO 2007';
     if (lms) {
       const z = hitungZ(imt, lms, true);
-      tambah('imt', 'IMT/U — indeks massa tubuh menurut umur', z, katIMT(z, bulan), `IMT ${ang(imt, 1)} kg/m² · median ${ang(lms.M, 1)} · persentil ${persentilTeks(z)} · ${sumber}`);
+      tambah('imt', 'IMT/U - indeks massa tubuh menurut umur', z, katIMT(z, bulan), `IMT ${ang(imt, 1)} kg/m² · median ${ang(lms.M, 1)} · persentil ${persentilTeks(z)} · ${sumber}`);
       langkah.push(`IMT   = ${ang(berat, 2)} ÷ (${ang(tinggi / 100, 3)})² = ${ang(imt, 2)} kg/m² → z = ${angZ(z)}`);
     }
   }
@@ -274,7 +274,7 @@ export function hitungGizi(inp) {
     const lms = cariLMS('who06', 'hcfa', sex, bulan, 0.6);
     if (lms) {
       const z = hitungZ(lingkarKepala, lms, false);
-      tambah('lk', 'LK/U — lingkar kepala menurut umur', z, katLK(z), `Median ${ang(lms.M, 1)} cm · persentil ${persentilTeks(z)}`);
+      tambah('lk', 'LK/U - lingkar kepala menurut umur', z, katLK(z), `Median ${ang(lms.M, 1)} cm · persentil ${persentilTeks(z)}`);
       langkah.push(`LK/U  : → z = ${angZ(z)}`);
     }
   }
@@ -302,7 +302,7 @@ export function hitungGizi(inp) {
   const zUtama = akut ? akut.z : bbu ? bbu.z : null;
 
   const baris = [
-    tbu ? { k: `Perawakan (${tbu.nama.split(' —')[0]})`, v: tbu.kat.teks, tone: tbu.kat.tone } : null,
+    tbu ? { k: `Perawakan (${tbu.nama.split(' -')[0]})`, v: tbu.kat.teks, tone: tbu.kat.tone } : null,
     bbu ? { k: 'BB/U', v: bbu.kat.teks, tone: bbu.kat.tone } : null,
     imt ? { k: 'IMT', v: `${ang(imt, 1)} kg/m²` } : null,
     { k: 'Usia', v: `${usia.hari} hari (${ang(bulan, 1)} bulan)` },
@@ -312,7 +312,7 @@ export function hitungGizi(inp) {
   if (meragukan.length) {
     catatan.push({
       tone: 'bad',
-      isi: `Nilai di luar batas biologis yang masuk akal — ${meragukan.join(', ')}. Menurut kriteria WHO Anthro, z-score sejauh ini hampir selalu berarti salah ukur atau salah ketik: cek ulang satuan berat (kg, bukan gram), tinggi (cm, bukan meter), dan tanggal lahir. Jangan pakai angka ini sebelum diverifikasi.`,
+      isi: `Nilai di luar batas biologis yang masuk akal - ${meragukan.join(', ')}. Menurut kriteria WHO Anthro, z-score sejauh ini hampir selalu berarti salah ukur atau salah ketik: cek ulang satuan berat (kg, bukan gram), tinggi (cm, bukan meter), dan tanggal lahir. Jangan pakai angka ini sebelum diverifikasi.`,
     });
   }
   if (edema) {
@@ -326,17 +326,17 @@ export function hitungGizi(inp) {
   if (stunting && wasting) {
     catatan.push({
       tone: 'bad',
-      isi: 'Stunting dan wasting bersamaan — risiko mortalitas paling tinggi di antara semua kombinasi. Perlu rujukan dan penelusuran penyebab (asupan, infeksi kronik, TB, HIV, penyakit jantung bawaan, celiac, malabsorpsi).',
+      isi: 'Stunting dan wasting bersamaan - risiko mortalitas paling tinggi di antara semua kombinasi. Perlu rujukan dan penelusuran penyebab (asupan, infeksi kronik, TB, HIV, penyakit jantung bawaan, celiac, malabsorpsi).',
     });
   } else if (wasting) {
     catatan.push({
       tone: 'warn',
-      isi: 'Wasting menandakan kekurangan gizi AKUT — masalahnya sedang berlangsung sekarang. Nilai nafsu makan, cari infeksi aktif, mulai terapi gizi.',
+      isi: 'Wasting menandakan kekurangan gizi AKUT - masalahnya sedang berlangsung sekarang. Nilai nafsu makan, cari infeksi aktif, mulai terapi gizi.',
     });
   } else if (stunting) {
     catatan.push({
       tone: 'warn',
-      isi: 'Stunting menandakan kekurangan gizi KRONIK — akumulasi berbulan-bulan hingga bertahun. Telusuri riwayat gizi sejak lahir, ASI/MPASI, infeksi berulang, sanitasi, dan tinggi orang tua.',
+      isi: 'Stunting menandakan kekurangan gizi KRONIK - akumulasi berbulan-bulan hingga bertahun. Telusuri riwayat gizi sejak lahir, ASI/MPASI, infeksi berulang, sanitasi, dan tinggi orang tua.',
     });
   }
   if (tbu && tbu.z > 3) {
@@ -350,7 +350,7 @@ export function hitungGizi(inp) {
       const t = lila < 11.5 ? ['bad', 'gizi buruk akut (SAM)'] : lila < 12.5 ? ['warn', 'gizi kurang akut (MAM)'] : ['ok', 'normal'];
       catatan.push({
         tone: t[0],
-        isi: `LILA ${ang(lila, 1)} cm — ${t[1]}. Ambang: < 11,5 cm gizi buruk, 11,5–12,5 cm gizi kurang, ≥ 12,5 cm normal (usia 6–59 bulan).`,
+        isi: `LILA ${ang(lila, 1)} cm - ${t[1]}. Ambang: < 11,5 cm gizi buruk, 11,5–12,5 cm gizi kurang, ≥ 12,5 cm normal (usia 6–59 bulan).`,
       });
     } else {
       catatan.push({ tone: 'info', isi: 'Ambang LILA yang dipakai di sini hanya berlaku untuk usia 6–59 bulan.' });
@@ -358,9 +358,9 @@ export function hitungGizi(inp) {
   }
 
   return {
-    utama: zUtama !== null ? angZ(zUtama) : '—',
+    utama: zUtama !== null ? angZ(zUtama) : '-',
     satuan: 'SD (z-score)',
-    judul: akut ? `Berdasarkan ${akut.nama.split(' —')[0]}` : 'Ringkasan status gizi',
+    judul: akut ? `Berdasarkan ${akut.nama.split(' -')[0]}` : 'Ringkasan status gizi',
     kategori: { teks, tone },
     baris,
     catatan,
@@ -373,7 +373,7 @@ export function hitungGizi(inp) {
       ['Usia', `${usia.hari} hari`],
       ...(ada(berat) ? [['Berat', `${ang(berat, 2)} kg`]] : []),
       ...(ada(tinggi) ? [['Panjang/tinggi', `${ang(tinggi, 1)} cm`]] : []),
-      ...indikator.filter((r) => !r.lewat).map((r) => [r.nama.split(' —')[0], `${angZ(r.z)} SD — ${r.kat.teks}`]),
+      ...indikator.filter((r) => !r.lewat).map((r) => [r.nama.split(' -')[0], `${angZ(r.z)} SD - ${r.kat.teks}`]),
       ['Kesimpulan', teks],
     ],
   };
@@ -419,7 +419,7 @@ function rencanaGizi(sex, bulan, berat, tinggi, indikator) {
   if (akut && akut.z < -3) {
     catatan.push({
       tone: 'bad',
-      isi: 'Fase stabilisasi dulu. Pada gizi buruk jangan langsung memberi kebutuhan penuh — risiko refeeding syndrome. Mulai F-75 sekitar 80–100 kkal/kg/hari berat aktual, baru naik ke fase rehabilitasi (F-100, 150–220 kkal/kg/hari) setelah nafsu makan pulih dan edema berkurang.',
+      isi: 'Fase stabilisasi dulu. Pada gizi buruk jangan langsung memberi kebutuhan penuh - risiko refeeding syndrome. Mulai F-75 sekitar 80–100 kkal/kg/hari berat aktual, baru naik ke fase rehabilitasi (F-100, 150–220 kkal/kg/hari) setelah nafsu makan pulih dan edema berkurang.',
     });
   } else if (akut && akut.z < -2) {
     catatan.push({

@@ -165,7 +165,7 @@ function OlimpProgresInner() {
                     <p className="text-sm text-stone-600">Tidak ada domain di bawah 70%. Naikkan tingkat kesulitanmu.</p>
                   ) : (
                     <ul className="space-y-1.5 text-sm text-stone-700">
-                      {lemah.map((d) => <li key={d.key}>· <span className="font-semibold">{d.key}</span> — {d.accuracy}% ({d.correct}/{d.total})</li>)}
+                      {lemah.map((d) => <li key={d.key}>· <span className="font-semibold">{d.key}</span> - {d.accuracy}% ({d.correct}/{d.total})</li>)}
                     </ul>
                   )}
                 </section>
@@ -175,7 +175,7 @@ function OlimpProgresInner() {
                     <p className="text-sm text-stone-600">Belum ada domain yang tembus 80%. Terus jalan.</p>
                   ) : (
                     <ul className="space-y-1.5 text-sm text-stone-700">
-                      {kuat.map((d) => <li key={d.key}>· <span className="font-semibold">{d.key}</span> — {d.accuracy}% ({d.correct}/{d.total})</li>)}
+                      {kuat.map((d) => <li key={d.key}>· <span className="font-semibold">{d.key}</span> - {d.accuracy}% ({d.correct}/{d.total})</li>)}
                     </ul>
                   )}
                 </section>

@@ -208,6 +208,8 @@ OAuth tetap didukung sebagai pilihan kedua.
 | `pb_hooks/rental-kelas.js` | Impor kalender kelas, pemetaan ke ruang, deteksi tabrakan |
 | `pb_hooks/rental-sync.pb.js` | Cron + endpoint Apps Script (isinya memanggil dua modul di atas) |
 | `pb_hooks/rental-kalender.pb.js` | Kalender Terpadu, feed `.ics`, kalender kelas, `/admin/saya` |
+| `pb_hooks/rental-tindakan.js` | Tindakan bersama dashboard/Sheet/Telegram: konfirmasi, tolak bukti, batal, pindah jadwal, kisi |
+| `pb_hooks/rental-kisi.pb.js` | Endpoint kisi 30 menit untuk dashboard |
 | `pb_migrations/1787300000_peminjaman_admin_terpisah.js` | `rental_admins`, `rental_class_calendars`, aturan per peran |
 | `test/konflik-jadwal.test.mjs` | 43 kasus uji aturan konflik |
 
@@ -626,3 +628,91 @@ rahasia yang baru dan perbarui.
 Kalender itu tidak punya ruang bawaan dan lokasi jadwalnya tidak menyebut nama
 ruang mana pun. Pilih ruangnya di kalender tersebut, atau samakan penulisan
 lokasi di Google Calendar dengan nama ruang.
+
+---
+
+## Pembaruan November 2026: tindakan bersama, kisi 30 menit, perintah Telegram
+
+### Satu logika untuk tiga pintu
+
+`pb_hooks/rental-tindakan.js` sekarang memegang tindakan yang bisa datang dari
+dashboard, Google Sheet, dan Telegram: konfirmasi pembayaran, tolak bukti,
+batalkan pesanan, pindah jadwal, dan ubah sel kisi. Semuanya:
+
+- memeriksa dan menulis dalam **satu transaksi** (dua admin yang memindah ke
+  slot yang sama hampir bersamaan: yang kedua ditolak);
+- memeriksa slot baru **sebelum** slot lama dilepas; kalau ditolak, jadwal lama
+  tetap berlaku dan alasannya dikembalikan;
+- mencatat pelaku, perintah, dan alasan di `rental_audit`;
+- mengantre sinkron Calendar/Sheet dan mengabari grup Telegram.
+
+Reschedule yang mengubah total pada pesanan **yang sudah dibayar** menulis
+selisihnya ke catatan admin ("kurang bayar"/"lebih bayar") dan ke Telegram.
+
+### Bedanya tolak bukti dan batal
+
+| Tindakan | Status | Slot |
+|---|---|---|
+| Tolak bukti (`/tolakbukti`, tombol Tolak di dashboard) | `DITOLAK` | **tetap terblok**: pelanggan masih bisa mengirim bukti yang benar |
+| Batalkan pesanan (`/batal`, tombol Batalkan) | `DIBATALKAN` | **dilepas** untuk pelanggan lain |
+
+### Perintah Telegram
+
+Hanya dari chat di *Chat ID yang diizinkan*, oleh user di *User ID yang
+diizinkan* (kalau diisi), lewat webhook yang membawa secret yang benar.
+
+```
+/status KODE                         status dan jadwal pesanan
+/confirm KODE                        tandai pembayaran lunas (sama dengan tombol Tandai Terverifikasi)
+/tolakbukti KODE alasan              bukti salah, slot tetap terblok
+/batal KODE alasan                   minta konfirmasi tombol, lalu slot dilepas
+/pindah KODE YYYY-MM-DD HH:MM HH:MM [nama item]   pindah jadwal (WIB, kelipatan 30 menit)
+/bantuan                             daftar perintah
+```
+
+Telegram tidak mengenal peran admin peminjaman: siapa pun yang lolos daftar
+User ID boleh memakai semua perintah. Isi daftar User ID kalau grupnya tidak
+sepenuhnya tertutup.
+
+### Kisi 30 menit
+
+Dashboard → **Kisi 30 Menit** dan tab **`Kisi`** di Sheet (menu Peminjaman →
+*Tarik kisi 30 menit*, tanggal di sel B1). Satu sel = satu ruang × satu slot.
+Isinya ditarik dari server; warna hanya penanda dan **tidak pernah dibaca**
+untuk memutuskan apa pun.
+
+| Aksi pada sel | Hasil |
+|---|---|
+| Mengetik di sel kosong | Blok internal 30 menit (kunci `kisi:<ruang>:<waktu>`), setelah server memeriksa slotnya masih kosong |
+| Mengosongkan sel yang dibuat dari kisi | Blok itu dilepas |
+| Menulis/mengosongkan sel kelas atau booking | Ditolak; isi sel dikembalikan, alasan di catatan sel |
+| Memindah booking | Lewat kode booking (Pesanan, tab Reschedule, `/pindah`), bukan sel |
+
+Menulis kisi: Admin Jadwal dan Super Admin. Semua admin peminjaman bisa melihat.
+
+### Jendela kalender kelas dan batas pemesanan
+
+- Kalender kelas diimpor **30 hari ke belakang s/d 210 hari ke depan** (satu
+  semester penuh plus cadangan). Jadwal siswa PCV tetap 180 hari.
+- Pelanggan hanya bisa memesan **sampai 180 hari ke depan**, supaya slot yang
+  bisa dipesan selalu berada di rentang yang jadwal kelasnya sudah diimpor.
+- Sinkron yang gagal atau terhenti di tengah ditandai `GAGAL`; blok lama tidak
+  dilepas. Tab Pesanan dan Kisi menampilkan peringatan untuk kalender yang
+  gagal atau belum disinkron lebih dari 6 jam.
+
+### Uji skenario
+
+Skrip uji skenario (dijalankan terhadap PocketBase lokal dengan data contoh)
+memeriksa: kalender semester (RRULE, EXDATE, override jam, CANCELLED, jendela
+200+ hari), sinkron gagal tidak membuka slot, dua checkout bersamaan, perintah
+Telegram dengan secret/chat/user salah, tolak bukti vs konfirmasi, reschedule
+Sheet yang bentrok dan yang diterima, sel kisi, dan batas pemesanan.
+Lihat laporan PR untuk hasilnya.
+
+### Yang tetap harus disiapkan pemilik produk di produksi
+
+Kode tidak membuktikan integrasi berjalan. Sebelum menyebutnya aktif, periksa
+langsung di produksi: migrasi terbaru sudah jalan, OAuth Google (Calendar,
+Sheets, Drive) terisi dan lencananya hijau, Apps Script terbaru sudah ditempel
+dan token terisi, bot Telegram dipasang (`Pasang webhook` + `Tes kirim`), Chat
+ID dan User ID terisi, dan `APP_URL` memakai HTTPS.

@@ -145,7 +145,7 @@ export default function EventPublishTab({ ev, onSimpan, onKeTab }) {
         || !!(ev.sebConfigKey || '').trim()
         || !!(ev.sebBrowserExamKey || '').trim(),
       judul: 'Kunci SEB terisi (Config Key atau Browser Exam Key)',
-      isi: 'Saklar SEB menyala tapi kedua kuncinya kosong — penjagaannya membiarkan semua lewat.',
+      isi: 'Saklar SEB menyala tapi kedua kuncinya kosong - penjagaannya membiarkan semua lewat.',
       aksi: 'Ke Info Dasar',
       tab: 'Info Dasar',
     },
@@ -162,7 +162,7 @@ export default function EventPublishTab({ ev, onSimpan, onKeTab }) {
     try {
       const rec = await pb.collection('events').update(ev.id, { status });
       onSimpan(rec);
-      setPesan(status === 'PUBLISHED' ? 'Lomba diterbitkan — halaman publiknya sudah bisa dibuka.' : 'Status diperbarui.');
+      setPesan(status === 'PUBLISHED' ? 'Lomba diterbitkan - halaman publiknya sudah bisa dibuka.' : 'Status diperbarui.');
     } catch (err) {
       setError('Gagal mengubah status: ' + (err?.message || ''));
     } finally {
@@ -197,7 +197,7 @@ export default function EventPublishTab({ ev, onSimpan, onKeTab }) {
         <div className="mt-3 rounded-xl bg-alba-100/60 px-4 py-3 text-[12px] leading-relaxed text-stone-600">
           {gagalWajib.length > 0 ? (
             <span className="font-semibold text-red-700">
-              {gagalWajib.length} hal wajib belum beres — lomba belum bisa diterbitkan.
+              {gagalWajib.length} hal wajib belum beres - lomba belum bisa diterbitkan.
             </span>
           ) : peringatan.length > 0 ? (
             <>Semua yang wajib sudah beres. Masih ada {peringatan.length} peringatan, tapi lomba
@@ -212,7 +212,7 @@ export default function EventPublishTab({ ev, onSimpan, onKeTab }) {
         <h3 className="font-display text-base font-semibold text-stone-800">Status lomba</h3>
         <p className="mt-1 text-[13px] leading-relaxed text-stone-600">
           Status menentukan apakah lomba <span className="font-semibold">terlihat</span> di halaman publik.
-          Yang menentukan pendaftaran &amp; ujian boleh dibuka atau tidak tetap jadwalnya — jadi kamu
+          Yang menentukan pendaftaran &amp; ujian boleh dibuka atau tidak tetap jadwalnya - jadi kamu
           tidak perlu menekan tombol tepat pada jamnya.
         </p>
 

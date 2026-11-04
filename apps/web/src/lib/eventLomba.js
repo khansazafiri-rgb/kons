@@ -134,7 +134,7 @@ export const STATUS_EVENT = {
 // cuma label, supaya peserta tahu ini lomba biasa atau olimpiade.
 export const TIPE_EVENT = {
   LOMBA: { teks: 'Lomba', cls: 'border-maroon-200 bg-maroon-50 text-maroon-600' },
-  OLIMPIADE: { teks: 'Olimpiade', cls: 'border-gold-200 bg-gold-100 text-gold-600' },
+  OLIMPIADE: { teks: 'Olimpiade', cls: 'border-gold-200 bg-gold-100 text-[#6f5814]' },
 };
 
 export const STATUS_BAYAR = {
@@ -151,6 +151,39 @@ export const STATUS_BAYAR = {
 const STATUS_GFORM = {
   PENDING_PAYMENT: { teks: 'Menunggu konfirmasi', cls: 'bg-gold-100 text-gold-600 border-gold-200' },
   PAID_PENDING_APPROVAL: { teks: 'Menunggu ACC', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+};
+
+// Keadaan satu lomba dalam satu kalimat, untuk kartu daftar dan kepala halaman
+// detail. SELURUHNYA dari field yang dihitung server (fasePendaftaran,
+// kuotaPenuh, status, saya); jam peramban hanya dipakai untuk teks "x hari
+// lagi", tidak pernah untuk memutuskan boleh-tidaknya mendaftar.
+export function keadaanEvent(ev) {
+  if (!ev) return null;
+  if (ev.saya && ev.saya.status !== 'CANCELLED') {
+    const g = gayaStatus(ev.saya.status, ev.modeDaftar);
+    return { kode: 'TERDAFTAR', teks: 'Kamu sudah terdaftar', detail: g.teks, nada: 'ok' };
+  }
+  if (ev.status === 'FINISHED' || ev.status === 'ARCHIVED') {
+    return { kode: 'SELESAI', teks: 'Lomba selesai', detail: ev.hasilDirilis ? 'Hasil sudah diumumkan' : 'Menunggu pengumuman hasil', nada: 'netral' };
+  }
+  if (ev.status === 'ONGOING') return { kode: 'BERLANGSUNG', teks: 'Sedang berlangsung', detail: '', nada: 'aktif' };
+  if (ev.fasePendaftaran === 'BELUM_BUKA') {
+    const sisa = sisaWaktuKalimat(ev.bukaPendaftaran);
+    return { kode: 'BELUM_BUKA', teks: 'Pendaftaran belum dibuka', detail: sisa ? `Buka ${sisa}` : '', nada: 'netral' };
+  }
+  if (ev.fasePendaftaran === 'BUKA') {
+    if (ev.kuotaPenuh) return { kode: 'PENUH', teks: 'Kuota penuh', detail: 'Pendaftaran tidak bisa diterima lagi', nada: 'tutup' };
+    const sisa = sisaWaktuKalimat(ev.tutupPendaftaran);
+    return { kode: 'BUKA', teks: 'Pendaftaran dibuka', detail: sisa ? `Tutup ${sisa}` : '', nada: 'aktif' };
+  }
+  return { kode: 'TUTUP', teks: 'Pendaftaran ditutup', detail: '', nada: 'tutup' };
+}
+
+export const GAYA_KEADAAN = {
+  ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  aktif: 'border-maroon-200 bg-maroon-50 text-maroon-700',
+  netral: 'border-alba-300 bg-alba-100 text-stone-700',
+  tutup: 'border-stone-300 bg-stone-100 text-stone-700',
 };
 
 export function gayaStatus(status, modeDaftar) {
@@ -171,9 +204,9 @@ export const rupiah = (n) => {
 const ZONA = 'Asia/Jakarta';
 
 export function tanggalPanjang(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('id-ID', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZone: ZONA,
@@ -181,9 +214,9 @@ export function tanggalPanjang(iso) {
 }
 
 export function tanggalPendek(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleString('id-ID', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: ZONA,
   }) + ' WIB';
@@ -191,9 +224,9 @@ export function tanggalPendek(iso) {
 
 // "09.50 WIB" - jam saja, untuk kalimat seperti "selesai serentak pukul 09.50 WIB".
 export function jamWib(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: ZONA }) + ' WIB';
 }
 

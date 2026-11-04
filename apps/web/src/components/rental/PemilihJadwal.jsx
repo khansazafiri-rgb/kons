@@ -258,7 +258,7 @@ export default function PemilihJadwal({ ruangSlug, nilai, onPilih, tanggalAwal }
       {!memuat && adaBisa && (
         <div className={`mt-5 rounded-2xl px-4 py-3 text-[13px] ${rentangSah ? 'bg-sewa/10 text-stone-800' : 'bg-alba-100 text-stone-500'}`}>
           {!awal && 'Ketuk jam mulai, lalu ketuk jam selesai.'}
-          {awal && !akhir && <>Mulai <b className="text-stone-900">{jamWib(awal)}</b> — sekarang ketuk jam selesai.</>}
+          {awal && !akhir && <>Mulai <b className="text-stone-900">{jamWib(awal)}</b> - sekarang ketuk jam selesai.</>}
           {rentangSah && (
             <span className="flex flex-wrap items-center justify-between gap-2">
               <span><b className="text-stone-900">{jamWib(awal)}–{jamWib(akhir)} WIB</b> · {durasiKalimat(awal, akhir)}</span>

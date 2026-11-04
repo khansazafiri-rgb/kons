@@ -57,17 +57,17 @@ function pilihBerat(mode, { bw, ibw, adj, lbw, bmi }) {
     return {
       nilai: bw,
       nama: 'Berat aktual',
-      alasan: 'berat aktual di bawah berat ideal — dipakai yang lebih rendah agar dosis tidak berlebih',
+      alasan: 'berat aktual di bawah berat ideal - dipakai yang lebih rendah agar dosis tidak berlebih',
     };
   }
   if (bmi >= 30 || bw > 1.2 * ibw) {
     return {
       nilai: adj,
       nama: 'Berat terkoreksi (AdjBW)',
-      alasan: `berat aktual ${ang((bw / ibw) * 100, 0)}% dari berat ideal${ada(bmi) ? ` (IMT ${ang(bmi, 1)})` : ''} — masuk kategori obesitas`,
+      alasan: `berat aktual ${ang((bw / ibw) * 100, 0)}% dari berat ideal${ada(bmi) ? ` (IMT ${ang(bmi, 1)})` : ''} - masuk kategori obesitas`,
     };
   }
-  return { nilai: ibw, nama: 'Berat ideal (IBW)', alasan: 'berat aktual dalam 20% berat ideal — konvensi memakai berat ideal' };
+  return { nilai: ibw, nama: 'Berat ideal (IBW)', alasan: 'berat aktual dalam 20% berat ideal - konvensi memakai berat ideal' };
 }
 
 export function hitungGinjalDewasa(inp) {
@@ -138,7 +138,7 @@ export function hitungGinjalDewasa(inp) {
   if (usia < 18) {
     catatan.push({
       tone: 'bad',
-      isi: 'Usia di bawah 18 tahun — Cockcroft-Gault dan CKD-EPI tidak divalidasi untuk anak. Gunakan mode Anak (Schwartz).',
+      isi: 'Usia di bawah 18 tahun - Cockcroft-Gault dan CKD-EPI tidak divalidasi untuk anak. Gunakan mode Anak (Schwartz).',
     });
   }
   if (scr < 0.6) {
@@ -190,7 +190,7 @@ export function hitungGinjalDewasa(inp) {
       ['Cockcroft-Gault', `${ang(cg, 1)} mL/menit`],
       ['Berat dipakai', `${ang(dipilih.nilai, 1)} kg (${dipilih.nama})`],
       ['CKD-EPI 2021', `${ang(epi, 1)} mL/mnt/1,73m²`],
-      ['Stadium', `${st.kode} — ${st.teks}`],
+      ['Stadium', `${st.kode} - ${st.teks}`],
     ],
   };
 }
@@ -237,7 +237,7 @@ export function hitungGinjalAnak(inp) {
     });
   }
   if (ada(usia) && usia > 18) {
-    catatan.unshift({ tone: 'warn', isi: 'Usia di atas 18 tahun — gunakan mode Dewasa.' });
+    catatan.unshift({ tone: 'warn', isi: 'Usia di atas 18 tahun - gunakan mode Dewasa.' });
   }
 
   return {
@@ -260,7 +260,7 @@ export function hitungGinjalAnak(inp) {
     ringkas: [
       ['Schwartz bedside', `${ang(bedside, 1)} mL/mnt/1,73m²`],
       [`Schwartz klasik k=${String(k).replace('.', ',')}`, ang(klasik, 1)],
-      ['Stadium', `${st.kode} — ${st.teks}`],
+      ['Stadium', `${st.kode} - ${st.teks}`],
     ],
   };
 }
@@ -294,10 +294,10 @@ export function hitungGinjalUrin(inp) {
     catatan.push({
       tone: kurang ? 'warn' : lebih ? 'warn' : 'ok',
       isi: kurang
-        ? `Ekskresi kreatinin ${ang(perKg, 1)} mg/kg/24 jam, di bawah rentang harapan ${hLo}–${hHi} mg/kg. Tampungan urin kemungkinan TIDAK LENGKAP — ada berkemih yang tidak ikut tertampung, sehingga klirens jadi terlalu rendah. Ulangi penampungan sebelum menyimpulkan.`
+        ? `Ekskresi kreatinin ${ang(perKg, 1)} mg/kg/24 jam, di bawah rentang harapan ${hLo}–${hHi} mg/kg. Tampungan urin kemungkinan TIDAK LENGKAP - ada berkemih yang tidak ikut tertampung, sehingga klirens jadi terlalu rendah. Ulangi penampungan sebelum menyimpulkan.`
         : lebih
         ? `Ekskresi kreatinin ${ang(perKg, 1)} mg/kg/24 jam, di atas rentang harapan ${hLo}–${hHi} mg/kg. Bisa karena massa otot besar, atau ada urin di luar periode penampungan yang ikut tertampung.`
-        : `Ekskresi kreatinin ${ang(perKg, 1)} mg/kg/24 jam, sesuai rentang harapan ${hLo}–${hHi} mg/kg — tampungan tampak lengkap.`,
+        : `Ekskresi kreatinin ${ang(perKg, 1)} mg/kg/24 jam, sesuai rentang harapan ${hLo}–${hHi} mg/kg - tampungan tampak lengkap.`,
     });
   } else {
     catatan.push({
@@ -333,7 +333,7 @@ export function hitungGinjalUrin(inp) {
     ringkas: [
       ['Klirens kreatinin urin', `${ang(crcl, 1)} mL/menit`],
       ...(norm !== null ? [['Dinormalisasi 1,73 m²', `${ang(norm, 1)}`]] : []),
-      ['Stadium', `${st.kode} — ${st.teks}`],
+      ['Stadium', `${st.kode} - ${st.teks}`],
     ],
   };
 }

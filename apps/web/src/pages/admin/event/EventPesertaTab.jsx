@@ -340,15 +340,15 @@ export default function EventPesertaTab({ ev }) {
               {buka?.id === r.id && (
                 <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-alba-200 pt-3 text-[12px] sm:grid-cols-3">
                   {[
-                    ['Asal', r.pesertaAsal || '—'],
+                    ['Asal', r.pesertaAsal || '-'],
                     ['Mendaftar', tanggalPendek(r.created)],
                     ['Mulai ujian', r.examStartedAt ? tanggalPendek(r.examStartedAt) : 'belum'],
                     ['Mengumpulkan', r.examSubmittedAt ? tanggalPendek(r.examSubmittedAt) : 'belum'],
-                    ['Cara kumpul', r.submitMode || '—'],
-                    ['Disetujui oleh', r.approvedBy || '—'],
-                    ['Catatan peserta', r.contactInfo?.catatan || '—'],
-                    ['Semester', r.contactInfo?.semester || '—'],
-                    ['Alasan ditolak', r.rejectionReason || '—'],
+                    ['Cara kumpul', r.submitMode || '-'],
+                    ['Disetujui oleh', r.approvedBy || '-'],
+                    ['Catatan peserta', r.contactInfo?.catatan || '-'],
+                    ['Semester', r.contactInfo?.semester || '-'],
+                    ['Alasan ditolak', r.rejectionReason || '-'],
                   ].map(([k, v]) => (
                     <div key={k}>
                       <dt className="text-stone-400">{k}</dt>

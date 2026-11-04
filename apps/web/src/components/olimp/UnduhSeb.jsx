@@ -47,7 +47,7 @@ export default function UnduhSeb({ bisaUnduhKonfigurasi = true, ringkas = false 
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 leading-relaxed">
         Pengaturan Safe Exam Browser belum disiapkan admin, jadi berkas konfigurasinya belum bisa diunduh.
-        Hubungi admin PCV — akunmu sendiri tetap tercatat dan tidak perlu didaftarkan ulang.
+        Hubungi admin PCV - akunmu sendiri tetap tercatat dan tidak perlu didaftarkan ulang.
       </div>
     );
   }
@@ -60,7 +60,7 @@ export default function UnduhSeb({ bisaUnduhKonfigurasi = true, ringkas = false 
             <ShieldCheck size={18} className="text-maroon-600" /> Persiapan Safe Exam Browser
           </h2>
           <p className="mt-2 text-sm text-stone-600 leading-relaxed">
-            Web Olimp dibuka lewat <b>Safe Exam Browser (SEB)</b> — peramban khusus ujian yang mengunci layar
+            Web Olimp dibuka lewat <b>Safe Exam Browser (SEB)</b> - peramban khusus ujian yang mengunci layar
             selama kamu mengerjakan soal. Ada dua berkas, dan urutannya tidak boleh dibalik.
           </p>
         </>
@@ -108,7 +108,7 @@ export default function UnduhSeb({ bisaUnduhKonfigurasi = true, ringkas = false 
             <p className="font-semibold text-stone-800">Unduh berkas konfigurasi milikmu</p>
             <p className="mt-0.5 text-[13px] text-stone-600 leading-relaxed">
               Berkas <code className="text-[12px]">.seb</code> ini berisi alamat Web Olimp dan aturan penguncian
-              layarnya. <b>Jangan dibagikan ke orang lain</b> — berkas ini menandai akunmu.
+              layarnya. <b>Jangan dibagikan ke orang lain</b> - berkas ini menandai akunmu.
             </p>
             {bisaUnduhKonfigurasi ? (
               <>
@@ -147,7 +147,7 @@ export default function UnduhSeb({ bisaUnduhKonfigurasi = true, ringkas = false 
             <p className="mt-0.5 text-[13px] text-stone-600 leading-relaxed">
               Klik dua kali berkas <code className="text-[12px]">.seb</code> tadi. Safe Exam Browser terbuka penuh
               layar dan langsung membawa kamu ke halaman masuk Web Olimp. Setiap kali mau belajar, mulai dari
-              berkas ini — bukan dari peramban biasa.
+              berkas ini - bukan dari peramban biasa.
             </p>
           </div>
         </li>
@@ -163,7 +163,7 @@ export default function UnduhSeb({ bisaUnduhKonfigurasi = true, ringkas = false 
         <p className="mt-5 flex items-start gap-2 rounded-xl border border-alba-300 bg-alba-100/50 px-4 py-3 text-[13px] text-stone-600 leading-relaxed">
           <AlertTriangle size={14} className="mt-0.5 shrink-0 text-stone-400" />
           Penguncian SEB belum dinyalakan, jadi untuk sekarang Web Olimp masih bisa dibuka dari peramban biasa.
-          Siapkan tetap dari sekarang — begitu dinyalakan, hanya jalur inilah yang bekerja.
+          Siapkan tetap dari sekarang - begitu dinyalakan, hanya jalur inilah yang bekerja.
         </p>
       )}
     </section>

@@ -97,7 +97,7 @@ function Kalender({ ruang, lapor }) {
           <p className="text-[12px] font-bold uppercase tracking-wider text-sewa-tua">Penjaga bertugas</p>
           <ul className="mt-1.5 space-y-0.5 text-[12px] text-stone-700">
             {data.penjaga.map((g) => (
-              <li key={g.id}>{g.nama} — {jadwalKalimat(g.mulai, g.selesai)}</li>
+              <li key={g.id}>{g.nama} - {jadwalKalimat(g.mulai, g.selesai)}</li>
             ))}
           </ul>
         </div>
@@ -118,7 +118,7 @@ function Kalender({ ruang, lapor }) {
                   {' · '}
                   {k.jenisBaris === 'BOOKING'
                     ? <>Booking {k.kode} ({k.status})</>
-                    : <>{k.jenisBaris === 'KELAS' ? 'Kelas' : 'Blok internal'}: {k.judul || '—'}</>}
+                    : <>{k.jenisBaris === 'KELAS' ? 'Kelas' : 'Blok internal'}: {k.judul || '-'}</>}
                 </li>
               ))}
             </ul>
@@ -171,7 +171,7 @@ function DaftarBlok({ ruang, semuaRuang, lapor }) {
         syncStatus: 'TERSINKRON',
       });
       setBaru(null);
-      lapor('Blok dibuat. Booking yang sudah ada TIDAK dibatalkan otomatis — periksa kalendernya.', 'ok');
+      lapor('Blok dibuat. Booking yang sudah ada TIDAK dibatalkan otomatis - periksa kalendernya.', 'ok');
       await muat();
     } catch (err) {
       lapor(err?.response?.message || err.message || 'Gagal membuat blok.', 'galat');
@@ -180,7 +180,7 @@ function DaftarBlok({ ruang, semuaRuang, lapor }) {
     }
   }
 
-  const namaRuang = (id) => semuaRuang.find((r) => r.id === id)?.name || '—';
+  const namaRuang = (id) => semuaRuang.find((r) => r.id === id)?.name || '-';
 
   return (
     <section>
@@ -242,7 +242,7 @@ function DaftarBlok({ ruang, semuaRuang, lapor }) {
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-alba-200 bg-white px-4 py-3">
                 <div>
                   <p className="text-[13px] font-semibold text-stone-700">
-                    {namaRuang(b.room)} — {b.reason || b.title || b.blockType}
+                    {namaRuang(b.room)} - {b.reason || b.title || b.blockType}
                     {!b.active && <span className="ml-2 text-[11px] uppercase text-stone-400">nonaktif</span>}
                   </p>
                   <p className="text-[12px] text-stone-500">{jadwalKalimat(b.startAt, b.endAt)} · {b.source}</p>
@@ -372,7 +372,7 @@ function DaftarPenjaga({ semuaRuang, lapor }) {
                   <p className="text-[13px] font-semibold text-stone-700">
                     {g.guardianName}
                     <span className="ml-2 text-[12px] font-normal text-stone-500">
-                      {g.room ? (semuaRuang.find((r) => r.id === g.room)?.name || '—') : 'semua ruang'}
+                      {g.room ? (semuaRuang.find((r) => r.id === g.room)?.name || '-') : 'semua ruang'}
                     </span>
                   </p>
                   <p className="text-[12px] text-stone-500">{jadwalKalimat(g.startAt, g.endAt)}</p>

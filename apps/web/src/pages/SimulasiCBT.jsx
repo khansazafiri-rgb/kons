@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ListChecks, Lock, Timer, Trophy } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, BookOpen, ListChecks, Lock, Timer, Trophy } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +17,10 @@ import useUrlState from '@/lib/useUrlState';
 // ditambahkan admin lewat Edit Soal -> Soal Tahun Sebelumnya.
 export default function SimulasiCBT() {
  const { user, role } = useAuth();
+ const navigate = useNavigate();
+ const [params] = useSearchParams();
+ // Dibuka dari halaman Mata Kuliah: keluar dari pengerjaan kembali ke sana.
+ const dariBelajar = params.get('dari') === 'belajar';
  const [subjects, setSubjects] = useState([]);
  const [subjectId, setSubjectId] = useUrlState('mk', '');
  const [chapterId, setChapterId] = useUrlState('bab', '');
@@ -215,6 +220,7 @@ export default function SimulasiCBT() {
        await pb.collection('cbt_attempts').update(attemptId, { answers: ans });
      } catch (error) {
        console.error('Gagal menyimpan jawaban sementara:', error);
+       return false;
      }
    }
  };
@@ -231,6 +237,10 @@ export default function SimulasiCBT() {
  };
 
  const exit = async () => {
+   if (dariBelajar && subjectId) {
+     navigate(`/belajar/${subjectId}?tab=tahun`);
+     return;
+   }
    setQuestions(null);
    setAttemptId(null);
    setCompletedAttempt(null);
@@ -318,6 +328,11 @@ export default function SimulasiCBT() {
    <div className="min-h-screen bg-diagonal-soft">
      <Header />
      <div className="max-w-3xl mx-auto px-6 py-14">
+       {dariBelajar && subjectId && (
+         <Link to={`/belajar/${subjectId}?tab=tahun`} className="mb-4 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-bold text-stone-600 hover:text-maroon-600">
+           <ArrowLeft size={15} aria-hidden /> Kembali ke mata kuliah
+         </Link>
+       )}
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-2 flex items-center gap-2">
          <Timer size={14} />
          KERJAKAN SOAL TAHUN SEBELUMNYA

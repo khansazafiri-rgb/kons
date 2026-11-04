@@ -253,7 +253,7 @@ export const STATUS_PESANAN = {
 };
 
 export const statusLabel = (kode) =>
-  STATUS_PESANAN[kode] || { teks: kode || '—', cls: 'bg-stone-100 text-stone-600 border-stone-200' };
+  STATUS_PESANAN[kode] || { teks: kode || '-', cls: 'bg-stone-100 text-stone-600 border-stone-200' };
 
 // Waktu SELALU ditampilkan dalam WIB, apa pun zona waktu perangkat pelanggan.
 //
@@ -263,24 +263,24 @@ export const statusLabel = (kode) =>
 const WIB = { timeZone: 'Asia/Jakarta' };
 
 export function jamWib(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleTimeString('id-ID', { ...WIB, hour: '2-digit', minute: '2-digit' });
 }
 
 export function tanggalWib(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('id-ID', { ...WIB, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function jadwalKalimat(mulai, selesai) {
-  if (!mulai || !selesai) return '—';
+  if (!mulai || !selesai) return '-';
   const a = new Date(mulai);
   const b = new Date(selesai);
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return '—';
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return '-';
   const hariSama = tanggalWib(mulai) === tanggalWib(selesai);
   return hariSama
     ? `${tanggalWib(mulai)}, ${jamWib(mulai)}–${jamWib(selesai)} WIB`
