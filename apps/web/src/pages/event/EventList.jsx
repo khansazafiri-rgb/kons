@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays, Trophy, Users } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
-import { TIPE_EVENT, panggilEvent, rupiah, sisaWaktuKalimat, tanggalPendek } from '@/lib/eventLomba';
+import { GAYA_KEADAAN, TIPE_EVENT, keadaanEvent, panggilEvent, rupiah, tanggalPendek } from '@/lib/eventLomba';
 
 // DAFTAR LOMBA (halaman publik, /event)
 //
@@ -37,7 +37,7 @@ const KELOMPOK = [
   {
     key: 'selesai',
     judul: 'Selesai',
-    sub: 'Sudah lewat — hasilnya bisa dilihat kalau sudah diumumkan',
+    sub: 'Sudah lewat. Hasilnya bisa dilihat kalau sudah diumumkan.',
     cocok: (ev) => ev.status === 'FINISHED' || ev.status === 'ARCHIVED',
   },
 ];
@@ -45,14 +45,13 @@ const KELOMPOK = [
 function KartuEvent({ ev }) {
   // "Kuota penuh" tetap dihitung server dan tetap ditampilkan walau angkanya
   // disembunyikan - calon peserta perlu tahu pendaftarannya sudah tidak bisa.
-  const penuh = !!ev.kuotaPenuh;
-  const sisa = ev.fasePendaftaran === 'BELUM_BUKA' ? sisaWaktuKalimat(ev.bukaPendaftaran) : '';
+  const k = keadaanEvent(ev);
   const tipe = TIPE_EVENT[ev.tipe] || TIPE_EVENT.LOMBA;
 
   return (
     <Link
       to={`/event/${ev.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-alba-200 bg-alba-50 shadow-card transition-colors hover:border-maroon-300"
+      className="group flex w-full flex-col overflow-hidden rounded-2xl border border-alba-200 bg-alba-50 shadow-card transition-colors hover:border-maroon-300"
     >
       {ev.banner ? (
         <img
@@ -63,7 +62,7 @@ function KartuEvent({ ev }) {
         />
       ) : (
         <div className="flex h-36 w-full items-center justify-center bg-gradient-to-br from-maroon-600 to-maroon-800">
-          <Trophy size={30} className="text-gold-200" />
+          <Trophy size={30} aria-hidden className="text-gold-200" />
         </div>
       )}
 
@@ -81,13 +80,16 @@ function KartuEvent({ ev }) {
         <h3 className="mt-2 font-display text-lg font-semibold leading-snug text-stone-800">
           {ev.nama}
         </h3>
+        <p className={`mt-2 inline-flex flex-wrap items-center gap-x-1.5 self-start rounded-lg border px-2.5 py-1 text-[12px] font-bold ${GAYA_KEADAAN[k.nada]}`}>
+          {k.teks}{k.detail && <span className="font-semibold opacity-80">· {k.detail}</span>}
+        </p>
 
         {/* Jumlah pendaftar & kuota sengaja TIDAK ditampilkan ke umum
             (PRD Revisi 2 bagian 3.1) - server pun tidak mengirimkannya. */}
         <dl className="mt-3 space-y-1.5 text-[13px] text-stone-600">
           <div className="flex items-center gap-2">
-            <CalendarDays size={14} className="shrink-0 text-maroon-500" />
-            <span>{tanggalPendek(ev.mulaiUjian)}</span>
+            <CalendarDays size={14} aria-hidden className="shrink-0 text-maroon-500" />
+            <span>Ujian {tanggalPendek(ev.mulaiUjian)}</span>
           </div>
           {ev.tampilkan?.jumlahPeserta && (
             <div className="flex items-center gap-2">
@@ -104,21 +106,11 @@ function KartuEvent({ ev }) {
           <span className="font-display text-base font-semibold text-maroon-600">
             {ev.modeDaftar === 'GFORM' ? 'Daftar via Google Form' : rupiah(ev.harga)}
           </span>
-          {penuh ? (
-            <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">
-              Kuota penuh
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-maroon-600">
-              Lihat detail
-              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-maroon-600">
+            {k.kode === 'BUKA' ? 'Lihat & daftar' : 'Lihat detail'}
+            <ArrowRight size={14} aria-hidden className="transition-transform group-hover:translate-x-0.5" />
+          </span>
         </div>
-
-        {sisa && (
-          <p className="mt-2 text-[11px] font-semibold text-stone-500">Pendaftaran buka {sisa}</p>
-        )}
       </div>
     </Link>
   );
@@ -157,7 +149,7 @@ export default function EventList() {
             Event &amp; Lomba
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-stone-600">
-            Lomba mata kuliah yang diadakan berkala — Fisiologi, Anatomi, Biologi, dan seterusnya.
+            Lomba mata kuliah yang diadakan berkala: Fisiologi, Anatomi, Biologi, dan seterusnya.
             Tiap lomba punya pendaftaran, jadwal, dan hasilnya sendiri; ikut satu lomba tidak
             otomatis mendaftarkanmu ke lomba berikutnya.
           </p>
@@ -186,13 +178,13 @@ export default function EventList() {
         )}
 
         {kelompok.map((k) => (
-          <div key={k.key} className="mt-10">
-            <h2 className="font-display text-xl font-semibold text-stone-800">{k.judul}</h2>
+          <section key={k.key} aria-labelledby={`kel-${k.key}`} className="mt-10">
+            <h2 id={`kel-${k.key}`} className="font-display text-xl font-semibold text-stone-800">{k.judul} <span className="text-base font-normal text-stone-500">({k.isi.length})</span></h2>
             <p className="mt-0.5 text-[13px] text-stone-500">{k.sub}</p>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {k.isi.map((ev) => <KartuEvent key={ev.id} ev={ev} />)}
-            </div>
-          </div>
+            <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {k.isi.map((ev) => <li key={ev.id} className="flex"><KartuEvent ev={ev} /></li>)}
+            </ul>
+          </section>
         ))}
       </section>
     </LandingLayout>

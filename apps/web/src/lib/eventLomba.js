@@ -153,6 +153,39 @@ const STATUS_GFORM = {
   PAID_PENDING_APPROVAL: { teks: 'Menunggu ACC', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
 };
 
+// Keadaan satu lomba dalam satu kalimat, untuk kartu daftar dan kepala halaman
+// detail. SELURUHNYA dari field yang dihitung server (fasePendaftaran,
+// kuotaPenuh, status, saya); jam peramban hanya dipakai untuk teks "x hari
+// lagi", tidak pernah untuk memutuskan boleh-tidaknya mendaftar.
+export function keadaanEvent(ev) {
+  if (!ev) return null;
+  if (ev.saya && ev.saya.status !== 'CANCELLED') {
+    const g = gayaStatus(ev.saya.status, ev.modeDaftar);
+    return { kode: 'TERDAFTAR', teks: 'Kamu sudah terdaftar', detail: g.teks, nada: 'ok' };
+  }
+  if (ev.status === 'FINISHED' || ev.status === 'ARCHIVED') {
+    return { kode: 'SELESAI', teks: 'Lomba selesai', detail: ev.hasilDirilis ? 'Hasil sudah diumumkan' : 'Menunggu pengumuman hasil', nada: 'netral' };
+  }
+  if (ev.status === 'ONGOING') return { kode: 'BERLANGSUNG', teks: 'Sedang berlangsung', detail: '', nada: 'aktif' };
+  if (ev.fasePendaftaran === 'BELUM_BUKA') {
+    const sisa = sisaWaktuKalimat(ev.bukaPendaftaran);
+    return { kode: 'BELUM_BUKA', teks: 'Pendaftaran belum dibuka', detail: sisa ? `Buka ${sisa}` : '', nada: 'netral' };
+  }
+  if (ev.fasePendaftaran === 'BUKA') {
+    if (ev.kuotaPenuh) return { kode: 'PENUH', teks: 'Kuota penuh', detail: 'Pendaftaran tidak bisa diterima lagi', nada: 'tutup' };
+    const sisa = sisaWaktuKalimat(ev.tutupPendaftaran);
+    return { kode: 'BUKA', teks: 'Pendaftaran dibuka', detail: sisa ? `Tutup ${sisa}` : '', nada: 'aktif' };
+  }
+  return { kode: 'TUTUP', teks: 'Pendaftaran ditutup', detail: '', nada: 'tutup' };
+}
+
+export const GAYA_KEADAAN = {
+  ok: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  aktif: 'border-maroon-200 bg-maroon-50 text-maroon-700',
+  netral: 'border-alba-300 bg-alba-100 text-stone-700',
+  tutup: 'border-stone-300 bg-stone-100 text-stone-700',
+};
+
 export function gayaStatus(status, modeDaftar) {
   if (modeDaftar === 'GFORM' && STATUS_GFORM[status]) return STATUS_GFORM[status];
   return STATUS_BAYAR[status] || STATUS_BAYAR.PENDING_PAYMENT;

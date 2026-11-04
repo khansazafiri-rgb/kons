@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import LandingLayout from '@/pages/landing/LandingLayout';
 import {
-  PEMASANG_SEB, TIPE_EVENT, gayaStatus, identitasEvent, jamMundur, jamWib, panggilEvent, rupiah,
+  GAYA_KEADAAN, PEMASANG_SEB, TIPE_EVENT, gayaStatus, keadaanEvent, identitasEvent, jamMundur, jamWib, panggilEvent, rupiah,
   sisaWaktuKalimat, tanggalPanjang, tautanPemasangSeb, tautanWaKonfirmasi, tautanWaPembayaran, unduhSebEvent,
 } from '@/lib/eventLomba';
 import { ambilInfoSeb } from '@/lib/seb';
@@ -422,7 +422,7 @@ export default function EventDetail() {
             untuk umum dan lupa menekan Terbitkan. */}
         {ev.status === 'DRAFT' && (
           <p className="mt-4 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3 text-[13px] font-semibold text-gold-700">
-            Ini pratinjau draf — lombanya belum terbit, jadi cuma admin yang
+            Ini pratinjau draf: lombanya belum terbit, jadi cuma admin yang
             bisa membuka halaman ini. Pengunjung biasa menerima
             &ldquo;Lomba tidak ditemukan&rdquo;.
           </p>
@@ -450,26 +450,20 @@ export default function EventDetail() {
           <h1 className="mt-2 font-display text-3xl font-semibold text-stone-800 sm:text-4xl">
             {ev.nama}
           </h1>
+          {(() => {
+            const k = keadaanEvent(ev);
+            return (
+              <p className={`mt-3 inline-flex flex-wrap items-center gap-x-2 rounded-xl border px-3.5 py-2 text-sm font-bold ${GAYA_KEADAAN[k.nada]}`}>
+                {k.teks}{k.detail && <span className="font-semibold opacity-80">· {k.detail}</span>}
+              </p>
+            );
+          })()}
         </header>
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_340px] lg:items-start">
           <div className="min-w-0 space-y-8">
-            {ev.deskripsi && (
-              <section>
-                <h2 className="font-display text-lg font-semibold text-stone-800">Tentang lomba ini</h2>
-                <div className={GAYA_INFO} dangerouslySetInnerHTML={{ __html: teksInfoKeHtml(ev.deskripsi) }} />
-              </section>
-            )}
-
-            {ev.aturan && (
-              <section>
-                <h2 className="font-display text-lg font-semibold text-stone-800">Aturan &amp; instruksi</h2>
-                <div className={GAYA_INFO} dangerouslySetInnerHTML={{ __html: teksInfoKeHtml(ev.aturan) }} />
-              </section>
-            )}
-
             <section className="rounded-2xl border border-alba-200 bg-alba-50 p-5 shadow-card">
-              <h2 className="font-display text-lg font-semibold text-stone-800">Jadwal &amp; format</h2>
+              <h2 className="font-display text-lg font-semibold text-stone-800">Tanggal penting &amp; format</h2>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Baris icon={CalendarDays} label="Pendaftaran dibuka" isi={tanggalPanjang(ev.bukaPendaftaran)} />
                 <Baris icon={CalendarDays} label="Pendaftaran ditutup" isi={tanggalPanjang(ev.tutupPendaftaran)} />
@@ -508,9 +502,44 @@ export default function EventDetail() {
                 />
               </div>
             </section>
+            {ev.modeDaftar !== 'GFORM' && !ev.saya && ['BUKA', 'BELUM_BUKA'].includes(ev.fasePendaftaran) && (
+              <section aria-labelledby="judul-tahapan">
+                <h2 id="judul-tahapan" className="font-display text-lg font-semibold text-stone-800">Tahapan pendaftaran</h2>
+                <ol className="mt-3 space-y-2 text-sm text-stone-700">
+                  {[
+                    'Masuk dengan akun PCV atau akun Web Olimp, lalu isi data pendaftaran.',
+                    ev.harga > 0 ? `Bayar ${rupiah(ev.harga)} lewat transfer, lalu kirim buktinya ke admin lewat WhatsApp.` : 'Lomba ini gratis, tidak ada pembayaran.',
+                    'Admin memeriksa dan menyetujui pendaftaranmu. Statusnya terlihat di halaman ini.',
+                    ev.wajibSeb ? 'Unduh berkas ujian (Safe Exam Browser) dan ikut ujian sesuai jadwal.' : 'Ikut ujian sesuai jadwal dari halaman ini.',
+                  ].map((t, i) => (
+                    <li key={t} className="flex gap-3">
+                      <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-maroon-600 text-xs font-bold text-alba-50">{i + 1}</span>
+                      <span className="pt-0.5">{t}</span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+
+            {ev.deskripsi && (
+              <section>
+                <h2 className="font-display text-lg font-semibold text-stone-800">Tentang lomba ini</h2>
+                <div className={GAYA_INFO} dangerouslySetInnerHTML={{ __html: teksInfoKeHtml(ev.deskripsi) }} />
+              </section>
+            )}
+
+            {ev.aturan && (
+              <section>
+                <h2 className="font-display text-lg font-semibold text-stone-800">Aturan &amp; instruksi</h2>
+                <div className={GAYA_INFO} dangerouslySetInnerHTML={{ __html: teksInfoKeHtml(ev.aturan) }} />
+              </section>
+            )}
+
           </div>
 
-          <aside className="space-y-4 lg:sticky lg:top-24">
+          {/* Di HP kartu tindakan tampil tepat di bawah judul (order-first),
+              supaya tombol daftar/status tidak tertimbun di bawah aturan. */}
+          <aside aria-label="Pendaftaran" className="order-first space-y-4 lg:order-none lg:sticky lg:top-24">
             {!ev.saya?.hasil && (
               <div className="rounded-2xl border border-maroon-200 bg-maroon-50/40 p-5">
                 {ev.modeDaftar === 'GFORM' ? (
