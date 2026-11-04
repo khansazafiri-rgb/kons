@@ -783,6 +783,8 @@ function tandaiBerubah(rec, asal, status, pesan) {
 // pelanggan di keranjang persis sama dengan yang diputuskan saat checkout -
 // dua salinan aturan yang perlahan berbeda adalah cara paling pasti
 // menghasilkan "tadi hijau, sekarang ditolak".
+const HORIZON_PESAN_HARI = 180;
+
 function periksaKeranjang(app, daftar, opsi) {
   const o = opsi || {};
   const s = setelan(app);
@@ -811,6 +813,12 @@ function periksaKeranjang(app, daftar, opsi) {
     // Jadwal yang sudah lewat tidak pernah bisa dipesan, walau semua
     // pemeriksaan lain lolos.
     if (selesai <= Date.now()) return tolak("Jadwalnya sudah lewat.", "LAMPAU");
+    // Batas jauh pemesanan. Jadwal kelas diimpor sampai 210 hari ke depan
+    // (rental-kelas.js); slot di luar rentang itu belum tentu bebas kelas, jadi
+    // tidak boleh dipesan sebelum kalender kelasnya ikut terimpor.
+    if (mulai > Date.now() + HORIZON_PESAN_HARI * A.HARI) {
+      return tolak("Pemesanan paling jauh " + HORIZON_PESAN_HARI + " hari ke depan, karena jadwal kelas setelah itu belum tersedia.", "TERLALU_JAUH");
+    }
 
     if (tipe === "RUANG") {
       const room = cariRuang(app, kunci);
@@ -965,5 +973,6 @@ module.exports = {
   antrekan: antrekan,
   tandaiBerubah: tandaiBerubah,
   periksaKeranjang: periksaKeranjang,
+  HORIZON_PESAN_HARI: HORIZON_PESAN_HARI,
   tanpaInternal: tanpaInternal,
 };

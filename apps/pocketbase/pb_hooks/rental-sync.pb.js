@@ -243,71 +243,61 @@ routerAdd("POST", "/api/rental/sheet/perubahan", (e) => {
     if (!A.rentangSah(mulai, selesai)) return tolak("Jam selesai baru harus lebih akhir daripada jam mulai.");
     if (!A.diGrid(mulai) || !A.diGrid(selesai)) return tolak(A.ALASAN.GRID);
 
-    const cek = SH.periksaKeranjang(
-      e.app,
-      [{
-        tipe: target.tipe,
-        id: target.tipe === "RUANG" ? target.ruangId : target.alatId,
-        jumlah: target.jumlah,
-        mulai: new Date(mulai).toISOString(),
-        selesai: new Date(selesai).toISOString(),
-      }],
-      { abaikanOrderItem: target.id },
-    );
+    // Logika bersama dashboard & Telegram (rental-tindakan.js): satu
+    // transaksi, slot lama tetap kalau slot baru ditolak, alasan & selisih
+    // harga dicatat, grup Telegram dikabari.
+    const T = require(`${__hooks}/rental-tindakan.js`);
+    const hasil = T.pindahJadwal(e.app, {
+      orderItemId: target.id,
+      mulai: mulai,
+      selesai: selesai,
+      jumlah: target.jumlah,
+      alasan: String(body.alasan || ""),
+      pelaku: { tipe: "SHEET", id: String(body.pengubah || ""), nama: "Sheet" + (body.pengubah ? " (" + String(body.pengubah).slice(0, 80) + ")" : "") },
+    });
+    if (!hasil.ok) return tolak("Slot barunya tidak bisa dipakai: " + hasil.pesan);
+    return terima("Dipindah ke " + hasil.jadwalBaru + ". Total jadi " + A.rupiah(hasil.total) + "." +
+      (hasil.selisih !== 0 && hasil.sudahBayar ? " Pesanan sudah dibayar: selisih " + A.rupiah(Math.abs(hasil.selisih)) + " perlu " + (hasil.selisih > 0 ? "ditagih." : "dikembalikan.") : ""),
+      { total: hasil.total });
+  }
 
-    if (!cek.bisa) {
-      // PRD bagian 19 poin 2: perubahan ditolak, jadwal LAMA tidak hilang, dan
-      // alasannya tertulis di kolom status.
-      const g = cek.galat[0] || {};
-      return tolak("Slot barunya tidak bisa dipakai: " + (g.pesan || "bentrok") +
-        " Jadwal lama tetap berlaku (" + target.jadwal + ").");
-    }
-
-    try {
-      const oi = e.app.findRecordById("rental_order_items", target.id);
-      oi.set("startAt", new Date(mulai).toISOString());
-      oi.set("endAt", new Date(selesai).toISOString());
-      oi.set("lineTotal", cek._baris[0].total);
-      SH.tandaiBerubah(oi, "SHEET", "MENUNGGU", "");
-      e.app.save(oi);
-
-      const sisa = SH.barisOrder(e.app, order.id);
-      const subtotal = sisa.reduce((t, x) => t + x.total, 0);
-      const biaya = SH.hitungBiaya(subtotal, SH.jsonArray(order, "extraFees").map((x) => ({
-        nama: x.nama, jenis: x.jenis, nilai: x.nilai,
-      })));
-      order.set("subtotal", subtotal);
-      order.set("extraFees", biaya.rincian);
-      order.set("total", subtotal + biaya.tambahan);
-      SH.tandaiBerubah(order, "SHEET", "MENUNGGU", "");
-      e.app.save(order);
-
-      if (target.tipe === "RUANG") {
-        SH.antrekan(e.app, "CALENDAR_UPSERT", "rental_order_items", oi.id, { orderId: order.id });
-      }
-      SH.antrekan(e.app, "SHEET_UPSERT", "rental_orders", order.id, {});
-
-      SH.catat(e.app, {
-        aksi: "RESCHEDULE",
-        entitas: "rental_order_items",
-        entitasId: oi.id,
-        kode: kode,
-        pelakuTipe: "SHEET",
-        detail: {
-          dari: target.jadwal,
-          ke: A.jadwalKalimat(mulai, selesai),
-          alasan: String(body.alasan || ""),
-        },
-      });
-
-      return terima("Dipindah ke " + A.jadwalKalimat(mulai, selesai) + ". Total jadi " +
-        A.rupiah(order.getFloat("total")) + ".", { total: order.getFloat("total") });
-    } catch (err) {
-      return e.json(500, { hasil: "GAGAL", pesan: "Gagal menyimpan: " + err });
-    }
+  // --- 3d. Kisi 30 menit ----------------------------------------------------
+  //
+  // Admin mengetik nama kegiatan pada sel kosong tab "Kisi". Server yang
+  // memutuskan (rental-tindakan.js ubahSelKisi): sel kosong -> blok internal,
+  // dikosongkan -> hanya melepas blok yang dibuat dari sel itu, sel kelas /
+  // booking tidak bisa ditimpa atau dihapus. `nilaiBenar` dikirim balik supaya
+  // Apps Script mengembalikan isi sel yang ditolak.
+  if (jenis === "KISI") {
+    const T = require(`${__hooks}/rental-tindakan.js`);
+    const h = T.ubahSelKisi(e.app, {
+      ruang: body.ruang,
+      mulai: String(body.mulai || ""),
+      nilai: body.nilai,
+      pelaku: { tipe: "SHEET", id: String(body.pengubah || ""), nama: "Sheet" + (body.pengubah ? " (" + String(body.pengubah).slice(0, 80) + ")" : "") },
+    });
+    if (!h.ok) return e.json(200, { hasil: "DITOLAK_KONFLIK", pesan: h.pesan, nilaiBenar: h.nilaiBenar == null ? null : h.nilaiBenar });
+    return terima(h.pesan, { nilaiBenar: h.nilaiBenar });
   }
 
   return e.json(400, { hasil: "GAGAL", pesan: "Jenis perubahan \"" + jenis + "\" tidak dikenal." });
+});
+
+// ===========================================================================
+// 3e. Apps Script menarik kisi 30 menit satu tanggal (tab "Kisi")
+// ===========================================================================
+routerAdd("GET", "/api/rental/sheet/kisi", (e) => {
+  const SH = require(`${__hooks}/rental-shared.js`);
+  const T = require(`${__hooks}/rental-tindakan.js`);
+  const s = SH.setelan(e.app);
+  const q = e.request.url.query();
+  const asli = s ? s.getString("sheetSyncToken") : "";
+  const dikirim = String(q.get("token") || "");
+  if (!asli || !dikirim || !$security.equal(asli, dikirim)) return e.json(403, { message: "Token sinkronisasi tidak cocok." });
+  const tanggal = String(q.get("tanggal") || SH.A.tanggalWib(Date.now()));
+  const k = T.kisiHarian(e.app, tanggal);
+  if (!k) return e.json(400, { message: "Tanggal harus YYYY-MM-DD." });
+  return e.json(200, k);
 });
 
 // ===========================================================================

@@ -187,6 +187,7 @@ function onOpen() {
     .addItem('Isi token sinkronisasi', 'simpanToken')
     .addItem('Tarik daftar Ruang & Alat', 'tarikReferensi')
     .addItem('Kirim ulang baris terpilih', 'kirimUlangBarisTerpilih')
+    .addItem('Tarik kisi 30 menit (tanggal di sel B1 tab Kisi)', 'tarikKisi')
     .addToUi();
 }
 
@@ -197,6 +198,7 @@ function onOpen() {
 function saatDiedit(e) {
   if (!e || !e.range) return;
   var sh = e.range.getSheet();
+  if (sh.getName() === TAB_KISI) return kisiDiedit_(e);
   var skema = SKEMA[sh.getName()];
   if (!skema || !skema.jenis) return;                 // tab yang bukan input
   if (e.range.getRow() < 2) return;                   // header
@@ -386,4 +388,107 @@ function iso_(v) {
   }
   var d = new Date(s);
   return isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB "KISI" — ketersediaan 30 menit per ruang
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Bantuan operasional. Isinya DITARIK dari server (menu Peminjaman → Tarik
+// kisi), tidak dihitung di Sheet. Warna hanya penanda; yang menentukan adalah
+// data server. Aturan mengetik di sel (diputuskan server, bukan Sheet):
+//
+//   - Teks di sel KOSONG          → blok internal 30 menit (setelah server setuju).
+//   - Mengosongkan sel blok kisi  → hanya melepas blok yang dibuat dari sel itu.
+//   - Sel KELAS / BOOKING         → tidak bisa ditimpa atau dihapus. Server
+//                                   menolak dan isinya dikembalikan.
+//   - Memindah booking            → pakai tab Reschedule (kode booking), bukan sel.
+//
+// Format sel (latar/warna) TIDAK pernah dibaca untuk memutuskan apa pun.
+
+var TAB_KISI = 'Kisi';
+var WARNA_KISI = {
+  KELAS: '#57534E', BOOKING_LUNAS: '#8E0100', BOOKING_BELUM: '#FCE7F3',
+  INTERNAL: '#FEF3C7', MAINTENANCE: '#FDE68A', TUTUP: '#F5F5F4', KOSONG: '#FFFFFF',
+};
+var TEKS_PUTIH = { KELAS: true, BOOKING_LUNAS: true };
+
+function lembarKisi_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(TAB_KISI) || ss.insertSheet(TAB_KISI);
+  if (!sh.getRange('A1').getValue()) {
+    sh.getRange('A1').setValue('Tanggal (WIB) →');
+    sh.getRange('B1').setNumberFormat('@').setValue(Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd'));
+  }
+  return sh;
+}
+
+/** Menarik isi kisi untuk tanggal di sel B1 (format yyyy-MM-dd). */
+function tarikKisi() {
+  var sh = lembarKisi_();
+  var tgl = sh.getRange('B1').getValue();
+  if (tgl instanceof Date) tgl = Utilities.formatDate(tgl, 'Asia/Jakarta', 'yyyy-MM-dd');
+  tgl = String(tgl || '').trim();
+  var res = UrlFetchApp.fetch(APP_URL.replace(/\/+$/, '') + '/api/rental/sheet/kisi?token=' + encodeURIComponent(token_()) + '&tanggal=' + encodeURIComponent(tgl), { muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) {
+    SpreadsheetApp.getUi().alert('Kisi gagal ditarik (HTTP ' + res.getResponseCode() + '): ' + res.getContentText().slice(0, 200));
+    return;
+  }
+  var d = JSON.parse(res.getContentText());
+  var baris = d.jam.length;
+  var kolom = d.ruang.length;
+  sh.getRange(2, 1, Math.max(sh.getMaxRows() - 1, 1), Math.max(sh.getMaxColumns(), 1)).clearContent().clearNote().setBackground(null).setFontColor(null);
+  sh.getRange('C1').setValue(d.peringatan && d.peringatan.length ? '⚠ ' + d.peringatan.join(' | ') : 'Ditarik ' + Utilities.formatDate(new Date(), 'Asia/Jakarta', 'dd MMM HH:mm') + ' WIB');
+  // Baris 2: id ruang (disembunyikan) — dipakai saat mengirim perubahan.
+  sh.getRange(2, 1).setValue('room_id');
+  sh.getRange(3, 1).setValue('Jam');
+  for (var c = 0; c < kolom; c++) {
+    sh.getRange(2, c + 2).setValue(d.ruang[c].id);
+    sh.getRange(3, c + 2).setValue(d.ruang[c].nama).setFontWeight('bold');
+  }
+  sh.hideRows(2);
+  if (!baris || !kolom) return;
+  var isi = [], latar = [], huruf = [];
+  for (var i = 0; i < baris; i++) {
+    var r1 = [], r2 = [], r3 = [];
+    for (var k = 0; k < kolom; k++) {
+      var sel = d.sel[d.ruang[k].id][i];
+      r1.push(sel.label || (sel.jenis === 'TUTUP' ? 'tutup' : ''));
+      r2.push(WARNA_KISI[sel.jenis] || '#FFFFFF');
+      r3.push(TEKS_PUTIH[sel.jenis] ? '#FFFFFF' : '#1C1917');
+    }
+    isi.push(r1); latar.push(r2); huruf.push(r3);
+  }
+  sh.getRange(4, 1, baris, 1).setValues(d.jam.map(function (j) { return [j]; })).setNumberFormat('@');
+  sh.getRange(4, 2, baris, kolom).setNumberFormat('@').setValues(isi).setBackgrounds(latar).setFontColors(huruf);
+  sh.setFrozenRows(3);
+  sh.setFrozenColumns(1);
+}
+
+function kisiDiedit_(e) {
+  var sh = e.range.getSheet();
+  if (e.range.getRow() === 1 && e.range.getColumn() === 2) return tarikKisi(); // ganti tanggal
+  if (e.range.getRow() < 4 || e.range.getColumn() < 2) return;
+  var tgl = sh.getRange('B1').getValue();
+  if (tgl instanceof Date) tgl = Utilities.formatDate(tgl, 'Asia/Jakarta', 'yyyy-MM-dd');
+  var pengubah = '';
+  try { pengubah = Session.getActiveUser().getEmail(); } catch (_) {}
+  for (var r = e.range.getRow(); r < e.range.getRow() + e.range.getNumRows(); r++) {
+    for (var c = e.range.getColumn(); c < e.range.getColumn() + e.range.getNumColumns(); c++) {
+      var ruang = String(sh.getRange(2, c).getValue() || '');
+      var jam = String(sh.getRange(r, 1).getDisplayValue() || '');
+      if (!ruang || !/^\d{2}:\d{2}$/.test(jam)) continue;
+      var sel = sh.getRange(r, c);
+      var jawab = panggil_({ jenis: 'KISI', ruang: ruang, mulai: tgl + 'T' + jam + ':00+07:00', nilai: String(sel.getValue() || ''), pengubah: pengubah });
+      if (jawab.hasil === 'OK') {
+        var ada = !!String(sel.getValue() || '').trim();
+        sel.setBackground(ada ? WARNA_KISI.INTERNAL : WARNA_KISI.KOSONG).setFontColor('#1C1917').setNote(jawab.pesan || '');
+      } else {
+        // Ditolak: kembalikan isi sel sesuai data server, jelaskan lewat catatan.
+        if (jawab.nilaiBenar !== undefined && jawab.nilaiBenar !== null) sel.setValue(jawab.nilaiBenar);
+        sel.setNote('DITOLAK: ' + (jawab.pesan || 'tanpa keterangan'));
+      }
+    }
+  }
 }

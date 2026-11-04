@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertCircle, CalendarRange, CheckCircle2, ClipboardList, ExternalLink, GraduationCap, LogOut,
+  AlertCircle, CalendarRange, CheckCircle2, ClipboardList, ExternalLink, GraduationCap, Grid3x3, LogOut,
   Menu, Package, Settings, ShieldCheck, Users, X,
 } from 'lucide-react';
 import pbr from '@/lib/rentalClient';
@@ -11,6 +11,7 @@ import PesananTab from '@/pages/rental/admin/PesananTab';
 import KalenderTerpaduTab from '@/pages/rental/admin/KalenderTerpaduTab';
 import KalenderKelasTab from '@/pages/rental/admin/KalenderKelasTab';
 import JadwalTab from '@/pages/rental/admin/JadwalTab';
+import KisiTab from '@/pages/rental/admin/KisiTab';
 import KatalogTab from '@/pages/rental/admin/KatalogTab';
 import AkunAdminTab from '@/pages/rental/admin/AkunAdminTab';
 import PengaturanTab from '@/pages/rental/admin/PengaturanTab';
@@ -31,6 +32,7 @@ import PengaturanTab from '@/pages/rental/admin/PengaturanTab';
 const MENU = [
   { id: 'pesanan', label: 'Pesanan', ikon: ClipboardList, peran: [], Isi: PesananTab },
   { id: 'kalender', label: 'Kalender Terpadu', ikon: CalendarRange, peran: [], Isi: KalenderTerpaduTab },
+  { id: 'kisi', label: 'Kisi 30 Menit', ikon: Grid3x3, peran: [], Isi: KisiTab },
   { id: 'kelas', label: 'Kalender Kelas', ikon: GraduationCap, peran: ['JADWAL'], Isi: KalenderKelasTab },
   { id: 'jadwal', label: 'Blok & Penjaga', ikon: ShieldCheck, peran: ['JADWAL'], Isi: JadwalTab },
   { id: 'katalog', label: 'Katalog', ikon: Package, peran: ['SUPER_ADMIN'], Isi: KatalogTab },

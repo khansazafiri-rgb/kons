@@ -139,8 +139,10 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
   async function jalankan(fn, pesanSukses) {
     setSibuk(true);
     try {
-      await fn();
-      if (pesanSukses) lapor(pesanSukses, 'ok');
+      // fn boleh mengembalikan pesan sendiri (mis. selisih harga reschedule).
+      const pesanKhusus = await fn();
+      if (typeof pesanKhusus === 'string' && pesanKhusus) lapor(pesanKhusus, 'ok');
+      else if (pesanSukses) lapor(pesanSukses, 'ok');
       await onSegarkan();
     } catch (err) {
       lapor(err.message || 'Gagal.', 'galat');
@@ -237,7 +239,7 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
                       {b.status === 'AKTIF' && p.status !== 'DIBATALKAN' && (
                         <>
                           <button
-                            onClick={() => setReschedule(reschedule?.id === b.id ? null : { id: b.id, mulai: b.mulai.slice(0, 16), selesai: b.selesai.slice(0, 16) })}
+                            onClick={() => setReschedule(reschedule?.id === b.id ? null : { id: b.id, mulai: keWibLokal(b.mulai), selesai: keWibLokal(b.selesai), alasan: '' })}
                             className="inline-flex items-center gap-1 rounded-lg border border-alba-300 px-2.5 py-1.5 text-[11px] font-semibold text-stone-600 hover:border-sewa/50 hover:text-sewa"
                           >
                             <CalendarClock size={12} /> Pindah
@@ -280,19 +282,36 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
                           className="mt-1 block rounded-lg border border-alba-300 px-2.5 py-1.5 text-[12px]"
                         />
                       </label>
+                      <label className="min-w-[200px] flex-1 text-[11px] font-semibold text-stone-600">
+                        Alasan (dicatat di riwayat)
+                        <input
+                          value={reschedule.alasan}
+                          maxLength={300}
+                          onChange={(ev) => setReschedule((r) => ({ ...r, alasan: ev.target.value }))}
+                          placeholder="mis. pelanggan minta pindah sore"
+                          className="mt-1 block w-full rounded-lg border border-alba-300 px-2.5 py-1.5 text-[12px]"
+                        />
+                      </label>
                       <button
                         disabled={sibuk}
                         onClick={() => jalankan(async () => {
                           // datetime-local memberi waktu polos tanpa zona.
                           // +07:00 ditulis eksplisit supaya jamnya diartikan
                           // WIB, bukan zona waktu laptop adminnya.
-                          await adminReschedule({
+                          const h = await adminReschedule({
                             orderItemId: b.id,
                             mulai: new Date(`${reschedule.mulai}:00+07:00`).toISOString(),
                             selesai: new Date(`${reschedule.selesai}:00+07:00`).toISOString(),
+                            alasan: reschedule.alasan,
                           });
                           setReschedule(null);
-                        }, 'Jadwal dipindah.')}
+                          // Pesanan yang sudah dibayar lalu totalnya berubah:
+                          // admin perlu tahu ada selisih yang harus diurus.
+                          if (h?.selisih && h?.sudahBayar) {
+                            return `Jadwal dipindah. Total berubah ${rupiah(Math.abs(h.selisih))}: ${h.selisih > 0 ? 'tagih kekurangannya' : 'kembalikan kelebihannya'} ke pelanggan.`;
+                          }
+                          return '';
+                        }, 'Jadwal dipindah. Kalender, Sheet, dan grup Telegram ikut diperbarui.')}
                         className="rounded-lg bg-sewa px-3.5 py-2 text-[12px] font-bold text-white hover:bg-sewa-tua disabled:opacity-50"
                       >
                         Simpan jadwal
@@ -389,6 +408,9 @@ function KartuPesanan({ p, onSegarkan, lapor }) {
   );
 }
 
+// ISO -> 'YYYY-MM-DDTHH:MM' dalam WIB, untuk <input type=datetime-local>.
+const keWibLokal = (iso) => new Date(new Date(iso).getTime() + 7 * 3600000).toISOString().slice(0, 16);
+
 export default function RentalPesananTab({ lapor }) {
   const [kpi, setKpi] = useState(null);
   const [daftar, setDaftar] = useState([]);
@@ -420,8 +442,24 @@ export default function RentalPesananTab({ lapor }) {
     return () => clearTimeout(t);
   }, [segarkan]);
 
+  const masalahKelas = [...(kpi?.kalenderGagal || []).map((k) => ({ ...k, jenis: 'gagal' })), ...(kpi?.kalenderBasi || []).map((k) => ({ ...k, jenis: 'basi' }))];
+
   return (
     <div className="space-y-5">
+      {masalahKelas.length > 0 && (
+        <div role="alert" className="rounded-2xl bg-amber-50 p-4 text-[13px] text-amber-900 ring-1 ring-amber-200">
+          <p className="font-bold">Jadwal kelas mungkin tidak terbaru</p>
+          <p className="mt-0.5">Blok kelas terakhir tetap dipertahankan (slot tidak dibuka diam-diam), tapi perubahan jadwal kelas setelahnya belum masuk.</p>
+          <ul className="mt-2 space-y-1">
+            {masalahKelas.map((k) => (
+              <li key={k.id}>
+                <b>{k.nama}</b>: {k.jenis === 'gagal' ? `gagal disinkron (${k.pesan || 'tanpa keterangan'})` : `belum disinkron sejak ${k.terakhir ? new Date(String(k.terakhir).replace(' ', 'T')).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'awal'}`}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2">Sinkron ulang di menu <b>Kalender Kelas</b> (Admin Jadwal/Super Admin). Pekerjaan Calendar/Sheet/Telegram yang gagal bisa dicoba ulang di <b>Pengaturan</b>.</p>
+        </div>
+      )}
       {kpi && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Kpi label="Jadwal hari ini" nilai={kpi.jadwalHariIni} />
