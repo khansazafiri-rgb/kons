@@ -22,6 +22,8 @@ import CicilBelajar from './pages/CicilBelajar';
 import SimulasiCBT from './pages/SimulasiCBT';
 import BankSoal from './pages/BankSoal';
 import JadwalKelas from './pages/JadwalKelas';
+import MataKuliah from './pages/belajar/MataKuliah';
+import DetailMataKuliah from './pages/belajar/DetailMataKuliah';
 import AdminPanel from './pages/admin/AdminPanel';
 import TeacherPanel from './pages/teacher/TeacherPanel';
 
@@ -185,6 +187,11 @@ function App() {
          <Route path="/beranda" element={<ProtectedRoute><LearningHome /></ProtectedRoute>} />
          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
          <Route path="/jadwal-kelas" element={<ProtectedRoute><JadwalKelas /></ProtectedRoute>} />
+         {/* Alur Mata Kuliah > BAB > kegiatan. Rute lama (/perdalam-materi,
+             /cicil-belajar, /simulasi-test) tetap ada dan tetap dipakai: halaman
+             ini hanya pintu masuk yang menautkan ke sana dengan parameter lama. */}
+         <Route path="/belajar" element={<ProtectedRoute><MataKuliah /></ProtectedRoute>} />
+         <Route path="/belajar/:subjectId" element={<ProtectedRoute><DetailMataKuliah /></ProtectedRoute>} />
          <Route path="/perdalam-materi" element={<ProtectedRoute><PerdalamMateri /></ProtectedRoute>} />
          <Route path="/pembelajaran-ppt" element={<ProtectedRoute><PembelajaranPPT /></ProtectedRoute>} />
          <Route path="/cicil-belajar" element={<ProtectedRoute><CicilBelajar /></ProtectedRoute>} />
