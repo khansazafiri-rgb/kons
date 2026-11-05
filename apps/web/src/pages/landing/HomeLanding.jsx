@@ -1,15 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  ArrowRight, BookOpenText, CalendarClock, FlaskConical, GraduationCap,
-  Instagram, MapPin, Medal, MessageCircle, Mic, Package, Quote, Sparkles, Star,
-  Trophy, Users,
+  ArrowRight, BookOpenText, CalendarClock, ExternalLink, FlaskConical, GraduationCap, Instagram, MapPin, Medal, MessageCircle, Mic, Package, Quote, Sparkles, Star, Trophy, Users,
 } from 'lucide-react';
-import LandingLayout, { WA_CP, IG_URL, EASE, fadeUp, liftHover, staggerChild, staggerView } from './LandingLayout';
+import LandingLayout, { WA_CP, IG_URL, fadeUp, liftHover, staggerChild, staggerView } from './LandingLayout';
 import PostersSection from '@/components/landing/PostersSection';
 import AchievementsSection from '@/components/landing/AchievementsSection';
 import { PCV_LOGO_URL, PCV_LOGO_LOCAL } from '@/components/Header';
+import { posterImageSrc } from '@/lib/photoSrc';
+import { panggilEvent } from '@/lib/eventLomba';
 import pb from '@/lib/pocketbaseClient';
 import { resolveLandingTexts } from '@/lib/landingContent';
 
@@ -64,12 +64,14 @@ const TESTIMONIALS = [
 ];
 
 // Hero: elemen kolom kiri masuk berurutan dari atas ke bawah.
-const heroParent = { hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } } };
-const heroChild = { hidden: { opacity: 0, y: 22 }, show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } } };
+// Hero dan chip tampil langsung, tanpa animasi masuk: judul dan tombol utama
+// harus terbaca sejak frame pertama, apalagi di HP dengan koneksi lambat.
+const heroParent = {};
+const heroChild = {};
 
 // Chip kompetisi: banyak dan kecil, jadi muncul lebih rapat dan cukup dengan zoom tipis.
-const chipParent = { hidden: {}, show: { transition: { staggerChildren: 0.035 } } };
-const chipChild = { hidden: { opacity: 0, scale: 0.88 }, show: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: EASE } } };
+const chipParent = {};
+const chipChild = {};
 
 function SectionTitle({ eyebrow, title, sub }) {
   return (
@@ -81,38 +83,155 @@ function SectionTitle({ eyebrow, title, sub }) {
   );
 }
 
-// Baris fitur kecil di panel hero: cuplikan apa yang didapat Sobat PCV.
-function HeroFeatureRow({ icon: Icon, title, sub, delay = 0 }) {
+// Panel identitas statis: dipakai bila belum ada poster pendaftaran yang buka.
+function HeroCadangan() {
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 26 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.65, delay, ease: EASE }}
-      whileHover={{ x: 4, transition: { type: 'spring', stiffness: 300, damping: 22 } }}
-      className="flex items-center gap-3.5 rounded-2xl border border-alba-50/15 bg-alba-50/5 px-5 py-3.5 transition-colors duration-300 hover:bg-alba-50/10"
-    >
-      <span className="w-9 h-9 rounded-xl bg-gold-400/90 text-maroon-900 flex items-center justify-center shrink-0">
-        <Icon size={16} />
-      </span>
-      <span>
-        <span className="block text-sm font-bold leading-tight">{title}</span>
-        <span className="block text-xs text-alba-200 mt-0.5">{sub}</span>
-      </span>
-    </motion.div>
+    <div className="hidden lg:block rounded-[2rem] border border-alba-50/15 bg-alba-50/[0.06] p-8">
+      <div className="flex items-center gap-4 border-b border-alba-50/15 pb-6">
+        <img src={PCV_LOGO_URL} onError={(e) => { e.currentTarget.src = PCV_LOGO_LOCAL; }} referrerPolicy="no-referrer" alt="Logo PCV" className="h-16 w-16 rounded-2xl object-cover" />
+        <div>
+          <p className="font-display text-xl font-semibold leading-tight">Primus Coltus Virtus</p>
+          <p className="mt-1 text-xs text-alba-200">Prime in Cultivating Virtue</p>
+        </div>
+      </div>
+      <ul className="mt-6 space-y-3 text-sm">
+        {[
+          [BookOpenText, 'Baca PPT + video per BAB', 'PPT simplifikasi tentor, tinggal buka dan pelajari'],
+          [CalendarClock, 'Reminder ujian & kelas', 'Hitung mundur ujian dan pengingat jadwal kelasmu'],
+          [Trophy, 'Soal tahun sebelumnya', 'Bertimer seperti ujian asli, plus skor dan pembahasan'],
+        ].map(([Ikon, judul, isi]) => (
+          <li key={judul} className="flex items-center gap-3.5 rounded-2xl border border-alba-50/15 bg-alba-50/5 px-5 py-3.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold-400/90 text-maroon-900"><Ikon size={16} aria-hidden /></span>
+            <span><span className="block font-bold leading-tight">{judul}</span><span className="mt-0.5 block text-xs text-alba-200">{isi}</span></span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// "Ditutup dalam 3 hari 4 jam". Diperbarui tiap menit, cukup untuk landing.
+function sisaKalimat(deadline, sekarang) {
+  if (!deadline) return '';
+  const ms = new Date(String(deadline).replace(' ', 'T')).getTime() - sekarang;
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  const hari = Math.floor(ms / 86400000);
+  const jam = Math.floor((ms % 86400000) / 3600000);
+  const menit = Math.floor((ms % 3600000) / 60000);
+  if (hari > 0) return `${hari} hari ${jam} jam lagi`;
+  if (jam > 0) return `${jam} jam ${menit} menit lagi`;
+  return `${menit} menit lagi`;
+}
+
+// PENDAFTARAN DI LAYAR PERTAMA
+//
+// Landing ini dipasang di bio Instagram: kebanyakan pengunjung datang dari HP
+// untuk mendaftar acara yang baru mereka lihat di feed. Karena itu poster
+// pendaftaran yang sedang buka (Dashboard Admin > Landing Page > Poster &
+// Info) tampil langsung di hero, lengkap dengan tombol Daftar, tanpa harus
+// menggulir ke bagian Info & Event.
+//
+// Yang dipilih: poster pertama menurut urutan admin yang tidak disembunyikan
+// dan belum lewat batas pendaftarannya. Poster lain tetap ada di bagian
+// Info & Event di bawah.
+function HeroPendaftaran({ className = '' }) {
+  const [poster, setPoster] = useState(null); // null = memuat
+  const [lombaBuka, setLombaBuka] = useState(0);
+  const [sekarang, setSekarang] = useState(Date.now());
+  const [gambarRusak, setGambarRusak] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    pb.collection('landing_posters').getFullList({ filter: 'hidden != true', sort: 'order' })
+      .then((rows) => { if (alive) setPoster(rows); })
+      .catch(() => { if (alive) setPoster([]); });
+    panggilEvent('/api/event/list')
+      .then((d) => { if (alive) setLombaBuka((d.event || []).filter((e) => e.fasePendaftaran === 'BUKA' && !e.kuotaPenuh).length); })
+      .catch(() => {});
+    const t = setInterval(() => setSekarang(Date.now()), 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
+  if (poster === null) return <div className={`min-h-[12rem] ${className}`} aria-hidden />;
+
+  const buka = poster.filter((p) => !p.deadline || new Date(String(p.deadline).replace(' ', 'T')).getTime() > sekarang);
+  const utama = buka[0];
+  const lainnya = buka.length - 1;
+
+  const tautanLomba = lombaBuka > 0 && (
+    <Link to="/event" className="mt-3 inline-flex min-h-[44px] items-center gap-2 text-sm font-semibold text-alba-100 underline-offset-4 hover:underline">
+      <Trophy size={15} aria-hidden className="text-gold-200" /> {lombaBuka} lomba sedang buka pendaftaran <ArrowRight size={14} aria-hidden />
+    </Link>
+  );
+
+  if (!utama) {
+    return (
+      <div className={className}>
+        <HeroCadangan />
+        {tautanLomba}
+      </div>
+    );
+  }
+
+  const gambar = posterImageSrc(utama);
+  const sisa = sisaKalimat(utama.deadline, sekarang);
+
+  return (
+    <section aria-labelledby="judul-poster-hero" className={className}>
+      <div className="rounded-[1.75rem] bg-alba-50 p-3 text-stone-800 shadow-card-hover sm:p-4">
+        <div className="flex flex-col gap-4 sm:flex-row lg:flex-col">
+          {gambar && !gambarRusak && (
+            <div className="flex justify-center rounded-2xl bg-alba-100 sm:w-[46%] lg:w-auto">
+              <img
+                src={gambar}
+                alt={`Poster ${utama.title}`}
+                referrerPolicy="no-referrer"
+                onError={() => setGambarRusak(true)}
+                className="max-h-[16rem] w-auto max-w-full rounded-2xl object-contain sm:max-h-[22rem] lg:max-h-[24rem]"
+              />
+            </div>
+          )}
+          <div className="flex min-w-0 flex-1 flex-col px-2 pb-2 sm:py-2 lg:py-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-maroon-600">Pendaftaran dibuka</p>
+            <h2 id="judul-poster-hero" className="mt-1 font-display text-xl font-semibold leading-snug sm:text-2xl">{utama.title}</h2>
+            {sisa && (
+              <p className="mt-2 inline-flex items-center gap-1.5 self-start rounded-full bg-maroon-50 px-3 py-1 text-xs font-bold text-maroon-700">
+                <CalendarClock size={13} aria-hidden /> Ditutup {sisa}
+              </p>
+            )}
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:flex-col xl:flex-row">
+              {utama.registerUrl ? (
+                <a
+                  href={utama.registerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tekan inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-maroon-600 px-6 text-sm font-bold text-alba-50 hover:bg-maroon-700"
+                >
+                  Daftar sekarang <ExternalLink size={15} aria-hidden /><span className="sr-only"> (tab baru)</span>
+                </a>
+              ) : (
+                <a href={WA_CP} target="_blank" rel="noopener noreferrer" className="tekan inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-maroon-600 px-6 text-sm font-bold text-alba-50 hover:bg-maroon-700">
+                  <MessageCircle size={15} aria-hidden /> Daftar lewat admin
+                </a>
+              )}
+              {lainnya > 0 && (
+                <a href="#info-event" className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-alba-300 px-5 text-sm font-semibold text-stone-700 hover:border-maroon-300">
+                  {lainnya} info lainnya
+                </a>
+              )}
+            </div>
+            {utama.contactPerson && <p className="mt-3 text-xs text-stone-600">Contact person: {utama.contactPerson}</p>}
+          </div>
+        </div>
+      </div>
+      {tautanLomba}
+    </section>
   );
 }
 
 export default function HomeLanding() {
   const [t, setT] = useState(() => resolveLandingTexts(null));
 
-  // Bulatan dekoratif di hero bergeser lebih lambat dari isi saat digulir, jadi
-  // ada kesan kedalaman. Dimatikan untuk pengunjung yang menyalakan "kurangi
-  // gerakan" (parallax digerakkan gulir, jadi MotionConfig tidak menjangkaunya).
-  const heroRef = useRef(null);
-  const kurangiGerak = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
-  const geserBesar = useTransform(scrollYProgress, [0, 1], [0, kurangiGerak ? 0 : 90]);
-  const geserKecil = useTransform(scrollYProgress, [0, 1], [0, kurangiGerak ? 0 : 160]);
 
   useEffect(() => {
     let alive = true;
@@ -125,26 +244,33 @@ export default function HomeLanding() {
 
   return (
     <LandingLayout>
-      {/* HERO - visual dibangun murni dari tekstur CSS, tanpa foto/footage */}
-      <section ref={heroRef} className="relative bg-maroon-weave text-alba-50 overflow-hidden">
+      {/* HERO - judul + kartu pendaftaran (poster) di layar pertama */}
+      <section className="relative bg-maroon-weave text-alba-50 overflow-hidden">
         {/* Butiran noise tipis supaya bidang maroon tidak datar */}
         <div className="absolute inset-0 texture-noise opacity-[0.05] pointer-events-none" aria-hidden />
         {/* Aksen dekoratif: lingkaran garis besar + medan titik ivory */}
-        <motion.div style={{ y: geserBesar }} className="absolute -top-40 -right-40 w-[34rem] h-[34rem] rounded-full border border-alba-50/10 pointer-events-none" aria-hidden />
-        <motion.div style={{ y: geserKecil }} className="absolute -top-24 -right-24 w-80 h-80 rounded-full border border-gold-400/20 pointer-events-none" aria-hidden />
-        <motion.div style={{ y: geserKecil }} className="absolute bottom-0 left-1/2 w-72 h-40 texture-dots opacity-25 pointer-events-none" aria-hidden />
+        <div className="absolute -top-40 -right-40 w-[34rem] h-[34rem] rounded-full border border-alba-50/10 pointer-events-none" aria-hidden />
+        <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full border border-gold-400/20 pointer-events-none" aria-hidden />
+        <div className="absolute bottom-0 left-1/2 w-72 h-40 texture-dots opacity-25 pointer-events-none" aria-hidden />
 
-        <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-20 grid lg:grid-cols-[1.15fr_1fr] gap-14 items-center">
-          <motion.div variants={heroParent} initial="hidden" animate="show">
-            <motion.p variants={heroChild} className="inline-flex items-center gap-2 text-gold-200 font-bold tracking-[0.18em] text-xs mb-6 border border-alba-50/25 bg-alba-50/10 backdrop-blur rounded-full px-4 py-1.5">
+        {/* Urutan di HP: judul, kartu pendaftaran, lalu sisanya. Di layar lebar
+            kartu pendaftaran pindah ke kolom kanan. */}
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-6 pt-7 pb-14 sm:pt-16 lg:pt-20 lg:pb-20 grid gap-6 sm:gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-x-14 lg:gap-y-8">
+          <motion.div variants={heroParent} initial="hidden" animate="show" className="lg:col-start-1 lg:self-end">
+            <motion.p variants={heroChild} className="hidden sm:inline-flex items-center gap-2 text-gold-200 font-bold tracking-[0.18em] text-xs mb-6 border border-alba-50/25 bg-alba-50/10 backdrop-blur rounded-full px-4 py-1.5">
               {t.heroBadge}
             </motion.p>
-            <motion.h1 variants={heroChild} className="font-display text-4xl md:text-[3.4rem] font-semibold leading-[1.1] mb-6">
+            <motion.h1 variants={heroChild} className="font-display text-[1.85rem] sm:text-[2.25rem] md:text-[3.4rem] font-semibold leading-[1.1]">
               {t.heroTitle1}{' '}
               <span className="text-gold-200 italic">{t.heroTitleAccent}</span>{' '}
               {t.heroTitle2}
             </motion.h1>
-            <motion.p variants={heroChild} className="text-alba-100/90 text-lg mb-9 max-w-xl leading-relaxed">{t.heroSub}</motion.p>
+          </motion.div>
+
+          <HeroPendaftaran className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-center" />
+
+          <motion.div variants={heroParent} initial="hidden" animate="show" className="lg:col-start-1 lg:self-start">
+            <motion.p variants={heroChild} className="text-alba-100/90 text-base sm:text-lg mb-7 sm:mb-9 max-w-xl leading-relaxed">{t.heroSub}</motion.p>
             <motion.div variants={heroChild} className="flex flex-wrap items-center gap-4">
               <Link
                 to="/student-program"
@@ -172,45 +298,6 @@ export default function HomeLanding() {
               <Stat value={t.stat1Value} label={t.stat1Label} />
               <Stat value={t.stat2Value} label={t.stat2Label} />
               <Stat value={t.stat3Value} label={t.stat3Label} />
-            </motion.div>
-          </motion.div>
-
-          {/* Panel identitas + cuplikan fitur, dengan kartu kecil "mengambang".
-              Semuanya elemen UI, bukan foto, jadi tetap tajam di semua layar. */}
-          <motion.div
-            initial={{ opacity: 0, x: 56, scale: 0.96 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            transition={{ duration: 0.9, delay: 0.3, ease: EASE }}
-            className="relative hidden lg:block"
-          >
-            <div className="absolute -top-6 -left-6 w-24 h-24 texture-dots opacity-40 rounded-2xl" aria-hidden />
-
-            {/* Panel melayang naik-turun sangat pelan; terlalu cepat atau
-                terlalu jauh akan terasa seperti iklan, bukan latar. */}
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 1.4 }}
-              className="relative rounded-[2rem] border border-alba-50/15 bg-alba-50/[0.06] backdrop-blur-sm p-8 shadow-card-hover"
-            >
-              <div className="absolute inset-0 texture-noise opacity-[0.06] rounded-[2rem] pointer-events-none" aria-hidden />
-              <div className="relative flex items-center gap-4 pb-6 border-b border-alba-50/15">
-                <img
-                  src={PCV_LOGO_URL}
-                  onError={(e) => { e.currentTarget.src = PCV_LOGO_LOCAL; }}
-                  referrerPolicy="no-referrer"
-                  alt="Logo PCV"
-                  className="w-16 h-16 rounded-2xl object-cover shadow-card"
-                />
-                <div>
-                  <p className="font-display text-xl font-semibold leading-tight">Primus Coltus Virtus</p>
-                  <p className="text-alba-200 text-xs mt-1">Prime in Cultivating Virtue</p>
-                </div>
-              </div>
-              <div className="relative mt-6 space-y-3">
-                <HeroFeatureRow delay={0.75} icon={BookOpenText} title="Baca PPT + video per BAB" sub="PPT simplifikasi tentor, tinggal buka dan pelajari" />
-                <HeroFeatureRow delay={0.9} icon={CalendarClock} title="Reminder ujian & kelas" sub="Countdown ujian dan pengingat jadwal kelasmu" />
-                <HeroFeatureRow delay={1.05} icon={Trophy} title="Kerjakan Soal Tahun Sebelumnya" sub="Bertimer ala ujian asli, plus skor dan pembahasan" />
-              </div>
             </motion.div>
           </motion.div>
         </div>

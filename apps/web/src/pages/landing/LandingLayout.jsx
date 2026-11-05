@@ -34,32 +34,16 @@ const NAV_UTAMA = NAV_ITEMS.filter((n) => ['/student-program', '/olympiad-progra
 // tiba-tiba", bukan bergerak. Pengunjung yang menyalakan "kurangi gerakan"
 // dilayani <MotionConfig reducedMotion="user"> di App.jsx.
 export const EASE = [0.22, 1, 0.36, 1];
-const VIEW = { once: true, margin: '-80px' };
 
-// Satu blok yang naik sambil muncul saat masuk layar.
-export const fadeUp = {
-  initial: { opacity: 0, y: 24 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: VIEW,
-  transition: { duration: 0.7, ease: EASE },
-};
-
-// Deretan kartu yang muncul bergantian, bukan serentak. Pasang `staggerView`
-// pada wadahnya dan `variants={staggerChild}` pada tiap kartu (motion.div).
-export const staggerParent = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
-};
-export const staggerChild = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
-};
-export const staggerView = {
-  variants: staggerParent,
-  initial: 'hidden',
-  whileInView: 'show',
-  viewport: VIEW,
-};
+// Muncul-saat-digulir DIMATIKAN. Dulu tiap blok memudar naik saat masuk layar;
+// akibatnya di HP lambat atau saat menggulir cepat, area itu kosong beberapa
+// saat, dan isi sudah ada tapi belum terlihat. Nama preset dipertahankan
+// supaya halaman yang memakainya tidak perlu diubah satu per satu; isinya
+// kosong, jadi elemen langsung tampil. Gerak tersisa hanya hover.
+export const fadeUp = {};
+export const staggerParent = {};
+export const staggerChild = {};
+export const staggerView = {};
 
 // Hover kartu: terangkat dengan pegas, bukan transisi CSS yang patah. Dipakai
 // lewat `whileHover={liftHover}` pada motion.div.
