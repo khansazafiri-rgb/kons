@@ -13,8 +13,9 @@
 // aturan API. Yang membuat kiriman sah hanyalah token undangan, dan token itu
 // diperiksa di sini setiap kali: ada, aktif, belum kedaluwarsa, belum habis.
 //
-// Token disimpan sebagai hash SHA-256. Token mentah hanya muncul sekali, di
-// jawaban endpoint pembuatan, untuk disalin admin.
+// Pencarian token memakai hash SHA-256 (`tokenHash`). Token mentah juga
+// disimpan di field `token` yang hanya bisa dibaca admin (collection
+// poster_invites admin-only), supaya admin bisa menyalin link kapan saja.
 
 // ---------------------------------------------------------------------------
 // 1. Admin membuat tautan
@@ -27,14 +28,15 @@ routerAdd("POST", "/api/pcv/poster-invites", (e) => {
   const body = e.requestInfo().body || {};
   const label = String(body.label || "").trim().slice(0, 120);
   if (label.length < 2) return e.json(400, { message: "Beri nama tautan (mis. nama teman yang menerimanya)." });
-  const hari = Math.floor(Number(body.hari || 7));
+  const hari = Math.floor(Number(body.hari || 30));
   if (!(hari >= 1 && hari <= KP.MAKS_HARI)) return e.json(400, { message: "Masa berlaku 1 sampai " + KP.MAKS_HARI + " hari." });
-  const batas = Math.floor(Number(body.batas == null ? 5 : body.batas));
+  const batas = Math.floor(Number(body.batas == null ? 20 : body.batas));
   if (!(batas >= 0 && batas <= KP.MAKS_PAKAI)) return e.json(400, { message: "Batas kiriman 0 (tanpa batas) sampai " + KP.MAKS_PAKAI + "." });
 
   const token = $security.randomString(43);
   const rec = new Record(e.app.findCollectionByNameOrId("poster_invites"));
   rec.set("tokenHash", KP.hashToken(token));
+  rec.set("token", token);
   rec.set("tokenHint", token.slice(-4));
   rec.set("label", label);
   rec.set("expiresAt", new Date(Date.now() + hari * 86400000).toISOString());

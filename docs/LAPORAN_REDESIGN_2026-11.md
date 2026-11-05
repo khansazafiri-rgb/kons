@@ -44,7 +44,7 @@ Tidak ada yang diuji terhadap produksi.
 2. **Lanjutkan soal tahun sebelumnya.** `cbt_attempts` berstatus `in_progress` tidak pernah dilanjutkan; tiap mulai membuat percobaan baru. Mendukungnya mengubah perilaku timer (lanjut dari sisa waktu atau mulai ulang), jadi perlu keputusan.
 3. **Kedaluwarsa booking menunggu pembayaran.** Tetap tidak ada (sesuai PRD bagian 9). Batas 5 pesanan menunggu per nomor WA tetap berlaku.
 4. **Peran di Telegram.** Telegram tidak memetakan user ke peran admin peminjaman; semua user di daftar User ID boleh semua perintah. Pemetaan User ID -> akun `rental_admins` bisa ditambahkan kalau diperlukan.
-5. **Token tautan poster hanya tampil sekali.** Pilihan keamanan (yang disimpan hanya hash). Kalau admin lebih suka bisa menyalin ulang, token perlu disimpan terenkripsi.
+5. **Token tautan poster.** Awalnya hanya hash yang disimpan sehingga link hanya bisa disalin sekali. Sekarang token juga disimpan di field `token` yang hanya bisa dibaca admin (migrasi `1788500000_poster_invite_token.js`), supaya link bisa disalin kapan saja. Konsekuensinya: siapa pun yang bisa membaca basis data atau cadangannya bisa membaca token link yang masih aktif. Link yang dibuat sebelum migrasi ini tidak punya token tersimpan; buat link baru.
 
 ## Batasan yang diketahui
 
