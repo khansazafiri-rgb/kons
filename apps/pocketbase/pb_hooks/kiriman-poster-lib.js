@@ -5,6 +5,8 @@
 const BATAS_PER_JAM = 10; // kiriman per tautan per jam, rem terhadap spam
 const MAKS_HARI = 60;
 const MAKS_PAKAI = 100;
+const MAKS_GAMBAR = 6; // gambar per kiriman (sama dengan maxSelect di migrasi)
+const MAKS_TOTAL_BYTE = 25 * 1024 * 1024; // di bawah batas isi permintaan PocketBase
 
 function hashToken(t) {
   return $security.sha256(String(t || ""));
@@ -52,4 +54,4 @@ const PESAN_ALASAN = {
 };
 
 
-module.exports = { BATAS_PER_JAM, MAKS_HARI, MAKS_PAKAI, hashToken, bersih, urlSah, nilaiUndangan, PESAN_ALASAN };
+module.exports = { BATAS_PER_JAM, MAKS_HARI, MAKS_PAKAI, MAKS_GAMBAR, MAKS_TOTAL_BYTE, hashToken, bersih, urlSah, nilaiUndangan, PESAN_ALASAN };

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarClock, ChevronLeft, ChevronRight, ExternalLink, ImageOff, Megaphone, UserRound } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
-import { posterImageSrc } from '@/lib/photoSrc';
+import { posterImageList } from '@/lib/photoSrc';
 import { fadeUp } from '@/pages/landing/LandingLayout';
 
 // Section "Info & Event" di landing page: poster promo/event PCV yang dikelola
@@ -13,6 +13,8 @@ import { fadeUp } from '@/pages/landing/LandingLayout';
 //                     ukurannya mengikuti rasio gambar yang diupload;
 //   - frame deskripsi: kartu tersendiri di sampingnya.
 // Antar-event digeser kiri/kanan (carousel), bukan ditumpuk ke bawah.
+// Satu event boleh punya beberapa gambar: di dalam frame poster, gambarnya
+// digeser seperti slide (terpisah dari geser antar-event di atasnya).
 
 // "3 hari 04:12:09" menuju deadline; null kalau tidak ada deadline.
 function useCountdown(deadline) {
@@ -37,11 +39,17 @@ function useCountdown(deadline) {
 }
 
 // Frame khusus poster: hanya sebesar gambarnya, tanpa memotong sisi mana pun.
+// Kalau satu event punya beberapa gambar, frame ini jadi slide kecil: tombol
+// kiri/kanan, titik penunjuk, panah keyboard, dan geser jari di HP.
 function PosterFrame({ rec }) {
-  const [imgFail, setImgFail] = useState(false);
-  const src = posterImageSrc(rec);
+  const gambar = posterImageList(rec);
+  const [i, setI] = useState(0);
+  const [rusak, setRusak] = useState({}); // src -> true kalau gagal dimuat
+  const mulaiX = useRef(null);
+  const total = gambar.length;
+  const src = gambar[Math.min(i, Math.max(total - 1, 0))];
 
-  if (!src || imgFail) {
+  if (!src || rusak[src]) {
     return (
       <div className="shrink-0 rounded-3xl border border-alba-200 bg-alba-100 p-10 flex items-center justify-center text-alba-400 shadow-card">
         <ImageOff size={30} />
@@ -49,16 +57,82 @@ function PosterFrame({ rec }) {
     );
   }
 
+  const go = (dir) => setI((n) => (n + dir + total) % total);
+  const onKey = (e) => {
+    if (total < 2) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(1); }
+  };
+  const onTouchEnd = (e) => {
+    if (mulaiX.current === null || total < 2) return;
+    const dx = e.changedTouches[0].clientX - mulaiX.current;
+    mulaiX.current = null;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+  };
+
   return (
-    <div className="shrink-0 self-start rounded-3xl border border-alba-200 bg-alba-50 p-3 shadow-card">
-      <img
-        src={src}
-        alt={rec.title}
-        referrerPolicy="no-referrer"
-        loading="lazy"
-        onError={() => setImgFail(true)}
-        className="rounded-2xl w-auto max-w-full md:max-w-sm max-h-[30rem] object-contain"
-      />
+    <div
+      className="shrink-0 self-start rounded-3xl border border-alba-200 bg-alba-50 p-3 shadow-card max-w-full"
+      {...(total > 1 ? {
+        role: 'group',
+        'aria-roledescription': 'slide',
+        'aria-label': `Gambar poster ${rec.title}, ${i + 1} dari ${total}`,
+        tabIndex: 0,
+        onKeyDown: onKey,
+        onTouchStart: (e) => { mulaiX.current = e.touches[0].clientX; },
+        onTouchEnd,
+      } : {})}
+    >
+      <div className={`relative ${total > 1 ? 'min-w-[14rem]' : ''}`}>
+        <img
+          key={src}
+          src={src}
+          alt={total > 1 ? `${rec.title} (gambar ${i + 1} dari ${total})` : rec.title}
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          onError={() => setRusak((r) => ({ ...r, [src]: true }))}
+          className="rounded-2xl w-auto max-w-full md:max-w-sm max-h-[30rem] object-contain mx-auto"
+        />
+        {total > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label="Gambar sebelumnya"
+              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow-card hover:bg-maroon-600 hover:text-alba-50 transition-colors"
+            >
+              <ChevronLeft size={20} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label="Gambar berikutnya"
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow-card hover:bg-maroon-600 hover:text-alba-50 transition-colors"
+            >
+              <ChevronRight size={20} aria-hidden />
+            </button>
+            <span className="absolute right-2 top-2 rounded-full bg-stone-900/70 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-white" aria-hidden>
+              {i + 1}/{total}
+            </span>
+          </>
+        )}
+      </div>
+      {total > 1 && (
+        <div className="mt-3 flex justify-center gap-1">
+          {gambar.map((g, n) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setI(n)}
+              aria-label={`Lihat gambar ${n + 1}`}
+              aria-current={n === i ? 'true' : undefined}
+              className="flex h-6 min-w-6 items-center justify-center"
+            >
+              <span aria-hidden className={`block h-2 rounded-full transition-all ${n === i ? 'w-6 bg-maroon-600' : 'w-2 bg-alba-300 hover:bg-alba-400'}`} />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

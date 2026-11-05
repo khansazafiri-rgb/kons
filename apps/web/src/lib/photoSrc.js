@@ -24,4 +24,25 @@ export function resolvePhoto(rec, fileField, urlField) {
 // Pintasan untuk tiap collection.
 export const teamPhotoSrc = (rec) => resolvePhoto(rec, 'photoFile', 'photo');
 export const achievementPhotoSrc = (rec) => resolvePhoto(rec, 'photo', 'photoUrl');
-export const posterImageSrc = (rec) => resolvePhoto(rec, 'image', 'imageUrl');
+
+// Satu poster bisa punya BEBERAPA gambar (tampil seperti slide). Urutannya:
+//   image (berkas lama) -> images (berkas) -> imageUrl (link lh3) -> imageUrls
+//   (link lh3 tambahan, satu per baris).
+// Poster lama yang hanya punya `image` atau `imageUrl` tetap menghasilkan satu
+// gambar, jadi tampilannya tidak berubah.
+export function posterImageList(rec) {
+  if (!rec) return [];
+  const hasil = [];
+  const tambah = (src) => { if (src && !src.includes('FILE_ID') && !hasil.includes(src)) hasil.push(src); };
+  const berkas = (nama) => {
+    try { tambah(pb.files.getURL(rec, nama)); } catch (_) { /* record tanpa konteks collection */ }
+  };
+  if (rec.image) berkas(rec.image);
+  (Array.isArray(rec.images) ? rec.images : rec.images ? [rec.images] : []).forEach(berkas);
+  tambah(rec.imageUrl);
+  String(rec.imageUrls || '').split(/\r?\n/).map((x) => x.trim()).filter((x) => /^https?:\/\//i.test(x)).forEach(tambah);
+  return hasil;
+}
+
+// Gambar sampul (pertama): dipakai kartu hero dan thumbnail daftar admin.
+export const posterImageSrc = (rec) => posterImageList(rec)[0] || '';
