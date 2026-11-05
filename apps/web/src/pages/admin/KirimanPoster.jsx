@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Copy, Link2, ShieldOff } from 'lucide-react';
+import { Copy, Link2, Send, ShieldOff } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 
 // TAB "KIRIMAN POSTER" (Dashboard Admin > Landing Page)
 //
 // 1. Tautan kontribusi: admin membuat tautan undangan terbatas untuk teman
-//    yang akan mengirim Poster & Info tanpa akun admin. Token mentah hanya
-//    muncul SEKALI setelah dibuat (server menyimpan hash-nya saja).
+//    yang akan mengirim Poster & Info tanpa akun admin. Tautan bisa disalin
+//    kapan saja (token disimpan di field yang hanya bisa dibaca admin).
 // 2. Kiriman menunggu tinjauan: pratinjau, sunting, setujui (disalin ke
 //    landing_posters), atau tolak dengan alasan.
 //
@@ -100,15 +100,37 @@ function KartuKiriman({ s, tokenBerkas, onSelesai }) {
   );
 }
 
-export default function KirimanPoster() {
+const URL_DASAR = () => window.location.origin;
+const tautanDari = (r) => (r.token ? `${URL_DASAR()}/kirim-poster/${r.token}` : '');
+
+// Salin ke clipboard. Kalau browser menolak (halaman bukan HTTPS, izin
+// ditolak), tampilkan kotak dengan link-nya supaya tetap bisa disalin manual.
+async function salinTeks(teks) {
+  try {
+    await navigator.clipboard.writeText(teks);
+    return true;
+  } catch (_) {
+    window.prompt('Salin link ini (Ctrl+C lalu Enter):', teks);
+    return false;
+  }
+}
+
+const pesanWa = (url, label) =>
+  `Halo${label ? ` ${label}` : ''}! Ini link untuk mengirim poster/info ke landing PCV Classroom: ${url}\n\n` +
+  'Buka link-nya, isi judul dan deskripsi, lalu upload gambar posternya. ' +
+  'Setelah dicek admin PCV, posternya akan tayang.';
+
+export default function KirimanPoster({ onBerubah, children }) {
   const [tautan, setTautan] = useState([]);
   const [kiriman, setKiriman] = useState([]);
   const [riwayat, setRiwayat] = useState([]);
   const [tokenBerkas, setTokenBerkas] = useState('');
-  const [baru, setBaru] = useState({ label: '', hari: 7, batas: 3 });
-  const [dibuat, setDibuat] = useState(null); // { tautan, label }
+  const [baru, setBaru] = useState({ label: '', hari: 30, batas: 20 });
+  const [lanjut, setLanjut] = useState(false);
+  const [sibuk, setSibuk] = useState(false);
   const [galat, setGalat] = useState('');
   const [ok, setOk] = useState('');
+  const [versi, setVersi] = useState(0); // naik tiap kiriman disetujui/ditolak: memuat ulang daftar poster di bawah
 
   const muat = useCallback(async () => {
     try {
@@ -119,104 +141,151 @@ export default function KirimanPoster() {
         pb.files.getToken(),
       ]);
       setTautan(t); setKiriman(k); setRiwayat(r.items); setTokenBerkas(tok);
+      if (onBerubah) onBerubah(k.length);
     } catch (e) {
-      setGalat('Gagal memuat: ' + (e?.message || '') + ' (migrasi 1788400000_kiriman_poster sudah jalan?)');
+      setGalat('Gagal memuat: ' + (e?.message || '') + ' (migrasi terbaru sudah dijalankan?)');
     }
-  }, []);
+  }, [onBerubah]);
   useEffect(() => { muat(); }, [muat]);
 
   const buat = async (e) => {
     e.preventDefault();
-    setGalat(''); setOk(''); setDibuat(null);
+    setGalat(''); setOk(''); setSibuk(true);
     try {
       const r = await pb.send('/api/pcv/poster-invites', { method: 'POST', body: { label: baru.label, hari: Number(baru.hari), batas: Number(baru.batas) } });
-      setDibuat({ tautan: `${window.location.origin}${r.tautan}`, label: baru.label });
-      setBaru({ label: '', hari: 7, batas: 3 });
-      muat();
-    } catch (err) { setGalat(err?.response?.message || err?.message || 'Gagal membuat tautan.'); }
+      const url = `${URL_DASAR()}${r.tautan}`;
+      const tersalin = await salinTeks(url);
+      setOk(tersalin ? `Link untuk "${baru.label}" dibuat dan sudah tersalin. Tinggal tempel dan kirim.` : `Link untuk "${baru.label}" dibuat.`);
+      setBaru((b) => ({ ...b, label: '' }));
+      await muat();
+    } catch (err) { setGalat(err?.response?.message || err?.message || 'Gagal membuat link.'); }
+    finally { setSibuk(false); }
   };
-  const salin = async (t) => {
-    try { await navigator.clipboard.writeText(t); setOk('Tautan tersalin.'); } catch (_) { setOk('Salin manual tautan di atas.'); }
+
+  const salin = async (r) => {
+    const url = tautanDari(r);
+    if (!url) return;
+    setOk((await salinTeks(url)) ? `Link "${r.label}" tersalin.` : '');
   };
   const cabut = async (r) => {
-    if (!window.confirm(`Cabut tautan "${r.label}"? Tautan ini langsung tidak bisa dipakai lagi.`)) return;
+    if (!window.confirm(`Cabut link "${r.label}"? Link ini langsung tidak bisa dipakai lagi.`)) return;
     try {
       await pb.collection('poster_invites').update(r.id, { active: false, revokedAt: new Date().toISOString() });
-      setOk(`Tautan "${r.label}" dicabut.`); muat();
+      setOk(`Link "${r.label}" dicabut.`); muat();
     } catch (e) { setGalat('Gagal mencabut: ' + (e?.message || '')); }
   };
 
   const inp = 'w-full rounded-lg border border-alba-300 bg-white px-3 py-2 text-sm';
+  const aktif = tautan.filter((r) => keadaanTautan(r).teks === 'Aktif');
+  const lain = tautan.filter((r) => keadaanTautan(r).teks !== 'Aktif');
+
+  const Baris = ({ r }) => {
+    const k = keadaanTautan(r);
+    const url = tautanDari(r);
+    return (
+      <li className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+        <Link2 size={15} aria-hidden className="hidden text-stone-400 sm:block" />
+        <span className="min-w-0 basis-full sm:basis-0 sm:flex-1">
+          <span className="block font-semibold text-stone-800">{r.label}</span>
+          <span className="block text-xs text-stone-600">
+            Dipakai {r.usedCount}{r.maxUses > 0 ? ` dari ${r.maxUses}` : ''} kali · berlaku sampai {tgl(r.expiresAt)}
+          </span>
+        </span>
+        <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${k.cls}`}>{k.teks}</span>
+        {r.active && (
+          url ? (
+            <>
+              <button type="button" onClick={() => salin(r)} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg bg-maroon-600 px-3.5 text-xs font-bold text-alba-50 hover:bg-maroon-700">
+                <Copy size={13} aria-hidden /> Salin link
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(pesanWa(url, r.label))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-alba-300 bg-white px-3.5 text-xs font-semibold text-stone-700 hover:border-maroon-300"
+              >
+                <Send size={13} aria-hidden /> WhatsApp<span className="sr-only"> (tab baru)</span>
+              </a>
+            </>
+          ) : (
+            <span className="text-xs text-stone-600">Dibuat sebelum ada tombol salin. Buat link baru.</span>
+          )
+        )}
+        {r.active && (
+          <button type="button" onClick={() => cabut(r)} className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-red-300 px-3 text-xs font-semibold text-red-700 hover:bg-red-50">
+            <ShieldOff size={12} aria-hidden /> Cabut
+          </button>
+        )}
+      </li>
+    );
+  };
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
-        <h2 className="font-display text-lg font-semibold text-maroon-600">Tautan kontribusi poster</h2>
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-600">
-          Untuk teman yang akan mengirim Poster &amp; Info tanpa akun admin. Penerima hanya bisa mengisi satu formulir;
-          ia tidak bisa melihat dashboard, poster lain, atau data siapa pun. Kiriman masuk sebagai draf di bawah dan
-          baru tayang setelah kamu setujui.
-        </p>
-        <form onSubmit={buat} className="mt-4 grid gap-3 sm:grid-cols-[1fr_120px_140px_auto] sm:items-end">
-          <label className="block text-xs font-bold text-stone-600">Untuk siapa / keperluan
-            <input className={inp} required minLength={2} maxLength={120} value={baru.label} onChange={(e) => setBaru((b) => ({ ...b, label: e.target.value }))} placeholder="mis. Rani, BEM FK" />
-          </label>
-          <label className="block text-xs font-bold text-stone-600">Berlaku (hari)
-            <input type="number" min={1} max={60} className={inp} value={baru.hari} onChange={(e) => setBaru((b) => ({ ...b, hari: e.target.value }))} />
-          </label>
-          <label className="block text-xs font-bold text-stone-600">Batas kiriman (0 = bebas)
-            <input type="number" min={0} max={100} className={inp} value={baru.batas} onChange={(e) => setBaru((b) => ({ ...b, batas: e.target.value }))} />
-          </label>
-          <button type="submit" className="rounded-lg bg-maroon-600 px-4 py-2 text-sm font-semibold text-alba-50 hover:bg-maroon-700">Buat tautan</button>
-        </form>
-
-        {dibuat && (
-          <div role="status" className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-semibold text-green-900">Tautan untuk “{dibuat.label}” siap. Salin sekarang: demi keamanan, tautan ini tidak bisa ditampilkan lagi.</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <code className="break-all rounded bg-white px-2 py-1 text-xs">{dibuat.tautan}</code>
-              <button type="button" onClick={() => salin(dibuat.tautan)} className="inline-flex items-center gap-1 rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-900"><Copy size={13} aria-hidden /> Salin</button>
-            </div>
-          </div>
-        )}
-        {galat && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{galat}</p>}
-        {ok && <p role="status" className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">{ok}</p>}
-
-        {tautan.length > 0 && (
-          <ul className="mt-5 divide-y divide-alba-200 rounded-xl border border-alba-200 bg-white">
-            {tautan.map((r) => {
-              const k = keadaanTautan(r);
-              return (
-                <li key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                  <Link2 size={15} aria-hidden className="text-stone-400" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-stone-800">{r.label} <span className="font-normal text-stone-500">…{r.tokenHint}</span></span>
-                    <span className="block text-xs text-stone-500">
-                      Dipakai {r.usedCount}{r.maxUses > 0 ? `/${r.maxUses}` : ''} kali · berlaku s/d {tgl(r.expiresAt)} · dibuat {r.createdBy || '-'}
-                    </span>
-                  </span>
-                  <span className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${k.cls}`}>{k.teks}</span>
-                  {r.active && (
-                    <button type="button" onClick={() => cabut(r)} className="inline-flex items-center gap-1 rounded-full border border-red-300 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50">
-                      <ShieldOff size={12} aria-hidden /> Cabut
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+      {/* Yang menunggu persetujuan ditaruh PALING ATAS: ini yang perlu tindakan admin. */}
+      <section aria-labelledby="judul-menunggu" className={`rounded-2xl border p-6 shadow-card ${kiriman.length ? 'border-gold-400 bg-gold-100/60' : 'border-alba-200 bg-alba-50'}`}>
+        <h2 id="judul-menunggu" className="flex flex-wrap items-center gap-2 font-display text-lg font-semibold text-maroon-600">
+          Menunggu persetujuan admin
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${kiriman.length ? 'bg-maroon-600 text-alba-50' : 'bg-alba-200 text-stone-700'}`}>{kiriman.length}</span>
+        </h2>
+        {kiriman.length === 0 ? (
+          <p className="mt-2 text-sm text-stone-600">Belum ada kiriman baru. Kiriman dari orang yang kamu beri link muncul di sini dan belum tayang sebelum kamu setujui.</p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-stone-700">Poster ini belum tayang di landing. Periksa, sunting kalau perlu, lalu setujui atau tolak.</p>
+            <ul className="mt-4 space-y-4">
+              {kiriman.map((s) => <KartuKiriman key={s.id} s={s} tokenBerkas={tokenBerkas} onSelesai={(m) => { setOk(m); setVersi((v) => v + 1); muat(); }} />)}
+            </ul>
+          </>
         )}
       </section>
 
-      <section className="rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
-        <h2 className="font-display text-lg font-semibold text-maroon-600">Menunggu tinjauan ({kiriman.length})</h2>
-        {kiriman.length === 0
-          ? <p className="mt-2 text-sm text-stone-500">Belum ada kiriman yang menunggu.</p>
-          : (
-            <ul className="mt-4 space-y-4">
-              {kiriman.map((s) => <KartuKiriman key={s.id} s={s} tokenBerkas={tokenBerkas} onSelesai={(m) => { setOk(m); muat(); }} />)}
-            </ul>
+      {children && <React.Fragment key={versi}>{children}</React.Fragment>}
+
+      <section aria-labelledby="judul-link" className="rounded-2xl border border-alba-200 bg-alba-50 p-6 shadow-card">
+        <h2 id="judul-link" className="font-display text-lg font-semibold text-maroon-600">Link untuk orang lain mengirim poster</h2>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-stone-600">
+          Bagikan link ini ke siapa pun yang mau memasang poster atau info. Mereka tidak perlu akun admin: cukup membuka
+          link, mengisi judul dan deskripsi, lalu mengunggah gambar. Mereka tidak bisa melihat dashboard atau poster
+          lain, dan kirimannya baru tayang setelah kamu setujui.
+        </p>
+
+        <form onSubmit={buat} className="mt-4 rounded-xl border border-alba-200 bg-white p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="block flex-1 text-xs font-bold text-stone-700">Untuk siapa atau keperluan apa?
+              <input className={`${inp} mt-1`} required minLength={2} maxLength={120} value={baru.label} onChange={(e) => setBaru((b) => ({ ...b, label: e.target.value }))} placeholder="mis. Rani BEM FK, atau Panitia Lomba Esai" />
+            </label>
+            <button type="submit" disabled={sibuk} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-maroon-600 px-5 text-sm font-bold text-alba-50 hover:bg-maroon-700 disabled:opacity-60">
+              <Copy size={15} aria-hidden /> {sibuk ? 'Membuat…' : 'Buat link & salin'}
+            </button>
+          </div>
+          <button type="button" onClick={() => setLanjut((v) => !v)} aria-expanded={lanjut} className="mt-3 text-xs font-semibold text-stone-700 underline underline-offset-2">
+            {lanjut ? 'Sembunyikan pengaturan' : `Pengaturan: berlaku ${baru.hari} hari, maksimal ${Number(baru.batas) > 0 ? `${baru.batas} kiriman` : 'tanpa batas kiriman'}`}
+          </button>
+          {lanjut && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-bold text-stone-700">Berlaku berapa hari (1 sampai 60)
+                <input type="number" min={1} max={60} className={`${inp} mt-1`} value={baru.hari} onChange={(e) => setBaru((b) => ({ ...b, hari: e.target.value }))} />
+              </label>
+              <label className="block text-xs font-bold text-stone-700">Batas jumlah kiriman (0 = tanpa batas, maks 100)
+                <input type="number" min={0} max={100} className={`${inp} mt-1`} value={baru.batas} onChange={(e) => setBaru((b) => ({ ...b, batas: e.target.value }))} />
+              </label>
+            </div>
           )}
+        </form>
+
+        {galat && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{galat}</p>}
+        {ok && <p role="status" className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">{ok}</p>}
+
+        {aktif.length > 0 && <ul className="mt-5 divide-y divide-alba-200 rounded-xl border border-alba-200 bg-white">{aktif.map((r) => <Baris key={r.id} r={r} />)}</ul>}
+        {aktif.length === 0 && <p className="mt-5 text-sm text-stone-600">Belum ada link yang aktif. Buat satu di atas.</p>}
+
+        {lain.length > 0 && (
+          <details className="mt-4">
+            <summary className="min-h-[40px] cursor-pointer py-2 text-sm font-semibold text-stone-700">Link lama ({lain.length}): dicabut, kedaluwarsa, atau sudah penuh</summary>
+            <ul className="divide-y divide-alba-200 rounded-xl border border-alba-200 bg-white">{lain.map((r) => <Baris key={r.id} r={r} />)}</ul>
+          </details>
+        )}
       </section>
 
       {riwayat.length > 0 && (
@@ -227,7 +296,7 @@ export default function KirimanPoster() {
               <li key={s.id} className="flex flex-wrap gap-x-2">
                 <span className={`font-bold ${s.status === 'DISETUJUI' ? 'text-green-800' : 'text-red-700'}`}>{s.status === 'DISETUJUI' ? 'Disetujui' : 'Ditolak'}</span>
                 <span className="text-stone-800">{s.title}</span>
-                <span className="text-stone-500">· {s.reviewedBy} · {tgl(s.reviewedAt)}{s.reviewNote ? ` · Alasan: ${s.reviewNote}` : ''}</span>
+                <span className="text-stone-600">· {s.reviewedBy} · {tgl(s.reviewedAt)}{s.reviewNote ? ` · Alasan: ${s.reviewNote}` : ''}</span>
               </li>
             ))}
           </ul>

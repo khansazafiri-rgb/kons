@@ -52,6 +52,21 @@ export default function AdminPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
   const [tab, setTab] = useUrlState('tab', 'Pengajar');
   const { user, isAuthed } = useAuth();
+  // Jumlah poster kiriman orang lain yang menunggu persetujuan. Ditampilkan
+  // sebagai lencana di menu dan pengumuman di atas isi, supaya admin tidak
+  // perlu membuka Landing Page hanya untuk memeriksa.
+  const [menungguPoster, setMenungguPoster] = useState(0);
+  useEffect(() => {
+    if (!isAuthed || !user?.id) return undefined;
+    let alive = true;
+    const muat = () => pb.collection('poster_submissions')
+      .getList(1, 1, { filter: "status = 'MENUNGGU'", fields: 'id' })
+      .then((r) => { if (alive) setMenungguPoster(r.totalItems); })
+      .catch(() => {}); // collection belum ada (migrasi belum jalan): abaikan
+    muat();
+    const t = setInterval(muat, 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, [isAuthed, user?.id]);
 
   if (!isAuthed || !user?.id) {
     return (
@@ -83,7 +98,11 @@ export default function AdminPanel() {
           >
             {KELOMPOK_TAB.map((g) => (
               <optgroup key={g.judul} label={g.judul}>
-                {g.tab.map((t) => <option key={t} value={t}>{TAB_LABEL[t] || t}</option>)}
+                {g.tab.map((t) => (
+                  <option key={t} value={t}>
+                    {TAB_LABEL[t] || t}{t === 'Landing Page' && menungguPoster > 0 ? ` (${menungguPoster} poster menunggu)` : ''}
+                  </option>
+                ))}
               </optgroup>
             ))}
           </select>
@@ -101,7 +120,14 @@ export default function AdminPanel() {
                   aria-current={tab === t ? 'page' : undefined}
                   className={`w-full text-left rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors ${tab === t ? 'bg-maroon-600 text-alba-50 shadow-sm' : 'hover:bg-maroon-50 hover:text-maroon-600 text-stone-700'}`}
                 >
-                  {TAB_LABEL[t] || t}
+                  <span className="flex items-center justify-between gap-2">
+                    {TAB_LABEL[t] || t}
+                    {t === 'Landing Page' && menungguPoster > 0 && (
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${tab === t ? 'bg-alba-50 text-maroon-700' : 'bg-maroon-600 text-alba-50'}`}>
+                        {menungguPoster}<span className="sr-only"> poster menunggu persetujuan</span>
+                      </span>
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
@@ -111,6 +137,14 @@ export default function AdminPanel() {
             dalamnya (nama BAB/mata kuliah), sehingga seluruh halaman melar ke
             kanan dan tombol-tombol di ujung baris jadi tidak bisa diklik. */}
         <div className="min-w-0">
+          {menungguPoster > 0 && tab !== 'Landing Page' && (
+            <div role="status" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-gold-400 bg-gold-100/70 px-5 py-3.5 text-sm text-stone-800">
+              <span className="flex-1 font-semibold">{menungguPoster} poster kiriman menunggu persetujuanmu. Belum tayang di landing.</span>
+              <button type="button" onClick={() => setTab('Landing Page')} className="min-h-[40px] rounded-lg bg-maroon-600 px-4 font-bold text-alba-50 hover:bg-maroon-700">
+                Tinjau sekarang
+              </button>
+            </div>
+          )}
           {tab === 'Pengajar' && <Pengajar />}
           {tab === 'Siswa' && <StudentCards adminMode />}
           {tab === 'Dashboard Activity' && <DashboardActivity />}
@@ -130,7 +164,7 @@ export default function AdminPanel() {
           {tab === 'Jadwal Ujian' && <JadwalUjian />}
           {tab === 'Kelas & Reminder' && <KelasReminder />}
           {tab === 'Notifikasi WA' && <WaSettings />}
-          {tab === 'Landing Page' && <LandingPageManager />}
+          {tab === 'Landing Page' && <LandingPageManager menunggu={menungguPoster} onMenunggu={setMenungguPoster} />}
           {/* Pintu ke web kedua. Isinya bukan pengaturan, melainkan peta: di mana
               Web Olimp berada, siapa yang bisa masuk, dan tombol langsung ke
               tiap bagiannya. */}
@@ -3625,9 +3659,10 @@ function JadwalUjian() {
 // Tim (pengajar & management), Poster & Info, Tabel Lomba, Prestasi, dan
 // Teks Landing. Tiap bagian punya sub-tab sendiri.
 // ==========================================
-function LandingPageManager() {
-  const [sub, setSub] = useState('Tim');
-  const SUBS = ['Tim', 'Poster & Info', 'Kiriman Poster', 'Tabel Lomba', 'Prestasi', 'Teks & Fitur'];
+function LandingPageManager({ menunggu = 0, onMenunggu }) {
+  // Kalau ada kiriman yang menunggu, langsung buka Poster & Info.
+  const [sub, setSub] = useState(() => (menunggu > 0 ? 'Poster & Info' : 'Tim'));
+  const SUBS = ['Tim', 'Poster & Info', 'Tabel Lomba', 'Prestasi', 'Teks & Fitur'];
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
@@ -3640,12 +3675,19 @@ function LandingPageManager() {
             }`}
           >
             {s}
+            {s === 'Poster & Info' && menunggu > 0 && (
+              <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${sub === s ? 'bg-alba-50 text-maroon-700' : 'bg-maroon-600 text-alba-50'}`}>
+                {menunggu} menunggu
+              </span>
+            )}
           </button>
         ))}
       </div>
       {sub === 'Tim' && <TeamManager />}
-      {sub === 'Poster & Info' && <PosterManager />}
-      {sub === 'Kiriman Poster' && <KirimanPoster />}
+      {/* Poster & Info: kiriman yang menunggu persetujuan di atas, lalu daftar
+          poster yang sudah ada (editor lama, tidak berubah), lalu link untuk
+          orang lain mengirim poster. */}
+      {sub === 'Poster & Info' && <KirimanPoster onBerubah={onMenunggu}><PosterManager /></KirimanPoster>}
       {sub === 'Tabel Lomba' && <OlympiadManager />}
       {sub === 'Prestasi' && <AchievementManager />}
       {sub === 'Teks & Fitur' && <LandingTextEditor />}
@@ -4656,7 +4698,7 @@ function PosterManager() {
               penutupan pendaftaran; contact person yang dikosongkan otomatis tidak ditampilkan.
             </p>
           </div>
-          <button onClick={startNew} className="rounded-lg bg-gold-400 hover:bg-gold-600 text-alba-50 text-sm font-semibold px-4 py-2">+ Tambah Poster</button>
+          <button onClick={startNew} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-4 py-2">+ Tambah Poster</button>
         </div>
         {error && <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
         {okMsg && <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{okMsg}</p>}
@@ -4697,10 +4739,10 @@ function PosterManager() {
 
       <div className="bg-alba-50 rounded-2xl border border-alba-200 p-4 shadow-card space-y-2">
         {rows.map((r, i) => (
-          <div key={r.id} className={`flex items-center gap-2.5 rounded-lg border px-2 py-2 ${r.hidden ? 'border-alba-200 bg-alba-100/70 opacity-70' : 'border-alba-200'}`}>
+          <div key={r.id} className={`flex flex-wrap items-center gap-2.5 rounded-lg border px-2 py-2 ${r.hidden ? 'border-alba-200 bg-alba-100/70 opacity-70' : 'border-alba-200'}`}>
             <div className="flex flex-col shrink-0">
-              <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▲</button>
-              <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} className="px-1 leading-none text-stone-400 disabled:opacity-25 hover:text-maroon-600">▼</button>
+              <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Naikkan urutan" className="h-6 w-6 leading-none text-stone-500 disabled:opacity-25 hover:text-maroon-600">▲</button>
+              <button onClick={() => move(i, +1)} disabled={i === rows.length - 1} aria-label="Turunkan urutan" className="h-6 w-6 leading-none text-stone-500 disabled:opacity-25 hover:text-maroon-600">▼</button>
             </div>
             <div className="w-12 h-14 shrink-0 rounded-md bg-alba-200 overflow-hidden flex items-center justify-center">
               {posterImageSrc(r) ? (
@@ -4709,12 +4751,12 @@ function PosterManager() {
                 <span className="text-[8px] text-stone-400 text-center px-0.5">no foto</span>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[9rem]">
               <p className="font-semibold text-sm text-stone-800 truncate">
                 {r.title}
-                {r.hidden && <span className="ml-2 align-middle text-[10px] font-bold text-stone-500 bg-alba-200 rounded-full px-2 py-0.5">Disembunyikan</span>}
+                {r.hidden && <span className="ml-2 align-middle text-[10px] font-bold text-stone-700 bg-alba-200 rounded-full px-2 py-0.5">Disembunyikan</span>}
               </p>
-              <p className="text-[11px] text-stone-400 truncate">
+              <p className="text-[11px] text-stone-600 truncate">
                 {r.deadline ? `Countdown s/d ${String(r.deadline).slice(0, 10)}` : 'Tanpa countdown'}
                 {r.contactPerson ? ` · CP: ${r.contactPerson}` : ' · Tanpa CP'}
               </p>
@@ -4723,7 +4765,7 @@ function PosterManager() {
               <button onClick={() => toggleHidden(r)} className={`text-xs font-semibold rounded-full border px-3 py-1.5 ${r.hidden ? 'border-green-300 text-green-700 hover:bg-green-50' : 'border-alba-300 text-stone-600 hover:bg-alba-100'}`}>
                 {r.hidden ? 'Tampilkan' : 'Sembunyikan'}
               </button>
-              <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-gold-600 px-3 py-1.5 hover:bg-gold-100">Edit</button>
+              <button onClick={() => startEdit(r)} className="text-xs font-semibold rounded-full border border-gold-200 text-[#6f5814] px-3 py-1.5 hover:bg-gold-100">Edit</button>
               <button onClick={() => remove(r)} className="text-xs font-semibold rounded-full border border-red-300 text-red-600 px-3 py-1.5 hover:bg-red-50">Hapus</button>
             </div>
           </div>
