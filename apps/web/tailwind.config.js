@@ -1,5 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+ // Gaya hover: hanya dipakai di perangkat yang memang bisa hover (mouse).
+ // Di HP, tap memicu :hover palsu yang menempel sampai layar disentuh di
+ // tempat lain (tombol tetap "tersorot" setelah ditekan).
+ future: { hoverOnlyWhenSupported: true },
  darkMode: ['class'],
  content: [
    './pages/**/*.{js,jsx}',

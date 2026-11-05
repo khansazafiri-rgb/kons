@@ -426,7 +426,15 @@ export default function SimulasiCBT() {
                  ))}
                </div>
              )}
-             <p className="text-[11px] text-stone-400 mt-2">✅ = BAB yang pernah kamu tuntaskan</p>
+             <p className="text-[11px] text-stone-500 mt-2">✅ = BAB yang pernah kamu tuntaskan</p>
+           </div>
+         )}
+         {/* Langkah 2 tetap terlihat sebelum mata kuliah dipilih, supaya
+             nomornya tidak loncat dari 1 ke 3 dan siswa tahu apa berikutnya. */}
+         {!subjectId && (
+           <div>
+             <p className="block text-sm font-bold text-stone-400 mb-1">2. Pilih BAB Soal</p>
+             <p className="text-[13px] text-stone-500">Pilih mata kuliah dulu, daftar BAB-nya muncul di sini.</p>
            </div>
          )}
 

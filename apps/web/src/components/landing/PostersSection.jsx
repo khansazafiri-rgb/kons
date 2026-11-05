@@ -135,7 +135,7 @@ export default function PostersSection() {
   const go = (dir) => setIndex((i) => (i + dir + total) % total);
 
   return (
-    <section className="max-w-6xl mx-auto px-6 py-16">
+    <section id="info-event" className="max-w-6xl mx-auto px-6 py-16 scroll-mt-24">
       <motion.div {...fadeUp} className="flex items-end justify-between gap-4 mb-8 flex-wrap">
         <div>
           <p className="flex items-center gap-2 text-maroon-600 font-bold tracking-[0.2em] text-xs mb-3">
@@ -146,7 +146,7 @@ export default function PostersSection() {
 
         {total > 1 && (
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-stone-400 tabular-nums">
+            <span className="text-xs font-semibold text-stone-600 tabular-nums">
               {index + 1} / {total}
             </span>
             <div className="flex gap-2">

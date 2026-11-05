@@ -34,6 +34,20 @@ const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit So
 // Nilai TABS juga dipakai sebagai ?tab= di URL dan dibandingkan dengan ===, jadi
 // nilainya tidak boleh diganti. Tulisan di tombol tab saja yang dipetakan di sini.
 const TAB_LABEL = { 'Perdalam Materi': 'Baca PPT' };
+// Pengelompokan hanya untuk tampilan menu. Kunci tab (dipakai di ?tab=) tetap
+// sama persis dengan TABS. Tab yang lupa dimasukkan ke kelompok tetap muncul
+// di "Lainnya", jadi menambah tab baru tidak bisa membuatnya hilang.
+const KELOMPOK_TAB = (() => {
+  const g = [
+    { judul: 'Pengguna', tab: ['Pengajar', 'Siswa', 'Tambah Akun', 'Dashboard Activity'] },
+    { judul: 'Konten belajar', tab: ['Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Jadwal Ujian'] },
+    { judul: 'Kelas & notifikasi', tab: ['Kelas & Reminder', 'Notifikasi WA'] },
+    { judul: 'Situs & layanan', tab: ['Landing Page', 'Event/Lomba', 'Web Olimp', 'PCV Rental'] },
+  ];
+  const ada = new Set(g.flatMap((x) => x.tab));
+  const sisa = TABS.filter((t) => !ada.has(t));
+  return sisa.length ? [...g, { judul: 'Lainnya', tab: sisa }] : g;
+})();
 export default function AdminPanel() {
   // Tab aktif disimpan di URL supaya refresh tidak melempar balik ke tab awal.
   const [tab, setTab] = useUrlState('tab', 'Pengajar');
@@ -57,12 +71,40 @@ export default function AdminPanel() {
     <div className="min-h-screen bg-alba-50">
       <Header />
       <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-8 items-start">
-        <nav className="md:sticky md:top-24 rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-3 space-y-1">
-          <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-maroon-500">Dashboard Admin</p>
-          {TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`w-full text-left rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors ${tab === t ? 'bg-maroon-600 text-alba-50 shadow-sm' : 'hover:bg-maroon-50 hover:text-maroon-600 text-stone-600'}`}>
-              {TAB_LABEL[t] || t}
-            </button>
+        {/* Di HP: satu pemilih ringkas, bukan 14 tombol bertumpuk yang harus
+            digulir setiap kali sebelum sampai ke isi. */}
+        <div className="md:hidden">
+          <label htmlFor="menu-admin" className="mb-1.5 block text-[11px] font-bold uppercase tracking-[0.18em] text-maroon-600">Menu admin</label>
+          <select
+            id="menu-admin"
+            value={tab}
+            onChange={(e) => setTab(e.target.value)}
+            className="w-full min-h-[48px] rounded-xl border border-alba-300 bg-white px-3 font-semibold text-stone-800"
+          >
+            {KELOMPOK_TAB.map((g) => (
+              <optgroup key={g.judul} label={g.judul}>
+                {g.tab.map((t) => <option key={t} value={t}>{TAB_LABEL[t] || t}</option>)}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        {/* Di layar lebar: dikelompokkan supaya 14 menu bisa dipindai. */}
+        <nav aria-label="Menu admin" className="hidden md:block md:sticky md:top-24 rounded-2xl border border-alba-200 bg-alba-50 shadow-card p-3">
+          {KELOMPOK_TAB.map((g) => (
+            <div key={g.judul} className="mb-2 last:mb-0">
+              <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-stone-500">{g.judul}</p>
+              {g.tab.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  aria-current={tab === t ? 'page' : undefined}
+                  className={`w-full text-left rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors ${tab === t ? 'bg-maroon-600 text-alba-50 shadow-sm' : 'hover:bg-maroon-50 hover:text-maroon-600 text-stone-700'}`}
+                >
+                  {TAB_LABEL[t] || t}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         {/* min-w-0: tanpa ini kolom isi ikut melebar mengikuti teks terpanjang di

@@ -164,6 +164,13 @@ export default function QuestionRunner({
  // selalu memanggil `finish` terbaru, berisi jawaban yang sudah dipilih siswa.
  const finishRef = useRef(null);
 
+ // Mode fokus: selama runner terbuka, bilah navigasi bawah HP disembunyikan
+ // (lihat body[data-fokus] di index.css).
+ useEffect(() => {
+   document.body.dataset.fokus = 'soal';
+   return () => { delete document.body.dataset.fokus; };
+ }, []);
+
  // Status penyimpanan jawaban sementara, supaya siswa tahu jawabannya aman
  // kalau ia keluar di tengah jalan. onAnswerChange boleh mengembalikan
  // Promise; nilai `false` (atau Promise yang ditolak) berarti gagal simpan.
@@ -798,7 +805,7 @@ export default function QuestionRunner({
      </div>
 
      {/* NAVIGATOR SOAL - seperti CBT sungguhan */}
-     <aside className="lg:sticky lg:top-24 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-5 order-first lg:order-none">
+     <aside className="lg:sticky lg:top-24 bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-5">
        <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-3">Navigasi Soal</p>
        <div className="grid grid-cols-8 lg:grid-cols-5 gap-1.5">
          {qs.map((qq, i) => {

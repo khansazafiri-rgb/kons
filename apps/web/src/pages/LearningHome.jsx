@@ -20,12 +20,10 @@ import { BatangProgres } from '@/components/belajar/UiBelajar';
 //   3. Progres per mata kuliah.
 //   4. Pintasan ke menu lama dan alat bantu, sengaja paling bawah dan kecil.
 
-const EASE = [0.22, 1, 0.36, 1];
-const muncul = (delay = 0) => ({
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.4, delay, ease: EASE },
-});
+// Tanpa animasi masuk: beranda dibuka siswa berkali-kali sehari, dan konten
+// yang memudar masuk tiap kali dibuka terasa lambat, bukan halus. Fungsi ini
+// dipertahankan supaya gampang diaktifkan lagi kalau memang diinginkan.
+const muncul = () => ({});
 
 const WIB = 7 * 3600000;
 const wibDate = (iso) => new Date(new Date(iso).getTime() + WIB).toISOString().slice(0, 10);

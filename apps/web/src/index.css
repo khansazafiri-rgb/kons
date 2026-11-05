@@ -265,6 +265,47 @@ body {
 .prose-rental li + li { margin-top: 0.25rem; }
 .prose-rental a { color: rgb(var(--sewa-rgb, 15 118 110)); text-decoration: underline; }
 
+/* RASA "APLIKASI" DI HP (panduan mobile-native)
+   - Kilatan abu-abu saat tap dimatikan; umpan baliknya diganti :active di bawah.
+   - Input minimal 16px di layar sentuh: di bawah itu iOS Safari memperbesar
+     halaman saat input disentuh dan tidak mengecil lagi.
+   - touch-action: manipulation menghapus jeda tap ganda di tombol & tautan.
+   - Teks tombol tidak ikut terseleksi saat ditekan lama; teks isi tetap bisa
+     disalin (kode booking, nama, pesan galat). */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+button, a, [role="button"], summary, label[for] {
+  touch-action: manipulation;
+}
+button, [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Umpan balik tekan: tombol sedikit mengecil SAAT jari/mouse menekan, bukan
+   setelah dilepas. Memakai properti `scale` (bukan `transform`) supaya tidak
+   menimpa posisi tombol yang memakai translate (mis. ikon mata di kolom sandi). */
+button:not(:disabled):active, [role="button"]:active, a.tekan:active {
+  scale: 0.97;
+}
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active, [role="button"]:active, a.tekan:active { scale: none; }
+}
+
+/* Mode fokus mengerjakan soal: bilah navigasi bawah disembunyikan supaya tidak
+   menutupi tombol Cek/Next dan tidak mengundang keluar di tengah latihan. */
+body[data-fokus] .nav-bawah { display: none; }
+@media (max-width: 1023px) {
+  body.ada-nav-bawah[data-fokus] { padding-bottom: 0; }
+}
+
 /* Fokus keyboard yang selalu terlihat (WCAG 2.4.7 / 2.4.11). Elemen yang
    punya cincin fokus sendiri (focus:ring-*) tetap memakainya; ini jaring
    pengaman untuk tautan dan tombol yang tidak punya. */

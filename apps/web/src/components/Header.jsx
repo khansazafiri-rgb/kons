@@ -355,7 +355,7 @@ function NavBawahSiswa() {
    `flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-bold ${isActive ? 'text-maroon-700' : 'text-stone-500'}`;
 
  return (
-   <nav aria-label="Navigasi siswa" className="fixed inset-x-0 bottom-0 z-30 border-t border-alba-200 bg-alba-50/95 backdrop-blur lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+   <nav aria-label="Navigasi siswa" className="nav-bawah fixed inset-x-0 bottom-0 z-30 border-t border-alba-200 bg-alba-50/95 backdrop-blur lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
      {buka && (
        <div ref={panelRef} id="menu-lainnya" className="absolute bottom-full right-2 mb-2 w-64 rounded-2xl border border-alba-200 bg-white p-2 shadow-card-hover">
          <ul>
