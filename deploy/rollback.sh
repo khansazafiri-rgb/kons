@@ -31,14 +31,20 @@ if [ "${1:-}" = "--daftar" ]; then
   echo "== Riwayat update (terbaru di bawah) =="
   [ -f "$RIWAYAT" ] && tail -n 15 "$RIWAYAT" || echo "(belum ada riwayat: update.sh versi baru belum pernah dijalankan)"
   echo ""
-  echo "== Tag yang bisa dipakai =="
-  git tag --list --sort=-creatordate | head -n 15
+  echo "== Nama yang bisa dipakai =="
+  echo "desain-awal   tampilan sebelum redesign November 2026"
+  git tag --list --sort=-creatordate | head -n 10
   echo ""
   echo "Sekarang terpasang: $(git log -1 --format='%h %ad %s' --date=short)"
   exit 0
 fi
 
 TUJUAN="${1:-}"
+# Nama yang mudah diingat. Commit-nya sudah ada di riwayat cabang utama, jadi
+# tidak perlu tag terpisah di GitHub.
+case "$TUJUAN" in
+  desain-awal) TUJUAN=b139239e114106f9da78e0a711ebbbcb7a65a970 ;;  # sebelum redesign November 2026 (PR #93)
+esac
 if [ -z "$TUJUAN" ]; then
   if [ ! -f "$RIWAYAT" ] || ! grep -q "sebelum=" "$RIWAYAT"; then
     echo "Riwayat update kosong, jadi tidak tahu versi sebelumnya."
