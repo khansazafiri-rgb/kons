@@ -14,7 +14,7 @@ import { WA_TEMPLATES, resolveWaTemplates } from '@/lib/waTemplates';
 import { APP_VERSION } from '@/lib/appVersion';
 import { logActivity, questionSnapshot, shorten } from '@/lib/activityLog';
 import { hapusLunak, konfirmasiHapus, saringAktif } from '@/lib/akun';
-import { achievementPhotoSrc, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
+import { achievementPhotoSrc, posterImageList, posterImageSrc, teamPhotoSrc } from '@/lib/photoSrc';
 import RichText, { hasImageLink } from '@/lib/richText';
 import { teksKeHtml } from '@/lib/teksSoal';
 import { fixText, fixDeep, listBrokenCodes } from '@/lib/textRepair';
@@ -4606,9 +4606,15 @@ function WaSettings() {
 function PosterManager() {
   const [rows, setRows] = useState([]);
   const [editing, setEditing] = useState(null); // id | 'new' | null
-  const EMPTY = { title: '', description: '', deadline: '', contactPerson: '', registerUrl: '', imageUrl: '' };
+  const EMPTY = { title: '', description: '', deadline: '', contactPerson: '', registerUrl: '', imageUrl: '', imageUrls: '' };
+  const MAKS_BERKAS = 10;
   const [form, setForm] = useState(EMPTY);
-  const [file, setFile] = useState(null);
+  // Satu poster boleh punya beberapa gambar. `ada` = berkas yang sudah tersimpan
+  // (urutannya bisa diubah/dibuang), `files` = berkas baru yang akan diunggah.
+  const [legacyImg, setLegacyImg] = useState('');
+  const [ada, setAda] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [rec, setRec] = useState(null); // record yang sedang diedit (untuk URL berkas)
   const [error, setError] = useState('');
   const [okMsg, setOkMsg] = useState('');
 
@@ -4618,10 +4624,14 @@ function PosterManager() {
       .catch((e) => setError('Gagal memuat: ' + (e?.message || '') + ' (migrasi PocketBase terbaru belum jalan?)'));
   useEffect(() => { load(); }, []);
 
-  const startNew = () => { setEditing('new'); setForm(EMPTY); setFile(null); setOkMsg(''); };
+  const resetGambar = () => { setLegacyImg(''); setAda([]); setFiles([]); setRec(null); };
+  const startNew = () => { setEditing('new'); setForm(EMPTY); resetGambar(); setOkMsg(''); };
   const startEdit = (r) => {
     setEditing(r.id);
-    setFile(null);
+    setFiles([]);
+    setRec(r);
+    setLegacyImg(r.image || '');
+    setAda(Array.isArray(r.images) ? r.images : r.images ? [r.images] : []);
     setOkMsg('');
     setForm({
       title: r.title || '',
@@ -4630,8 +4640,29 @@ function PosterManager() {
       contactPerson: r.contactPerson || '',
       registerUrl: r.registerUrl || '',
       imageUrl: r.imageUrl || '',
+      imageUrls: r.imageUrls || '',
     });
   };
+
+  const pilihFiles = (e) => {
+    const baru = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!baru.length) return;
+    if (ada.length + (legacyImg ? 1 : 0) + files.length + baru.length > MAKS_BERKAS) {
+      setError(`Maksimal ${MAKS_BERKAS} gambar per poster.`);
+      return;
+    }
+    setError('');
+    setFiles((x) => [...x, ...baru]);
+  };
+  const geserAda = (nama, dir) => setAda((d) => {
+    const i = d.indexOf(nama);
+    const t = i + dir;
+    if (i < 0 || t < 0 || t >= d.length) return d;
+    const baru = [...d];
+    [baru[i], baru[t]] = [baru[t], baru[i]];
+    return baru;
+  });
 
   const save = async () => {
     if (!form.title.trim()) { setError('Judul poster wajib diisi.'); return; }
@@ -4644,18 +4675,25 @@ function PosterManager() {
       fd.append('contactPerson', form.contactPerson.trim());
       fd.append('registerUrl', form.registerUrl.trim());
       fd.append('imageUrl', form.imageUrl.trim());
-      if (file) fd.append('image', file);
+      fd.append('imageUrls', form.imageUrls.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join('\n'));
       if (editing === 'new') {
+        files.forEach((f) => fd.append('images', f));
         fd.append('order', rows.length ? Math.max(...rows.map((r) => r.order ?? 0)) + 1 : 1);
         await pb.collection('landing_posters').create(fd);
         setOkMsg('Poster ditambahkan.');
       } else {
+        // Berkas yang dipertahankan dikirim sesuai urutan barunya (yang dibuang
+        // tidak disertakan, jadi terhapus), lalu berkas baru ditambahkan di
+        // belakangnya. Daftar kosong dikirim sebagai string kosong.
+        if (ada.length) ada.forEach((n) => fd.append('images', n)); else fd.append('images', '');
+        files.forEach((f) => fd.append('images+', f));
+        if (rec && rec.image && !legacyImg) fd.append('image', ''); // gambar tunggal lama dibuang
         await pb.collection('landing_posters').update(editing, fd);
         setOkMsg('Poster tersimpan.');
       }
       setEditing(null);
       setForm(EMPTY);
-      setFile(null);
+      resetGambar();
       load();
     } catch (e) {
       setError('Gagal menyimpan: ' + (e?.message || ''));
@@ -4720,18 +4758,59 @@ function PosterManager() {
             </div>
           </div>
           <input value={form.registerUrl} onChange={(e) => setForm((f) => ({ ...f, registerUrl: e.target.value }))} placeholder="Link tombol Daftar (boleh kosong)" className={inputCls} />
+          {/* Gambar: beberapa sekaligus, tampil seperti slide di landing. */}
+          <div>
+            <label className="block text-xs font-bold text-stone-500 mb-1">
+              Gambar poster (boleh lebih dari satu, tampil seperti slide; JPG/PNG/WebP, maks 10MB per gambar, maks {MAKS_BERKAS} gambar)
+            </label>
+            {(legacyImg || ada.length > 0 || files.length > 0) && (
+              <ol className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {legacyImg && rec && (
+                  <li className="rounded-lg border border-alba-200 bg-white p-1.5">
+                    <img src={pb.files.getURL(rec, legacyImg)} alt="Gambar poster tersimpan" className="h-28 w-full rounded-md object-contain" />
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-stone-500">Sampul</span>
+                      <button type="button" onClick={() => setLegacyImg('')} className="text-xs font-semibold text-red-600 hover:underline">Buang</button>
+                    </div>
+                  </li>
+                )}
+                {rec && ada.map((nama, n) => (
+                  <li key={nama} className="rounded-lg border border-alba-200 bg-white p-1.5">
+                    <img src={pb.files.getURL(rec, nama)} alt={`Gambar poster tersimpan ${n + 1}`} className="h-28 w-full rounded-md object-contain" />
+                    <div className="mt-1 flex items-center justify-between gap-1">
+                      <span className="flex gap-1">
+                        <button type="button" onClick={() => geserAda(nama, -1)} disabled={n === 0} aria-label="Geser ke depan" className="h-7 w-7 rounded border border-alba-300 text-xs disabled:opacity-30">◀</button>
+                        <button type="button" onClick={() => geserAda(nama, 1)} disabled={n === ada.length - 1} aria-label="Geser ke belakang" className="h-7 w-7 rounded border border-alba-300 text-xs disabled:opacity-30">▶</button>
+                      </span>
+                      <button type="button" onClick={() => setAda((d) => d.filter((x) => x !== nama))} className="text-xs font-semibold text-red-600 hover:underline">Buang</button>
+                    </div>
+                  </li>
+                ))}
+                {files.map((f, n) => (
+                  <li key={`${f.name}-${f.size}-${n}`} className="rounded-lg border border-dashed border-maroon-300 bg-white p-1.5">
+                    <p className="flex h-28 items-center justify-center break-all px-1 text-center text-[11px] text-stone-600">{f.name}</p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-maroon-600">Baru, belum disimpan</span>
+                      <button type="button" onClick={() => setFiles((x) => x.filter((_, i) => i !== n))} className="text-xs font-semibold text-red-600 hover:underline">Buang</button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={pilihFiles} className="text-sm" />
+          </div>
           <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-stone-500 mb-1">Upload gambar poster (JPG/PNG/WebP, maks 10MB)</label>
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] || null)} className="text-sm" />
-            </div>
             <div>
               <label className="block text-xs font-bold text-stone-500 mb-1">Atau link foto Google Drive (format lh3)</label>
               <input value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} placeholder="https://lh3.googleusercontent.com/d/FILE_ID" className={inputCls} />
             </div>
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1">Link foto tambahan (satu link per baris, tampil setelah gambar di atas)</label>
+              <textarea value={form.imageUrls} onChange={(e) => setForm((f) => ({ ...f, imageUrls: e.target.value }))} rows={2} placeholder="https://lh3.googleusercontent.com/d/FILE_ID_2" className={inputCls} />
+            </div>
           </div>
           <div className="flex gap-2 pt-1">
-            <button onClick={() => { setEditing(null); setForm(EMPTY); setFile(null); }} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal</button>
+            <button onClick={() => { setEditing(null); setForm(EMPTY); resetGambar(); }} className="rounded-lg bg-alba-200 hover:bg-alba-300 text-stone-700 text-sm font-semibold px-4 py-2 ml-auto">Batal</button>
             <button onClick={save} className="rounded-lg bg-maroon-600 hover:bg-maroon-700 text-alba-50 text-sm font-semibold px-6 py-2">Simpan</button>
           </div>
         </div>
@@ -4759,6 +4838,7 @@ function PosterManager() {
               <p className="text-[11px] text-stone-600 truncate">
                 {r.deadline ? `Countdown s/d ${String(r.deadline).slice(0, 10)}` : 'Tanpa countdown'}
                 {r.contactPerson ? ` · CP: ${r.contactPerson}` : ' · Tanpa CP'}
+                {posterImageList(r).length > 1 ? ` · ${posterImageList(r).length} gambar` : ''}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0 justify-end">

@@ -30,15 +30,40 @@ function KartuKiriman({ s, tokenBerkas, onSelesai }) {
   const [mode, setMode] = useState(''); // '' | 'tolak'
   const [sibuk, setSibuk] = useState(false);
   const [pesan, setPesan] = useState('');
-  const gambar = s.image ? pb.files.getURL(s, s.image, { token: tokenBerkas }) : '';
+  // Kiriman bisa berisi beberapa gambar. `image` hanya ada di kiriman lama
+  // (satu berkas); `images` di kiriman baru. Admin boleh membuang atau
+  // mengurutkan ulang sebelum menyetujui; perubahan disimpan bersama isian.
+  const [legacy, setLegacy] = useState(s.image || '');
+  const [daftar, setDaftar] = useState(Array.isArray(s.images) ? s.images : s.images ? [s.images] : []);
+  const gambar = [
+    ...(legacy ? [{ nama: legacy, lama: true }] : []),
+    ...daftar.map((nama) => ({ nama, lama: false })),
+  ].map((g) => ({ ...g, url: pb.files.getURL(s, g.nama, { token: tokenBerkas }) }));
+  const buangGambar = (g) => {
+    if (g.lama) setLegacy('');
+    else setDaftar((d) => d.filter((n) => n !== g.nama));
+  };
+  const geserGambar = (nama, arah) => setDaftar((d) => {
+    const i = d.indexOf(nama);
+    const t = i + arah;
+    if (i < 0 || t < 0 || t >= d.length) return d;
+    const baru = [...d];
+    [baru[i], baru[t]] = [baru[t], baru[i]];
+    return baru;
+  });
   const ubah = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
   const inp = 'w-full rounded-lg border border-alba-300 bg-white px-3 py-2 text-sm';
 
   const simpanDulu = async () => {
-    await pb.collection('poster_submissions').update(s.id, {
+    const awal = Array.isArray(s.images) ? s.images : s.images ? [s.images] : [];
+    const data = {
       title: f.title.trim(), description: f.description, registerUrl: f.registerUrl.trim(),
       contactPerson: f.contactPerson.trim(), deadline: f.deadline ? `${f.deadline} 16:59:59.000Z` : '',
-    });
+    };
+    // Hanya kirim kolom gambar kalau memang berubah (dibuang atau diurutkan ulang).
+    if (daftar.join('|') !== awal.join('|')) data.images = daftar;
+    if ((s.image || '') !== legacy) data.image = null;
+    await pb.collection('poster_submissions').update(s.id, data);
   };
 
   const setujui = async (sembunyikan) => {
@@ -62,9 +87,29 @@ function KartuKiriman({ s, tokenBerkas, onSelesai }) {
   return (
     <li className="grid gap-4 rounded-2xl border border-alba-200 bg-white p-4 md:grid-cols-[180px_1fr]">
       <div>
-        {gambar
-          ? <a href={gambar} target="_blank" rel="noopener noreferrer"><img src={gambar} alt={`Poster kiriman: ${s.title}`} className="w-full rounded-lg border border-alba-200 object-contain" /></a>
-          : <div className="flex h-40 items-center justify-center rounded-lg bg-alba-100 text-xs text-stone-500">Tanpa gambar</div>}
+        {gambar.length > 0 ? (
+          <ol className="grid grid-cols-2 gap-2 md:grid-cols-1">
+            {gambar.map((g, n) => (
+              <li key={g.nama} className="rounded-lg border border-alba-200 bg-alba-50 p-1.5">
+                <a href={g.url} target="_blank" rel="noopener noreferrer">
+                  <img src={g.url} alt={`Gambar ${n + 1} dari ${gambar.length}: ${s.title}`} className="max-h-44 w-full rounded-md object-contain" />
+                </a>
+                <div className="mt-1 flex items-center justify-between gap-1">
+                  <span className="text-[11px] font-semibold text-stone-600">{n === 0 ? 'Sampul' : `Gambar ${n + 1}`}</span>
+                  <span className="flex gap-1">
+                    {!g.lama && (
+                      <>
+                        <button type="button" disabled={sibuk || daftar.indexOf(g.nama) === 0} onClick={() => geserGambar(g.nama, -1)} aria-label={`Geser gambar ${n + 1} ke depan`} className="h-7 w-7 rounded border border-alba-300 text-xs disabled:opacity-30">◀</button>
+                        <button type="button" disabled={sibuk || daftar.indexOf(g.nama) === daftar.length - 1} onClick={() => geserGambar(g.nama, 1)} aria-label={`Geser gambar ${n + 1} ke belakang`} className="h-7 w-7 rounded border border-alba-300 text-xs disabled:opacity-30">▶</button>
+                      </>
+                    )}
+                    <button type="button" disabled={sibuk} onClick={() => buangGambar(g)} aria-label={`Buang gambar ${n + 1}`} className="h-7 rounded border border-red-300 px-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-30">Buang</button>
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : <div className="flex h-40 items-center justify-center rounded-lg bg-alba-100 text-xs text-stone-500">Tanpa gambar</div>}
         <p className="mt-2 text-xs text-stone-600">Dari {s.submitterName || 'tanpa nama'} lewat “{s.expand?.invite?.label || '-'}”, {tgl(s.created)}</p>
       </div>
       <div className="space-y-2.5">

@@ -107,11 +107,23 @@ routerAdd("POST", "/api/pcv/kirim-poster", (e) => {
     }
   }
 
+  // Satu kiriman boleh berisi beberapa gambar (field `images`, berulang).
+  // Field `image` tunggal masih diterima supaya formulir lama tetap jalan.
   let berkas = [];
-  try { berkas = e.findUploadedFiles("image") || []; } catch (_) { berkas = []; }
-  if (!berkas.length) galat.image = "Unggah gambar poster (JPG, PNG, atau WebP, maksimal 5 MB).";
-  else if (berkas.length > 1) galat.image = "Unggah satu gambar saja.";
-  else if (berkas[0].size > 5 * 1024 * 1024) galat.image = "Ukuran gambar maksimal 5 MB.";
+  try { berkas = (e.findUploadedFiles("images") || []).slice(); } catch (_) { berkas = []; }
+  if (!berkas.length) {
+    try { berkas = (e.findUploadedFiles("image") || []).slice(); } catch (_) { berkas = []; }
+  }
+  if (!berkas.length) galat.image = "Unggah minimal satu gambar poster (JPG, PNG, atau WebP, maksimal 5 MB per gambar).";
+  else if (berkas.length > KP.MAKS_GAMBAR) galat.image = "Maksimal " + KP.MAKS_GAMBAR + " gambar per kiriman.";
+  else {
+    let total = 0;
+    for (let i = 0; i < berkas.length; i++) {
+      if (berkas[i].size > 5 * 1024 * 1024) { galat.image = "Ukuran tiap gambar maksimal 5 MB."; break; }
+      total += berkas[i].size;
+    }
+    if (!galat.image && total > KP.MAKS_TOTAL_BYTE) galat.image = "Total ukuran semua gambar maksimal 25 MB.";
+  }
 
   if (Object.keys(galat).length) return e.json(400, { message: "Periksa lagi isian yang ditandai.", galat: galat });
 
@@ -139,7 +151,7 @@ routerAdd("POST", "/api/pcv/kirim-poster", (e) => {
       rec.set("contactPerson", cp);
       rec.set("submitterName", pengirim);
       rec.set("status", "MENUNGGU");
-      rec.set("image", berkas[0]); // tipe & ukuran divalidasi lagi oleh field file (deteksi isi, bukan nama)
+      rec.set("images", berkas); // tipe & ukuran divalidasi lagi oleh field file (deteksi isi, bukan nama)
       tx.save(rec);
 
       n.inv.set("usedCount", n.inv.getInt("usedCount") + 1);
@@ -175,17 +187,24 @@ routerAdd("POST", "/api/pcv/poster-submissions/{id}/setujui", (e) => {
   const body = e.requestInfo().body || {};
   const sembunyikan = !!body.sembunyikan;
 
-  // Salin berkas gambar ke record poster yang baru, supaya poster tidak
-  // bergantung pada draf (yang bisa dihapus belakangan).
-  let file = null;
-  const nama = sub.getString("image");
-  if (nama) {
+  // Salin SEMUA berkas gambar ke record poster yang baru, supaya poster tidak
+  // bergantung pada draf (yang bisa dihapus belakangan). Urutan dipertahankan:
+  // `image` (kiriman lama) dulu, lalu `images`.
+  const nama = [];
+  if (sub.getString("image")) nama.push(sub.getString("image"));
+  const banyak = sub.getStringSlice("images") || [];
+  for (let i = 0; i < banyak.length; i++) nama.push(banyak[i]);
+
+  const files = [];
+  if (nama.length) {
     const fs = e.app.newFilesystem();
     try {
-      const r = fs.getReader(sub.baseFilesPath() + "/" + nama);
-      const buf = toBytes(r); // toBytes bawaan PocketBase: membaca utuh sampai akhir berkas
-      try { r.close(); } catch (_) {}
-      file = $filesystem.fileFromBytes(buf, nama);
+      for (let i = 0; i < nama.length; i++) {
+        const r = fs.getReader(sub.baseFilesPath() + "/" + nama[i]);
+        const buf = toBytes(r); // toBytes bawaan PocketBase: membaca utuh sampai akhir berkas
+        try { r.close(); } catch (_) {}
+        files.push($filesystem.fileFromBytes(buf, nama[i]));
+      }
     } catch (err) {
       try { fs.close(); } catch (_) {}
       return e.json(500, { message: "Gambar kiriman tidak terbaca: " + err });
@@ -211,7 +230,7 @@ routerAdd("POST", "/api/pcv/poster-submissions/{id}/setujui", (e) => {
       p.set("registerUrl", ulang.getString("registerUrl"));
       p.set("order", urut);
       p.set("hidden", sembunyikan);
-      if (file) p.set("image", file);
+      if (files.length) p.set("images", files);
       tx.save(p);
       posterId = p.id;
 

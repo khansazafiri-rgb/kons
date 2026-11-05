@@ -1,6 +1,6 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, ImagePlus, Link2Off } from 'lucide-react';
+import { CheckCircle2, ImagePlus, Link2Off, X } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
 import { Logo } from '@/components/Header';
 
@@ -14,6 +14,8 @@ import { Logo } from '@/components/Header';
 // cepat tahu kesalahannya.
 
 const MAKS_MB = 5;
+const MAKS_GAMBAR = 6;
+const MAKS_TOTAL_MB = 25;
 const TIPE = ['image/jpeg', 'image/png', 'image/webp'];
 
 function Kolom({ id, label, wajib, bantuan, galat, children }) {
@@ -34,8 +36,8 @@ export default function KirimPoster() {
   const uid = useId();
   const [cek, setCek] = useState(null); // null = memuat
   const [f, setF] = useState({ title: '', description: '', deadline: '', registerUrl: '', contactPerson: '', submitterName: '' });
-  const [berkas, setBerkas] = useState(null);
-  const [pratinjau, setPratinjau] = useState('');
+  // Beberapa gambar per poster: tiap item { berkas, url } (url = pratinjau).
+  const [gambar, setGambar] = useState([]);
   const [galat, setGalat] = useState({});
   const [pesan, setPesan] = useState('');
   const [kirim, setKirim] = useState(false);
@@ -48,25 +50,56 @@ export default function KirimPoster() {
       .catch(() => setCek({ valid: false, pesan: 'Tautan tidak bisa diperiksa sekarang. Periksa koneksi, lalu muat ulang.' }));
   }, [token]);
 
-  useEffect(() => () => { if (pratinjau) URL.revokeObjectURL(pratinjau); }, [pratinjau]);
+  // Lepas URL pratinjau saat halaman ditutup. Yang dibuang satu-satu dilepas
+  // langsung di buang().
+  const gambarRef = useRef(gambar);
+  gambarRef.current = gambar;
+  useEffect(() => () => { gambarRef.current.forEach((g) => URL.revokeObjectURL(g.url)); }, []);
 
   const ubah = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
 
   const pilihBerkas = (e) => {
-    const b = e.target.files?.[0] || null;
+    const dipilih = Array.from(e.target.files || []);
+    e.target.value = ''; // supaya gambar yang sama bisa dipilih lagi setelah dibuang
+    if (!dipilih.length) return;
+    const diterima = [];
+    let pesanGalat = '';
+    let total = gambar.reduce((n, g) => n + g.berkas.size, 0);
+    for (const b of dipilih) {
+      if (!TIPE.includes(b.type)) { pesanGalat = `"${b.name}" dilewati: pilih gambar JPG, PNG, atau WebP.`; continue; }
+      if (b.size > MAKS_MB * 1024 * 1024) { pesanGalat = `"${b.name}" dilewati: ukuran maksimal ${MAKS_MB} MB per gambar.`; continue; }
+      if (gambar.length + diterima.length >= MAKS_GAMBAR) { pesanGalat = `Maksimal ${MAKS_GAMBAR} gambar per poster.`; break; }
+      if (total + b.size > MAKS_TOTAL_MB * 1024 * 1024) { pesanGalat = `Total ukuran semua gambar maksimal ${MAKS_TOTAL_MB} MB.`; break; }
+      total += b.size;
+      diterima.push({ berkas: b, url: URL.createObjectURL(b) });
+    }
+    setGalat((g) => ({ ...g, image: pesanGalat }));
+    if (diterima.length) setGambar((x) => [...x, ...diterima]);
+  };
+
+  const buang = (idx) => {
+    setGambar((x) => {
+      URL.revokeObjectURL(x[idx].url);
+      return x.filter((_, n) => n !== idx);
+    });
     setGalat((g) => ({ ...g, image: '' }));
-    if (!b) { setBerkas(null); setPratinjau(''); return; }
-    if (!TIPE.includes(b.type)) { setGalat((g) => ({ ...g, image: 'Pilih gambar JPG, PNG, atau WebP.' })); e.target.value = ''; return; }
-    if (b.size > MAKS_MB * 1024 * 1024) { setGalat((g) => ({ ...g, image: `Ukuran gambar maksimal ${MAKS_MB} MB.` })); e.target.value = ''; return; }
-    setBerkas(b);
-    setPratinjau(URL.createObjectURL(b));
+  };
+
+  const geser = (idx, arah) => {
+    setGambar((x) => {
+      const t = idx + arah;
+      if (t < 0 || t >= x.length) return x;
+      const baru = [...x];
+      [baru[idx], baru[t]] = [baru[t], baru[idx]];
+      return baru;
+    });
   };
 
   const periksa = () => {
     const g = {};
     if (f.title.trim().length < 3) g.title = 'Judul wajib diisi, minimal 3 karakter.';
     if (f.registerUrl.trim() && !/^https?:\/\/\S+\.\S+/i.test(f.registerUrl.trim())) g.registerUrl = 'Tautan harus diawali https:// (contoh: https://forms.gle/...).';
-    if (!berkas) g.image = 'Unggah gambar posternya.';
+    if (!gambar.length) g.image = 'Unggah minimal satu gambar poster.';
     return g;
   };
 
@@ -86,7 +119,7 @@ export default function KirimPoster() {
       const fd = new FormData();
       fd.append('token', token);
       Object.entries(f).forEach(([k, v]) => fd.append(k, v.trim()));
-      fd.append('image', berkas);
+      gambar.forEach((g) => fd.append('images', g.berkas));
       fd.append('situs', ''); // honeypot
       await pb.send('/api/pcv/kirim-poster', { method: 'POST', body: fd });
       setSelesai(true);
@@ -129,7 +162,7 @@ export default function KirimPoster() {
             </p>
             <button
               type="button"
-              onClick={() => { setSelesai(false); setF({ title: '', description: '', deadline: '', registerUrl: '', contactPerson: '', submitterName: f.submitterName }); setBerkas(null); setPratinjau(''); }}
+              onClick={() => { setSelesai(false); setF({ title: '', description: '', deadline: '', registerUrl: '', contactPerson: '', submitterName: f.submitterName }); gambar.forEach((g) => URL.revokeObjectURL(g.url)); setGambar([]); }}
               className="mt-5 min-h-[44px] rounded-xl border border-alba-300 px-5 text-sm font-semibold text-stone-700 hover:border-maroon-300"
             >
               Kirim poster lain
@@ -166,12 +199,33 @@ export default function KirimPoster() {
               <Kolom id={`${uid}-registerUrl`} label="Tautan pendaftaran" bantuan="Diawali https://" galat={galat.registerUrl}>
                 <input id={`${uid}-registerUrl`} type="url" inputMode="url" value={f.registerUrl} onChange={ubah('registerUrl')} maxLength={500} aria-invalid={!!galat.registerUrl} aria-describedby={desc('registerUrl', true)} className={inputCls} placeholder="https://" />
               </Kolom>
-              <Kolom id={`${uid}-image`} label="Gambar poster" wajib bantuan={`JPG, PNG, atau WebP. Maksimal ${MAKS_MB} MB.`} galat={galat.image}>
-                <label htmlFor={`${uid}-image`} className="flex min-h-[120px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-alba-300 bg-alba-50 p-4 text-sm text-stone-600 hover:border-maroon-300">
-                  {pratinjau ? <img src={pratinjau} alt="Pratinjau poster yang dipilih" className="max-h-64 rounded-lg object-contain" /> : <ImagePlus size={24} aria-hidden />}
-                  <span className="font-semibold">{berkas ? `${berkas.name} · ganti gambar` : 'Pilih gambar'}</span>
-                </label>
-                <input id={`${uid}-image`} type="file" accept={TIPE.join(',')} onChange={pilihBerkas} aria-invalid={!!galat.image} aria-describedby={desc('image', true)} className="sr-only" />
+              <Kolom id={`${uid}-image`} label="Gambar poster" wajib bantuan={`JPG, PNG, atau WebP. Maksimal ${MAKS_GAMBAR} gambar, ${MAKS_MB} MB per gambar. Kalau lebih dari satu, tampil seperti slide di landing.`} galat={galat.image}>
+                {gambar.length > 0 && (
+                  <ol className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {gambar.map((g, n) => (
+                      <li key={g.url} className="relative rounded-xl border border-alba-200 bg-alba-50 p-2">
+                        <img src={g.url} alt={`Pratinjau gambar ${n + 1}: ${g.berkas.name}`} className="h-32 w-full rounded-lg object-contain" />
+                        <p className="mt-1 truncate text-[11px] text-stone-600">{n === 0 ? 'Sampul · ' : ''}{g.berkas.name}</p>
+                        <div className="mt-1 flex items-center justify-between gap-1">
+                          <span className="flex gap-1">
+                            <button type="button" onClick={() => geser(n, -1)} disabled={n === 0} aria-label={`Geser gambar ${n + 1} ke depan`} className="h-8 w-8 rounded-md border border-alba-300 text-stone-600 disabled:opacity-30 hover:border-maroon-300">◀</button>
+                            <button type="button" onClick={() => geser(n, 1)} disabled={n === gambar.length - 1} aria-label={`Geser gambar ${n + 1} ke belakang`} className="h-8 w-8 rounded-md border border-alba-300 text-stone-600 disabled:opacity-30 hover:border-maroon-300">▶</button>
+                          </span>
+                          <button type="button" onClick={() => buang(n)} aria-label={`Buang gambar ${n + 1}`} className="flex h-8 items-center gap-1 rounded-md border border-red-300 px-2 text-xs font-semibold text-red-700 hover:bg-red-50">
+                            <X size={14} aria-hidden /> Buang
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+                {gambar.length < MAKS_GAMBAR && (
+                  <label htmlFor={`${uid}-image`} className="flex min-h-[96px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-alba-300 bg-alba-50 p-4 text-sm text-stone-600 hover:border-maroon-300">
+                    <ImagePlus size={24} aria-hidden />
+                    <span className="font-semibold">{gambar.length ? 'Tambah gambar lagi' : 'Pilih gambar (boleh lebih dari satu)'}</span>
+                  </label>
+                )}
+                <input id={`${uid}-image`} type="file" multiple accept={TIPE.join(',')} onChange={pilihBerkas} aria-invalid={!!galat.image} aria-describedby={desc('image', true)} className="sr-only" />
               </Kolom>
               <Kolom id={`${uid}-submitterName`} label="Namamu" bantuan="Supaya admin tahu siapa pengirimnya. Tidak ditampilkan publik." galat={galat.submitterName}>
                 <input id={`${uid}-submitterName`} value={f.submitterName} onChange={ubah('submitterName')} maxLength={80} autoComplete="name" aria-describedby={desc('submitterName', true)} className={inputCls} />
