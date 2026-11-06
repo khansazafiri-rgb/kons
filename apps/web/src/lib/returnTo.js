@@ -17,6 +17,14 @@
 
 export const PARAM = 'return_to';
 
+// Halaman masuk/daftar tidak pernah boleh jadi tujuan kembali. Kalau iya,
+// orang yang sudah berhasil login malah dilempar balik ke halaman login atau
+// daftar (kasus nyata: tombol "kembali ke login" di halaman Sign Up dulu
+// membuat /login?return_to=/signup, jadi login berhasil tapi mendarat di Sign
+// Up lagi). Alamat seperti itu juga bisa sudah tersimpan di riwayat atau
+// bookmark peramban, jadi dicek di SINI (saat dibaca), bukan hanya saat dibuat.
+const HALAMAN_MASUK = /^\/(login|signup|daftar-pengajar|daftar-admin|olimp\/masuk|olimp\/daftar|olimp\/keluar|peminjaman\/admin\/masuk)(?:[/?#]|$)|^\/acc\//i;
+
 // Alamat internal yang sah: dimulai dengan satu garis miring, dan bukan
 // "//host" (yang oleh peramban dibaca sebagai alamat ke domain lain).
 export function alamatAman(mentah) {
@@ -26,6 +34,7 @@ export function alamatAman(mentah) {
   if (s.startsWith('//')) return '';
   // "/\evil.com" juga dibaca sebagian peramban sebagai alamat luar.
   if (s.startsWith('/\\')) return '';
+  if (HALAMAN_MASUK.test(s)) return '';
   return s;
 }
 
@@ -40,13 +49,17 @@ export function bacaReturnTo(search) {
 
 // Rakit alamat login/daftar yang membawa tujuan kembali.
 //   tautanMasuk('/login')  -> '/login?return_to=%2Fevent%2Flomba-x'
+//
+// `alamatSekarang`:
+//   - TIDAK diberikan (undefined): pakai halaman yang sedang dibuka.
+//   - diberikan tapi kosong (''): memang TIDAK ada tujuan kembali, hasilnya
+//     alamat polos. Dulu string kosong ikut jatuh ke "halaman sekarang", dan
+//     itu yang membuat tautan dari Sign Up ke login membawa return_to=/signup.
 export function tautanMasuk(tujuanLogin, alamatSekarang) {
-  const asal = alamatAman(
-    alamatSekarang
-    || (typeof window !== 'undefined'
-      ? window.location.pathname + window.location.search
-      : ''),
-  );
+  const sumber = alamatSekarang === undefined
+    ? (typeof window !== 'undefined' ? window.location.pathname + window.location.search : '')
+    : alamatSekarang;
+  const asal = alamatAman(sumber);
   if (!asal) return tujuanLogin;
   return `${tujuanLogin}?${PARAM}=${encodeURIComponent(asal)}`;
 }
