@@ -182,8 +182,8 @@ function IsiWeb() {
       </p>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {daftar.map((s) => (
-          <div key={s.nama} className="rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 hover:border-maroon-300 transition-colors">
+        {daftar.map((s, i) => (
+          <div key={s.id || `${s.nama}-${i}`} className="rounded-xl border border-alba-300 bg-alba-50 px-4 py-3 hover:border-maroon-300 transition-colors">
             <p className="font-semibold text-stone-800 text-sm mb-1.5 break-words">{s.nama}</p>
             {/* Angka nol tidak ditulis: mata kuliah yang materinya belum
                 lengkap cukup menyebut jumlah BAB-nya, tanpa deretan "0". */}

@@ -80,13 +80,27 @@ export function AuthProvider({ children }) {
     // Validate the persisted session on load: if the token is stale or the
     // underlying user record no longer exists, clear it instead of letting
     // later PB calls fail with confusing 404s.
-    if (pb.authStore.isValid) {
+    //
+    // Hanya dihapus kalau server memang menolak sesinya (401/403/404). Dulu
+    // SEMUA kegagalan menghapus sesi, termasuk koneksi yang sedang putus atau
+    // server yang sedang restart saat deploy: siswa yang me-refresh halaman
+    // di tengah mengerjakan soal dengan sinyal jelek langsung terlempar ke
+    // halaman login, padahal sesinya masih sah.
+    //
+    // Sekalian: token diperpanjang lagi tiap 12 jam selama tab terbuka, supaya
+    // tab yang dibiarkan terbuka berhari-hari tidak tiba-tiba ditolak di tengah
+    // pengerjaan karena tokennya kedaluwarsa (umur token PocketBase 7 hari).
+    const segarkan = () => {
+      if (!pb.authStore.isValid) return;
       pb.collection('users')
         .authRefresh()
-        .catch(() => {
-          pb.authStore.clear();
+        .catch((e) => {
+          if ([401, 403, 404].includes(e?.status)) pb.authStore.clear();
         });
-    }
+    };
+    segarkan();
+    const t = setInterval(segarkan, 12 * 3600000);
+    return () => clearInterval(t);
   }, []);
 
   // Login memakai "Login ID" (field userId) atau email - keduanya didukung

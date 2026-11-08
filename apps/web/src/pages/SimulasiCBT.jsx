@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, ListChecks, Lock, Timer, Trophy } from 'lucide-react';
+import { ArrowLeft, BookOpen, History, ListChecks, Lock, Timer, Trophy } from 'lucide-react';
 import Header, { bumpStreak, fetchEnrolledSubjectIds } from '@/components/Header';
 import pb from '@/lib/pocketbaseClient';
 import { useAuth } from '@/context/AuthContext';
 import QuestionRunner, { semuaEsai } from '@/components/QuestionRunner';
 import { TANPA_NILAI, adaNilai } from '@/lib/esai';
 import { touchActivity } from '@/lib/activityLog';
-import { susunSoal } from '@/lib/acakSoal';
+import { idUrutan, susunSoal, urutkanSesuai } from '@/lib/acakSoal';
+import { bacaCadangan, buatAntrianSimpan, gabungDenganCadangan, hapusCadangan, tulisCadangan } from '@/lib/antrianSimpan';
 import { cocokUniversitas, filterCbtKind, filterTampilSoal, gabung } from '@/lib/chapterScope';
 import useUrlState from '@/lib/useUrlState';
 
@@ -18,7 +19,7 @@ import useUrlState from '@/lib/useUrlState';
 export default function SimulasiCBT() {
  const { user, role } = useAuth();
  const navigate = useNavigate();
- const [params] = useSearchParams();
+ const [params, setParams] = useSearchParams();
  // Dibuka dari halaman Mata Kuliah: keluar dari pengerjaan kembali ke sana.
  const dariBelajar = params.get('dari') === 'belajar';
  const [subjects, setSubjects] = useState([]);
@@ -115,21 +116,150 @@ export default function SimulasiCBT() {
    })();
  }, [user, refreshKey]);
 
+ // ---------------------------------------------------------------------
+ // PENGERJAAN YANG BISA DILANJUTKAN
+ //
+ // Selama mengerjakan, ID pengerjaan ditaruh di alamat (?kerja=ID). Kalau
+ // halaman di-refresh atau dimuat ulang Safari, pengerjaan itu langsung dibuka
+ // lagi: urutan soal, nomor terakhir, tanda ragu, dan sisa waktu semuanya
+ // dari cbt_attempts (lihat migrasi 1788600000_cbt_lanjutkan.js). Keluar lewat
+ // tombol lalu memilih BAB yang sama juga menawarkan "Lanjutkan".
+ //
+ // Semua simpanan lewat satu antrian (lib/antrianSimpan): satu permintaan
+ // pada satu waktu, jadi simpanan lama tidak bisa menimpa yang baru, dan simpan
+ // akhir selalu yang terakhir sampai.
+ // ---------------------------------------------------------------------
+ const aturParam = (ubah) => setParams((p) => {
+   const n = new URLSearchParams(p);
+   Object.entries(ubah).forEach(([k, v]) => (v ? n.set(k, v) : n.delete(k)));
+   return n;
+ }, { replace: true });
+
+ const antrianRef = useRef(null);
+ const [awalRunner, setAwalRunner] = useState(null); // keadaan awal runner saat melanjutkan
+ const [runnerKey, setRunnerKey] = useState(0);
+ const [lanjutan, setLanjutan] = useState(null); // { rec, qs } pengerjaan tertunda yang ditawarkan
+ const [soalAsli, setSoalAsli] = useState(null); // soal BAB ini dalam urutan asli (untuk kerjakan ulang)
+
+ const durasiPenuh = (n) => n * 60;
+
+ const pasangPengerjaan = async (rec, soalUrut, { baru }) => {
+   const antrian = buatAntrianSimpan((patch) => pb.collection('cbt_attempts').update(rec.id, patch));
+   antrianRef.current = antrian;
+   const data = baru ? rec : gabungDenganCadangan(rec, bacaCadangan(rec.id));
+   // Cadangan peramban lebih baru dari server: kirim sekarang juga.
+   if (!baru && data !== rec) {
+     antrian.simpan({ answers: data.answers || {}, posisi: data.posisi ?? 0, tanda: data.tanda || {}, ...(data.sisaDetik != null ? { sisaDetik: data.sisaDetik } : {}) });
+   }
+   const tanda = data.tanda && typeof data.tanda === 'object' ? data.tanda : {};
+   setAwalRunner({
+     answers: data.answers && typeof data.answers === 'object' ? data.answers : {},
+     posisi: Number.isFinite(Number(data.posisi)) && data.posisi !== null ? Number(data.posisi) : 'belum-dijawab',
+     ragu: Array.isArray(tanda.ragu) ? tanda.ragu : [],
+     dicek: Array.isArray(tanda.dicek) ? tanda.dicek : [],
+     sisaDetik: Number.isFinite(Number(data.sisaDetik)) && data.sisaDetik !== null ? Number(data.sisaDetik) : null,
+   });
+   setCompletedAttempt(null);
+   setReviewing(false);
+   setLanjutan(null);
+   setQuestions(soalUrut);
+   setAttemptId(rec.id);
+   setRunnerKey((k) => k + 1);
+   aturParam({ mk: rec.subject, bab: rec.chapter, mode: rec.mode, kerja: rec.id });
+ };
+
+ const ambilSoal = (sid, cid) => pb.collection('questions').getFullList({
+   filter: pb.filter('subject = {:s} && type = {:t} && chapter = {:c}', { s: sid, t: 'cbt', c: cid }),
+   sort: 'order',
+   expand: 'chapter',
+ });
+
+ // Urutan yang tersimpan selalu menang (BAB yang diacak tidak teracak ulang).
+ // Pengerjaan lama tanpa urutan tersimpan memakai urutan asli; jawabannya
+ // tetap cocok karena disimpan per ID soal.
+ const lanjutkanRecord = async (rec, qs = null) => {
+   const soal = qs || await ambilSoal(rec.subject, rec.chapter);
+   if (!soal.length) return false;
+   setSoalAsli(soal);
+   await pasangPengerjaan(rec, urutkanSesuai(soal, rec.urutan), { baru: false });
+   return true;
+ };
+
+ const buatBaru = async (soal, acak, { hindari = null, hapus = [] } = {}) => {
+   const urut = susunSoal(soal, { acakAktif: acak, jenis: 'baru', hindari });
+   setSoalAsli(soal);
+   setQuestions(urut);
+   if (!user) {
+     setAwalRunner(null);
+     setAttemptId(null);
+     return;
+   }
+   const rec = await pb.collection('cbt_attempts').create({
+     owner: user.id,
+     subject: subjectId,
+     chapter: chapterId,
+     mode,
+     status: 'in_progress',
+     startedAt: new Date().toISOString(),
+     urutan: idUrutan(urut),
+     posisi: 0,
+     tanda: { ragu: [], dicek: [] },
+     ...(mode === 'simulasi' ? { sisaDetik: durasiPenuh(urut.length) } : {}),
+   });
+   // Pengerjaan tertunda lain di BAB + mode yang sama sudah tidak dipakai.
+   hapus.filter((id) => id !== rec.id).forEach((id) => {
+     pb.collection('cbt_attempts').delete(id).catch(() => {});
+     hapusCadangan(id);
+   });
+   await pasangPengerjaan(rec, urut, { baru: true });
+ };
+
+ // Dibuka dari alamat yang membawa ?kerja=ID (refresh, atau tombol
+ // "Lanjutkan" di beranda): langsung masuk ke pengerjaan itu.
+ const kerjaAwal = useRef(params.get('kerja'));
+ const [memulihkan, setMemulihkan] = useState(!!params.get('kerja'));
+ useEffect(() => {
+   const id = kerjaAwal.current;
+   if (!id || !user?.id) {
+     if (!id || !user) setMemulihkan(false);
+     return;
+   }
+   kerjaAwal.current = null;
+   (async () => {
+     try {
+       const rec = await pb.collection('cbt_attempts').getOne(id);
+       const ids = await fetchEnrolledSubjectIds(pb, user, role);
+       const boleh = !ids || ids.includes(rec.subject);
+       if (rec.owner !== user.id || rec.status !== 'in_progress' || !boleh || !(await lanjutkanRecord(rec))) {
+         aturParam({ kerja: '' });
+       }
+     } catch (_) {
+       aturParam({ kerja: '' });
+     } finally {
+       setMemulihkan(false);
+     }
+   })();
+ }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
  // Penjaga klik ganda: dua pemanggilan start() sekaligus membuat dua
  // pengerjaan dan dua acakan berbeda.
  const [memulai, setMemulai] = useState(false);
  const sedangMemulai = useRef(false);
- const start = async () => {
+ const jaga = async (fn) => {
    if (sedangMemulai.current) return;
    sedangMemulai.current = true;
    setMemulai(true);
    try {
-     await mulaiPengerjaan();
+     await fn();
+   } catch (e) {
+     console.error(e);
+     alert('Soalnya gagal dibuka. Periksa koneksi internetmu lalu coba lagi.');
    } finally {
      sedangMemulai.current = false;
      setMemulai(false);
    }
  };
+ const start = () => jaga(mulaiPengerjaan);
 
  const mulaiPengerjaan = async () => {
    if (!subjectId || !chapterId || !mode) return;
@@ -138,11 +268,7 @@ export default function SimulasiCBT() {
      return;
    }
 
-   const qs = await pb.collection('questions').getFullList({
-     filter: pb.filter('subject = {:s} && type = {:t} && chapter = {:c}', { s: subjectId, t: 'cbt', c: chapterId }),
-     sort: 'order',
-     expand: 'chapter',
-   });
+   const qs = await ambilSoal(subjectId, chapterId);
    if (qs.length === 0) {
      alert(`Belum ada soal untuk "${babLabel()}" di mata kuliah ini. Silakan pilih BAB lain.`);
      return;
@@ -153,6 +279,7 @@ export default function SimulasiCBT() {
    let acak = !!(babPerMk[subjectId] || []).find((b) => b.id === chapterId)?.acak;
    try { acak = !!(await pb.collection('chapters').getOne(chapterId, { fields: 'id,acakSoal' })).acakSoal; } catch (_) { /* pakai nilai di daftar */ }
    setBabAcak(acak);
+   setSoalAsli(qs);
 
    // Review pembahasan: buka kunci jawaban + alasannya tanpa perlu pernah
    // mengerjakan tryout ini. Tidak ada attempt yang dibuat/ditimpa.
@@ -164,71 +291,65 @@ export default function SimulasiCBT() {
      return;
    }
 
-   // Kalau BAB ini sudah pernah dituntaskan, tawarkan review dulu (jangan
-   // langsung buat attempt baru) supaya jawaban lama tidak tertimpa.
    if (user) {
-     const done = await pb
-       .collection('cbt_attempts')
-       .getFullList({
-         filter: pb.filter('owner = {:o} && subject = {:s} && chapter = {:c} && status = {:st}', { o: user.id, s: subjectId, c: chapterId, st: 'completed' }),
-         sort: '-created',
-       });
+     const saring = (st) => pb.filter('owner = {:o} && subject = {:s} && chapter = {:c} && status = {:st}', { o: user.id, s: subjectId, c: chapterId, st });
+     const [sedang, done] = await Promise.all([
+       pb.collection('cbt_attempts').getFullList({ filter: `${saring('in_progress')} && mode = '${mode === 'simulasi' ? 'simulasi' : 'learning'}'`, sort: '-updated' }),
+       pb.collection('cbt_attempts').getFullList({ filter: saring('completed'), sort: '-created' }),
+     ]);
+     // Pengerjaan yang tertunda didahulukan: siswa sedang di tengah jalan.
+     const tertunda = sedang.find((r) => Array.isArray(r.urutan) || Object.keys(r.answers || {}).length > 0);
+     if (tertunda) {
+       setLanjutan({ rec: gabungDenganCadangan(tertunda, bacaCadangan(tertunda.id)), qs, hapus: sedang.map((r) => r.id) });
+       return;
+     }
+     // Kalau BAB ini sudah pernah dituntaskan, tawarkan review dulu (jangan
+     // langsung buat attempt baru) supaya jawaban lama tidak tertimpa.
      if (done[0]) {
-       setCompletedAttempt(done[0]);
+       setCompletedAttempt({ ...done[0], hapus: sedang.map((r) => r.id) });
        setQuestions(qs); // dipakai kalau siswa memilih review; "kerjakan ulang" mengacaknya di startFresh
        return;
      }
+     await buatBaru(qs, acak, { hapus: sedang.map((r) => r.id) });
+     return;
    }
-
-   setQuestions(susunSoal(qs, { acakAktif: acak, jenis: 'baru' }));
-   if (user) {
-     const rec = await pb.collection('cbt_attempts').create({
-       owner: user.id,
-       subject: subjectId,
-       chapter: chapterId,
-       mode,
-       status: 'in_progress',
-       startedAt: new Date().toISOString(),
-     });
-     setAttemptId(rec.id);
-   }
+   await buatBaru(qs, acak);
  };
 
  // Mulai attempt baru walau BAB ini sudah pernah dikerjakan (dari layar pilihan).
- const startFresh = async () => {
+ const startFresh = () => jaga(async () => {
+   const soal = soalAsli || questions || [];
+   const hapus = completedAttempt?.hapus || [];
    setCompletedAttempt(null);
    setReviewing(false);
    // Kerjakan ulang = pengerjaan baru: urutannya diacak lagi kalau BAB ini diacak.
-   setQuestions((lama) => susunSoal(lama || [], { acakAktif: babAcak, jenis: 'baru', hindari: (lama || []).map((q) => q.id) }));
-   if (user) {
-     const rec = await pb.collection('cbt_attempts').create({
-       owner: user.id,
-       subject: subjectId,
-       chapter: chapterId,
-       mode,
-       status: 'in_progress',
-       startedAt: new Date().toISOString(),
-     });
-     setAttemptId(rec.id);
-   }
+   await buatBaru(soal, babAcak, { hindari: (questions || []).map((q) => q.id), hapus });
+ });
+
+ // Menyimpan jawaban ke database setiap kali mahasiswa klik opsi.
+ const savePartial = (ans) => {
+   if (!attemptId || !user || !antrianRef.current) return undefined;
+   tulisCadangan(attemptId, { answers: ans });
+   return antrianRef.current.simpan({ answers: ans });
  };
 
- // Menyimpan jawaban ke database setiap kali mahasiswa klik opsi (Real-time)
- const savePartial = async (ans) => {
-   if (attemptId && user) {
-     try {
-       await pb.collection('cbt_attempts').update(attemptId, { answers: ans });
-     } catch (error) {
-       console.error('Gagal menyimpan jawaban sementara:', error);
-       return false;
-     }
-   }
+ // Posisi, tanda ragu, soal yang sudah dicek, dan sisa waktu.
+ const simpanProgres = ({ posisi, ragu, dicek, sisaDetik }) => {
+   if (!attemptId || !user || !antrianRef.current) return;
+   const patch = { posisi, tanda: { ragu, dicek }, ...(sisaDetik != null ? { sisaDetik } : {}) };
+   tulisCadangan(attemptId, patch);
+   antrianRef.current.simpan(patch);
  };
 
  const submit = async ({ answers, score, gradedTotal }) => {
-   if (attemptId) {
+   if (attemptId && antrianRef.current) {
      // Isinya esai semua: tidak ada nilai, jadi bukan "0" (yang akan tampil di grafik profil).
-     await pb.collection('cbt_attempts').update(attemptId, { answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed' });
+     const ok = await antrianRef.current.simpan({ answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed' });
+     // Gagal: antrian mencoba lagi sendiri beberapa detik kemudian; cadangan
+     // di peramban dibiarkan sampai benar-benar tersimpan.
+     if (!ok) throw new Error('Hasil belum tersimpan');
+     hapusCadangan(attemptId);
+     aturParam({ kerja: '' });
    }
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
@@ -237,6 +358,7 @@ export default function SimulasiCBT() {
  };
 
  const exit = async () => {
+   aturParam({ kerja: '' });
    if (dariBelajar && subjectId) {
      navigate(`/belajar/${subjectId}?tab=tahun`);
      return;
@@ -245,8 +367,75 @@ export default function SimulasiCBT() {
    setAttemptId(null);
    setCompletedAttempt(null);
    setReviewing(false);
+   setLanjutan(null);
+   setAwalRunner(null);
    setRefreshKey((k) => k + 1); // refresh progress
  };
+
+ if (memulihkan) {
+   return (
+     <div className="min-h-screen bg-diagonal-soft">
+       <Header />
+       <p role="status" className="py-24 text-center text-sm font-semibold text-stone-500 animate-pulse">Membuka pengerjaanmu…</p>
+     </div>
+   );
+ }
+
+ // Layar "lanjutkan atau mulai dari awal" untuk pengerjaan yang tertunda.
+ if (lanjutan) {
+   const rec = lanjutan.rec;
+   const terjawab = Object.keys(rec.answers || {}).length;
+   const total = lanjutan.qs.length;
+   const nomor = Number.isFinite(Number(rec.posisi)) && rec.posisi !== null ? Math.min(Number(rec.posisi), total - 1) + 1 : null;
+   const sisa = rec.mode === 'simulasi' && Number.isFinite(Number(rec.sisaDetik)) && rec.sisaDetik !== null ? Math.max(0, Number(rec.sisaDetik)) : null;
+   const sisaTeks = sisa == null ? '' : `${Math.floor(sisa / 60)}:${String(sisa % 60).padStart(2, '0')}`;
+   return (
+     <div className="min-h-screen bg-diagonal-soft">
+       <Header />
+       <div className="max-w-md mx-auto px-6 py-24">
+         <div className="text-center bg-alba-50 rounded-2xl border border-alba-200 p-8 shadow-card-hover animate-fade-in">
+           <div className="w-16 h-16 bg-gold-100 text-gold-600 rounded-full flex items-center justify-center mx-auto mb-5">
+             <History size={26} />
+           </div>
+           <h2 className="font-display text-xl font-semibold text-maroon-700 mb-2">Pengerjaanmu belum selesai</h2>
+           <p className="text-sm font-medium text-stone-600 mb-6 leading-relaxed">
+             {terjawab} dari {total} soal sudah kamu jawab dan tersimpan.
+             {nomor ? ` Terakhir di soal nomor ${nomor}.` : ''}
+             {sisaTeks ? ` Sisa waktu ${sisaTeks}.` : ''}
+           </p>
+           <div className="flex flex-col gap-3">
+             <button
+               type="button"
+               disabled={memulai}
+               onClick={() => jaga(() => lanjutkanRecord(rec, lanjutan.qs))}
+               className="w-full rounded-xl bg-maroon-600 text-alba-50 px-5 py-3.5 text-sm font-bold shadow-card hover:bg-maroon-700 disabled:opacity-50 transition-colors"
+             >
+               {memulai ? 'Membuka…' : 'Lanjutkan pengerjaan'}
+             </button>
+             <button
+               type="button"
+               disabled={memulai}
+               onClick={() => {
+                 if (!window.confirm('Mulai dari awal? Jawaban yang sudah tersimpan di pengerjaan ini akan dihapus.')) return;
+                 jaga(() => buatBaru(lanjutan.qs, babAcak, { hapus: lanjutan.hapus }));
+               }}
+               className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 disabled:opacity-50 transition-colors"
+             >
+               Mulai dari awal
+             </button>
+             <button
+               type="button"
+               onClick={() => setLanjutan(null)}
+               className="text-sm font-bold text-stone-500 hover:text-maroon-600 py-2"
+             >
+               Kembali ke pilihan soal
+             </button>
+           </div>
+         </div>
+       </div>
+     </div>
+   );
+ }
 
  // Layar Pilihan untuk tahun yang SUDAH selesai: review atau kerjakan ulang
  if (questions && completedAttempt && !reviewing && !attemptId) {
@@ -274,9 +463,10 @@ export default function SimulasiCBT() {
              </button>
              <button
                onClick={startFresh}
-               className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 transition-colors"
+               disabled={memulai}
+               className="w-full rounded-xl border border-alba-300 text-stone-600 px-5 py-3.5 text-sm font-bold hover:bg-alba-100 disabled:opacity-50 transition-colors"
              >
-               Kerjakan Ulang Soal Ini
+               {memulai ? 'Membuka…' : 'Kerjakan Ulang Soal Ini'}
              </button>
            </div>
          </div>
@@ -286,17 +476,25 @@ export default function SimulasiCBT() {
  }
 
  // Layar Pengerjaan Ujian (atau Review)
- if (questions && (attemptId || reviewing)) {
+ if (questions && (attemptId || reviewing || (!user && mode !== 'review'))) {
+   const awal = !reviewing ? awalRunner : null;
    return (
      <div className="min-h-screen bg-diagonal-soft">
        <Header />
        <div className="max-w-5xl mx-auto px-6 py-10">
          <QuestionRunner
+           key={reviewing ? 'review' : `kerja-${runnerKey}`}
            questions={questions}
            mode={reviewing ? 'review' : (mode === 'simulasi' ? 'simulasi' : 'learning')}
-           timerSeconds={!reviewing && mode === 'simulasi' ? questions.length * 60 : null}
-           initialAnswers={reviewing ? completedAttempt?.answers || {} : {}}
-           onAnswerChange={savePartial}
+           timerSeconds={!reviewing && mode === 'simulasi' ? durasiPenuh(questions.length) : null}
+           initialAnswers={reviewing ? completedAttempt?.answers || {} : awal?.answers || {}}
+           initialIdx={awal ? awal.posisi : 0}
+           initialFlagged={awal?.ragu}
+           initialChecked={awal?.dicek}
+           initialSecondsLeft={awal?.sisaDetik ?? null}
+           onAnswerChange={reviewing ? undefined : savePartial}
+           onProgress={reviewing ? undefined : simpanProgres}
+           konfirmasiKeluar={!reviewing && !!attemptId}
            onExit={exit}
            onSubmit={submit}
          />

@@ -10,17 +10,21 @@ import { TANPA_NILAI, adaNilai } from '@/lib/esai';
 import ChapterSelect from '@/components/ChapterSelect';
 import { touchActivity } from '@/lib/activityLog';
 import { idUrutan, susunSoal } from '@/lib/acakSoal';
+import { buatAntrianSimpan } from '@/lib/antrianSimpan';
 import useUrlState from '@/lib/useUrlState';
 import { tautan } from '@/lib/belajar';
 
 export default function CicilBelajar() {
  const { user, role } = useAuth();
  const navigate = useNavigate();
- const [params] = useSearchParams();
+ const [params, setParams] = useSearchParams();
  // Dibuka dari halaman Mata Kuliah (/belajar/:id): tombol keluar kembali ke
  // BAB yang sama, dan buka=1 langsung membuka pengerjaan tanpa klik "Mulai".
  const dariBelajar = params.get('dari') === 'belajar';
- const bukaLangsung = params.get('buka') === '1';
+ // kerja=1 ditaruh di alamat selama mengerjakan: refresh langsung membuka
+ // lagi latihannya di soal yang belum dijawab, bukan kembali ke daftar BAB.
+ const bukaLangsung = params.get('buka') === '1' || params.get('kerja') === '1';
+ const kerjaDariAlamat = useRef(params.get('kerja') === '1');
  const [subjects, setSubjects] = useState([]);
  // Pilihan disimpan di URL supaya refresh tidak melempar balik ke daftar awal.
  const [subjectId, setSubjectId] = useUrlState('subject', '');
@@ -155,9 +159,14 @@ export default function CicilBelajar() {
    if (user) {
      const existing = await pb
        .collection('soal_progress')
-       .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
+       .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'`, sort: '-updated' });
      const rec = existing[0];
-     if (rec?.status === 'in_progress') {
+     if (rec?.status === 'in_progress' && kerjaDariAlamat.current) {
+       // Halaman di-refresh di tengah latihan: langsung lanjutkan.
+       kerjaDariAlamat.current = false;
+       setPriorProgress(rec);
+       mulai('resume', qs, rec, acak);
+     } else if (rec?.status === 'in_progress') {
        setPriorProgress(rec);      // → layar lanjutkan/ulang
      } else if (rec?.status === 'completed') {
        setPriorProgress(rec);
@@ -183,8 +192,36 @@ export default function CicilBelajar() {
      hindari: Array.isArray(progress?.urutan) ? progress.urutan : null,
    });
    urutanRef.current = idUrutan(susun);
+   // Satu antrian simpan per pembukaan BAB (lihat lib/antrianSimpan): klik
+   // cepat tidak lagi membuat beberapa catatan progres sekaligus, dan simpanan
+   // lama tidak bisa menimpa yang baru.
+   idProgresRef.current = progress?.id || null;
+   antrianRef.current = buatAntrianSimpan(kirimProgres);
    setSoalJalan(susun);
    setResume(jenis);
+   setParams((p) => {
+     const n = new URLSearchParams(p);
+     if (jenis === 'review') n.delete('kerja'); else n.set('kerja', '1');
+     return n;
+   }, { replace: true });
+ };
+
+ const idProgresRef = useRef(null);
+ const antrianRef = useRef(null);
+ const kirimProgres = async (patch) => {
+   if (!user) return;
+   if (!idProgresRef.current) {
+     const ada = await pb
+       .collection('soal_progress')
+       .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'`, sort: '-updated' });
+     if (ada[0]) idProgresRef.current = ada[0].id;
+   }
+   if (idProgresRef.current) {
+     await pb.collection('soal_progress').update(idProgresRef.current, patch);
+   } else {
+     const rec = await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, ...patch });
+     idProgresRef.current = rec.id;
+   }
  };
 
  // Alamat yang sudah membawa BAB + mode "review" (mis. pintasan "lihat isi" di
@@ -211,41 +248,22 @@ export default function CicilBelajar() {
    openChapter();
  }, [mode, chapterId, chapters]); // eslint-disable-line react-hooks/exhaustive-deps
 
- const savePartial = async (ans) => {
-   if (!user) return;
-   try {
-     const existing = await pb
-       .collection('soal_progress')
-       .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
-
-     // Urutan ikut disimpan (hanya untuk BAB yang diacak) supaya "lanjutkan"
-     // tidak mengacak ulang di tengah jalan.
-     // Selalu ditulis (null kalau acak mati): urutan basi dari pengerjaan
-     // sebelumnya tidak boleh bertahan lalu dipakai "lanjutkan" belakangan.
-     const urutan = { urutan: babAcak ? urutanRef.current : null };
-     if (existing[0]) {
-       await pb.collection('soal_progress').update(existing[0].id, { answers: ans, status: 'in_progress', ...urutan });
-     } else {
-       await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers: ans, status: 'in_progress', ...urutan });
-     }
-   } catch (error) {
-     console.error('Gagal mengamankan progress:', error);
-     return false;
-   }
+ // Urutan ikut disimpan (hanya untuk BAB yang diacak) supaya "lanjutkan"
+ // tidak mengacak ulang di tengah jalan.
+ // Selalu ditulis (null kalau acak mati): urutan basi dari pengerjaan
+ // sebelumnya tidak boleh bertahan lalu dipakai "lanjutkan" belakangan.
+ const savePartial = (ans) => {
+   if (!user || !antrianRef.current) return undefined;
+   return antrianRef.current.simpan({ answers: ans, status: 'in_progress', urutan: babAcak ? urutanRef.current : null });
  };
 
  const submit = async ({ answers, score, gradedTotal }) => {
    if (!user) return;
-   const existing = await pb
-     .collection('soal_progress')
-     .getFullList({ filter: `owner = '${user.id}' && chapter = '${chapterId}'` });
-
-   const urutan = { urutan: babAcak ? urutanRef.current : null };
-   if (existing[0]) {
-     await pb.collection('soal_progress').update(existing[0].id, { answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed', ...urutan });
-   } else {
-     await pb.collection('soal_progress').create({ owner: user.id, chapter: chapterId, answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed', ...urutan });
-   }
+   const ok = await antrianRef.current?.simpan({
+     answers, score: gradedTotal === 0 ? TANPA_NILAI : score, status: 'completed', urutan: babAcak ? urutanRef.current : null,
+   });
+   if (!ok) throw new Error('Hasil belum tersimpan');
+   setParams((p) => { const n = new URLSearchParams(p); n.delete('kerja'); return n; }, { replace: true });
    await bumpStreak(pb, user); // streak belajar harian 🔥
    // Jejak untuk "last activity" di Dashboard Activity admin.
    const namaBab = chapters.find((c) => c.id === chapterId)?.title || '';
@@ -348,8 +366,11 @@ export default function CicilBelajar() {
            questions={soalJalan}
            mode={isReview ? 'review' : 'learning'}
            initialAnswers={(resume === 'resume' || isReview) ? priorProgress?.answers || {} : {}}
+           initialIdx={resume === 'resume' ? 'belum-dijawab' : 0}
+           konfirmasiKeluar={!isReview}
            onAnswerChange={savePartial}
            onExit={() => {
+             setParams((p) => { const n = new URLSearchParams(p); n.delete('kerja'); n.delete('buka'); return n; }, { replace: true });
              if (dariBelajar) {
                navigate(tautan.mataKuliah(subjectId, chapterId));
                return;

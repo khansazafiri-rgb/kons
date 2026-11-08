@@ -147,17 +147,48 @@ export default function QuestionRunner({
  onSubmit,
  initialAnswers = {},
  onAnswerChange,
+ // Untuk melanjutkan pengerjaan yang terputus (lihat SimulasiCBT/CicilBelajar):
+ //   initialIdx        : nomor soal yang dibuka (0 = pertama), atau
+ //                       'belum-dijawab' = soal pertama yang belum dijawab
+ //   initialFlagged    : ID soal bertanda ragu-ragu
+ //   initialChecked    : ID soal yang sudah dicek (mode learning, terkunci)
+ //   initialSecondsLeft: sisa waktu tersimpan (menggantikan timerSeconds)
+ //   onProgress        : dipanggil saat posisi/tanda berubah, tiap 15 detik
+ //                       timer, dan saat halaman disembunyikan/ditutup
+ //   konfirmasiKeluar  : tanya dulu sebelum keluar di tengah pengerjaan
+ initialIdx = 0,
+ initialFlagged = null,
+ initialChecked = null,
+ initialSecondsLeft = null,
+ onProgress,
+ konfirmasiKeluar = false,
 }) {
  const [qs, setQs] = useState(() => (questions || []).map(normalizeQuestion)); // daftar soal aktif (sudah dinormalkan; bisa diganti subset saat "ulangi yang salah")
  const [retryRound, setRetryRound] = useState(false);
- const [idx, setIdx] = useState(0);
- const [answers, setAnswers] = useState(initialAnswers);
- const [flagged, setFlagged] = useState(new Set()); // "ragu-ragu" ala CBT nasional
- const [checked, setChecked] = useState(new Set()); // soal isian yang sudah dicek (mode learning)
+ const [idx, setIdx] = useState(() => {
+   const n = (questions || []).length;
+   if (!n) return 0;
+   if (initialIdx === 'belum-dijawab') {
+     const daftar = (questions || []).map(normalizeQuestion);
+     const i = daftar.findIndex((qq) => !isQuestionAnswered(qq, (initialAnswers || {})[qq.id]));
+     return i < 0 ? n - 1 : i;
+   }
+   const i = Number(initialIdx);
+   return Number.isFinite(i) ? Math.min(Math.max(0, Math.trunc(i)), n - 1) : 0;
+ });
+ const [answers, setAnswers] = useState(initialAnswers || {});
+ const [flagged, setFlagged] = useState(() => new Set(Array.isArray(initialFlagged) ? initialFlagged : [])); // "ragu-ragu" ala CBT nasional
+ const [checked, setChecked] = useState(() => new Set(Array.isArray(initialChecked) ? initialChecked : [])); // soal yang sudah dicek (mode learning)
  const [showHint, setShowHint] = useState(false);
  const [submitted, setSubmitted] = useState(false);
  const [showReview, setShowReview] = useState(false); // layar "review semua jawaban dalam 1 halaman"
- const [secondsLeft, setSecondsLeft] = useState(timerSeconds);
+ const [secondsLeft, setSecondsLeft] = useState(() => (
+   timerSeconds == null ? null
+     : Number.isFinite(Number(initialSecondsLeft)) && initialSecondsLeft !== null
+       ? Math.max(0, Math.min(Number(initialSecondsLeft), timerSeconds))
+       : timerSeconds
+ ));
+ const [waktuHabis, setWaktuHabis] = useState(false); // dikumpulkan otomatis karena timer habis
  const [gagalSimpan, setGagalSimpan] = useState(false); // hasil belum berhasil dikirim ke server
  // Pemanggil waktu habis dipasang SEKALI (efek di bawah), jadi `finish` yang ia
  // pegang adalah `finish` dari render pertama, dengan jawaban kosong. Lewat ref ia
@@ -194,21 +225,61 @@ export default function QuestionRunner({
  const [wrongQuestions, setWrongQuestions] = useState([]);
  const [weaknessReport, setWeaknessReport] = useState(null);
 
+ // Timer memakai jam dinding, bukan hitungan detak: Safari di iPad/HP
+ // memperlambat setInterval saat tab di belakang atau layar redup, sehingga
+ // hitungan detak dulu bisa meleset jauh dari waktu sebenarnya.
  useEffect(() => {
    if (secondsLeft == null || submitted || retryRound) return;
+   const akhir = Date.now() + secondsLeft * 1000;
    const t = setInterval(() => {
-     setSecondsLeft((s) => {
-       if (s <= 1) {
-         clearInterval(t);
-         finishRef.current?.();
-         return 0;
-       }
-       return s - 1;
-     });
+     const sisa = Math.max(0, Math.ceil((akhir - Date.now()) / 1000));
+     setSecondsLeft(sisa);
+     if (sisa <= 0) {
+       clearInterval(t);
+       setWaktuHabis(true);
+       finishRef.current?.();
+     }
    }, 1000);
    return () => clearInterval(t);
    // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [submitted, retryRound]);
+
+ // Laporan posisi untuk "lanjutkan". Lewat ref supaya pemanggil di event
+ // listener selalu membaca keadaan terbaru.
+ const progresRef = useRef(null);
+ progresRef.current = () => {
+   if (!onProgress || retryRound || submitted) return;
+   onProgress({ posisi: idx, ragu: [...flagged], dicek: [...checked], sisaDetik: secondsLeft });
+ };
+ const sudahMulai = useRef(false);
+ useEffect(() => {
+   if (!sudahMulai.current) { sudahMulai.current = true; return; }
+   progresRef.current?.();
+ }, [idx, flagged, checked]);
+ useEffect(() => {
+   if (secondsLeft != null && secondsLeft > 0 && secondsLeft % 15 === 0) progresRef.current?.();
+ }, [secondsLeft]);
+ useEffect(() => {
+   const sembunyi = () => { if (document.visibilityState === 'hidden') progresRef.current?.(); };
+   const tutup = () => progresRef.current?.();
+   document.addEventListener('visibilitychange', sembunyi);
+   window.addEventListener('pagehide', tutup);
+   return () => {
+     document.removeEventListener('visibilitychange', sembunyi);
+     window.removeEventListener('pagehide', tutup);
+   };
+ }, []);
+
+ const keluar = () => {
+   if (konfirmasiKeluar && !submitted && !retryRound) {
+     const pesan = secondsLeft != null
+       ? 'Keluar dari pengerjaan? Jawaban dan sisa waktumu sudah tersimpan. Buka lagi soal ini untuk melanjutkan dari nomor yang sama.'
+       : 'Keluar dari pengerjaan? Jawabanmu sudah tersimpan. Buka lagi soal ini untuk melanjutkan dari nomor yang sama.';
+     if (!window.confirm(pesan)) return;
+   }
+   progresRef.current?.();
+   onExit?.();
+ };
 
  const q = qs[idx];
  const selected = answers[q?.id];
@@ -466,6 +537,7 @@ export default function QuestionRunner({
        total={jumlahDinilai(qs)}
        esaiCount={qs.length - jumlahDinilai(qs)}
        gagalSimpan={gagalSimpan}
+       waktuHabis={waktuHabis}
        wrongCount={wrongQuestions.length}
        weakChapters={weakChapters}
        weakTopics={weakTopics}
@@ -479,6 +551,11 @@ export default function QuestionRunner({
  }
 
  const timerDanger = secondsLeft != null && secondsLeft < 60;
+ // Teksnya hanya berganti di dua ambang, jadi pembaca layar tidak dibanjiri.
+ const peringatanWaktu = secondsLeft == null || submitted || secondsLeft <= 0 ? ''
+   : secondsLeft <= 60 ? 'Sisa waktu kurang dari 1 menit. Saat waktu habis, jawaban yang sudah diisi dikumpulkan otomatis.'
+     : secondsLeft <= 300 ? 'Sisa waktu kurang dari 5 menit.'
+       : '';
  const showResult = submitted || revealAnswer;
 
  return (
@@ -511,7 +588,7 @@ export default function QuestionRunner({
            )}
            <button
              type="button"
-             onClick={onExit}
+             onClick={keluar}
              aria-label="Keluar dari pengerjaan"
              className="inline-flex min-h-[40px] items-center gap-1.5 text-sm font-bold text-stone-500 hover:text-maroon-600 hover:bg-maroon-50 px-3.5 py-1.5 rounded-full transition-colors"
            >
@@ -538,6 +615,11 @@ export default function QuestionRunner({
                </span>
              )}
            </p>
+           {peringatanWaktu && (
+             <p role="status" className="mt-3 rounded-xl border border-maroon-200 bg-maroon-50 px-4 py-2.5 text-xs font-bold text-maroon-800">
+               {peringatanWaktu}
+             </p>
+           )}
          </div>
        )}
 
@@ -863,7 +945,7 @@ function ScoreRing({ score }) {
 // HALAMAN HASIL (setelah submit) - terpisah dari halaman soal, mirip cek skor
 // Google Form: tampil skor dulu, lalu tombol "Review Jawaban Saya!".
 // ==========================================================================
-function ResultScreen({ score, total, esaiCount = 0, gagalSimpan = false, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
+function ResultScreen({ score, total, esaiCount = 0, gagalSimpan = false, waktuHabis = false, wrongCount, weakChapters, weakTopics, mode, onReview, onRetry, onExit, weaknessReport }) {
  // total = jumlah soal yang DINILAI. Nol berarti isinya esai semua: tidak ada
  // skor yang bermakna, jadi cincin nilai dan "benar dari N" tidak ditampilkan.
  const adaNilai = total > 0;
@@ -872,6 +954,11 @@ function ResultScreen({ score, total, esaiCount = 0, gagalSimpan = false, wrongC
    <div className="max-w-2xl mx-auto animate-fade-in">
      <div className="bg-alba-50 rounded-2xl border border-alba-200 shadow-card p-8 text-center">
        <p className="text-maroon-600 font-bold tracking-[0.2em] text-xs mb-6">HASIL PENGERJAAN</p>
+       {waktuHabis && (
+         <p role="status" className="mb-5 rounded-xl border border-maroon-100 bg-maroon-50 px-4 py-3 text-xs font-semibold text-maroon-800 leading-relaxed">
+           Waktu pengerjaan habis, jadi jawabanmu dikumpulkan otomatis. Soal yang belum sempat dijawab dihitung kosong.
+         </p>
+       )}
        {gagalSimpan && (
          <p role="alert" className="mb-5 rounded-xl border border-gold-200 bg-gold-100/60 px-4 py-3 text-xs font-semibold text-stone-700 leading-relaxed">
            Hasil ini belum berhasil tersimpan di server (mungkin koneksi terputus atau jawabanmu terlalu panjang).
