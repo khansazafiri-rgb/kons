@@ -280,7 +280,7 @@ export default function DetailMataKuliah() {
                     {data.tahunLalu.map((t) => (
                       <li key={t.id}>
                         <Link
-                          to={tautan.tahunLalu(subjectId, t.id)}
+                          to={t.ke || tautan.tahunLalu(subjectId, t.id)}
                           className="flex min-h-[64px] items-center gap-3 rounded-xl border border-alba-200 bg-white p-4 transition-colors hover:border-maroon-300"
                         >
                           <Timer size={18} aria-hidden className="shrink-0 text-maroon-600" />
@@ -288,7 +288,7 @@ export default function DetailMataKuliah() {
                             <span className="block truncate text-sm font-bold text-stone-800">{t.title}</span>
                             {t.kelompok && <span className="block text-xs text-stone-500">{t.kelompok}</span>}
                           </span>
-                          <StatusPill status={t.status} label={t.status === STATUS.SELESAI ? `Selesai${t.nilai !== null ? ` · ${t.nilai}` : ''}` : 'Belum dikerjakan'} />
+                          <StatusPill status={t.status} label={t.status === STATUS.SELESAI ? `Selesai${t.nilai !== null ? ` · ${t.nilai}` : ''}` : t.status === STATUS.PROSES ? 'Lanjutkan' : 'Belum dikerjakan'} />
                         </Link>
                       </li>
                     ))}

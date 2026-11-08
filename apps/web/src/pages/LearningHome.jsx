@@ -96,7 +96,7 @@ export default function LearningHome() {
           .slice(0, 3);
         if (alive) setExams(up);
       } catch (_) {
-        if (alive) { setSubjects([]); setRingkasan({ perMk: {}, sedang: [] }); }
+        if (alive) { setSubjects([]); setRingkasan({ perMk: {}, sedang: [], sedangCbt: [] }); }
       }
     })();
     return () => { alive = false; };
@@ -117,6 +117,20 @@ export default function LearningHome() {
   const utama = useMemo(() => {
     if (!ringkasan || !subjects) return null;
     const tertunda = ringkasan.sedang[0];
+    const cbtTertunda = (ringkasan.sedangCbt || [])[0];
+    // Dua-duanya ada: yang terakhir disentuh siswa yang ditawarkan.
+    const waktu = (x) => Date.parse(String(x?.updated || '').replace(' ', 'T')) || 0;
+    if (cbtTertunda && (!tertunda || waktu(cbtTertunda) >= waktu(tertunda))) {
+      return {
+        jenis: 'lanjut',
+        eyebrow: 'Lanjutkan',
+        judul: cbtTertunda.judul,
+        sub: `Soal tahun sebelumnya ${namaMk.get(cbtTertunda.subject) || ''} (${cbtTertunda.mode === 'simulasi' ? 'mode simulasi' : 'mode learning'}) yang belum selesai. Jawaban${cbtTertunda.mode === 'simulasi' ? ' dan sisa waktumu' : 'mu'} sudah tersimpan.`,
+        ke: tautan.lanjutTahunLalu(cbtTertunda),
+        tombol: 'Lanjutkan soal',
+        sekunder: { ke: tautan.mataKuliah(cbtTertunda.subject), label: 'Lihat mata kuliah ini' },
+      };
+    }
     if (tertunda) {
       return {
         jenis: 'lanjut',

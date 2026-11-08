@@ -14,6 +14,7 @@
    "check:acak": "node scripts/check-acak.mjs",
    "check:returnto": "node scripts/check-returnto.mjs",
    "check:esai": "node scripts/check-esai.mjs",
+   "check:antrian": "node scripts/check-antrian.mjs",
    "lint:warn": "eslint ."
  },
  "dependencies": {

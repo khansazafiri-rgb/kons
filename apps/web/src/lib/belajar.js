@@ -54,6 +54,9 @@ export const tautan = {
     `/cicil-belajar?subject=${subjectId}&chapter=${chapterId}&mode=review&dari=belajar`,
   tahunLalu: (subjectId, chapterId) =>
     `/simulasi-test?mk=${subjectId}${chapterId ? `&bab=${chapterId}` : ''}&dari=belajar`,
+  // Langsung membuka lagi pengerjaan yang tertunda (lihat SimulasiCBT ?kerja=).
+  lanjutTahunLalu: (a) =>
+    `/simulasi-test?mk=${a.subject}&bab=${a.chapter}&mode=${a.mode === 'simulasi' ? 'simulasi' : 'learning'}&kerja=${a.id}`,
 };
 
 const tampilMateri = (c) => !c[SCOPE_MATERI];
@@ -68,6 +71,16 @@ export async function muatMataKuliah(user, role) {
   return { subjects: enrolled ? subs.filter((s) => enrolled.includes(s.id)) : subs, enrolled };
 }
 
+// Catatan progres terbaru per BAB (urutan masukan: terbaru dulu).
+export function satuPerBab(daftar) {
+  const ada = new Set();
+  return (daftar || []).filter((p) => {
+    if (!p?.chapter || ada.has(p.chapter)) return false;
+    ada.add(p.chapter);
+    return true;
+  });
+}
+
 // Ringkasan progres semua mata kuliah, cukup ringan untuk beranda:
 // tiga query, tanpa mengunduh isi soal.
 export async function muatRingkasan(user, subjectIds) {
@@ -78,8 +91,9 @@ export async function muatRingkasan(user, subjectIds) {
   });
   let materi = [];
   let soal = [];
+  let cbt = [];
   if (user?.id) {
-    [materi, soal] = await Promise.all([
+    [materi, soal, cbt] = await Promise.all([
       pb.collection('materi_progress').getFullList({
         filter: pb.filter('owner = {:o} && completed = true', { o: user.id }),
         fields: 'chapter',
@@ -89,9 +103,20 @@ export async function muatRingkasan(user, subjectIds) {
         fields: 'chapter,status,score,updated',
         sort: '-updated',
       }).catch(() => []),
+      // Soal tahun sebelumnya yang sedang dikerjakan (bisa dilanjutkan, lihat
+      // SimulasiCBT). Cukup beberapa yang terbaru.
+      pb.collection('cbt_attempts').getList(1, 5, {
+        filter: pb.filter('owner = {:o} && status = {:st}', { o: user.id, st: 'in_progress' }),
+        fields: 'id,subject,chapter,mode,answers,urutan,updated,expand.chapter.title',
+        expand: 'chapter',
+        sort: '-updated',
+      }).then((r) => r.items).catch(() => []),
     ]);
   }
   const dibaca = new Set(materi.map((m) => m.chapter));
+  // Satu BAB bisa punya lebih dari satu catatan progres (dulu simpanan yang
+  // bersamaan membuat catatan ganda). Yang dipakai yang terbaru diperbarui.
+  soal = satuPerBab(soal);
   const latihan = new Map(soal.map((s) => [s.chapter, s]));
   const boleh = subjectIds ? new Set(subjectIds) : null;
 
@@ -127,7 +152,14 @@ export async function muatRingkasan(user, subjectIds) {
     .map((s) => ({ ...s, bab: chapters.find((c) => c.id === s.chapter) }))
     .filter((s) => s.bab && (!boleh || boleh.has(s.bab.subject)) && tampilSoal(s.bab));
 
-  return { perMk, sedang };
+  // Pengerjaan tanpa jawaban dan tanpa urutan tersimpan adalah sisa versi
+  // lama (dulu tiap "Mulai" membuat pengerjaan baru): tidak ditawarkan.
+  const sedangCbt = cbt
+    .filter((a) => a.chapter && (Array.isArray(a.urutan) || Object.keys(a.answers || {}).length > 0))
+    .filter((a) => !boleh || boleh.has(a.subject))
+    .map((a) => ({ id: a.id, subject: a.subject, chapter: a.chapter, mode: a.mode, updated: a.updated, judul: a.expand?.chapter?.title || 'Soal tahun sebelumnya' }));
+
+  return { perMk, sedang, sedangCbt };
 }
 
 // Detail satu mata kuliah: BAB latihan lengkap dengan status tiap kegiatan,
@@ -152,7 +184,7 @@ export async function muatDetailMataKuliah(user, subjectId) {
       : [],
     user?.id
       ? pb.collection('soal_progress').getFullList({
-        filter: pb.filter('owner = {:o}', { o: user.id }), fields: 'chapter,status,score,updated',
+        filter: pb.filter('owner = {:o}', { o: user.id }), fields: 'chapter,status,score,updated', sort: '-updated',
       }).catch(() => [])
       : [],
     pb.collection('chapters').getFullList({
@@ -167,7 +199,7 @@ export async function muatDetailMataKuliah(user, subjectId) {
     user?.id
       ? pb.collection('cbt_attempts').getFullList({
         filter: pb.filter('owner = {:o} && subject = {:s}', { o: user.id, s: subjectId }),
-        fields: 'chapter,status,score,updated', sort: '-updated',
+        fields: 'id,subject,chapter,mode,status,score,updated,answers,urutan', sort: '-updated',
       }).catch(() => [])
       : [],
     pb.collection('exam_schedules').getFullList({
@@ -179,7 +211,7 @@ export async function muatDetailMataKuliah(user, subjectId) {
   const jumlahSoal = {};
   soalLatihan.forEach((q) => { jumlahSoal[q.chapter] = (jumlahSoal[q.chapter] || 0) + 1; });
   const dibaca = new Set(materi.map((m) => m.chapter));
-  const progres = new Map(soal.map((s) => [s.chapter, s]));
+  const progres = new Map(satuPerBab(soal).map((s) => [s.chapter, s]));
 
   const bab = chapters
     .filter((c) => tampilMateri(c) || tampilSoal(c))
@@ -216,20 +248,26 @@ export async function muatDetailMataKuliah(user, subjectId) {
   const asal = String(user?.asalKuliah || '').trim();
   const adaSoalCbt = new Set(soalCbt.map((q) => q.chapter));
   const selesaiCbt = new Map();
+  const tertundaCbt = new Map(); // pengerjaan yang bisa dilanjutkan (terbaru dulu)
   attempts.forEach((a) => {
     if (a.status === 'completed' && !selesaiCbt.has(a.chapter)) selesaiCbt.set(a.chapter, a);
+    const berisi = Array.isArray(a.urutan) || Object.keys(a.answers || {}).length > 0;
+    if (a.status === 'in_progress' && berisi && !tertundaCbt.has(a.chapter)) tertundaCbt.set(a.chapter, a);
   });
   const namaSection = new Map(sections.map((s) => [s.id, s.title]));
   const tahunLalu = babCbt
     .filter((c) => cocokUniversitas(c.universities, asal) && adaSoalCbt.has(c.id))
     .map((c) => {
       const a = selesaiCbt.get(c.id);
+      const t = tertundaCbt.get(c.id);
       return {
         id: c.id,
         title: c.title,
         kelompok: namaSection.get(c.section) || '',
-        status: a ? STATUS.SELESAI : STATUS.BELUM,
+        status: t ? STATUS.PROSES : a ? STATUS.SELESAI : STATUS.BELUM,
         nilai: a && adaNilai(a.score) ? a.score : null,
+        // Tertunda: tautannya langsung membuka lagi pengerjaan itu.
+        ke: t ? `${tautan.lanjutTahunLalu(t)}&dari=belajar` : null,
       };
     });
 

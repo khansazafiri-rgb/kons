@@ -44,7 +44,11 @@ export function OlimpAuthProvider({ children }) {
     // Sesi lama yang tokennya sudah tidak sah dibersihkan di awal, supaya
     // panggilan berikutnya tidak gagal dengan 404 yang membingungkan.
     if (pbo.authStore.isValid) {
-      pbo.collection('olimp_users').authRefresh().catch(() => pbo.authStore.clear());
+      // Sesi hanya dihapus kalau server menolaknya; koneksi putus saat
+      // refresh tidak boleh mengeluarkan peserta (sama seperti AuthContext).
+      pbo.collection('olimp_users').authRefresh().catch((e) => {
+        if ([401, 403, 404].includes(e?.status)) pbo.authStore.clear();
+      });
     }
   }, []);
 

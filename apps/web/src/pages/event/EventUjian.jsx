@@ -255,10 +255,21 @@ export default function EventUjian() {
     if (typeof hasil.sisaDetik === 'number') setSisa(hasil.sisaDetik);
   };
 
+  // Pengiriman untuk SATU soal dirantai: peserta yang mengetuk B lalu C dengan
+  // cepat mengirim dua permintaan, dan tanpa rantai yang kedua bisa sampai di
+  // server lebih dulu lalu ditimpa B yang datang terlambat. Saat dikumpulkan
+  // manual, server memang menyamakan lagi dengan isi layar; tapi kalau waktu
+  // habis ditutup server (peserta tidak sempat mengumpulkan), B yang salah
+  // itulah yang dinilai.
+  const rantai = useRef({});
   const simpanJawaban = async (soalId, pilih) => {
     setJawaban((j) => ({ ...j, [soalId]: pilih }));
+    const kirim = (rantai.current[soalId] || Promise.resolve())
+      .catch(() => {})
+      .then(() => kirimJawaban(soalId, pilih));
+    rantai.current[soalId] = kirim;
     try {
-      await kirimJawaban(soalId, pilih);
+      await kirim;
       delete antre.current[soalId];
       setJumlahAntre(Object.keys(antre.current).length);
     } catch (err) {
