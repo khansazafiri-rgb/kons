@@ -154,7 +154,7 @@ routerAdd("POST", "/api/pcv/ops/sesi", (e) => {
   if (!isAdmin(e.auth)) return e.json(403, { message: "Hanya admin." });
   const J = require(`${__hooks}/jadwal-offline.js`);
   const b = e.requestInfo().body || {};
-  const h = J.tambahSesi(e.app, { tanggal: String(b.tanggal || ""), ruang: String(b.ruang || ""), mulaiMenit: Number(b.mulaiMenit), selesaiMenit: Number(b.selesaiMenit), teks: String(b.teks || "") });
+  const h = J.tambahSesi(e.app, { tanggal: String(b.tanggal || ""), ruang: String(b.ruang || ""), mulaiMenit: Number(b.mulaiMenit), selesaiMenit: Number(b.selesaiMenit), teks: String(b.teks || ""), kategori: String(b.kategori || "KELAS") });
   if (!h.ok) return e.json(400, { message: h.pesan });
   return e.json(200, h);
 });
@@ -188,6 +188,63 @@ routerAdd("POST", "/api/pcv/ops/sesi/{id}/catatan", (e) => {
   rec.set("catatan", String(b.catatan || "").replace(/\s+/g, " ").trim().slice(0, 480));
   e.app.save(rec);
   return e.json(200, { ok: true });
+});
+
+// Kamus nama internal: hanya admin yang sudah login dapat membaca atau
+// mengubah. Tidak ada tautan publik ke endpoint ini.
+routerAdd("GET", "/api/pcv/ops/nama", (e) => {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(e.auth)) return e.json(403, { message: "Hanya admin." });
+  const q = String(e.request.url.query().get("q") || "").replace(/\s+/g, " ").trim().toLowerCase().slice(0, 80);
+  if (q.length < 2) return e.json(200, { hasil: [] });
+  const hasil = [];
+  const sudah = {};
+  const tambah = (alias, lengkap, pengajar, sumber) => {
+    const a = String(alias || "").replace(/\s+/g, " ").trim().slice(0, 160);
+    const n = String(lengkap || a).replace(/\s+/g, " ").trim().slice(0, 200);
+    const p = String(pengajar || "").replace(/\s+/g, " ").trim().slice(0, 120);
+    if (!a || !(a + " " + n + " " + p).toLowerCase().includes(q)) return;
+    const k = a.toLowerCase();
+    if (sudah[k]) return;
+    sudah[k] = true;
+    hasil.push({ alias: a, namaLengkap: n, pengajar: p, sumber: sumber });
+  };
+  try {
+    e.app.findRecordsByFilter("ops_kamus_jadwal", "id != ''", "-updated", 500, 0)
+      .forEach((r) => tambah(r.getString("alias"), r.getString("namaLengkap"), r.getString("pengajar"), "kamus"));
+  } catch (_) { /* migrasi belum ada */ }
+  // Saran dari riwayat sesi yang SUDAH tersinkron: tidak mengasumsikan nama
+  // lengkap dari inisial/alias. Saran kurasi di atas selalu diutamakan.
+  try {
+    e.app.findRecordsByFilter("jadwal_offline", "id != ''", "-mulai", 1200, 0)
+      .forEach((r) => tambah(r.getString("teks"), r.getString("teks"), r.getString("pengajar"), "jadwal"));
+  } catch (_) { /* belum ada jadwal */ }
+  return e.json(200, { hasil: hasil.slice(0, 20) });
+});
+
+routerAdd("POST", "/api/pcv/ops/nama", (e) => {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(e.auth)) return e.json(403, { message: "Hanya admin." });
+  const b = e.requestInfo().body || {};
+  const normal = (v) => String(v || "").replace(/\s+/g, " ").trim();
+  const alias = normal(b.alias).slice(0, 160);
+  const namaLengkap = normal(b.namaLengkap).slice(0, 200);
+  const pengajar = normal(b.pengajar).slice(0, 120);
+  if (alias.length < 2 || namaLengkap.length < 2) return e.json(400, { message: "Alias dan nama lengkap harus minimal dua karakter." });
+  const kunci = alias.toLowerCase();
+  let rec = null;
+  try { rec = e.app.findFirstRecordByFilter("ops_kamus_jadwal", "kunci = {:k}", { k: kunci }); } catch (_) { /* belum ada */ }
+  try {
+    if (!rec) rec = new Record(e.app.findCollectionByNameOrId("ops_kamus_jadwal"));
+    rec.set("kunci", kunci);
+    rec.set("alias", alias);
+    rec.set("namaLengkap", namaLengkap);
+    rec.set("pengajar", pengajar);
+    e.app.save(rec);
+  } catch (err) {
+    return e.json(409, { message: "Gagal menyimpan nama. Periksa duplikasi alias lalu coba lagi." });
+  }
+  return e.json(200, { ok: true, alias: alias, namaLengkap: namaLengkap, pengajar: pengajar });
 });
 
 routerAdd("POST", "/api/pcv/ops/kirim-ringkasan", (e) => {
