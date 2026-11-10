@@ -192,6 +192,10 @@ function kerjaCalendarDelete(app, SH, IN, s, job) {
 }
 
 function kerjaSheet(app, SH, IN, s, orderId, arsip, appUrl) {
+  // Mode satu workbook: rincian transaksi (nama, nomor WA, bukti bayar)
+  // disimpan di PocketBase, tidak disalin ke Sheet jadwal yang dibagikan.
+  // Job SHEET_GRID terpisah akan menulis kode booking ke kisi ruangan.
+  if (s.getBool("googleUnifiedSheet")) return { ok: true };
   let order = null;
   try { order = app.findRecordById("rental_orders", orderId); } catch (_) {}
   if (!order) return { ok: true };
