@@ -28,6 +28,12 @@ migrate(
       { name: "updated", type: "autodate", onCreate: true, onUpdate: true },
     ], ["CREATE UNIQUE INDEX idx_ops_booking_grid_links_item ON ops_booking_grid_links (itemId)"]);
 
+    const jobs = app.findCollectionByNameOrId("rental_sync_jobs");
+    const jenis = jobs.fields.getByName("kind");
+    if (jenis && jenis.values.indexOf("SHEET_GRID") === -1) {
+      jenis.values.push("SHEET_GRID");
+      app.save(jobs);
+    }
     const ops = app.findCollectionByNameOrId("ops_settings");
     if (!ops.fields.getByName("calendarEnabled")) {
       ops.fields.add(new BoolField({ name: "calendarEnabled" }));
