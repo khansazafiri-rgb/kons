@@ -255,30 +255,12 @@ const TAB = {
   log: "Log Sinkronisasi",
 };
 
-// Semua tab transaksi dan kisi jadwal berada dalam spreadsheet FILE yang
-// sama. Tab transaksi yang belum ada dibuat sebagai tab baru; jangan menyentuh
-// kisi bulanan atau memaksa admin menyiapkan file spreadsheet kedua.
-function pastikanTab(s, id, nama) {
-  const url = "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(id);
-  const lihat = google(s, { url: url + "?fields=" + encodeURIComponent("sheets(properties(title))") });
-  if (!lihat.ok) return lihat;
-  if ((((lihat.json || {}).sheets) || []).some((x) => (x.properties || {}).title === nama)) return { ok: true };
-  const buat = google(s, { url: url + ":batchUpdate", method: "POST", body: JSON.stringify({
-    requests: [{ addSheet: { properties: { title: nama } } }],
-  }) });
-  if (buat.ok) return buat;
-  // Jika dua worker menambah tab serentak, periksa apakah tab sekarang ada.
-  const ulang = google(s, { url: url + "?fields=" + encodeURIComponent("sheets(properties(title))") });
-  if (ulang.ok && (((ulang.json || {}).sheets) || []).some((x) => (x.properties || {}).title === nama)) return { ok: true };
-  return buat;
-}
-
 function sheetTulis(s, tab, baris) {
+  // Workbook kisi jadwal adalah sumber bersama, bukan tempat data transaksi
+  // sensitif seperti WhatsApp, bukti pembayaran, dan nominal pesanan.
+  if (s.getBool("googleUnifiedSheet")) return { ok: false, error: "Tab transaksi dinonaktifkan: rincian sewa disimpan privat di PocketBase." };
   const sheetId = s.getString("googleSheetId");
   if (!sheetId) return { ok: false, error: "Google Sheet belum diatur." };
-  const siap = pastikanTab(s, sheetId, tab);
-  if (!siap.ok) return siap;
-
   const range = "'" + tab + "'!A:Z";
   const url =
     "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(sheetId) +
@@ -292,11 +274,9 @@ function sheetTulis(s, tab, baris) {
 // pesanan tidak beranak jadi sepuluh baris di Sheet setiap kali statusnya
 // berubah.
 function sheetPerbarui(s, tab, kunci, baris) {
+  if (s.getBool("googleUnifiedSheet")) return { ok: false, error: "Tab transaksi tidak digunakan pada Sheet terpadu." };
   const sheetId = s.getString("googleSheetId");
   if (!sheetId) return { ok: false, error: "Google Sheet belum diatur." };
-  const siap = pastikanTab(s, sheetId, tab);
-  if (!siap.ok) return siap;
-
   const baca = google(s, {
     url: "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(sheetId) +
       "/values/" + encodeURIComponent("'" + tab + "'!A:A"),
@@ -322,6 +302,7 @@ function sheetPerbarui(s, tab, kunci, baris) {
 // Menghapus satu baris dari sebuah tab (dipakai saat pesanan pindah dari
 // "Peminjaman Aktif" ke "Arsip Peminjaman" - PRD bagian 13.3).
 function sheetHapusBaris(s, tab, kunci) {
+  if (s.getBool("googleUnifiedSheet")) return { ok: true };
   const sheetId = s.getString("googleSheetId");
   if (!sheetId) return { ok: false, error: "Google Sheet belum diatur." };
 
@@ -399,6 +380,7 @@ function barisSheetPesanan(app, order, baris, appUrl) {
 // dilaporkan balik - kalau Sheet-nya sendiri yang bermasalah, menuliskan
 // "Sheet bermasalah" ke Sheet tidak menolong siapa pun.
 function sheetLog(s, sumber, entitasId, aksi, hasil, pesan) {
+  if (!s || s.getBool("googleUnifiedSheet")) return; // data audit tetap di PocketBase
   try {
     sheetTulis(s, TAB.log, [new Date().toISOString(), sumber, entitasId, aksi, hasil, String(pesan || "")]);
   } catch (_) { /* sengaja diabaikan */ }
