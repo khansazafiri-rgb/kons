@@ -25,6 +25,7 @@ import JadwalKelas from './pages/JadwalKelas';
 import MataKuliah from './pages/belajar/MataKuliah';
 import DetailMataKuliah from './pages/belajar/DetailMataKuliah';
 import AdminPanel from './pages/admin/AdminPanel';
+
 import TeacherPanel from './pages/teacher/TeacherPanel';
 
 // Web Olimp - "web kedua" di dalam aplikasi yang sama. Seluruhnya dimuat
@@ -68,6 +69,7 @@ const RentalPesanan = lazy(() => import('./pages/rental/RentalPesanan'));
 // BUKAN tab di Dashboard Admin PCV - yang mengurus peminjaman orangnya lain.
 const RentalAdminMasuk = lazy(() => import('./pages/rental/admin/RentalAdminMasuk'));
 const RentalAdminApp = lazy(() => import('./pages/rental/admin/RentalAdminApp'));
+const AdminJadwalTambah = lazy(() => import('./pages/admin/AdminJadwalTambah'));
 
 // Kalkulator Klinis dimuat terpisah (lazy): halaman ini membawa tabel standar
 // pertumbuhan WHO ~50 KB yang tidak ada gunanya diunduh siswa yang cuma mau
@@ -215,6 +217,9 @@ function App() {
              sendiri selama saklar showBankSoal di landing_settings masih mati */}
          <Route path="/bank-soal" element={<ProtectedRoute><BankSoal /></ProtectedRoute>} />
          <Route path="/admin" element={<ProtectedRoute roles={['admin', 'super_admin']}><AdminPanel /></ProtectedRoute>} />
+         {/* Form ringkas yang dapat dibagikan kepada admin PCV lain. Tetap
+             memerlukan login dan diperiksa lagi oleh endpoint PocketBase. */}
+         <Route path="/admin/jadwal/tambah" element={<ProtectedRoute roles={['admin', 'super_admin']}><OlimpFallback><AdminJadwalTambah /></OlimpFallback></ProtectedRoute>} />
          <Route path="/teacher" element={<ProtectedRoute roles={['teacher']}><TeacherPanel /></ProtectedRoute>} />
 
          {/* ---- Web Olimp ---- */}

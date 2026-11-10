@@ -68,6 +68,48 @@ boleh dari chat koordinator ATAU chat admin peminjaman; perintah peminjaman
 /id                     tampilkan Chat ID dan User ID (kini dijawab di grup baru)
 ```
 
+## Kategori, formulir admin, dan kamus nama
+
+- **Sumber jadwal tetap satu Google Sheet.** Pada `Jadwal Offline Integrasi`, legenda
+  `Penyewaan` mempunyai latar **#D9D2E9**. Parser mengambil warna dari legenda
+  tiap tab, bukan menganggap semua warna ungu sebagai penyewaan. Warna siswa
+  (mis. #B4A7D6) tidak boleh dipakai sebagai indikasi sewa.
+- Urutan klasifikasi: kata `sewa/penyewaan/peminjaman/booking` atau warna tepat
+  sesuai legenda → **SEWA**; teks `CCS/Tramed` → **TRAMED**; teks lain →
+  **KELAS offline**. Warna lain tidak menentukan kategori.
+- Pada sinkron **November '26** ditemukan **7 blok ruang**. Beberapa blok
+  berawalan `Ruang 5` tetapi mempunyai nama berbeda. Cocokkan berdasarkan
+  **nama ruang lengkap**, bukan nomor. Ruang baru yang belum ada di katalog
+  peminjaman tidak otomatis disewakan.
+- **Dashboard Admin → Jadwal Offline** tetap dapat menambah, memindah,
+  menghapus, dan memberi catatan sesi. Saat menambah, pilih jenis kegiatan.
+  Penyewaan manual ditulis ke Sheet dengan label `Penyewaan - ...`
+  dan latar ungu mengikuti legenda, lalu memblok slot sewa setelah sinkron.
+  Ini **bukan** transaksi web: tidak membuat kode booking, invoice, atau
+  status pembayaran.
+- **Formulir admin ringkas:** `/admin/jadwal/tambah`. Bagikan URL ini ke
+  admin PCV lain yang **sudah mempunyai akun** role `admin` atau
+  `super_admin`. Tidak ada formulir penambahan jadwal publik; endpoint
+  server juga memeriksa hak admin.
+- **Kamus nama:** saat admin mencari alias (mis. RAFIF), rekomendasi berasal
+  dari riwayat sesi yang sudah tersinkron serta kamus yang dikurasi.
+  Admin dapat menyimpan `alias → nama lengkap → pengajar` lewat tombol
+  `Simpan nama untuk jadwal berikutnya`. Nama lengkap **tidak dapat
+  ditebak dari nama singkat** di Sheet; isilah sekali agar saran berikutnya tepat.
+  Kamus disimpan privat di PocketBase (`ops_kamus_jadwal`) dan tidak diakses
+  publik. Jika perlu koreksi, simpan ulang alias yang sama.
+- Riwayat sesi hanya mencakup data yang pernah disinkron ke PocketBase
+  (sinkron rutin membaca bulan ini dan dua bulan ke depan). **Tab lama yang
+  belum pernah disinkron tidak otomatis masuk ke riwayat saran.**
+- **Konflik:** tambah sesi ditolak bila sel Sheet terisi. Apabila jadwal
+  kelas manual bentrok dengan pesanan sewa web yang sudah masuk, mekanisme
+  lama menandai konflik untuk keputusan admin (tidak membatalkan otomatis).
+  Tetap periksa `Kalender Terpadu` dan status konflik setelah sinkron.
+- Setelah memasang versi ini, jalankan migrasi
+  `1788900000_ops_kamus_jadwal.js` melalui `deploy/update.sh`,
+  lalu uji tambah, pindah, kategori SEWA, pencarian nama, dan otorisasi admin
+  dengan data uji sebelum mengandalkan sistem di produksi.
+
 ## Ruangan: les dan sewa dalam satu jadwal
 
 Lima ruangan (dan bisa bertambah) dipakai dua hal: **les** (jadwal tetap per semester, kadang

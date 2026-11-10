@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Copy, RefreshCw, Send, Settings2, Trash2 } from 'lucide-react';
 import pb from '@/lib/pocketbaseClient';
+import { Link } from 'react-router-dom';
 
 // TAB "JADWAL OFFLINE" (Dashboard Admin)
 //
@@ -74,7 +75,7 @@ export default function JadwalOffline() {
 
   const kirimForm = async () => {
     const f = form;
-    const body = { tanggal: f.tanggalBaru || tanggal, ruang: f.ruang, mulaiMenit: f.mulai * 60, selesaiMenit: f.selesai * 60, teks: f.teks };
+    const body = { tanggal: f.tanggalBaru || tanggal, ruang: f.ruang, mulaiMenit: f.mulai * 60, selesaiMenit: f.selesai * 60, teks: f.teks, kategori: f.kategori || "KELAS" };
     const url = f.id ? `/api/pcv/ops/sesi/${f.id}/pindah` : '/api/pcv/ops/sesi';
     const ok = await jalankan('form', () => pb.send(url, { method: 'POST', body }), f.id ? 'Sesi dipindah dan sheet diperbarui.' : 'Sesi ditulis ke sheet.');
     if (ok) setForm(null);
@@ -112,7 +113,7 @@ export default function JadwalOffline() {
   }, [data]);
   const sewaAlat = (data?.sewa || []).filter((x) => !x.ruang);
 
-  const bukaTambah = () => setForm({ ruang: set?.ruang?.[0] || '', mulai: 17, selesai: 19, teks: '' });
+  const bukaTambah = () => setForm({ ruang: set?.ruang?.[0] || '', mulai: 17, selesai: 19, teks: '', kategori: 'KELAS' });
   const bukaPindah = (s) => setForm({ id: s.id, ruang: s.ruang, mulai: menit(s.jam) / 60, selesai: Number(s.jam.split('-')[1].split('.')[0]), teks: s.teks, tanggalBaru: tanggal });
 
   const inputCls = 'w-full rounded-xl border border-alba-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-maroon-600/10 focus:border-maroon-400';
@@ -171,7 +172,10 @@ export default function JadwalOffline() {
       <Kotak>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-display text-lg font-semibold">{data?.hariTanggal || tanggal}</h3>
-          <button type="button" className={tombolUtama} disabled={!siap} onClick={bukaTambah}>Tambah sesi</button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/admin/jadwal/tambah" className={tombol}>Form admin + kamus nama</Link>
+            <button type="button" className={tombolUtama} disabled={!siap} onClick={bukaTambah}>Tambah sesi</button>
+          </div>
         </div>
 
         {form && (
@@ -182,6 +186,16 @@ export default function JadwalOffline() {
                 <div className="sm:col-span-2">
                   <label className={labelCls} htmlFor="jo-teks">Nama kelas atau siswa</label>
                   <input id="jo-teks" className={inputCls} value={form.teks} onChange={(e) => setForm({ ...form, teks: e.target.value })} placeholder="mis. ZANEVA atau Kelas Offline 1-2" maxLength={200} />
+                </div>
+              )}
+              {!form.id && (
+                <div className="sm:col-span-2">
+                  <label className={labelCls} htmlFor="jo-kategori">Jenis kegiatan</label>
+                  <select id="jo-kategori" className={inputCls} value={form.kategori || 'KELAS'} onChange={(e) => setForm({ ...form, kategori: e.target.value })}>
+                    <option value="KELAS">Kelas offline / kegiatan belajar</option>
+                    <option value="TRAMED">Tramed / CCS</option>
+                    <option value="SEWA">Penyewaan manual (ungu sesuai legenda Sheet)</option>
+                  </select>
                 </div>
               )}
               {form.id && (

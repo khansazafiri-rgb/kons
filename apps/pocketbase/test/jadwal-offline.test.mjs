@@ -72,9 +72,28 @@ uji('sel kosong tidak dianggap sesi; peringatan kosong', () => {
 uji('kategori dari teks', () => {
   assert.equal(P.kategoriTeks('Kelas Offline 1-2'), 'KELAS');
   assert.equal(P.kategoriTeks('KEBUT CCS BATCH 2'), 'TRAMED');
-  assert.equal(P.kategoriTeks('ZANEVA'), 'PRIVAT');
-  assert.equal(P.kategoriTeks('(NASYWA)'), 'PRIVAT');
+  assert.equal(P.kategoriTeks('ZANEVA'), 'KELAS');
+  assert.equal(P.kategoriTeks('(NASYWA)'), 'KELAS');
   assert.equal(P.kategoriTeks('Penyewaan Bu Ani'), 'SEWA');
+});
+
+uji('warna ungu sewa cocok tepat dengan legenda, bukan semua ungu', () => {
+  const g = kisi({
+    '0:7': 'Penyewaan',
+    [`${baris(13)}:2`]: 'OSCE Resusitasi',
+    [`${baris(14)}:2`]: 'BULAN',
+  });
+  g.warna[0] = [];
+  g.warna[0][6] = '#d9d2e9'; // legenda sewa sebelum label
+  g.warna[baris(13)] = [];
+  g.warna[baris(13)][2] = '#d9d2e9';
+  g.warna[baris(14)] = [];
+  g.warna[baris(14)][2] = '#b4a7d6'; // ungu lain dipakai untuk siswa
+  assert.equal(P.warnaSewaDariLegenda(g), '#d9d2e9');
+  const h = P.parseKisi(g);
+  assert.equal(h.sesi.length, 2);
+  assert.equal(h.sesi[0].kategori, 'SEWA');
+  assert.equal(h.sesi[1].kategori, 'KELAS');
 });
 
 uji('pengajar dari (HANA) / [Rossyane]', () => {
