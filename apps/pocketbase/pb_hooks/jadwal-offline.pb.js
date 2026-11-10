@@ -217,7 +217,7 @@ routerAdd("GET", "/api/pcv/ops/nama", (e) => {
   // lengkap dari inisial/alias. Saran kurasi di atas selalu diutamakan.
   try {
     e.app.findRecordsByFilter("jadwal_offline", "id != ''", "-mulai", 1200, 0)
-      .forEach((r) => tambah(r.getString("teks"), r.getString("teks"), r.getString("pengajar"), "jadwal"));
+      .forEach((r) => tambah(r.getString("teks"), r.getString("judul") || r.getString("teks"), r.getString("pengajar"), "jadwal"));
   } catch (_) { /* belum ada jadwal */ }
   return e.json(200, { hasil: hasil.slice(0, 20) });
 });
