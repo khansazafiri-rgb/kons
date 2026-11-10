@@ -73,7 +73,10 @@ Pesanan peminjaman (modul Peminjaman)
 1. Backup DB dan salin Sheet untuk uji; deploy PR yang telah lulus QA, termasuk
    migrasi `1789000000_unified_calendar_sheet.js`.
 2. Isi **Jadwal Offline → Tautan Google Sheet**, simpan, petakan seluruh
-   ruang Sheet berdasarkan nama lengkap.
+   ruang Sheet berdasarkan nama lengkap. Tekan **Sinkron sekarang**, lalu
+   **Sinkron booking lama ke Sheet** untuk mengantrikan booking aktif yang
+   sudah dibuat sebelum pembaruan. Periksa status antrean Google di Rental;
+   tombol itu tidak boleh ditekan sebelum pemetaan ruang benar.
 3. Periksa Rental → Google Workspace: Google Sheet otomatis mengikuti ID tadi,
    lalu isi **satu Google Calendar ID** yang mau dipakai untuk semua jadwal.
 4. Pastikan akun OAuth memiliki hak mengedit kalender dan Sheet; verifikasi
