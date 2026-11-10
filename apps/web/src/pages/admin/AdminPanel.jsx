@@ -29,8 +29,9 @@ import WebOlimpHub from '@/pages/admin/WebOlimpHub';
 import RentalHub from '@/pages/admin/RentalHub';
 import EventManager from '@/pages/admin/event/EventManager';
 import KabarSiswa from '@/pages/admin/KabarSiswa';
+import JadwalOffline from '@/pages/admin/JadwalOffline';
 
-const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'PCV Rental', 'Event/Lomba'];
+const TABS = ['Pengajar', 'Siswa', 'Dashboard Activity', 'Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Tambah Akun', 'Jadwal Ujian', 'Kelas & Reminder', 'Jadwal Offline', 'Notifikasi WA', 'Landing Page', 'Web Olimp', 'PCV Rental', 'Event/Lomba'];
 // Nilai TABS juga dipakai sebagai ?tab= di URL dan dibandingkan dengan ===, jadi
 // nilainya tidak boleh diganti. Tulisan di tombol tab saja yang dipetakan di sini.
 const TAB_LABEL = { 'Perdalam Materi': 'Baca PPT' };
@@ -41,7 +42,7 @@ const KELOMPOK_TAB = (() => {
   const g = [
     { judul: 'Pengguna', tab: ['Pengajar', 'Siswa', 'Tambah Akun', 'Dashboard Activity'] },
     { judul: 'Konten belajar', tab: ['Peta Konten', 'Edit Soal', 'Perdalam Materi', 'Jadwal Ujian'] },
-    { judul: 'Kelas & notifikasi', tab: ['Kelas & Reminder', 'Notifikasi WA'] },
+    { judul: 'Kelas & notifikasi', tab: ['Kelas & Reminder', 'Jadwal Offline', 'Notifikasi WA'] },
     { judul: 'Situs & layanan', tab: ['Landing Page', 'Event/Lomba', 'Web Olimp', 'PCV Rental'] },
   ];
   const ada = new Set(g.flatMap((x) => x.tab));
@@ -163,6 +164,7 @@ export default function AdminPanel() {
           )}
           {tab === 'Jadwal Ujian' && <JadwalUjian />}
           {tab === 'Kelas & Reminder' && <KelasReminder />}
+          {tab === 'Jadwal Offline' && <JadwalOffline />}
           {tab === 'Notifikasi WA' && <WaSettings />}
           {tab === 'Landing Page' && <LandingPageManager menunggu={menungguPoster} onMenunggu={setMenungguPoster} />}
           {/* Pintu ke web kedua. Isinya bukan pengaturan, melainkan peta: di mana
