@@ -149,13 +149,19 @@ function calendarUpsert(s, data) {
   const calId = s.getString("googleRentalCalendarId");
   if (!calId) return { ok: false, error: "Calendar Peminjaman belum diatur." };
 
-  const body = JSON.stringify({
+  const event = {
     summary: data.judul,
     description: data.deskripsi,
     location: data.lokasi || "",
     start: { dateTime: new Date(data.mulai).toISOString(), timeZone: "Asia/Jakarta" },
     end: { dateTime: new Date(data.selesai).toISOString(), timeZone: "Asia/Jakarta" },
-  });
+  };
+  // Google menerima ID event buatan klien berupa [a-v0-9], 5-1024 karakter.
+  // Ini membuat retry aman jika POST berhasil tetapi respons/log tersendat.
+  if (data.createId && /^[a-v0-9]{5,120}$/.test(data.createId)) {
+    event.id = data.createId;
+  }
+  const body = JSON.stringify(event);
 
   const dasar = "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(calId) + "/events";
 
@@ -168,8 +174,14 @@ function calendarUpsert(s, data) {
   }
 
   const buat = google(s, { url: dasar, method: "POST", body: body });
+  if (!buat.ok && buat.status === 409 && event.id) {
+    // POST sukses di percobaan sebelumnya: patch event milik proyeksi ini.
+    const ubah = google(s, { url: dasar + "/" + encodeURIComponent(event.id), method: "PATCH", body: body });
+    if (ubah.ok) return { ok: true, eventId: event.id };
+    return ubah;
+  }
   if (!buat.ok) return buat;
-  return { ok: true, eventId: String((buat.json && buat.json.id) || "") };
+  return { ok: true, eventId: String((buat.json && buat.json.id) || event.id || "") };
 }
 
 function calendarDelete(s, eventId) {
