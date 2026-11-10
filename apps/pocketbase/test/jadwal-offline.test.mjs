@@ -80,7 +80,7 @@ uji('kategori dari teks', () => {
 uji('warna ungu sewa cocok tepat dengan legenda, bukan semua ungu', () => {
   const g = kisi({
     '0:7': 'Penyewaan',
-    [`${baris(13)}:2`]: 'Sewa OSCE Resusitasi',
+    [`${baris(13)}:2`]: 'OSCE Resusitasi',
     [`${baris(14)}:2`]: 'BULAN',
   });
   g.warna[0] = [];
