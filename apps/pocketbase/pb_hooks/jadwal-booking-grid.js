@@ -147,7 +147,14 @@ function sinkronOrder(app, orderId) {
     const r = sinkronItem(app, siap, order, it);
     if (!r.ok) gagal.push(it.getString("resourceName") + ": " + r.error);
   }
-  return gagal.length ? { ok: false, error: gagal.join(" | ").slice(0, 1800) } : { ok: true };
+  const galat = gagal.join(" | ").slice(0, 480);
+  try {
+    order.set("syncStatus", gagal.length ? "GAGAL" : "TERSINKRON");
+    order.set("syncMessage", galat);
+    if (!gagal.length) order.set("lastSyncedAt", new Date().toISOString());
+    app.save(order);
+  } catch (_) { /* status antrean tetap menunjukkan galat */ }
+  return gagal.length ? { ok: false, error: galat } : { ok: true };
 }
 
 module.exports = { sinkronOrder: sinkronOrder, waktuWib: waktuWib };
