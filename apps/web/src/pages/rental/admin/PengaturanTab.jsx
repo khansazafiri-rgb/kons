@@ -102,6 +102,7 @@ export default function RentalPengaturanTab({ lapor }) {
       // formulir lama Rental menimpa nilai yang disinkronkan dari sana.
       const perubahan = { ...f };
       delete perubahan.googleSheetId;
+      delete perubahan.googleUnifiedSheet;
       await pb.collection('rental_settings').update(rec.id, {
         ...perubahan,
         extraFees: biaya,
@@ -326,7 +327,7 @@ export default function RentalPengaturanTab({ lapor }) {
             <Kolom label="Google Calendar Terpadu" bantuan="Satu Calendar ID untuk kelas offline, Tramed/CCS, penyewaan manual, dan booking website. Proyeksi jadwal Sheet diaktifkan di Jadwal Offline; jangan pilih kalender yang juga diimpor sebagai sumber kelas agar tidak duplikat.">
               <input value={f.googleRentalCalendarId || ''} onChange={ubah('googleRentalCalendarId')} className={inputCls} />
             </Kolom>
-            <Kolom label="Google Sheet Jadwal Terpadu" bantuan="Otomatis mengikuti Tautan Google Sheet pada Admin PCV → Jadwal Offline. Tidak perlu membuat Spreadsheet ID kedua.">
+            <Kolom label="Google Sheet Jadwal Terpadu" bantuan="Sumbernya dari Admin PCV → Jadwal Offline. Booking web ditulis sebagai blok ungu pada kisi bulanan yang sama. Data kontak, pembayaran, dan bukti transfer tetap privat di PocketBase.">
               <input readOnly value={f.googleSheetId || 'Belum ditetapkan di Jadwal Offline'} className={inputCls + ' bg-stone-100 text-stone-500'} />
             </Kolom>
             <Kolom label="Folder Drive bukti pembayaran"><input value={f.googleDriveProofFolderId || ''} onChange={ubah('googleDriveProofFolderId')} className={inputCls} /></Kolom>
