@@ -72,6 +72,8 @@ export default function JadwalOffline() {
     (r) => `Sheet dibaca ulang: ${r.sesi} sesi dari tab ${r.tab.join(', ')}.${r.gagal?.length ? ` Gagal: ${r.gagal.join(' | ')}` : ''}${r.peringatan?.length ? ` Perlu dicek: ${r.peringatan.slice(0, 3).join(' | ')}` : ''}`);
   const kirimRingkasan = () => jalankan('kirim', () => pb.send('/api/pcv/ops/kirim-ringkasan', { method: 'POST' }),
     (r) => `Terkirim ke Telegram (${r.sesi} sesi, ${r.bc} teks BC).`);
+  const imporBookingLama = () => jalankan('backfill', () => pb.send('/api/pcv/ops/booking-grid/sinkron-ulang', { method: 'POST' }),
+    (r) => `Diantrikan ${r.queued} pesanan untuk dicocokkan dengan kisi Google Sheet.${r.tanpaPeta ? ' ' + r.tanpaPeta + ' item belum punya pemetaan ruang.' : ''}${r.terbatas ? ' Ada lebih dari 300 pesanan; cek antrean.' : ''}`);
 
   const kirimForm = async () => {
     const f = form;
@@ -154,6 +156,9 @@ export default function JadwalOffline() {
           <button type="button" className={tombol} onClick={() => setTanggal(set.hariIni)}>Hari ini</button>
           <span className="ml-auto flex flex-wrap gap-2">
             <button type="button" className={tombol} disabled={!!sibuk || !siap} onClick={sinkron}><RefreshCw size={14} aria-hidden /> {sibuk === 'sinkron' ? 'Membaca…' : 'Sinkron sekarang'}</button>
+            <button type="button" className={tombol} disabled={!!sibuk || !siap} onClick={imporBookingLama}>
+              <RefreshCw size={14} aria-hidden /> {sibuk === 'backfill' ? 'Mengantrikan…' : 'Sinkron booking lama ke Sheet'}
+            </button>
             <button type="button" className={tombol} disabled={!!sibuk || !set.telegramSiap} onClick={kirimRingkasan}><Send size={14} aria-hidden /> Kirim ringkasan hari ini</button>
           </span>
         </div>
