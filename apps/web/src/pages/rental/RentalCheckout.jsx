@@ -164,6 +164,9 @@ export default function RentalCheckout() {
                 </span>
               </label>
               {konfigurasi.catatanPrivasi && <p className="mt-3 pl-7 text-[12px] leading-relaxed text-stone-500">{konfigurasi.catatanPrivasi}</p>}
+              <p className="mt-3 pl-7 text-[12px] leading-relaxed text-stone-500">
+                Informasi pemesanan diproses sesuai <a href="/privacy-policy.html" className="font-bold text-sewa underline underline-offset-2">Kebijakan Privasi PCV Classroom</a>.
+              </p>
               {adaTersimpan && (
                 <button
                   type="button"
