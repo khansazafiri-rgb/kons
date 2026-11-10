@@ -201,6 +201,7 @@ export default function RentalLayout({ children, konfigurasi, tanpaFooter = fals
               <p className="text-xs font-bold uppercase tracking-wider text-stone-300">Bantuan</p>
               <ul className="mt-3 space-y-2 text-sm">
                 <li><a href="/peminjaman#cara-sewa" className="hover:text-white">Cara sewa</a></li>
+                <li><a href="/privacy-policy.html" className="hover:text-white">Kebijakan Privasi</a></li>
                 {wa && <li><a href={wa} target="_blank" rel="noreferrer" className="hover:text-white">Chat admin</a></li>}
               </ul>
             </div>
