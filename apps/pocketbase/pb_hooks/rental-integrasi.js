@@ -254,9 +254,29 @@ const TAB = {
   log: "Log Sinkronisasi",
 };
 
+// Semua tab transaksi dan kisi jadwal berada dalam spreadsheet FILE yang
+// sama. Tab transaksi yang belum ada dibuat sebagai tab baru; jangan menyentuh
+// kisi bulanan atau memaksa admin menyiapkan file spreadsheet kedua.
+function pastikanTab(s, id, nama) {
+  const url = "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(id);
+  const lihat = google(s, { url: url + "?fields=" + encodeURIComponent("sheets(properties(title))") });
+  if (!lihat.ok) return lihat;
+  if ((((lihat.json || {}).sheets) || []).some((x) => (x.properties || {}).title === nama)) return { ok: true };
+  const buat = google(s, { url: url + ":batchUpdate", method: "POST", body: JSON.stringify({
+    requests: [{ addSheet: { properties: { title: nama } } }],
+  }) });
+  if (buat.ok) return buat;
+  // Jika dua worker menambah tab serentak, periksa apakah tab sekarang ada.
+  const ulang = google(s, { url: url + "?fields=" + encodeURIComponent("sheets(properties(title))") });
+  if (ulang.ok && (((ulang.json || {}).sheets) || []).some((x) => (x.properties || {}).title === nama)) return { ok: true };
+  return buat;
+}
+
 function sheetTulis(s, tab, baris) {
   const sheetId = s.getString("googleSheetId");
   if (!sheetId) return { ok: false, error: "Google Sheet belum diatur." };
+  const siap = pastikanTab(s, sheetId, tab);
+  if (!siap.ok) return siap;
 
   const range = "'" + tab + "'!A:Z";
   const url =
@@ -273,6 +293,8 @@ function sheetTulis(s, tab, baris) {
 function sheetPerbarui(s, tab, kunci, baris) {
   const sheetId = s.getString("googleSheetId");
   if (!sheetId) return { ok: false, error: "Google Sheet belum diatur." };
+  const siap = pastikanTab(s, sheetId, tab);
+  if (!siap.ok) return siap;
 
   const baca = google(s, {
     url: "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(sheetId) +
