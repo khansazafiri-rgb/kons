@@ -103,7 +103,9 @@ function kategoriTeks(teks, warnaSel, warnaSewa) {
   if (warnaSewa && warnaSel && warnaSel === warnaSewa) return "SEWA";
   if (/\b(ccs|tramed)\b/.test(t)) return "TRAMED";
   if (/^kelas\s+offline\b/.test(t) || /\bkelas\s+offline\b/.test(t)) return "KELAS";
-  return "PRIVAT";
+  // Pada kisi ruangan PCV, entri tanpa marker sewa/CCS adalah kegiatan
+  // belajar offline. Warna siswa sudah tidak menjadi kategori privat.
+  return "KELAS";
 }
 
 // "(HANA) Review UAB1 Bioked" -> { judul: "Review UAB1 Bioked", pengajar: "Hana" }
@@ -118,6 +120,24 @@ function pecahJudul(teks) {
   }
   const polos = t.match(/^[(\[]\s*([^)\]]+)\s*[)\]]$/);
   return { judul: polos ? rapi(polos[1]) : t, pengajar: "" };
+}
+
+// Ambil warna sewa dari legenda nyata di atas kisi (mis. #d9d2e9 pada
+// November '26). Jangan samakan semua nuansa ungu: ada warna ungu lain
+// yang dipakai untuk siswa, bukan penyewaan.
+function warnaSewaDariLegenda(lembar) {
+  const nilai = (lembar && lembar.nilai) || [];
+  const warna = (lembar && lembar.warna) || [];
+  const sel = (r, c) => rapi((nilai[r] || [])[c]);
+  for (let r = 0; r < Math.min(nilai.length, 8); r++) {
+    for (let c = 1; c < (nilai[r] || []).length; c++) {
+      if (/^penyewaan$/i.test(sel(r, c))) {
+        const w = (warna[r] || [])[c - 1] || "";
+        if (w && w !== "#ffffff") return w.toLowerCase();
+      }
+    }
+  }
+  return "";
 }
 
 function parseKisi(lembar) {
@@ -140,16 +160,7 @@ function parseKisi(lembar) {
     for (let r = g.r1; r < g.r2; r++) for (let c = g.c1; c < g.c2; c++) if (r !== g.r1 || c !== g.c1) tertutup[r + ":" + c] = true;
   });
 
-  // Warna legenda "Penyewaan": sel berwarna tepat di kiri labelnya.
-  let warnaSewa = "";
-  for (let r = 0; r < Math.min(nilai.length, 8) && !warnaSewa; r++) {
-    for (let c = 1; c < (nilai[r] || []).length; c++) {
-      if (/^penyewaan$/i.test(sel(r, c))) {
-        const w = (warna[r] || [])[c - 1] || "";
-        if (w && w !== "#ffffff") warnaSewa = w;
-      }
-    }
-  }
+  const warnaSewa = warnaSewaDariLegenda(lembar);
 
   // Baris judul ruang: nama ruang berlaku untuk blok yang kolom "Jam"-nya
   // sama dengan kolom judul itu.
@@ -301,6 +312,7 @@ module.exports = {
   dariApiSheets: dariApiSheets,
   namaRuang: namaRuang,
   kategoriTeks: kategoriTeks,
+  warnaSewaDariLegenda: warnaSewaDariLegenda,
   pecahJudul: pecahJudul,
   parseKisi: parseKisi,
   cariSel: cariSel,
