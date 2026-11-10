@@ -36,8 +36,11 @@ function sinkronKalender(app, ops, rental, sheetId, daftarTab) {
       const kunci = $security.sha256([sheetId, tab.tab, s.baris, s.kolom].join("|")).slice(0, 48);
       terpakai[kunci] = true;
       const lama = tersimpan[kunci] || null;
-      if (lama && lama.getString("calendarId") && lama.getString("calendarId") !== calendarId) {
-        hasil.gagal.push("Calendar ID berubah untuk sesi " + tab.tab + "; perlu rekonsiliasi event lama secara manual.");
+      if (lama && (
+        (lama.getString("calendarId") && lama.getString("calendarId") !== calendarId) ||
+        (lama.getString("sheetId") && lama.getString("sheetId") !== sheetId)
+      )) {
+        hasil.gagal.push("Sumber Sheet/Calendar berubah untuk sesi " + tab.tab + "; rekonsiliasi event lama diperlukan.");
         return;
       }
       const judul = "[" + ({ KELAS: "KELAS", TRAMED: "TRAMED/CCS", SEWA: "SEWA" }[s.kategori] || "JADWAL") + "] " + s.judul;
@@ -66,6 +69,7 @@ function sinkronKalender(app, ops, rental, sheetId, daftarTab) {
         const rec = lama || new Record(collection);
         rec.set("kunci", kunci);
         rec.set("tab", tab.tab);
+        rec.set("sheetId", sheetId);
         rec.set("calendarId", calendarId);
         rec.set("eventId", up.eventId);
         rec.set("fingerprint", fingerprint);
@@ -80,8 +84,9 @@ function sinkronKalender(app, ops, rental, sheetId, daftarTab) {
     // terbaca. Kami tidak pernah menyentuh event manual pengguna.
     records.forEach((rec) => {
       if (terpakai[rec.getString("kunci")]) return;
-      if (rec.getString("calendarId") !== calendarId) {
-        hasil.gagal.push("Indeks kalender lama berbeda untuk " + tab.tab + "; tidak dihapus otomatis.");
+      if (rec.getString("calendarId") !== calendarId ||
+          (rec.getString("sheetId") && rec.getString("sheetId") !== sheetId)) {
+        hasil.gagal.push("Indeks kalender/workbook lama berbeda untuk " + tab.tab + "; tidak dihapus otomatis.");
         return;
       }
       if (kuota <= 0) { hasil.tertunda++; return; }
