@@ -259,6 +259,41 @@ routerAdd("POST", "/api/pcv/ops/nama", (e) => {
   return e.json(200, { ok: true, alias: alias, namaLengkap: namaLengkap, pengajar: pengajar });
 });
 
+// Backfill terkendali: antrekan booking web lama hanya setelah admin selesai
+// memetakan ruang. Tidak mengubah Google Sheet saat tombol ini ditekan; worker
+// mengerjakan tugas satu per satu dan menolak sel yang sudah berisi.
+routerAdd("POST", "/api/pcv/ops/booking-grid/sinkron-ulang", (e) => {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(e.auth)) return e.json(403, { message: "Hanya admin." });
+  const J = require(`${__hooks}/jadwal-offline.js`);
+  const SH = require(`${__hooks}/rental-shared.js`);
+  const siap = J.siapTulis(e.app);
+  if (!siap.ok) return e.json(400, { message: siap.pesan });
+  if (!SH.setelan(e.app).getBool("googleUnifiedSheet")) {
+    return e.json(409, { message: "Simpan pengaturan Jadwal Offline dahulu supaya satu Sheet terpadu aktif." });
+  }
+  let items = [];
+  try {
+    items = e.app.findRecordsByFilter(
+      "rental_order_items",
+      "resourceType = 'RUANG' && status = 'AKTIF' && endAt >= {:a} && startAt < {:b}",
+      "startAt", 1500, 0,
+      { a: SH.pbWaktu(Date.now() - 30 * 86400000), b: SH.pbWaktu(Date.now() + 90 * 86400000) },
+    );
+  } catch (err) { return e.json(500, { message: "Daftar peminjaman tidak terbaca: " + err }); }
+  const idUnik = {};
+  let tidakDipetakan = 0;
+  items.forEach((item) => {
+    if (!J.namaSheetUntuk(siap.o, item.getString("room"))) { tidakDipetakan++; return; }
+    idUnik[item.getString("order")] = true;
+  });
+  let queued = 0;
+  Object.keys(idUnik).slice(0, 300).forEach((id) => {
+    if (SH.antrekan(e.app, "SHEET_GRID", "rental_orders", id, { sumber: "BACKFILL_ADMIN" })) queued++;
+  });
+  return e.json(200, { ok: true, queued: queued, tanpaPeta: tidakDipetakan, terbatas: Object.keys(idUnik).length > 300 });
+});
+
 routerAdd("POST", "/api/pcv/ops/kirim-ringkasan", (e) => {
   const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
   if (!isAdmin(e.auth)) return e.json(403, { message: "Hanya admin." });
