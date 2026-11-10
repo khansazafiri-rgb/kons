@@ -314,6 +314,14 @@ export default function JadwalOffline() {
                 <input id="jo-jam" className={inputCls} value={draf.jamRingkasan} onChange={(e) => setDraf({ ...draf, jamRingkasan: e.target.value })} placeholder="06:00" />
               </div>
             </div>
+            <div className="rounded-xl border border-maroon-100 bg-white p-3">
+              <label className="flex items-center gap-2 text-sm font-bold text-stone-700">
+                <input type="checkbox" checked={!!draf.calendarEnabled} onChange={(e) => setDraf({ ...draf, calendarEnabled: e.target.checked })} />
+                Sinkronkan kelas, Tramed/CCS, dan penyewaan manual ke Google Calendar yang sama dengan booking web
+              </label>
+              <p className="mt-2 text-xs text-stone-600">Calendar ID yang sama di Dashboard Peminjaman → Google Workspace. Hanya event yang dibuat dari Sheet yang boleh diubah/dihapus. Jangan impor kalender ini kembali sebagai kalender kelas.</p>
+              <p className="mt-1 text-xs text-stone-600">Calendar ID: {set.calendarId || 'Belum diatur'}</p>
+            </div>
             <label className="flex items-center gap-2 text-sm text-stone-700">
               <input type="checkbox" checked={!!draf.kirimPerubahan} onChange={(e) => setDraf({ ...draf, kirimPerubahan: e.target.checked })} /> Kabari di Telegram kalau jadwal hari ini berubah setelah ringkasan terkirim
             </label>
