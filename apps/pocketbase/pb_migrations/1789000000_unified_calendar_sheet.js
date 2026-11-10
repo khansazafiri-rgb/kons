@@ -34,6 +34,11 @@ migrate(
       jenis.values.push("SHEET_GRID");
       app.save(jobs);
     }
+    const rental = app.findCollectionByNameOrId("rental_settings");
+    if (!rental.fields.getByName("googleUnifiedSheet")) {
+      rental.fields.add(new BoolField({ name: "googleUnifiedSheet" }));
+      app.save(rental);
+    }
     const ops = app.findCollectionByNameOrId("ops_settings");
     if (!ops.fields.getByName("calendarEnabled")) {
       ops.fields.add(new BoolField({ name: "calendarEnabled" }));
@@ -45,6 +50,12 @@ migrate(
     for (const name of ["ops_booking_grid_links", "ops_calendar_links"]) {
       try { app.delete(app.findCollectionByNameOrId(name)); } catch (_) { /* already gone */ }
     }
+    try {
+      const rental = app.findCollectionByNameOrId("rental_settings");
+      const field = rental.fields.getByName("googleUnifiedSheet");
+      if (field) rental.fields.removeById(field.id);
+      app.save(rental);
+    } catch (_) { /* no schema field */ }
     try {
       const ops = app.findCollectionByNameOrId("ops_settings");
       const field = ops.fields.getByName("calendarEnabled");
