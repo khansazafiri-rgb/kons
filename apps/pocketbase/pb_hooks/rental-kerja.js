@@ -144,7 +144,7 @@ function kerjaCalendarUpsert(app, SH, IN, s, orderItemId, appUrl) {
     deskripsi: IN.deskripsiEvent(appUrl, order, {
       nama: oi.getString("resourceName"),
       jumlah: oi.getInt("quantity"),
-    }),
+    }, s.getBool("googleUnifiedSheet")),
     lokasi: room ? room.getString("address") : "",
     mulai: SH.ms(oi, "startAt"),
     selesai: SH.ms(oi, "endAt"),
