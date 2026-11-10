@@ -29,9 +29,7 @@ migrate(
     ], ["CREATE UNIQUE INDEX idx_ops_booking_grid_links_item ON ops_booking_grid_links (itemId)"]);
 
     const ops = app.findCollectionByNameOrId("ops_settings");
-    let existing = false;
-    try { existing = !!ops.fields.getByName("calendarEnabled"); } catch (_) { existing = false; }
-    if (!existing) {
+    if (!ops.fields.getByName("calendarEnabled")) {
       ops.fields.add(new BoolField({ name: "calendarEnabled" }));
       app.save(ops);
     }
@@ -43,7 +41,8 @@ migrate(
     }
     try {
       const ops = app.findCollectionByNameOrId("ops_settings");
-      ops.fields.removeByName("calendarEnabled");
+      const field = ops.fields.getByName("calendarEnabled");
+      if (field) ops.fields.removeById(field.id);
       app.save(ops);
     } catch (_) { /* no schema field */ }
   },
