@@ -29,12 +29,23 @@ routerAdd("GET", "/api/pcv/ops/setelan", (e) => {
   const o = J.setelanOps(e.app);
   if (!o) return e.json(500, { message: "Pengaturan belum ada. Jalankan migrasi (update.sh) lalu muat ulang." });
   const sR = SH.setelan(e.app);
-  let ruang = [];
+  // Ruang di sheet: yang ditemukan pada sinkron terakhir (termasuk ruang baru
+  // yang belum punya jadwal), ditambah yang sudah pernah punya jadwal.
+  const dariSheet = J.jsonDari(o, "ruangSheet", []);
+  const ruang = Array.isArray(dariSheet) ? dariSheet.slice() : [];
   try {
     const baris = e.app.findRecordsByFilter("jadwal_offline", "tanggal >= {:t}", "ruang", 0, 0, { t: J.tanggalWib(Date.now() - 7 * 86400000) });
     baris.forEach((r) => { const n = r.getString("ruang"); if (n && ruang.indexOf(n) === -1) ruang.push(n); });
-  } catch (_) { ruang = []; }
+  } catch (_) { /* tabel jadwal masih kosong */ }
+  let ruangSewa = [];
+  try {
+    ruangSewa = e.app.findRecordsByFilter("rental_rooms", "id != ''", "name", 0, 0)
+      .map((r) => ({ id: r.id, nama: r.getString("name"), aktif: r.getBool("active") }));
+  } catch (_) { ruangSewa = []; }
   return e.json(200, {
+    petaRuang: J.jsonDari(o, "petaRuang", []),
+    sewaSampai: o.getString("sewaSampai"),
+    ruangSewa: ruangSewa,
     enabled: o.getBool("enabled"),
     sheetId: o.getString("sheetId"),
     chatIds: o.getString("chatIds"),
@@ -80,6 +91,25 @@ routerAdd("POST", "/api/pcv/ops/setelan", (e) => {
     .filter((x) => x.cocok && x[a])
     .slice(0, 200);
 
+  // Pemetaan ruang sheet -> ruang sewa. Ruang sewa harus ada di katalog, dan
+  // satu ruang sewa tidak boleh dipetakan dari dua ruang sheet (jadwal dua
+  // ruang berbeda akan saling bercampur di satu ruang sewa).
+  // Kolom petaRuang yang TIDAK dikirim berarti "jangan diubah" (bukan "kosongkan"):
+  // pemetaan yang terhapus diam-diam akan membuka jam les untuk penyewa.
+  const peta = [];
+  const dipakai = {};
+  const daftarPeta = Array.isArray(b.petaRuang) ? b.petaRuang : [];
+  for (let i = 0; i < daftarPeta.length && i < 100; i++) {
+    const nama = String((daftarPeta[i] && daftarPeta[i].nama) || "").trim().slice(0, 200);
+    const roomId = String((daftarPeta[i] && daftarPeta[i].roomId) || "").trim();
+    if (!nama || !roomId) continue; // "tidak disewakan"
+    try { e.app.findRecordById("rental_rooms", roomId); } catch (_) { return e.json(400, { message: "Ruang sewa untuk \"" + nama + "\" tidak ditemukan di katalog peminjaman." }); }
+    if (dipakai[roomId]) return e.json(400, { message: "Satu ruang sewa hanya boleh dipetakan dari satu ruang sheet (\"" + dipakai[roomId] + "\" dan \"" + nama + "\")." });
+    dipakai[roomId] = nama;
+    peta.push({ nama: nama, roomId: roomId });
+  }
+  if (Array.isArray(b.petaRuang)) o.set("petaRuang", peta);
+
   o.set("enabled", !!b.enabled);
   o.set("sheetId", sheetId);
   o.set("chatIds", chat.join(","));
@@ -106,7 +136,7 @@ routerAdd("GET", "/api/pcv/ops/jadwal", (e) => {
     hariTanggal: J.hariTanggal(tanggal),
     sesi: sesi,
     bc: J.daftarBc(o, tanggal, sesi),
-    sewa: J.sewaTanggal(e.app, tanggal),
+    sewa: J.sewaTanggal(e.app, tanggal, o),
   });
 });
 

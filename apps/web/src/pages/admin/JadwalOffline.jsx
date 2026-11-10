@@ -11,12 +11,13 @@ import pb from '@/lib/pocketbaseClient';
 
 const JAM = Array.from({ length: 16 }, (_, i) => 6 + i); // 06 sampai 21
 const jamLabel = (j) => `${String(j).padStart(2, '0')}.00`;
-const KAT = { KELAS: 'Kelas offline', PRIVAT: 'Privat', TRAMED: 'Tramed/CCS', SEWA: 'Sewa' };
+const KAT = { KELAS: 'Kelas offline', PRIVAT: 'Privat', TRAMED: 'Tramed/CCS', SEWA: 'Sewa', SEWA_WEB: 'Sewa web' };
 const KAT_CLS = {
   KELAS: 'bg-maroon-50 text-maroon-700 border-maroon-100',
   PRIVAT: 'bg-gold-100 text-stone-700 border-gold-200',
   TRAMED: 'bg-alba-100 text-stone-700 border-alba-300',
   SEWA: 'bg-white text-stone-600 border-alba-300',
+  SEWA_WEB: 'bg-green-50 text-green-900 border-green-200',
 };
 
 const pesanGalat = (e) => e?.response?.message || e?.message || 'Gagal. Coba lagi.';
@@ -92,14 +93,24 @@ export default function JadwalOffline() {
   };
   const simpanSetelan = async () => {
     const ok = await jalankan('simpan', () => pb.send('/api/pcv/ops/setelan', { method: 'POST', body: draf }), 'Pengaturan disimpan.');
-    if (ok) { setDraf(null); }
+    if (ok) await muatSetelan();
   };
 
+  // Sewa ruang dari web peminjaman digabung ke jadwal les di ruang dan lokasi yang
+  // sama, urut jam. Sewa alat (tanpa ruang) ditampilkan terpisah.
   const lokasi = useMemo(() => {
     const per = {};
-    (data?.sesi || []).forEach((s) => { (per[s.lokasi || 'Lainnya'] ||= []).push(s); });
+    const gabung = [
+      ...(data?.sesi || []),
+      ...(data?.sewa || []).filter((x) => x.ruang).map((x) => ({
+        id: `sewa-${x.kode}-${x.mulaiMs}`, sewa: true, jam: x.jam, mulaiMs: x.mulaiMs, ruang: x.ruang, lokasi: x.lokasi,
+        judul: `Sewa: ${x.nama}`, pengajar: '', kategori: 'SEWA_WEB', catatan: `${x.kode}${x.lunas ? '' : ' · belum lunas'}`,
+      })),
+    ].sort((a, b) => a.mulaiMs - b.mulaiMs || String(a.ruang).localeCompare(String(b.ruang)));
+    gabung.forEach((s) => { (per[s.lokasi || 'Lainnya'] ||= []).push(s); });
     return Object.entries(per);
   }, [data]);
+  const sewaAlat = (data?.sewa || []).filter((x) => !x.ruang);
 
   const bukaTambah = () => setForm({ ruang: set?.ruang?.[0] || '', mulai: 17, selesai: 19, teks: '' });
   const bukaPindah = (s) => setForm({ id: s.id, ruang: s.ruang, mulai: menit(s.jam) / 60, selesai: Number(s.jam.split('-')[1].split('.')[0]), teks: s.teks, tanggalBaru: tanggal });
@@ -149,6 +160,12 @@ export default function JadwalOffline() {
           Sinkron terakhir: {set.lastSyncAt ? `${set.lastSyncAt.slice(0, 16).replace('T', ' ')} UTC, ${set.lastSyncStatus}` : 'belum pernah'}.
           {set.lastSyncStatus && set.lastSyncStatus !== 'OK' && set.lastSyncMessage ? ` ${set.lastSyncMessage}` : ''}
         </p>
+        {(set.petaRuang || []).length > 0 && (
+          <p className="mt-1 text-xs text-stone-500">
+            Penyewa web hanya bisa memesan ruang yang dipetakan sampai <strong>{set.sewaSampai || 'belum ada'}</strong> (akhir bulan terakhir yang jadwal lesnya sudah terbaca dari sheet).
+            Isi tab bulan berikutnya di sheet untuk memperpanjang.
+          </p>
+        )}
       </Kotak>
 
       <Kotak>
@@ -200,8 +217,8 @@ export default function JadwalOffline() {
           </div>
         )}
 
-        {!data ? <p className="text-sm text-stone-500">Memuat…</p> : !data.sesi.length ? (
-          <p className="text-sm text-stone-500">Tidak ada kelas atau privat pada hari ini.{!set.lastSyncAt && ' Sheet belum pernah disinkron.'}</p>
+        {!data ? <p className="text-sm text-stone-500">Memuat…</p> : !lokasi.length ? (
+          <p className="text-sm text-stone-500">Tidak ada kelas, privat, atau sewa ruang pada hari ini.{!set.lastSyncAt && ' Sheet belum pernah disinkron.'}</p>
         ) : lokasi.map(([nama, daftar]) => (
           <div key={nama} className="mb-4">
             <h4 className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-gold-700">{nama}</h4>
@@ -214,22 +231,22 @@ export default function JadwalOffline() {
                     <span className="block text-xs text-stone-500">{s.ruang}{s.catatan ? ` · ${s.catatan}` : ''}</span>
                   </span>
                   <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${KAT_CLS[s.kategori]}`}>{KAT[s.kategori]}</span>
-                  <span className="flex gap-1">
+                  {!s.sewa && <span className="flex gap-1">
                     <button type="button" className="min-h-[36px] rounded-full px-3 text-xs font-bold text-stone-600 hover:bg-alba-100" onClick={() => catatan(s)}>Catatan</button>
                     <button type="button" className="min-h-[36px] rounded-full px-3 text-xs font-bold text-stone-600 hover:bg-alba-100 disabled:opacity-40" disabled={!siap} onClick={() => bukaPindah(s)}>Pindah</button>
                     <button type="button" aria-label={`Hapus ${s.judul}`} className="min-h-[36px] rounded-full px-2.5 text-maroon-700 hover:bg-maroon-50 disabled:opacity-40" disabled={!siap} onClick={() => hapus(s)}><Trash2 size={14} aria-hidden /></button>
-                  </span>
+                  </span>}
                 </li>
               ))}
             </ul>
           </div>
         ))}
 
-        {data?.sewa?.length > 0 && (
+        {sewaAlat.length > 0 && (
           <div className="mt-2">
-            <h4 className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-gold-700">Peminjaman hari ini</h4>
+            <h4 className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-gold-700">Peminjaman alat hari ini</h4>
             <ul className="space-y-1 text-sm">
-              {data.sewa.map((x) => (
+              {sewaAlat.map((x) => (
                 <li key={`${x.kode}-${x.item}`} className="text-stone-700">
                   <span className="font-mono font-bold">{x.jam}</span> {x.item}{x.jumlah > 1 ? ` x${x.jumlah}` : ''} · {x.nama} · <span className="font-mono">{x.kode}</span>{x.lunas ? '' : ' · belum lunas'}
                 </li>
@@ -291,6 +308,7 @@ export default function JadwalOffline() {
               <textarea id="jo-bc" rows={6} className={inputCls} value={draf.bcTemplate} onChange={(e) => setDraf({ ...draf, bcTemplate: e.target.value })} />
               <p className="mt-1 text-xs text-stone-500">Isian: [NAMA] [HARI_TANGGAL] [JAM] [LOKASI] [RUANG] [PENGAJAR]</p>
             </div>
+            <PetaRuang set={set} draf={draf} setDraf={setDraf} inputCls={inputCls} tombol={tombol} />
             <Daftar judul="Grup BC per kelas" a="cocok" b="grup" tA="Teks nama mengandung…" tB="Nama grup WA" nilai={draf.grupBc} onChange={(v) => setDraf({ ...draf, grupBc: v })} inputCls={inputCls} tombol={tombol} />
             <Daftar judul="Nama lokasi dari nama ruang" a="cocok" b="nama" tA="Nama ruang mengandung…" tB="Ditampilkan sebagai" nilai={draf.lokasiAturan} onChange={(v) => setDraf({ ...draf, lokasiAturan: v })} inputCls={inputCls} tombol={tombol} />
             <button type="button" className={tombolUtama} disabled={sibuk === 'simpan'} onClick={simpanSetelan}>{sibuk === 'simpan' ? 'Menyimpan…' : 'Simpan pengaturan'}</button>
@@ -317,6 +335,49 @@ function Daftar({ judul, a, b, tA, tB, nilai, onChange, inputCls, tombol }) {
         ))}
         <button type="button" className={tombol} onClick={() => onChange([...baris, { [a]: '', [b]: '' }])}>Tambah baris</button>
       </div>
+    </fieldset>
+  );
+}
+
+// Ruang di sheet -> ruang di katalog peminjaman. Ruang sheet tanpa pasangan
+// dianggap tidak disewakan. Ruang baru ditambahkan admin di katalog peminjaman
+// (Dashboard Peminjaman > Katalog) dan sebagai blok 8 kolom baru di sheet.
+const rapatkan = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function PetaRuang({ set, draf, setDraf, inputCls, tombol }) {
+  const peta = Array.isArray(draf.petaRuang) ? draf.petaRuang : [];
+  const nilai = (nama) => peta.find((x) => x.nama === nama)?.roomId || '';
+  const ubah = (nama, roomId) => setDraf({ ...draf, petaRuang: [...peta.filter((x) => x.nama !== nama), ...(roomId ? [{ nama, roomId }] : [])] });
+  const otomatis = () => {
+    const baru = [...peta];
+    (set.ruang || []).forEach((nama) => {
+      if (baru.some((x) => x.nama === nama)) return;
+      const cocok = (set.ruangSewa || []).find((r) => rapatkan(r.nama) === rapatkan(nama) && !baru.some((x) => x.roomId === r.id));
+      if (cocok) baru.push({ nama, roomId: cocok.id });
+    });
+    setDraf({ ...draf, petaRuang: baru });
+  };
+  return (
+    <fieldset>
+      <legend className="mb-1 text-xs font-bold text-stone-600">Ruang sheet dan ruang sewa</legend>
+      <p className="mb-2 text-xs text-stone-500">
+        Pilih ruang sewa untuk tiap ruang di sheet. Les di ruang yang dipetakan otomatis memblok penyewaan di ruang itu. Ruang tanpa pasangan dianggap tidak disewakan.
+        Ruang baru: tambah dulu di katalog Peminjaman dan di sheet, lalu tekan Sinkron sekarang supaya muncul di sini.
+      </p>
+      {(set.ruang || []).length === 0 ? <p className="text-xs text-stone-500">Belum ada ruang terbaca. Isi tautan sheet dan tekan Sinkron sekarang.</p> : (
+        <div className="space-y-2">
+          {(set.ruang || []).map((nama) => (
+            <div key={nama} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-[11rem] flex-1 text-sm font-semibold text-stone-800">{nama}</span>
+              <select aria-label={`Ruang sewa untuk ${nama}`} className={`${inputCls} sm:max-w-xs`} value={nilai(nama)} onChange={(e) => ubah(nama, e.target.value)}>
+                <option value="">Tidak disewakan</option>
+                {(set.ruangSewa || []).map((r) => <option key={r.id} value={r.id}>{r.nama}{r.aktif ? '' : ' (nonaktif)'}</option>)}
+              </select>
+            </div>
+          ))}
+          <button type="button" className={tombol} onClick={otomatis}>Cocokkan otomatis menurut nama</button>
+        </div>
+      )}
     </fieldset>
   );
 }

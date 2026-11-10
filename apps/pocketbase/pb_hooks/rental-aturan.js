@@ -241,7 +241,9 @@ function periksaRuang(opts) {
   for (var i = 0; i < blok.length; i++) {
     if (!bentrok(mulai, selesai, blok[i].mulai, blok[i].selesai)) continue;
     var jenis = String(blok[i].jenis || 'INTERNAL');
-    if (jenis === 'KELAS') return { kode: 'KELAS', pesan: ALASAN.KELAS, sumber: blok[i] };
+    // Blok boleh membawa pesannya sendiri untuk pelanggan (mis. jadwal les bulan itu
+    // belum dibuka), supaya tidak tertulis "sedang dipakai kelas" padahal tidak ada kelas.
+    if (jenis === 'KELAS') return { kode: 'KELAS', pesan: blok[i].pesan || ALASAN.KELAS, sumber: blok[i] };
     return { kode: 'BLOK', pesan: ALASAN.BLOK, sumber: blok[i] };
   }
 

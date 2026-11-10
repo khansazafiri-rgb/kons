@@ -196,6 +196,134 @@ function cerminkanTab(app, o, hasil) {
   return perubahan;
 }
 
+// ---------------------------------------------------------------------------
+// Jadwal les memblok sewa
+// ---------------------------------------------------------------------------
+//
+// Ruang di sheet dipetakan (di Pengaturan) ke ruang di katalog peminjaman.
+// Tiap sesi di ruang yang dipetakan menjadi blok KELAS di rental_blocks, jadi
+// penyewa tidak pernah ditawari slot yang sedang dipakai les. Blok memakai
+// externalCalendarId "jadwal-offline" dan sumber SHEET, terpisah dari blok
+// kalender kelas (sumber CALENDAR) dan blok internal.
+
+const KALENDER_BLOK = "jadwal-offline";
+const KELAS_BLOK = require(`${__hooks}/rental-kelas.js`);
+
+function petaRuangOps(o) {
+  const p = jsonDari(o, "petaRuang", []);
+  return Array.isArray(p) ? p : [];
+}
+
+function roomIdUntuk(o, namaRuang) {
+  const n = String(namaRuang || "").toLowerCase().trim();
+  const p = petaRuangOps(o).filter((x) => x && String(x.nama || "").toLowerCase().trim() === n)[0];
+  return p ? String(p.roomId || "") : "";
+}
+
+function namaSheetUntuk(o, roomId) {
+  const p = petaRuangOps(o).filter((x) => x && String(x.roomId || "") === roomId)[0];
+  return p ? String(p.nama || "") : "";
+}
+
+const awalBulanMs = (bt) => Date.UTC(bt.tahun, bt.bulan - 1, 1) - WIB_MS;
+const akhirBulanMs = (bt) => Date.UTC(bt.tahun, bt.bulan, 1) - WIB_MS; // eksklusif
+
+// hasilTab: [{ bulan, tahun, sesi }] - hanya tab yang BERHASIL dibaca.
+function cerminkanKeSewa(app, sR, o, hasilTab) {
+  const ringkas = { baru: 0, dilepas: 0 };
+  if (!hasilTab.length) return ringkas;
+  const kol = app.findCollectionByNameOrId("rental_blocks");
+  const kini = new Date().toISOString();
+  const ruangSewa = {};
+  try { app.findRecordsByFilter("rental_rooms", "id != ''", "", 0, 0).forEach((r) => { ruangSewa[r.id] = r; }); } catch (_) { /* katalog kosong */ }
+  const tabrakan = [];
+
+  hasilTab.forEach((t) => {
+    let lama = [];
+    try {
+      lama = app.findRecordsByFilter(
+        "rental_blocks",
+        "externalCalendarId = {:c} && startAt >= {:a} && startAt < {:b}",
+        "", 20000, 0,
+        { c: KALENDER_BLOK, a: SH.pbWaktu(awalBulanMs(t)), b: SH.pbWaktu(akhirBulanMs(t)) },
+      );
+    } catch (_) { lama = []; }
+    const perKunci = {};
+    lama.forEach((b) => { perKunci[b.getString("externalEventId") + "|" + b.getString("room")] = b; });
+    const terlihat = {};
+
+    t.sesi.forEach((se) => {
+      const roomId = roomIdUntuk(o, se.ruang);
+      if (!roomId || !ruangSewa[roomId]) return;
+      const eid = "jo:" + kunciSesi(se);
+      const k = eid + "|" + roomId;
+      if (terlihat[k]) return;
+      terlihat[k] = true;
+      const judul = (LABEL_KATEGORI[se.kategori] || se.kategori) + ": " + se.judul;
+      const ada = perKunci[k];
+      if (ada) {
+        if (ada.getBool("active") && ada.getString("title") === judul) return;
+        ada.set("active", true);
+        ada.set("title", judul);
+        ada.set("lastSyncedAt", kini);
+        app.save(ada);
+        return;
+      }
+      const rec = new Record(kol);
+      rec.set("room", roomId);
+      rec.set("startAt", new Date(se.mulaiMs).toISOString());
+      rec.set("endAt", new Date(se.selesaiMs).toISOString());
+      rec.set("blockType", "KELAS");
+      rec.set("source", "SHEET");
+      rec.set("title", judul);
+      rec.set("reason", se.ruang);
+      rec.set("externalEventId", eid);
+      rec.set("externalCalendarId", KALENDER_BLOK);
+      rec.set("active", true);
+      SH.tandaiBerubah(rec, "SHEET", "TERSINKRON", "");
+      rec.set("lastSyncedAt", kini);
+      app.save(rec);
+      ringkas.baru++;
+      // Tabrakan hanya diperiksa untuk jadwal yang baru dan belum lewat, supaya
+      // sinkron tiap 10 menit tidak mengumumkan ulang konflik yang sama.
+      if (se.selesaiMs > Date.now()) tabrakan.push({ roomId: roomId, ev: { mulai: se.mulaiMs, selesai: se.selesaiMs }, judul: judul });
+    });
+
+    lama.forEach((b) => {
+      if (terlihat[b.getString("externalEventId") + "|" + b.getString("room")] || !b.getBool("active")) return;
+      b.set("active", false);
+      b.set("syncMessage", "Jadwalnya sudah tidak ada di sheet, atau ruangnya tidak lagi dipetakan.");
+      b.set("lastSyncedAt", kini);
+      app.save(b);
+      ringkas.dilepas++;
+    });
+  });
+
+  // Les baru yang bentrok dengan booking sewa aktif: booking TIDAK dibatalkan,
+  // ditandai konflik dan diumumkan ke grup admin peminjaman.
+  tabrakan.forEach((x) => {
+    try { KELAS_BLOK.periksaTabrakanKelas(app, sR, ruangSewa[x.roomId], x.ev, x.judul); } catch (_) { /* jangan gagalkan sinkron */ }
+  });
+  return ringkas;
+}
+
+// Tanggal terakhir (YYYY-MM-DD) yang jadwal lesnya terbaca utuh: bulan ini dan
+// bulan-bulan berikutnya yang tab-nya berhasil dibaca BERURUTAN. Bulan yang
+// bolong memutus rantai; bulan ini sendiri gagal = batas lama dipertahankan.
+function hitungSewaSampai(bulanOk, sekarangMs, lama) {
+  const d = new Date(sekarangMs + WIB_MS);
+  let n = d.getUTCFullYear() * 12 + d.getUTCMonth();
+  let akhir = "";
+  while (bulanOk[n]) {
+    const th = Math.floor(n / 12);
+    const bl = (n % 12) + 1;
+    const hariTerakhir = new Date(Date.UTC(th, bl, 0)).getUTCDate();
+    akhir = th + "-" + ("0" + bl).slice(-2) + "-" + ("0" + hariTerakhir).slice(-2);
+    n++;
+  }
+  return akhir || lama || "";
+}
+
 // Sinkron penuh. `opsi.hanyaTab` membatasi ke satu tab (dipakai sesudah
 // tulis-balik supaya cepat).
 function sinkron(app, opsi) {
@@ -231,6 +359,8 @@ function sinkron(app, opsi) {
   }
 
   const ringkas = { ok: true, tab: [], sesi: 0, peringatan: [], gagal: [], tambah: [], hapus: [] };
+  const terbaca = [];
+  const ruangDitemukan = [];
   tab.forEach((t) => {
     // Tab yang gagal dibaca TIDAK disentuh: "tidak terbaca" bukan "kosong".
     const al = ambilLembar(sR, sheetId, t.judul);
@@ -238,12 +368,36 @@ function sinkron(app, opsi) {
     const hasil = P.parseKisi(al.lembar);
     if (!hasil.ok) { ringkas.gagal.push(t.judul + ": " + hasil.peringatan.join(" ")); return; }
     const ubah = cerminkanTab(app, o, hasil);
+    terbaca.push({ bulan: hasil.bulan, tahun: hasil.tahun, sesi: hasil.sesi, ruang: hasil.ruang });
+    hasil.ruang.forEach((r) => { if (ruangDitemukan.indexOf(r) === -1) ruangDitemukan.push(r); });
     ringkas.tab.push(t.judul);
     ringkas.sesi += hasil.sesi.length;
     hasil.peringatan.forEach((x) => ringkas.peringatan.push(x));
     ubah.tambah.forEach((x) => ringkas.tambah.push(x));
     ubah.hapus.forEach((x) => ringkas.hapus.push(x));
   });
+
+  // Hubungkan ke sewa. Blok sewa SELALU disalin (termasuk sesudah tulis-balik
+  // satu tab, supaya sesi yang baru ditambah langsung memblok penyewaan).
+  // Batas "terbaca sampai" dan daftar ruang hanya dihitung dari sinkron penuh.
+  if (terbaca.length) {
+    try {
+      const peta = petaRuangOps(o);
+      if (!(opsi && opsi.hanyaTab)) {
+        const bulanOk = {};
+        terbaca.forEach((t) => { bulanOk[t.tahun * 12 + (t.bulan - 1)] = true; });
+        o.set("ruangSheet", ruangDitemukan);
+        o.set("sewaSampai", hitungSewaSampai(bulanOk, Date.now(), o.getString("sewaSampai")));
+        app.save(o);
+        const tanpaPeta = ruangDitemukan.filter((r) => !roomIdUntuk(o, r));
+        if (!peta.length) ringkas.peringatan.push("Belum ada ruang sheet yang dipetakan ke ruang sewa, jadi jadwal les belum memblok penyewaan (Pengaturan > Ruang sheet dan ruang sewa).");
+        else if (tanpaPeta.length) ringkas.peringatan.push("Ruang di sheet yang belum dipetakan (dianggap tidak disewakan): " + tanpaPeta.join(", ") + ".");
+      }
+      ringkas.sewa = cerminkanKeSewa(app, sR, o, terbaca);
+    } catch (err) {
+      ringkas.peringatan.push("Jadwal les belum bisa dihubungkan ke sewa: " + String(err).slice(0, 200));
+    }
+  }
 
   const pesan = [];
   if (ringkas.tab.length) pesan.push(ringkas.sesi + " sesi dari tab " + ringkas.tab.join(", ") + ".");
@@ -297,7 +451,7 @@ function daftarBc(o, tanggal, sesi) {
 }
 
 // Peminjaman (modul rental) yang berjalan pada tanggal itu.
-function sewaTanggal(app, tanggal) {
+function sewaTanggal(app, tanggal, o) {
   const awal = Date.parse(tanggal + "T00:00:00Z") - WIB_MS;
   const akhir = awal + HARI_MS;
   let item = [];
@@ -318,9 +472,20 @@ function sewaTanggal(app, tanggal) {
     if (st === "DIBATALKAN" || st === "SELESAI") return;
     const a = SH.ms(it, "startAt");
     const b = SH.ms(it, "endAt");
+    // Sewa RUANG diberi nama ruang menurut sheet (kalau dipetakan) dan lokasinya,
+    // supaya bisa digabung ke jadwal les di ruang yang sama. Sewa alat tidak
+    // punya ruang.
+    const roomId = it.getString("room");
+    let ruang = "";
+    if (roomId) {
+      ruang = (o && namaSheetUntuk(o, roomId)) || "";
+      if (!ruang) { try { ruang = app.findRecordById("rental_rooms", roomId).getString("name"); } catch (_) { ruang = it.getString("resourceName"); } }
+    }
     hasil.push({
       kode: order.getString("bookingCode"), status: st, nama: order.getString("customerName"),
       item: it.getString("resourceName"), jumlah: it.getInt("quantity") || 1,
+      ruang: ruang, lokasi: ruang && o ? lokasiDari(o, ruang) : "",
+      mulaiMs: Math.max(a, awal),
       jam: (tanggalWib(a) === tanggal ? jamWib(a) : "lanjutan") + "-" + (tanggalWib(b - 1) === tanggal ? jamWib(b) : "besok"),
       lunas: st === "TERKONFIRMASI" || st === "SEDANG_DIPINJAM",
     });
@@ -332,7 +497,14 @@ function sewaTanggal(app, tanggal) {
 function rakitRingkasan(app, o, tanggal, opsi) {
   const op = opsi || {};
   const sesi = sesiTanggal(app, tanggal);
-  const sewa = op.tanpaSewa ? [] : sewaTanggal(app, tanggal);
+  const sewa = op.tanpaSewa ? [] : sewaTanggal(app, tanggal, o);
+  const sewaRuang = sewa.filter((x) => x.ruang);
+  const sewaAlat = sewa.filter((x) => !x.ruang);
+  // Sewa ruang digabung ke jadwal les di lokasi dan ruang yang sama, urut jam.
+  const gabungan = sesi.concat(sewaRuang.map((x) => ({
+    jam: x.jam, mulaiMs: x.mulaiMs, judul: "Sewa: " + x.nama, ruang: x.ruang, lokasi: x.lokasi,
+    pengajar: "", kategori: "SEWA_WEB", catatan: x.kode + (x.lunas ? "" : " · BELUM LUNAS"),
+  }))).sort((a, b) => a.mulaiMs - b.mulaiMs || a.ruang.localeCompare(b.ruang));
   const pesan = [];
   const judul = (op.judul || "Jadwal offline") + " " + hariTanggal(tanggal);
 
@@ -343,11 +515,11 @@ function rakitRingkasan(app, o, tanggal, opsi) {
 
   const baris = ["<b>" + IN.esc(judul) + "</b>"];
   const lokasi = [];
-  sesi.forEach((s) => { if (lokasi.indexOf(s.lokasi) === -1) lokasi.push(s.lokasi); });
+  gabungan.forEach((s) => { if (lokasi.indexOf(s.lokasi) === -1) lokasi.push(s.lokasi); });
   lokasi.forEach((l) => {
     baris.push("");
     baris.push("📍 <b>" + IN.esc(l) + "</b>");
-    sesi.filter((s) => s.lokasi === l).forEach((s) => {
+    gabungan.filter((s) => s.lokasi === l).forEach((s) => {
       const ruang = s.ruang.toLowerCase().indexOf(l.toLowerCase()) !== -1
         ? s.ruang.replace(new RegExp("\\s*" + l.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*$", "i"), "").trim() || s.ruang
         : s.ruang;
@@ -355,21 +527,22 @@ function rakitRingkasan(app, o, tanggal, opsi) {
         s.jam + "  " + IN.esc(s.judul) +
         (s.pengajar ? " (" + IN.esc(s.pengajar) + ")" : "") +
         " · " + IN.esc(ruang) +
-        (s.kategori === "SEWA" ? " · sewa" : "") +
+        (s.kategori === "SEWA" ? " · sewa" : s.kategori === "SEWA_WEB" ? " · sewa web" : "") +
         (s.catatan ? "\n      ↳ " + IN.esc(s.catatan) : ""),
       );
     });
   });
   const hitung = {};
   sesi.forEach((s) => { hitung[s.kategori] = (hitung[s.kategori] || 0) + 1; });
-  if (sesi.length) {
+  if (sewaRuang.length) hitung.SEWA_WEB = sewaRuang.length;
+  if (gabungan.length) {
     baris.push("");
-    baris.push("Total " + sesi.length + " sesi: " + Object.keys(hitung).map((k) => hitung[k] + " " + (LABEL_KATEGORI[k] || k).toLowerCase()).join(", ") + ".");
+    baris.push("Total " + gabungan.length + " sesi: " + Object.keys(hitung).map((k) => hitung[k] + " " + (k === "SEWA_WEB" ? "sewa web" : (LABEL_KATEGORI[k] || k).toLowerCase())).join(", ") + ".");
   }
-  if (sewa.length) {
+  if (sewaAlat.length) {
     baris.push("");
-    baris.push("🏷 <b>Peminjaman</b>");
-    sewa.forEach((x) => {
+    baris.push("🏷 <b>Peminjaman alat</b>");
+    sewaAlat.forEach((x) => {
       baris.push(x.jam + "  " + IN.esc(x.item) + (x.jumlah > 1 ? " x" + x.jumlah : "") + " · " + IN.esc(x.nama) + " · <code>" + IN.esc(x.kode) + "</code>" + (x.lunas ? "" : " · BELUM LUNAS"));
     });
   }

@@ -262,6 +262,27 @@ function cariAlat(app, idAtauSlug) {
 // endAt > mulai` - supaya yang ditarik dari basis data cuma baris yang benar-
 // benar bisa bentrok, bukan seluruh riwayat ruang itu.
 
+// Jadwal les (Google Sheet "Jadwal Offline") hanya terbaca sampai bulan terakhir
+// yang tab-nya sudah diisi. Untuk ruang yang dipetakan ke sheet itu, waktu
+// SESUDAH batas tersebut dianggap terblok: kalau tidak, penyewa bisa memesan
+// slot yang nanti ternyata bentrok dengan les yang belum sempat dimasukkan.
+// Tanpa pemetaan (atau fitur mati) fungsi ini tidak berpengaruh apa pun.
+function jadwalLesBelumDiisi(app, roomId, mulai, selesai) {
+  try {
+    const o = app.findRecordsByFilter("ops_settings", "id != ''", "", 1, 0)[0];
+    if (!o || !o.getBool("enabled")) return null;
+    const sampai = String(o.getString("sewaSampai") || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sampai)) return null;
+    let peta = [];
+    try { peta = JSON.parse(o.getString("petaRuang") || "[]"); } catch (_) { peta = []; }
+    if (!Array.isArray(peta) || !peta.some((p) => p && p.roomId === roomId)) return null;
+    // Akhir hari "sampai" menurut WIB (eksklusif).
+    const batas = Date.parse(sampai + "T00:00:00Z") - 7 * 3600000 + 24 * 3600000;
+    if (selesai <= batas) return null;
+    return { mulai: Math.max(mulai, batas), selesai: selesai, sampai: sampai };
+  } catch (_) { return null; }
+}
+
 function blokRuang(app, roomId, mulai, selesai) {
   const id = amanId(roomId);
   if (!id) return [];
@@ -275,8 +296,9 @@ function blokRuang(app, roomId, mulai, selesai) {
       0,
       { room: id, mulai: pbWaktu(mulai), selesai: pbWaktu(selesai) },
     );
-  } catch (_) { return []; }
-  return rows.map((b) => ({
+  } catch (_) { rows = []; }
+  const luar = jadwalLesBelumDiisi(app, id, mulai, selesai);
+  const hasil = rows.map((b) => ({
     id: b.id,
     mulai: ms(b, "startAt"),
     selesai: ms(b, "endAt"),
@@ -285,6 +307,19 @@ function blokRuang(app, roomId, mulai, selesai) {
     sumber: b.getString("source"),
     kalender: b.getString("externalCalendarId"),
   }));
+  if (luar) {
+    hasil.push({
+      id: "jadwal-les-belum-diisi",
+      mulai: luar.mulai,
+      selesai: luar.selesai,
+      jenis: "KELAS",
+      judul: "Jadwal les belum diisi (terbaca sampai " + luar.sampai + ")",
+      pesan: "Jadwal tanggal ini belum dibuka untuk penyewaan. Coba lagi nanti atau pilih tanggal lebih awal.",
+      sumber: "SHEET",
+      kalender: "jadwal-offline",
+    });
+  }
+  return hasil;
 }
 
 // Baris pesanan RUANG yang sedang memblok.

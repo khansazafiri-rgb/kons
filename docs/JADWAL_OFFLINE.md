@@ -48,7 +48,9 @@ Pesanan peminjaman (modul Peminjaman)
 5. Dashboard Admin > **Jadwal Offline** > **Pengaturan**: tempel tautan sheet, isi Chat ID
    koordinator, jam ringkasan (bawaan 06:00 WIB), centang **Nyalakan**, isi pemetaan grup BC
    (mis. teks "Kelas Offline 1-1" -> "Grup WA Offline 1-1") lalu **Simpan**.
-6. Tekan **Sinkron sekarang**, lalu **Kirim ringkasan hari ini** untuk mencoba.
+6. Tekan **Sinkron sekarang**, lalu di Pengaturan **petakan ruang sheet ke ruang sewa** dan **Simpan** (lihat
+   bagian *Ruangan* di bawah). Tanpa pemetaan, jadwal les belum memblok penyewaan.
+7. Tekan **Kirim ringkasan hari ini** untuk mencoba.
 
 Chat koordinator tidak perlu didaftarkan sebagai chat admin peminjaman. Perintah jadwal
 boleh dari chat koordinator ATAU chat admin peminjaman; perintah peminjaman
@@ -65,6 +67,96 @@ boleh dari chat koordinator ATAU chat admin peminjaman; perintah peminjaman
 /verified KODE          tandai pembayaran peminjaman lunas (alias /confirm, /lunas)
 /id                     tampilkan Chat ID dan User ID (kini dijawab di grup baru)
 ```
+
+## Ruangan: les dan sewa dalam satu jadwal
+
+Lima ruangan (dan bisa bertambah) dipakai dua hal: **les** (jadwal tetap per semester, kadang
+berubah) dan **sewa** (penyewa memesan sendiri lewat web). Keduanya tidak boleh bentrok, jadi
+dihubungkan seperti ini:
+
+```
+Sheet (jadwal les per ruang) --sinkron--> jadwal_offline --> blok KELAS di katalog peminjaman
+                                                            |
+Penyewa di web hanya melihat slot yang kosong <-------------+
+Sewa yang masuk tampil di antara jadwal les (dashboard + Telegram)
+```
+
+- **Pemetaan ruang.** Dashboard Admin > Jadwal Offline > Pengaturan > *Ruang sheet dan ruang sewa*:
+  pilih ruang sewa untuk tiap ruang di sheet (atau tombol *Cocokkan otomatis menurut nama*).
+  Ruang tanpa pasangan dianggap **tidak disewakan**. Satu ruang sewa hanya boleh dari satu ruang sheet.
+- **Les memblok sewa.** Tiap sesi di ruang yang dipetakan menjadi blok di katalog peminjaman. Penyewa
+  tidak pernah ditawari jam yang dipakai les.
+- **Penyewa terlihat di antara jadwal les.** Sewa ruang tampil di tab Jadwal Offline dan di ringkasan
+  Telegram, di ruang dan lokasi yang sama, bertanda *sewa web* beserta kode booking dan status lunas.
+- **Les diubah atau ditambah.** Ubah di sheet, lalu tunggu sinkron (maksimal 10 menit) atau tekan
+  *Sinkron sekarang* / `/sinkron`. Dari dashboard, tambah/pindah/hapus langsung memblok sewa saat itu juga.
+  Kalau les baru bentrok dengan booking sewa yang sudah ada, booking **tidak dibatalkan**: ditandai
+  *konflik* di dashboard peminjaman dan diumumkan ke grup admin peminjaman, lalu diputuskan manual.
+- **Batas pesan "terbaca sampai".** Sheet diisi per bulan, sedangkan sewa dulu boleh dipesan sampai 180 hari.
+  Supaya penyewa tidak memesan jam yang nanti ternyata ada les, ruang yang dipetakan hanya bisa disewa
+  sampai **akhir bulan terakhir yang tab-nya sudah terbaca berurutan** (angkanya tampil di tab Jadwal
+  Offline). Jadi: **isi jadwal les sebuah bulan lebih dulu, baru salin tab bulan itu ke bulan depannya.**
+  Tab kosong yang sudah disalin akan membuka seluruh bulan itu untuk disewa.
+- **Sheet gagal dibaca = tidak ada yang terbuka.** Blok lama tetap berlaku.
+
+### Menambah ruangan baru (mis. Ruang F)
+
+1. Dashboard Peminjaman > Katalog: tambah ruangnya (nama, harga, jam buka). Tanpa ini ruang itu tidak bisa disewa.
+2. Di Google Sheet, **di tiap tab bulan**, salin satu blok ruang (8 kolom: `Jam` + Senin sampai Minggu),
+   tempel di kanan blok terakhir, lalu ganti judulnya, mis. `NOVEMBER (RUANG F)`.
+3. Jadwal Offline > *Sinkron sekarang*, lalu di Pengaturan petakan ruang itu ke ruang sewanya dan **Simpan**.
+
+### Apakah format Google Sheet perlu diubah?
+
+**Tidak untuk yang sekarang.** Sheet "Jadwal Offline" yang ada sudah terbaca utuh (tab November: 142 sesi,
+tanpa peringatan). Yang harus dijaga:
+
+| Aturan | Kenapa |
+|---|---|
+| Satu tab per bulan, judul memuat bulan dan tahun (`November '26`) | Tahun dan bulan dibaca dari judul tab |
+| Judul ruang berbentuk `BULAN (RUANG ...)`, kata RUANG di dalam kurung, nama unik | Nama ruang dibaca dari sini dan dipakai untuk pemetaan |
+| Kolom `Jam` + Senin sampai Minggu, baris tanggal berisi angka, baris jam `06.00-07.00` dst. | Letak jam dan tanggal tiap sel |
+| Sesi lebih dari satu jam = **sel digabung (merge)** | Lama sesi dibaca dari merge |
+| Jam penuh (tidak ada 17.30) | Kisi sheet per jam |
+| Nama kelas diawali `Kelas Offline ...`; `CCS`/`Tramed` untuk Tramed; selain itu dianggap privat | Kategori ditentukan dari teks, bukan warna |
+
+Yang **belum** bisa: mengisi jadwal semester **sekali** lalu berulang tiap minggu. Sekarang tiap bulan diisi
+per tanggal. Kalau itu ingin dibuat, kabari: perlu tab tambahan "Jadwal Tetap" (hari, jam, ruang, tanggal
+mulai dan selesai semester) yang diperluas otomatis ke tiap minggu.
+
+### Prompt ChatGPT: buat tab bulan berikutnya otomatis
+
+Mengisi ulang kerangka tiap bulan (judul, tanggal, merge) adalah pekerjaan terberat. Tempel prompt ini ke
+ChatGPT, lalu pasang hasilnya di Google Sheet (Extensions > Apps Script):
+
+```
+Buatkan Google Apps Script untuk spreadsheet jadwal ruangan. Fungsi buatTabBulanBerikutnya():
+
+1. Cari tab dengan bulan terbaru. Judul tab berbentuk "November '26" (nama bulan bahasa Indonesia,
+   apostrof, dua digit tahun).
+2. Duplikat tab itu menjadi tab bulan berikutnya ("Desember '26"), letakkan di posisi paling kanan.
+3. Tab berisi blok-blok ruang berdampingan, tiap blok 8 kolom: kolom "Jam" lalu Senin sampai Minggu,
+   dipisah satu kolom kosong. Baris judul tiap blok berbentuk "NOVEMBER (RUANG 1 WISPER)":
+   ganti nama bulan di judul itu menjadi bulan baru (huruf besar semua), nama ruangnya JANGAN diubah.
+4. Ke bawah ada beberapa blok minggu. Tiap minggu: satu baris "Jam | Senin ... Minggu", satu baris
+   tanggal (angka), lalu baris jam "06.00-07.00" sampai "20.00-21.00". Isi ulang baris tanggal untuk
+   bulan baru: Senin pertama dst., hari di luar bulan dikosongkan. Tambah atau hapus blok minggu
+   sesuai jumlah minggu di bulan itu.
+5. KOSONGKAN semua isi sel jadwal (sel di bawah baris jam) beserta merge-nya dan warna latar,
+   tetapi pertahankan baris/kolom header, lebar kolom, dan format.
+6. Jangan mengubah tab lama. Tampilkan pesan toast kalau selesai atau kalau tab bulan itu sudah ada.
+7. Tambahkan menu "Jadwal" > "Buat tab bulan berikutnya" yang memanggil fungsi ini lewat onOpen().
+```
+
+Setelah tab baru dibuat, **isi jadwal lesnya**, baru tekan *Sinkron sekarang* di dashboard: penyewa baru
+bisa memesan di bulan itu setelah tab-nya terbaca.
+
+### Yang belum dilakukan
+
+Sewa yang dipesan lewat web **tidak ditulis ke dalam sel Google Sheet**. Sheet tetap hanya berisi les (dan
+sewa yang kamu ketik sendiri, yang ikut memblok). Penyewa web terlihat di dashboard dan Telegram. Menuliskannya
+ke sheet juga memungkinkan, tetapi tiap pesanan baru, pindah, atau batal harus mengubah sel sheet, dan itu
+menambah risiko sel tertimpa. Kabari kalau memang dibutuhkan di sheet.
 
 ## Perilaku yang perlu diketahui
 
