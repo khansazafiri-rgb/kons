@@ -269,7 +269,8 @@ routerAdd("POST", "/api/pcv/ops/booking-grid/sinkron-ulang", (e) => {
   const SH = require(`${__hooks}/rental-shared.js`);
   const siap = J.siapTulis(e.app);
   if (!siap.ok) return e.json(400, { message: siap.pesan });
-  if (!SH.setelan(e.app).getBool("googleUnifiedSheet")) {
+  const rentSettings = SH.setelan(e.app);
+  if (!rentSettings || !rentSettings.getBool("googleUnifiedSheet")) {
     return e.json(409, { message: "Simpan pengaturan Jadwal Offline dahulu supaya satu Sheet terpadu aktif." });
   }
   let items = [];
