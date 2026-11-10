@@ -13,7 +13,7 @@ migrate(
     };
     const teks = (name, max, required) => ({ name: name, type: "text", max: max, required: !!required });
     tambahKoleksi("ops_calendar_links", [
-      teks("kunci", 140, true), teks("tab", 120), teks("calendarId", 300),
+      teks("kunci", 140, true), teks("tab", 120), teks("sheetId", 300), teks("calendarId", 300),
       teks("eventId", 180), teks("fingerprint", 128),
       { name: "created", type: "autodate", onCreate: true, onUpdate: false },
       { name: "updated", type: "autodate", onCreate: true, onUpdate: true },
