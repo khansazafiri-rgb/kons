@@ -162,11 +162,12 @@ function calendarUpsert(s, data) {
     event.id = data.createId;
   }
   const body = JSON.stringify(event);
+  const bodyPatch = JSON.stringify({ ...event, id: undefined });
 
   const dasar = "https://www.googleapis.com/calendar/v3/calendars/" + encodeURIComponent(calId) + "/events";
 
   if (data.eventId) {
-    const ubah = google(s, { url: dasar + "/" + encodeURIComponent(data.eventId), method: "PATCH", body: body });
+    const ubah = google(s, { url: dasar + "/" + encodeURIComponent(data.eventId), method: "PATCH", body: bodyPatch });
     if (ubah.ok) return { ok: true, eventId: data.eventId };
     // 404/410 = event-nya sudah dihapus orang dari Calendar. Itu bukan galat
     // yang perlu diulang terus; yang benar adalah membuatnya lagi.
@@ -176,7 +177,7 @@ function calendarUpsert(s, data) {
   const buat = google(s, { url: dasar, method: "POST", body: body });
   if (!buat.ok && buat.status === 409 && event.id) {
     // POST sukses di percobaan sebelumnya: patch event milik proyeksi ini.
-    const ubah = google(s, { url: dasar + "/" + encodeURIComponent(event.id), method: "PATCH", body: body });
+    const ubah = google(s, { url: dasar + "/" + encodeURIComponent(event.id), method: "PATCH", body: bodyPatch });
     if (ubah.ok) return { ok: true, eventId: event.id };
     return ubah;
   }
