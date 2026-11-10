@@ -216,7 +216,12 @@ export default function LandingLayout({ children }) {
               <MessageCircle size={15} /> 0823-4283-1513
             </a>
           </div>
-          <p className="text-xs">© {new Date().getFullYear()} PCV Classroom</p>
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <a href="/privacy-policy.html" className="font-semibold text-maroon-600 underline-offset-2 hover:underline">
+              Kebijakan Privasi
+            </a>
+            <p>© {new Date().getFullYear()} PCV Classroom</p>
+          </div>
         </div>
       </footer>
     </div>
