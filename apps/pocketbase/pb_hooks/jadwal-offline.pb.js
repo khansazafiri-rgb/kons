@@ -126,8 +126,9 @@ routerAdd("POST", "/api/pcv/ops/setelan", (e) => {
   // SATU spreadsheet file: kolom Rental tidak punya sumber sendiri.
   // Tabel transaksi opsional di workbook yang sama, tab bulan tetap kisi utama.
   const rental = require(`${__hooks}/rental-shared.js`).setelan(e.app);
-  if (rental && sheetId && rental.getString("googleSheetId") !== sheetId) {
+  if (rental && sheetId) {
     rental.set("googleSheetId", sheetId);
+    rental.set("googleUnifiedSheet", true);
     e.app.save(rental);
   }
   return e.json(200, { ok: true });
