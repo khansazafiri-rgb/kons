@@ -771,14 +771,21 @@ function pindahSesi(app, id, d) {
   if (!rec) return { ok: false, pesan: "Sesi tidak ditemukan (mungkin sudah berubah). Muat ulang." };
   const teks = rec.getString("teks");
   const catatan = rec.getString("catatan");
-  const t = tambahSesi(app, { tanggal: d.tanggal, ruang: d.ruang, mulaiMenit: d.mulaiMenit, selesaiMenit: d.selesaiMenit, teks: teks });
+  const kategoriLama = rec.getString("kategori");
+  const kategori = ["KELAS", "TRAMED", "SEWA"].indexOf(kategoriLama) !== -1 ? kategoriLama : "KELAS";
+  // Pindah penyewaan juga harus mempertahankan warna sewa pada sel barunya.
+  const t = tambahSesi(app, { tanggal: d.tanggal, ruang: d.ruang, mulaiMenit: d.mulaiMenit, selesaiMenit: d.selesaiMenit, teks: teks, kategori: kategori });
   if (!t.ok) return t;
   const h = hapusSesi(app, id);
   if (!h.ok) return { ok: false, pesan: "Jadwal baru sudah ditulis, tetapi jadwal lama gagal dikosongkan: " + h.pesan };
   // Catatan web ikut pindah ke sesi barunya.
   if (catatan) {
     try {
-      const baru = app.findRecordsByFilter("jadwal_offline", "tanggal = {:t} && ruang = {:r} && teks = {:x}", "-created", 1, 0, { t: d.tanggal, r: d.ruang, x: teks })[0];
+      // Sel baru dapat memiliki prefix "Penyewaan - " bila teks lama hanya
+      // mengandalkan warna ungu. Cari lewat ruang dan jam, bukan teks lama.
+      const targetMulai = Date.parse(d.tanggal + "T00:00:00Z") - WIB_MS + Number(d.mulaiMenit) * 60000;
+      const baru = app.findRecordsByFilter("jadwal_offline", "tanggal = {:t} && ruang = {:r}", "-created", 50, 0, { t: d.tanggal, r: d.ruang })
+        .find((b) => SH.ms(b, "mulai") === targetMulai);
       if (baru) { baru.set("catatan", catatan); app.save(baru); }
     } catch (_) { /* catatan bukan data kritis */ }
   }
