@@ -72,6 +72,8 @@ export default function JadwalOffline() {
     (r) => `Sheet dibaca ulang: ${r.sesi} sesi dari tab ${r.tab.join(', ')}.${r.gagal?.length ? ` Gagal: ${r.gagal.join(' | ')}` : ''}${r.peringatan?.length ? ` Perlu dicek: ${r.peringatan.slice(0, 3).join(' | ')}` : ''}`);
   const kirimRingkasan = () => jalankan('kirim', () => pb.send('/api/pcv/ops/kirim-ringkasan', { method: 'POST' }),
     (r) => `Terkirim ke Telegram (${r.sesi} sesi, ${r.bc} teks BC).`);
+  const imporBookingLama = () => jalankan('backfill', () => pb.send('/api/pcv/ops/booking-grid/sinkron-ulang', { method: 'POST' }),
+    (r) => `Diantrikan ${r.queued} pesanan untuk dicocokkan dengan kisi Google Sheet.${r.tanpaPeta ? ' ' + r.tanpaPeta + ' item belum punya pemetaan ruang.' : ''}${r.terbatas ? ' Ada lebih dari 300 pesanan; cek antrean.' : ''}`);
 
   const kirimForm = async () => {
     const f = form;
@@ -154,6 +156,9 @@ export default function JadwalOffline() {
           <button type="button" className={tombol} onClick={() => setTanggal(set.hariIni)}>Hari ini</button>
           <span className="ml-auto flex flex-wrap gap-2">
             <button type="button" className={tombol} disabled={!!sibuk || !siap} onClick={sinkron}><RefreshCw size={14} aria-hidden /> {sibuk === 'sinkron' ? 'Membaca…' : 'Sinkron sekarang'}</button>
+            <button type="button" className={tombol} disabled={!!sibuk || !siap} onClick={imporBookingLama}>
+              <RefreshCw size={14} aria-hidden /> {sibuk === 'backfill' ? 'Mengantrikan…' : 'Sinkron booking lama ke Sheet'}
+            </button>
             <button type="button" className={tombol} disabled={!!sibuk || !set.telegramSiap} onClick={kirimRingkasan}><Send size={14} aria-hidden /> Kirim ringkasan hari ini</button>
           </span>
         </div>
@@ -313,6 +318,14 @@ export default function JadwalOffline() {
                 <label className={labelCls} htmlFor="jo-jam">Jam ringkasan pagi (WIB)</label>
                 <input id="jo-jam" className={inputCls} value={draf.jamRingkasan} onChange={(e) => setDraf({ ...draf, jamRingkasan: e.target.value })} placeholder="06:00" />
               </div>
+            </div>
+            <div className="rounded-xl border border-maroon-100 bg-white p-3">
+              <label className="flex items-center gap-2 text-sm font-bold text-stone-700">
+                <input type="checkbox" checked={!!draf.calendarEnabled} onChange={(e) => setDraf({ ...draf, calendarEnabled: e.target.checked })} />
+                Sinkronkan kelas, Tramed/CCS, dan penyewaan manual ke Google Calendar yang sama dengan booking web
+              </label>
+              <p className="mt-2 text-xs text-stone-600">Calendar ID yang sama di Dashboard Peminjaman → Google Workspace. Hanya event yang dibuat dari Sheet yang boleh diubah/dihapus. Jangan impor kalender ini kembali sebagai kalender kelas.</p>
+              <p className="mt-1 text-xs text-stone-600">Calendar ID: {set.calendarId || 'Belum diatur'}</p>
             </div>
             <label className="flex items-center gap-2 text-sm text-stone-700">
               <input type="checkbox" checked={!!draf.kirimPerubahan} onChange={(e) => setDraf({ ...draf, kirimPerubahan: e.target.checked })} /> Kabari di Telegram kalau jadwal hari ini berubah setelah ringkasan terkirim

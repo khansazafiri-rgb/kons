@@ -65,6 +65,8 @@ function jalankanAntrean(app) {
         hasil = kerjaCalendarDelete(app, SH, IN, s, job);
       } else if (jenis === "SHEET_UPSERT" || jenis === "SHEET_ARSIP") {
         hasil = kerjaSheet(app, SH, IN, s, targetId, jenis === "SHEET_ARSIP", appUrl);
+      } else if (jenis === "SHEET_GRID") {
+        hasil = require(`${__hooks}/jadwal-booking-grid.js`).sinkronOrder(app, targetId);
       } else if (jenis === "DRIVE_UPLOAD") {
         hasil = kerjaDrive(app, SH, IN, s, targetId);
       }
@@ -142,7 +144,7 @@ function kerjaCalendarUpsert(app, SH, IN, s, orderItemId, appUrl) {
     deskripsi: IN.deskripsiEvent(appUrl, order, {
       nama: oi.getString("resourceName"),
       jumlah: oi.getInt("quantity"),
-    }),
+    }, s.getBool("googleUnifiedSheet")),
     lokasi: room ? room.getString("address") : "",
     mulai: SH.ms(oi, "startAt"),
     selesai: SH.ms(oi, "endAt"),
@@ -190,6 +192,10 @@ function kerjaCalendarDelete(app, SH, IN, s, job) {
 }
 
 function kerjaSheet(app, SH, IN, s, orderId, arsip, appUrl) {
+  // Mode satu workbook: rincian transaksi (nama, nomor WA, bukti bayar)
+  // disimpan di PocketBase, tidak disalin ke Sheet jadwal yang dibagikan.
+  // Job SHEET_GRID terpisah akan menulis kode booking ke kisi ruangan.
+  if (s.getBool("googleUnifiedSheet")) return { ok: true };
   let order = null;
   try { order = app.findRecordById("rental_orders", orderId); } catch (_) {}
   if (!order) return { ok: true };

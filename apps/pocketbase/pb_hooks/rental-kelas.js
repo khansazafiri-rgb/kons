@@ -53,6 +53,9 @@ function ambilEvent(s, cal) {
   if (sumber === "GOOGLE") {
     const id = cal.getString("googleCalendarId");
     if (!id) return { ok: false, error: "Calendar ID kosong." };
+    if (id.trim() === s.getString("googleRentalCalendarId").trim()) {
+      return { ok: false, error: "Calendar terpadu sudah menerima booking dan jadwal Sheet. Jangan impor kalender yang sama sebagai sumber kelas, karena akan membuat blok ganda." };
+    }
     if (!IN.googleSiap(s)) {
       return { ok: false, error: "Sumber GOOGLE butuh sambungan Google di Pengaturan. Pakai link iCal kalau tidak mau repot OAuth." };
     }

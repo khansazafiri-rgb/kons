@@ -47,6 +47,8 @@ routerAdd("GET", "/api/pcv/ops/setelan", (e) => {
     sewaSampai: o.getString("sewaSampai"),
     ruangSewa: ruangSewa,
     enabled: o.getBool("enabled"),
+    calendarEnabled: o.getBool("calendarEnabled"),
+    calendarId: sR && sR.getString("googleRentalCalendarId"),
     sheetId: o.getString("sheetId"),
     chatIds: o.getString("chatIds"),
     jamRingkasan: o.getString("jamRingkasan") || "06:00",
@@ -111,6 +113,7 @@ routerAdd("POST", "/api/pcv/ops/setelan", (e) => {
   if (Array.isArray(b.petaRuang)) o.set("petaRuang", peta);
 
   o.set("enabled", !!b.enabled);
+  o.set("calendarEnabled", !!b.calendarEnabled);
   o.set("sheetId", sheetId);
   o.set("chatIds", chat.join(","));
   o.set("jamRingkasan", ("0" + Number(mj[1])).slice(-2) + ":" + mj[2]);
@@ -119,6 +122,15 @@ routerAdd("POST", "/api/pcv/ops/setelan", (e) => {
   o.set("grupBc", rapikan(b.grupBc, "grup", 200));
   o.set("lokasiAturan", rapikan(b.lokasiAturan, "nama", 120));
   e.app.save(o);
+
+  // SATU spreadsheet file: kolom Rental tidak punya sumber sendiri.
+  // Tabel transaksi opsional di workbook yang sama, tab bulan tetap kisi utama.
+  const rental = require(`${__hooks}/rental-shared.js`).setelan(e.app);
+  if (rental && sheetId) {
+    rental.set("googleSheetId", sheetId);
+    rental.set("googleUnifiedSheet", true);
+    e.app.save(rental);
+  }
   return e.json(200, { ok: true });
 });
 
@@ -245,6 +257,47 @@ routerAdd("POST", "/api/pcv/ops/nama", (e) => {
     return e.json(409, { message: "Gagal menyimpan nama. Periksa duplikasi alias lalu coba lagi." });
   }
   return e.json(200, { ok: true, alias: alias, namaLengkap: namaLengkap, pengajar: pengajar });
+});
+
+// Backfill terkendali: antrekan booking web lama hanya setelah admin selesai
+// memetakan ruang. Tidak mengubah Google Sheet saat tombol ini ditekan; worker
+// mengerjakan tugas satu per satu dan menolak sel yang sudah berisi.
+routerAdd("POST", "/api/pcv/ops/booking-grid/sinkron-ulang", (e) => {
+  const { isAdmin } = require(`${__hooks}/pcv-shared.js`);
+  if (!isAdmin(e.auth)) return e.json(403, { message: "Hanya admin." });
+  const J = require(`${__hooks}/jadwal-offline.js`);
+  const SH = require(`${__hooks}/rental-shared.js`);
+  const siap = J.siapTulis(e.app);
+  if (!siap.ok) return e.json(400, { message: siap.pesan });
+  const rentSettings = SH.setelan(e.app);
+  if (!rentSettings || !rentSettings.getBool("googleUnifiedSheet")) {
+    return e.json(409, { message: "Simpan pengaturan Jadwal Offline dahulu supaya satu Sheet terpadu aktif." });
+  }
+  let items = [];
+  try {
+    items = e.app.findRecordsByFilter(
+      "rental_order_items",
+      "resourceType = 'RUANG' && status = 'AKTIF' && endAt >= {:a} && startAt < {:b}",
+      "startAt", 1500, 0,
+      { a: SH.pbWaktu(Date.now() - 30 * 86400000), b: SH.pbWaktu(Date.now() + 90 * 86400000) },
+    );
+  } catch (err) { return e.json(500, { message: "Daftar peminjaman tidak terbaca: " + err }); }
+  const idUnik = {};
+  let tidakDipetakan = 0;
+  items.forEach((item) => {
+    if (!J.namaSheetUntuk(siap.o, item.getString("room"))) { tidakDipetakan++; return; }
+    idUnik[item.getString("order")] = true;
+    // Event booking yang lama ikut di-refresh supaya deskripsi kalender
+    // bersama tidak lagi menampilkan identitas pelanggan dari format lama.
+    if (rentSettings.getString("googleRentalCalendarId")) {
+      SH.antrekan(e.app, "CALENDAR_UPSERT", "rental_order_items", item.id, { sumber: "PRIVASI_KALENDER_TERPADU" });
+    }
+  });
+  let queued = 0;
+  Object.keys(idUnik).slice(0, 300).forEach((id) => {
+    if (SH.antrekan(e.app, "SHEET_GRID", "rental_orders", id, { sumber: "BACKFILL_ADMIN" })) queued++;
+  });
+  return e.json(200, { ok: true, queued: queued, tanpaPeta: tidakDipetakan, terbatas: Object.keys(idUnik).length > 300 });
 });
 
 routerAdd("POST", "/api/pcv/ops/kirim-ringkasan", (e) => {

@@ -759,6 +759,12 @@ function catat(app, data) {
 // migrasi. Pesanan yang diubah lima kali selagi Google mati harus menghasilkan
 // satu penulisan, bukan lima.
 function antrekan(app, kind, targetCollection, targetId, payload) {
+  // Booking web selalu dicerminkan ke kisi bulanan pada Sheet yang SAMA.
+  // Dua antrean independen: kegagalan tab transaksi tidak boleh menunda
+  // pencatatan slot ruangan, dan sebaliknya.
+  if ((kind === "SHEET_UPSERT" || kind === "SHEET_ARSIP") && targetCollection === "rental_orders") {
+    antrekan(app, "SHEET_GRID", targetCollection, targetId, {});
+  }
   try {
     let ada = null;
     try {

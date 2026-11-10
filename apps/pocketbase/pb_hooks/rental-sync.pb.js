@@ -79,6 +79,10 @@ routerAdd("POST", "/api/rental/sheet/perubahan", (e) => {
     return e.json(403, { hasil: "DITOLAK", pesan: "Token sinkronisasi tidak cocok." });
   }
 
+  if (s.getBool("googleUnifiedSheet")) {
+    return e.json(409, { hasil: "DITOLAK", pesan: "Sinkronisasi Apps Script transaksi lama dinonaktifkan pada workbook Jadwal Offline Terpadu. Gunakan dashboard Jadwal Offline." });
+  }
+
   const jenis = String(body.jenis || "").toUpperCase();
   const tolak = (pesan) => e.json(200, { hasil: "DITOLAK_KONFLIK", pesan: pesan });
   const terima = (pesan, tambahan) => e.json(200, { hasil: "OK", pesan: pesan || "Tersimpan.", ...(tambahan || {}) });
@@ -314,6 +318,9 @@ routerAdd("GET", "/api/rental/sheet/tarik", (e) => {
     return e.json(403, { message: "Token tidak cocok." });
   }
 
+  if (s.getBool("googleUnifiedSheet")) {
+    return e.json(409, { message: "Endpoint export Sheet transaksi lama tidak digunakan dalam mode Jadwal Offline Terpadu." });
+  }
   const tab = String(e.request.url.query().get("tab") || "ruang").toLowerCase();
 
   if (tab === "ruang") {
