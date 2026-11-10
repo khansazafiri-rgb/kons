@@ -65,6 +65,8 @@ function jalankanAntrean(app) {
         hasil = kerjaCalendarDelete(app, SH, IN, s, job);
       } else if (jenis === "SHEET_UPSERT" || jenis === "SHEET_ARSIP") {
         hasil = kerjaSheet(app, SH, IN, s, targetId, jenis === "SHEET_ARSIP", appUrl);
+      } else if (jenis === "SHEET_GRID") {
+        hasil = require(`${__hooks}/jadwal-booking-grid.js`).sinkronOrder(app, targetId);
       } else if (jenis === "DRIVE_UPLOAD") {
         hasil = kerjaDrive(app, SH, IN, s, targetId);
       }
