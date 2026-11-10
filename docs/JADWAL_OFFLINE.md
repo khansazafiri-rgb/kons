@@ -21,6 +21,69 @@ Pesanan peminjaman (modul Peminjaman)
    +--> /verified KODE (sama dengan /confirm) menandai pembayaran lunas
 ```
 
+## Arsitektur SATU Google Sheet dan SATU Google Calendar (revisi)
+
+**Spreadsheet utama** tetap:
+`https://docs.google.com/spreadsheets/d/1e5bBUOj0rP8MRnI8jPiZRoCUVAgOLfoLww02whJZyWM/edit`
+
+- Isi **Dashboard Admin PCV → Jadwal Offline → Tautan Google Sheet** satu kali. Backend
+  menyelaraskan ID tersebut ke pengaturan Rental. Kolom Spreadsheet ID lama di
+  Pengaturan Rental kini hanya-baca. **Tidak perlu spreadsheet kedua.**
+- File itu tetap mempunyai tab bulanan (kisi ruang) sebagai sumber jadwal.
+  Booking web untuk ruang yang sudah dipetakan ditulis ke sel kisi dengan latar
+  warna sewa dari legenda dan teks `Penyewaan web [KODE] 10.30-11.30`.
+  Tidak menyertakan WhatsApp, nama lengkap pelanggan, total atau bukti pembayaran.
+- **Tidak ada tab transaksi berisi data pribadi** yang otomatis ditambahkan ke
+  file jadwal. Rincian transaksi, audit, kontak, dan bukti tetap hanya di PocketBase.
+  Ekspor transaksi ke Sheet lama dinonaktifkan saat mode Sheet terpadu aktif.
+- Pengaturan Rental → **Google Calendar Terpadu** mengisi satu Calendar ID.
+  Booking web sejak awal ditulis ke Calendar ID tersebut. Untuk
+  menambahkan kelas offline, Tramed/CCS, dan sewa manual dari kisi yang sama,
+  centang `Sinkronkan ... ke Google Calendar` di **Jadwal Offline → Pengaturan**.
+  Opsi ini **mati secara default** dan harus diaktifkan setelah kalender dipilih.
+- Proyeksi dari Sheet membuat event sendiri dengan ID deterministik dan indeks
+  `ops_calendar_links`. Hanya event milik sinkronisasi Sheet yang
+  diperbarui/dihapus. Booking web yang sudah ditulis ke kisi tidak dibuatkan
+  event kedua: event-nya tetap berasal dari rental_orders.
+- **Jangan** mengimpor Calendar Terpadu kembali sebagai kalender kelas
+  `rental_class_calendars` (akan menyebabkan duplikasi sumber).
+- Penggantian Calendar ID atau Spreadsheet ID setelah aktif memerlukan
+  rekonsiliasi event/sel lama. Kode menolak menghapus sumber lama secara
+  membabi-buta; periksa log/status sebelum mengganti.
+
+**Keterbatasan yang harus dicek sebelum aktif di produksi:**
+- Kisi adalah **per jam penuh**. Jika penyewa memilih waktu 10.30–11.30,
+  booking dicerminkan secara konservatif pada blok 10.00–12.00 dengan
+  jam sebenarnya tetap tercetak di label. Jangan menafsirkan panjang
+  sel sebagai durasi pembayaran.
+- Booking **melewati tengah malam** belum dapat dicerminkan ke satu blok
+  bulanan; pekerjaan sinkronisasi menampilkan error. Booking dan event Google
+  Calendar tetap sah.
+- Sinkronisasi kalender backfill bertahap (maks. 35 perubahan/event per putaran,
+  sinkron terjadwal sekitar 10 menit). Setelah aktif, tekan Sinkron sekarang
+  dan periksa hasil beberapa putaran sebelum mengandalkannya.
+- Tab lama yang tidak termasuk rentang sinkron masih ada di Sheet, tetapi tidak
+  otomatis diekspor sebagai event Google Calendar sampai tab diproses.
+- Sebelum merge/deploy: **backup PocketBase, salin Sheet ke workbook uji, uji
+  pembatalan, reschedule, label/warna, form admin, event tanpa duplikat, serta
+  otorisasi OAuth**. Jangan langsung menguji penulisan pada Sheet produksi.
+
+### Urutan aktivasi sesudah QA
+
+1. Backup DB dan salin Sheet untuk uji; deploy PR yang telah lulus QA, termasuk
+   migrasi `1789000000_unified_calendar_sheet.js`.
+2. Isi **Jadwal Offline → Tautan Google Sheet**, simpan, petakan seluruh
+   ruang Sheet berdasarkan nama lengkap.
+3. Periksa Rental → Google Workspace: Google Sheet otomatis mengikuti ID tadi,
+   lalu isi **satu Google Calendar ID** yang mau dipakai untuk semua jadwal.
+4. Pastikan akun OAuth memiliki hak mengedit kalender dan Sheet; verifikasi
+   izin Google Calendar events dari Refresh Token.
+5. Sinkron Sheet, cek blok rental, aktifkan checkbox Calendar Terpadu di
+   Jadwal Offline, lalu sinkron ulang. Periksa event kelas, sewa manual, dan
+   satu booking web; pastikan booking web hanya muncul **sekali**.
+6. Coba satu booking pada **salinan** Sheet, lalu batalkan dan pindahkan jam;
+   periksa sel asli tidak tertimpa dan sinkron job tidak gagal.
+
 ## Bentuk sheet yang dibaca
 
 - Satu tab per bulan, judul memuat bulan dan tahun: `November '26`.
@@ -193,12 +256,14 @@ Buatkan Google Apps Script untuk spreadsheet jadwal ruangan. Fungsi buatTabBulan
 Setelah tab baru dibuat, **isi jadwal lesnya**, baru tekan *Sinkron sekarang* di dashboard: penyewa baru
 bisa memesan di bulan itu setelah tab-nya terbaca.
 
-### Yang belum dilakukan
+### Penyewaan web di Sheet terpadu
 
-Sewa yang dipesan lewat web **tidak ditulis ke dalam sel Google Sheet**. Sheet tetap hanya berisi les (dan
-sewa yang kamu ketik sendiri, yang ikut memblok). Penyewa web terlihat di dashboard dan Telegram. Menuliskannya
-ke sheet juga memungkinkan, tetapi tiap pesanan baru, pindah, atau batal harus mengubah sel sheet, dan itu
-menambah risiko sel tertimpa. Kabari kalau memang dibutuhkan di sheet.
+Setelah fitur unified diaktifkan dan diuji, booking web masuk ke kisi yang
+sama sebagai `Penyewaan web [KODE]` dengan warna ungu legenda. Sistem
+menolak menimpa sel yang sudah terisi, menolak menghapus sel yang
+sudah diedit orang lain, dan mencatat galat di status sinkronisasi.
+Pembatalan menghapus sel milik booking tersebut; status `SELESAI`
+mempertahankan riwayat pemakaian ruang di tab bulan terkait.
 
 ## Perilaku yang perlu diketahui
 
