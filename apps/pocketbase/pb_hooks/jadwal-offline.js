@@ -671,7 +671,19 @@ function selKosong(lembar, baris, kolom, tinggi) {
 function tambahSesi(app, d) {
   const siap = siapTulis(app);
   if (!siap.ok) return siap;
-  const teks = String(d.teks || "").replace(/\s+/g, " ").trim();
+  const kategoriInput = String(d.kategori || "KELAS").toUpperCase();
+  if (["KELAS", "TRAMED", "SEWA"].indexOf(kategoriInput) === -1) {
+    return { ok: false, pesan: "Kategori jadwal tidak dikenal." };
+  }
+  let teks = String(d.teks || "").replace(/\s+/g, " ").trim();
+  // Label tertulis menjaga kategori tetap benar meski warna sel diganti
+  // manual di Google Sheet. Ini terutama penting untuk penyewaan.
+  if (kategoriInput === "SEWA" && !/\b(sewa|penyewaan|peminjaman|disewa|booking)\b/i.test(teks)) {
+    teks = "Penyewaan - " + teks;
+  }
+  if (kategoriInput === "TRAMED" && !/\b(tramed|ccs)\b/i.test(teks)) {
+    teks = "Tramed - " + teks;
+  }
   if (teks.length < 2 || teks.length > 200) return { ok: false, pesan: "Isi nama kelas atau siswa (2 sampai 200 huruf)." };
   if (!tanggalSah(d.tanggal)) return { ok: false, pesan: "Tanggal tidak sah." };
   const a = Number(d.mulaiMenit);
@@ -688,11 +700,22 @@ function tambahSesi(app, d) {
     return { ok: false, pesan: "Ruang itu sudah terisi di jam tersebut (menurut sheet saat ini). Pilih ruang atau jam lain." };
   }
   const rg = rentang(tt.tab, pos.baris, pos.kolom, pos.tinggi);
+  const format = { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE", wrapStrategy: "WRAP" };
+  let fields = "userEnteredValue,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy";
+  if (kategoriInput === "SEWA") {
+    const h = P.warnaSewaDariLegenda(al.lembar) || "#d9d2e9";
+    format.backgroundColor = {
+      red: parseInt(h.slice(1, 3), 16) / 255,
+      green: parseInt(h.slice(3, 5), 16) / 255,
+      blue: parseInt(h.slice(5, 7), 16) / 255,
+    };
+    fields += ",userEnteredFormat.backgroundColor";
+  }
   const permintaan = [{
     updateCells: {
       range: rentang(tt.tab, pos.baris, pos.kolom, 1),
-      rows: [{ values: [{ userEnteredValue: { stringValue: teks }, userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE", wrapStrategy: "WRAP" } }] }],
-      fields: "userEnteredValue,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy",
+      rows: [{ values: [{ userEnteredValue: { stringValue: teks }, userEnteredFormat: format }] }],
+      fields: fields,
     },
   }];
   if (pos.tinggi > 1) permintaan.push({ mergeCells: { range: rg, mergeType: "MERGE_ALL" } });
