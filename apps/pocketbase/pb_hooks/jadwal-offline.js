@@ -986,6 +986,13 @@ module.exports = {
   daftarBc: daftarBc,
   sewaTanggal: sewaTanggal,
   namaSheetUntuk: namaSheetUntuk,
+  // Helper server-only untuk menulis booking web ke kisi bulanan yang sama.
+  tabUntukTanggal: tabUntukTanggal,
+  ambilLembar: ambilLembar,
+  siapTulis: siapTulis,
+  batchUpdate: batchUpdate,
+  rentang: rentang,
+  selKosong: selKosong,
   sinkron: sinkron,
   rakitRingkasan: rakitRingkasan,
   kirim: kirim,
