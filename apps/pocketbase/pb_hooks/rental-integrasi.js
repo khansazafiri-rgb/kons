@@ -130,8 +130,17 @@ function judulEvent(status, namaRuang, kode) {
   return "[" + status + "] " + namaRuang + " - " + kode;
 }
 
-function deskripsiEvent(appUrl, order, baris) {
+function deskripsiEvent(appUrl, order, baris, kalenderTerpadu) {
   const garis = [];
+  if (kalenderTerpadu) {
+    // Kalender terpadu bisa diakses lebih banyak pengajar. Nama, institusi,
+    // keperluan, dan identitas pelanggan tetap hanya di dashboard rental.
+    garis.push("Kode booking: " + order.getString("bookingCode"));
+    garis.push("Status: " + order.getString("status"));
+    if (baris) garis.push("Ruang: " + baris.nama);
+    if (appUrl) garis.push("Dashboard admin: " + appUrl + "/peminjaman/admin?menu=pesanan&kode=" + order.getString("bookingCode"));
+    return garis.join("\n");
+  }
   garis.push("Kode booking: " + order.getString("bookingCode"));
   garis.push("Pelanggan: " + order.getString("customerName"));
   garis.push("Institusi: " + (order.getString("customerInstitution") || "-"));
