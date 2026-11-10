@@ -287,6 +287,9 @@ routerAdd("POST", "/api/pcv/ops/booking-grid/sinkron-ulang", (e) => {
   items.forEach((item) => {
     if (!J.namaSheetUntuk(siap.o, item.getString("room"))) { tidakDipetakan++; return; }
     idUnik[item.getString("order")] = true;
+    // Event booking yang lama ikut di-refresh supaya deskripsi kalender
+    // bersama tidak lagi menampilkan identitas pelanggan dari format lama.
+    SH.antrekan(e.app, "CALENDAR_UPSERT", "rental_order_items", item.id, { sumber: "PRIVASI_KALENDER_TERPADU" });
   });
   let queued = 0;
   Object.keys(idUnik).slice(0, 300).forEach((id) => {
