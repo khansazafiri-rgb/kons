@@ -10,6 +10,6 @@
 		"migrations:revert": "./pocketbase horizons migrations:revert --dir=./pb_data --migrationsDir=./pb_migrations --hooksDir=./pb_hooks --hooksWatch=false",
 		"migrations:snapshot": "mkdir -p ./pb_snapshots && echo 'y' | ./pocketbase migrate collections --dir=./pb_data --migrationsDir=./pb_snapshots",
 		"update": "./pocketbase update --backup=0",
-		"test": "node test/konflik-jadwal.test.mjs"
+		"test": "node test/konflik-jadwal.test.mjs && node test/jadwal-offline.test.mjs"
 	}
 }

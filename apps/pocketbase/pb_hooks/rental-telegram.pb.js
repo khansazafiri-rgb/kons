@@ -153,6 +153,45 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
 
   const chatId = String((msg.chat || {}).id || "");
   const userId = String((msg.from || {}).id || "");
+
+  // Dua hal yang harus bisa dijawab SEBELUM chat-nya terdaftar di daftar admin
+  // peminjaman:
+  //   /id      panduan pemasangan meminta admin mengirim /id di grup untuk
+  //            mengetahui Chat ID-nya, dan itu terjadi justru sebelum grupnya
+  //            didaftarkan. Dulu perintah ini ada di bawah pemeriksaan chat,
+  //            jadi tidak pernah dijawab di grup baru. Isinya cuma ID milik
+  //            penanya sendiri, tidak membuka data apa pun.
+  //   jadwal   /hariini, /besok, /jadwal, /bc, /sinkron boleh dari chat
+  //            operasional (koordinator kelas) yang bukan admin peminjaman.
+  //            Perintah peminjaman tetap hanya untuk chat admin peminjaman.
+  {
+    const teksAwal = String(msg.text || "").trim();
+    const perintahAwal = (teksAwal.split(/\s+/)[0] || "").split("@")[0].toLowerCase();
+    if (perintahAwal === "/id") {
+      IN.telegram(s, "sendMessage", {
+        chat_id: chatId,
+        text: "Chat ID: <code>" + IN.esc(chatId) + "</code>\nUser ID: <code>" + IN.esc(userId) + "</code>",
+        parse_mode: "HTML",
+      });
+      return e.json(200, { ok: true });
+    }
+    const J = require(`${__hooks}/jadwal-offline.js`);
+    if (J.PERINTAH_JADWAL.indexOf(perintahAwal) !== -1) {
+      if (!J.chatJadwalBoleh(e.app, s, chatId)) return e.json(200, { ok: true });
+      const balasan = J.jalankanPerintah(e.app, perintahAwal, teksAwal.split(/\s+/).slice(1).join(" "));
+      balasan.forEach((isi, i) => {
+        const pesan = { chat_id: chatId, text: isi, parse_mode: "HTML", disable_web_page_preview: true };
+        if (i === 0) pesan.reply_to_message_id = Number(msg.message_id);
+        IN.telegram(s, "sendMessage", pesan);
+      });
+      return e.json(200, { ok: true });
+    }
+    // /bantuan di chat operasional yang bukan chat admin peminjaman.
+    if ((perintahAwal === "/bantuan" || perintahAwal === "/help" || perintahAwal === "/start") && !IN.chatDiizinkan(s, chatId) && J.chatJadwalBoleh(e.app, s, chatId)) {
+      IN.telegram(s, "sendMessage", { chat_id: chatId, text: J.PANDUAN_JADWAL, parse_mode: "HTML" });
+      return e.json(200, { ok: true });
+    }
+  }
   if (!IN.chatDiizinkan(s, chatId)) return e.json(200, { ok: true });
 
   const balasKe = msg.reply_to_message ? String(msg.reply_to_message.message_id || "") : "";
@@ -164,15 +203,7 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
     const potongan = teks.split(/\s+/);
     const perintah = (potongan[0] || "").split("@")[0].toLowerCase();
 
-    // /id sangat menolong saat pemasangan: admin perlu tahu chat id grupnya.
-    if (perintah === "/id") {
-      IN.telegram(s, "sendMessage", {
-        chat_id: chatId,
-        text: "Chat ID: <code>" + IN.esc(chatId) + "</code>\nUser ID: <code>" + IN.esc(userId) + "</code>",
-        parse_mode: "HTML",
-      });
-      return e.json(200, { ok: true });
-    }
+    // (/id sudah dijawab di atas, sebelum pemeriksaan chat.)
     if (perintah.indexOf("/") !== 0) return e.json(200, { ok: true });
 
     const balas = (isi) => {
@@ -189,14 +220,17 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
     const PANDUAN =
       "<b>Perintah admin peminjaman</b>\n" +
       "/status KODE - lihat status pesanan\n" +
-      "/confirm KODE - tandai pembayaran lunas\n" +
+      "/verified KODE - tandai pembayaran lunas (sama dengan /confirm)\n" +
       "/tolakbukti KODE alasan - bukti salah, slot TETAP terblok\n" +
       "/batal KODE alasan - batalkan pesanan, slot DILEPAS (minta konfirmasi)\n" +
       "/pindah KODE YYYY-MM-DD HH:MM HH:MM [nama item] - pindah jadwal (jam WIB, kelipatan 30 menit)\n" +
-      "Balas pesan notifikasi dengan foto untuk melampirkan bukti transfer.";
-    if (perintah === "/bantuan" || perintah === "/help" || perintah === "/start") return balas(PANDUAN);
+      "Balas pesan notifikasi dengan foto untuk melampirkan bukti transfer.\n" +
+      "Pengingat H-3, H-1, dan saat waktu sewa habis dikirim otomatis ke grup ini.";
+    if (perintah === "/bantuan" || perintah === "/help" || perintah === "/start") {
+      return balas(PANDUAN + "\n\n" + require(`${__hooks}/jadwal-offline.js`).PANDUAN_JADWAL);
+    }
 
-    const KENAL = ["/status", "/confirm", "/konfirmasi", "/tolakbukti", "/batal", "/pindah"];
+    const KENAL = ["/status", "/confirm", "/konfirmasi", "/verified", "/verifikasi", "/lunas", "/tolakbukti", "/batal", "/pindah"];
     if (KENAL.indexOf(perintah) === -1) return e.json(200, { ok: true });
 
     const order = T.cariKode(e.app, potongan[1]);
@@ -210,7 +244,7 @@ routerAdd("POST", "/api/rental/telegram/webhook", (e) => {
         baris.map((b) => "• " + IN.esc(b.nama) + ": " + IN.esc(b.jadwal)).join("\n") +
         "\nTotal " + IN.esc(SH.A.rupiah(order.getFloat("total"))));
     }
-    if (perintah === "/confirm" || perintah === "/konfirmasi") {
+    if (["/confirm", "/konfirmasi", "/verified", "/verifikasi", "/lunas"].indexOf(perintah) !== -1) {
       const h = T.konfirmasiPembayaran(e.app, order.id, pelaku, potongan.slice(2).join(" "));
       if (!h.ok) return balas("❗ " + IN.esc(h.pesan));
       if (h.sudah) return balas("<code>" + IN.esc(kode) + "</code> sudah terkonfirmasi sebelumnya. Tidak ada yang diubah.");

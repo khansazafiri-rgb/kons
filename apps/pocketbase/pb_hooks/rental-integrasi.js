@@ -23,6 +23,11 @@
 
 const SH = require(`${__hooks}/rental-shared.js`);
 
+// Alamat layanan luar. Bisa dialihkan lewat variabel lingkungan HANYA untuk
+// uji lokal dengan server tiruan; di produksi variabel ini tidak diisi.
+const URL_TOKEN_GOOGLE = $os.getenv("PCV_UJI_GOOGLE_TOKEN") || "https://oauth2.googleapis.com/token";
+const URL_TELEGRAM = $os.getenv("PCV_UJI_TELEGRAM") || "https://api.telegram.org";
+
 // ---------------------------------------------------------------------------
 // 1. Access token Google
 // ---------------------------------------------------------------------------
@@ -60,7 +65,7 @@ function googleToken(s) {
 
   try {
     const res = $http.send({
-      url: "https://oauth2.googleapis.com/token",
+      url: URL_TOKEN_GOOGLE,
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form,
@@ -490,7 +495,7 @@ function telegram(s, metode, isi) {
   if (!telegramSiap(s)) return { ok: false, error: "Telegram belum dikonfigurasi." };
   try {
     const res = $http.send({
-      url: "https://api.telegram.org/bot" + s.getString("telegramBotToken") + "/" + metode,
+      url: URL_TELEGRAM + "/bot" + s.getString("telegramBotToken") + "/" + metode,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(isi),
