@@ -47,6 +47,8 @@ routerAdd("GET", "/api/pcv/ops/setelan", (e) => {
     sewaSampai: o.getString("sewaSampai"),
     ruangSewa: ruangSewa,
     enabled: o.getBool("enabled"),
+    calendarEnabled: o.getBool("calendarEnabled"),
+    calendarId: sR && sR.getString("googleRentalCalendarId"),
     sheetId: o.getString("sheetId"),
     chatIds: o.getString("chatIds"),
     jamRingkasan: o.getString("jamRingkasan") || "06:00",
@@ -111,6 +113,7 @@ routerAdd("POST", "/api/pcv/ops/setelan", (e) => {
   if (Array.isArray(b.petaRuang)) o.set("petaRuang", peta);
 
   o.set("enabled", !!b.enabled);
+  o.set("calendarEnabled", !!b.calendarEnabled);
   o.set("sheetId", sheetId);
   o.set("chatIds", chat.join(","));
   o.set("jamRingkasan", ("0" + Number(mj[1])).slice(-2) + ":" + mj[2]);
@@ -119,6 +122,14 @@ routerAdd("POST", "/api/pcv/ops/setelan", (e) => {
   o.set("grupBc", rapikan(b.grupBc, "grup", 200));
   o.set("lokasiAturan", rapikan(b.lokasiAturan, "nama", 120));
   e.app.save(o);
+
+  // SATU spreadsheet file: kolom Rental tidak punya sumber sendiri.
+  // Tabel transaksi opsional di workbook yang sama, tab bulan tetap kisi utama.
+  const rental = require(`${__hooks}/rental-shared.js`).setelan(e.app);
+  if (rental && sheetId && rental.getString("googleSheetId") !== sheetId) {
+    rental.set("googleSheetId", sheetId);
+    e.app.save(rental);
+  }
   return e.json(200, { ok: true });
 });
 
