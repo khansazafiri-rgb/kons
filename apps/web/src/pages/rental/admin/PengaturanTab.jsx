@@ -98,8 +98,12 @@ export default function RentalPengaturanTab({ lapor }) {
         }
       })();
 
+      // ID Google Sheet berasal dari Jadwal Offline; jangan izinkan
+      // formulir lama Rental menimpa nilai yang disinkronkan dari sana.
+      const perubahan = { ...f };
+      delete perubahan.googleSheetId;
       await pb.collection('rental_settings').update(rec.id, {
-        ...f,
+        ...perubahan,
         extraFees: biaya,
         defaultOpenMinute: Number(f.defaultOpenMinute) || 0,
         defaultCloseMinute: Number(f.defaultCloseMinute) || 0,
@@ -319,10 +323,12 @@ export default function RentalPengaturanTab({ lapor }) {
             <Kolom label="Refresh Token" lebar="sm:col-span-2">
               <input type="password" autoComplete="off" value={f.googleRefreshToken || ''} onChange={ubah('googleRefreshToken')} className={inputCls} />
             </Kolom>
-            <Kolom label="Calendar ID Peminjaman" bantuan="Kalender BARU khusus booking ruang - jangan pakai kalender kelas.">
+            <Kolom label="Google Calendar Terpadu" bantuan="Satu Calendar ID untuk kelas offline, Tramed/CCS, penyewaan manual, dan booking website. Proyeksi jadwal Sheet diaktifkan di Jadwal Offline; jangan pilih kalender yang juga diimpor sebagai sumber kelas agar tidak duplikat.">
               <input value={f.googleRentalCalendarId || ''} onChange={ubah('googleRentalCalendarId')} className={inputCls} />
             </Kolom>
-            <Kolom label="Spreadsheet ID"><input value={f.googleSheetId || ''} onChange={ubah('googleSheetId')} className={inputCls} /></Kolom>
+            <Kolom label="Google Sheet Jadwal Terpadu" bantuan="Otomatis mengikuti Tautan Google Sheet pada Admin PCV → Jadwal Offline. Tidak perlu membuat Spreadsheet ID kedua.">
+              <input readOnly value={f.googleSheetId || 'Belum ditetapkan di Jadwal Offline'} className={inputCls + ' bg-stone-100 text-stone-500'} />
+            </Kolom>
             <Kolom label="Folder Drive bukti pembayaran"><input value={f.googleDriveProofFolderId || ''} onChange={ubah('googleDriveProofFolderId')} className={inputCls} /></Kolom>
             <Kolom label="Token sinkronisasi Sheet" bantuan="Dipakai Apps Script untuk memanggil server. Perlakukan seperti kata sandi.">
               <input type="password" autoComplete="off" value={f.sheetSyncToken || ''} onChange={ubah('sheetSyncToken')} className={inputCls} />
