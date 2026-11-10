@@ -139,7 +139,7 @@ export default function AdminJadwalTambah() {
             <div className="rounded-2xl border border-alba-200 bg-alba-50 p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-bold"><Search size={16}/> Kamus nama dan riwayat</div>
               <label><span className={label}>Alias atau nama singkat yang dicari</span>
-                <input type="text" maxLength={160} value={alias} onChange={(e) => { setAlias(e.target.value); setNamaLengkap(''); }} placeholder="Misal RAFIF atau Kelas Offline 1-1" className={field} required/>
+                <input type="text" maxLength={160} value={alias} onChange={(e) => { setAlias(e.target.value); setNamaLengkap(e.target.value); }} placeholder="Misal RAFIF atau Kelas Offline 1-1" className={field} required/>
               </label>
               {hasil.length > 0 && (
                 <div className="mt-2 max-h-52 overflow-y-auto rounded-xl border border-alba-200 bg-white" role="list" aria-label="Saran dari riwayat">
