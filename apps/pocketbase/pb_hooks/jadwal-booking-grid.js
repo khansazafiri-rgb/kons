@@ -70,6 +70,9 @@ function simpanLink(app, lama, itemId, siap, tab, posisi, label) {
 
 function sinkronItem(app, siap, order, item) {
   const old = cariLink(app, item.id);
+  if (old && old.getString("sheetId") !== siap.sheetId) {
+    return { ok: false, error: "Booking sebelumnya ditulis ke workbook berbeda; periksa lokasi lama sebelum mengubah." };
+  }
   const aktif = item.getString("status") === "AKTIF" && order.getString("status") !== "DIBATALKAN";
   if (!aktif) return hapusBekas(app, siap, old);
   if (item.getString("resourceType") !== "RUANG") return { ok: true };
