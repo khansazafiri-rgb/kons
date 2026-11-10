@@ -24,6 +24,7 @@
 const SH = require(`${__hooks}/rental-shared.js`);
 const IN = require(`${__hooks}/rental-integrasi.js`);
 const P = require(`${__hooks}/jadwal-offline-parse.js`);
+const KC = require(`${__hooks}/jadwal-calendar.js`);
 
 const WIB_MS = 7 * 3600000;
 const HARI_MS = 86400000;
@@ -157,6 +158,7 @@ function cerminkanTab(app, o, hasil) {
   const perubahan = { tambah: [], hapus: [] };
   const dipakai = {};
   hasil.sesi.forEach((s) => {
+    if (KC.bookingWeb(s.teks)) return; // rental website sudah punya record dan event sendiri
     const k = kunciSesi(s);
     if (dipakai[k]) return; // dua sel identik di tempat yang sama: cukup satu
     dipakai[k] = true;
@@ -253,6 +255,7 @@ function cerminkanKeSewa(app, sR, o, hasilTab) {
     const terlihat = {};
 
     t.sesi.forEach((se) => {
+      if (KC.bookingWeb(se.teks)) return; // jangan memblok dua kali booking yang sama
       const roomId = roomIdUntuk(o, se.ruang);
       if (!roomId || !ruangSewa[roomId]) return;
       const eid = "jo:" + kunciSesi(se);
@@ -368,7 +371,7 @@ function sinkron(app, opsi) {
     const hasil = P.parseKisi(al.lembar);
     if (!hasil.ok) { ringkas.gagal.push(t.judul + ": " + hasil.peringatan.join(" ")); return; }
     const ubah = cerminkanTab(app, o, hasil);
-    terbaca.push({ bulan: hasil.bulan, tahun: hasil.tahun, sesi: hasil.sesi, ruang: hasil.ruang });
+    terbaca.push({ tab: hasil.tab, bulan: hasil.bulan, tahun: hasil.tahun, sesi: hasil.sesi, ruang: hasil.ruang });
     hasil.ruang.forEach((r) => { if (ruangDitemukan.indexOf(r) === -1) ruangDitemukan.push(r); });
     ringkas.tab.push(t.judul);
     ringkas.sesi += hasil.sesi.length;
@@ -396,6 +399,18 @@ function sinkron(app, opsi) {
       ringkas.sewa = cerminkanKeSewa(app, sR, o, terbaca);
     } catch (err) {
       ringkas.peringatan.push("Jadwal les belum bisa dihubungkan ke sewa: " + String(err).slice(0, 200));
+    }
+  }
+
+  // Proyeksi kalender memakai Calendar ID yang sama dengan booking website.
+  // Aktif hanya setelah admin mengizinkan lewat checkbox Jadwal Offline.
+  if (terbaca.length && o.getBool("calendarEnabled")) {
+    try {
+      ringkas.kalender = KC.sinkronKalender(app, o, sR, sheetId, terbaca);
+      (ringkas.kalender.gagal || []).forEach((m) => ringkas.peringatan.push("Google Calendar: " + m));
+      if (ringkas.kalender.tertunda) ringkas.peringatan.push(ringkas.kalender.tertunda + " event kalender menunggu putaran sinkron berikutnya.");
+    } catch (err) {
+      ringkas.peringatan.push("Google Calendar terpadu gagal: " + String(err).slice(0, 180));
     }
   }
 
@@ -970,6 +985,7 @@ module.exports = {
   sesiTanggal: sesiTanggal,
   daftarBc: daftarBc,
   sewaTanggal: sewaTanggal,
+  namaSheetUntuk: namaSheetUntuk,
   sinkron: sinkron,
   rakitRingkasan: rakitRingkasan,
   kirim: kirim,
